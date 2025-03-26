@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nonogram求解器</title>
+    <link rel="stylesheet" href="./logic.css">
+    <style>
+        .nonogram-container {display: flex; flex-direction: column; align-items: center;}
+        .nonogram-grid {display: grid; grid-template-columns: auto repeat(10, 1fr); grid-template-rows: auto repeat(10, 1fr); gap: 1px; background: var(--quantum-glass); padding: 1.5rem; border-radius: 24px; backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 30px var(--quantum-blue) inset; position: relative; transform: translateZ(30px) scale(1.1);}
+        .nonogram-cell {aspect-ratio: 1; width: 40px; height: 40px; display: grid; place-items: center; font-size: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: var(--neon-cyan); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;}
+        .nonogram-cell.filled {background: rgba(64,224,255,0.3);}
+        .clue-cell {background: rgba(179,136,255,0.1); font-weight: 600; color: var(--quantum-blue); border: none; text-align: center; word-break: break-all; cursor: text; padding: 2px; overflow: hidden;}
+        .clue-input {width: 100%; height: 100%; background: transparent; border: none; text-align: center; color: var(--quantum-blue); font-weight: 600; font-size: 0.9rem; outline: none;}
+        .clue-input:focus {box-shadow: 0 0 10px var(--quantum-blue) inset;}
+        .corner-cell {background: transparent; border: none;}
+        .size-input {width: 120px; height: 50px; background: linear-gradient(145deg, rgba(64, 224, 255, 0.05) 0%, rgba(179, 136, 255, 0.02) 100%); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; text-align: center; color: var(--neon-cyan); font-size: 1.2rem; margin: 0 1rem; margin-bottom: 20px; transition: all 0.3s; outline: none; box-shadow: 0 0 15px rgba(64,224,255,0.1) inset;}
+        .size-input:focus {border-color: var(--quantum-blue); box-shadow: 0 0 20px rgba(64,224,255,0.3);}
+        #result-message {margin-top: 1.5rem; padding: 1rem; background: rgba(64,224,255,0.1); border-radius: 12px; color: rgba(255,255,255,0.9);}
+        .controls {width: 90%;}
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Nonogram求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+    <div class="container">
+        <div class="nonogram-container">
+            <div class="nonogram-grid" id="nonogram-grid"></div>
+        </div>
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            <div class="size-inputs-row">
+                <div class="size-input-group">
+                    <label for="grid-rows">网格行数:</label>
+                    <input type="number" id="grid-rows" class="size-input" min="1" max="20" value="10">
+                    <label for="grid-cols">网格列数:</label>
+                    <input type="number" id="grid-cols" class="size-input" min="1" max="20" value="10">
+                </div>
+            </div>
+            <span style="white-space: nowrap;">
+                <button class="btn" id="create-grid">创建网格</button><button class="btn" id="solve-btn">求解谜题</button><button class="btn" id="reset-btn">重置网格</button>
+            </span>
+            <div style="margin: 2rem 0;">
+                <h2 style="margin-bottom: 1rem;">模式选择</h2>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn active" id="design-mode" style="padding: 1rem 1.5rem;">设计模式</button>
+                    <button class="btn" id="solution-mode" style="padding: 1rem 1.5rem;">解决方案</button>
+                </div>
+                <div class="solution-nav" id="solution-nav" style="display: none;">
+                    <button class="btn" id="prev-solution">◀ 上一个</button>
+                    <span class="solution-count" id="solution-count">解决方案 1/1</span>
+                    <button class="btn" id="next-solution">下一个 ▶</button>
+                </div>
+            </div>
+            <div id="result-message">在网格中点击单元格设计谜题，或直接在行列线索框中输入数字（用空格分隔）</div>
+        </div>
+    </div>
+    <script src="./39_nonogram.js"></script> <!-- 导入sudoku.js文件 -->
+</body>
+</html>

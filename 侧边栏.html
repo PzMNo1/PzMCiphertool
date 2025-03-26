@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8">
+		<title>密码工具箱 | By泡面的面</title>
+		<style>
+			:root {
+				--bg: #1a1a1a;
+				--primary: #2ecc71;
+				--secondary: #3498db;
+				--accent: #9b59b6;
+				--text: #ecf0f1;
+				--card-bg: #2c3e50;
+				--error: #e74c3c;
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				font-family: 'Segoe UI', system-ui;
+			}
+
+			body {
+				background: var(--bg);
+				color: var(--text);
+				line-height: 1.6;
+				padding: 2rem;
+				min-height: 100vh;
+			}
+
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+				gap: 1.5rem;
+			}
+
+			.main-input {
+				grid-column: 1/-1;
+			}
+
+			.card {
+				background: var(--card-bg);
+				border-radius: 15px;
+				padding: 1.5rem;
+				box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+				transition: transform 0.3s ease;
+				position: relative;
+			}
+
+			.card:hover {
+				transform: translateY(-5px);
+			}
+
+			h1 {
+				text-align: center;
+				margin-bottom: 2rem;
+				font-size: 2.5rem;
+				text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+				background: linear-gradient(45deg, var(--primary), var(--secondary));
+				-webkit-background-clip: text;
+				background-clip: text; 	/* 添加标准属性 */
+				-webkit-text-fill-color: transparent;
+			}
+
+			.input-group {
+				margin-bottom: 1.5rem;
+				position: relative;
+			}
+
+			input, textarea {
+				width: 100%;
+				padding: 0.8rem;
+				background: rgba(255,255,255,0.1);
+				border: 2px solid transparent;
+				border-radius: 8px;
+				color: var(--text);
+				transition: all 0.3s ease;
+			}
+
+			textarea {
+				min-height: 120px;
+			}
+
+			input:focus, textarea:focus {
+				outline: none;
+				border-color: var(--primary);
+				box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+			}
+
+			.result {
+				background: rgba(0,0,0,0.3);
+				padding: 1rem;
+				border-radius: 8px;
+				min-height: 80px;
+				white-space: pre-wrap;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.result::after {
+				content: "";
+				position: absolute;
+				top: 0;
+				left: -100%;
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(
+					90deg,
+					transparent,
+					rgba(255,255,255,0.1),
+					transparent
+				);
+				animation: shine 1.5s infinite;
+			}
+
+			@keyframes shine {
+				100% {
+					left: 100%;
+				}
+			}
+
+			.badge {
+				position: absolute;
+				top: -10px;
+				right: -10px;
+				background: var(--accent);
+				color: white;
+				padding: 0.3rem 0.8rem;
+				border-radius: 20px;
+				font-size: 0.8rem;
+				box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr auto;
+				gap: 1rem;
+			}
+		</style>
+		<link rel="stylesheet" href="./cebianlan.css"> 
+	</head>
+
+	<body>
+
+		<!-- 新增侧边栏 -->
+            <aside class="sidebar">
+                <a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi"> <div class="menu-icon"></div><span class="menu-text">加密实验室</span></a>
+                <a href="#suanfakanban" class="menu-item" data-target="suanfakanban"> <div class="menu-icon"></div><span class="menu-text">算法看板</span></a>
+                <a href="#shishijiankong" class="menu-item" data-target="shishijiankong"> <div class="menu-icon"></div><span class="menu-text">实时监控</span></a>
+                <a href="#shujuliufenxi" class="menu-item" data-target="shujuliufenxi"> <div class="menu-icon"></div><span class="menu-text">数据流分析</span></a>
+            </aside>
+		
+
+		<h1>密码工具箱 | By泡面的面</h1>
+        <div class="container">
+        <div id="jiamishiyanshi-content" class="content-section">
+            <h2>加密实验室</h2>
+            <p>这里是加密实验室的内容...</p>
+            </div>
+
+        <div id="suanfakanban-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
+            <h2>算法看板</h2>
+            <p>这里是算法看板的内容...</p>
+            </div>
+
+        <div id="shishijiankong-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
+            <h2>实时监控</h2>
+            <p>这里是实时监控的内容...</p>
+            </div>
+
+        <div id="shujuliufenxi-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
+            <h2>数据流分析</h2>
+            <p>这里是数据流分析的内容...</p>
+            </div>
+
+        <div class="card main-input">
+            <div class="badge">输入</div>
+            <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
+        </div>
+    </div>
+
+		<script>
+			
+			// 实时更新函数
+			function updateAll() {
+				const text = document.getElementById('mainInput').value;
+				if (!text) {
+					document.querySelectorAll('.result').forEach(el => el.textContent = '');
+					return;
+				}
+			}
+
+			// 事件监听
+			document.querySelectorAll('input, textarea').forEach(el => {
+				el.addEventListener('input', updateAll);
+			});
+
+			// 初始化
+			updateAll();
+
+            //侧边栏选项交互
+            const contentSections = document.querySelectorAll('.content-section');
+            const menuItems = document.querySelectorAll('.menu-item');
+            function hideAllSections() {
+                contentSections.forEach(section => {
+                    section.style.display = 'none';
+                });
+            }
+            function showSection(sectionId) {
+                const section = document.getElementById(sectionId + '-content'); // 拼接 ID
+                if (section) {
+                    section.style.display = 'block'; // 或者您希望的显示方式，如 'flex', 'grid' 等
+                }
+            }
+            menuItems.forEach(menuItem => {
+                menuItem.addEventListener('click', function(event) {
+                    event.preventDefault(); // 阻止默认的锚点链接跳转行为 (页面滚动)
+                    const targetSectionId = this.dataset.target; // 获取 data-target 属性值
+                    hideAllSections(); // 隐藏所有内容区域
+                    showSection(targetSectionId); // 显示目标内容区域
+                });
+            });
+            hideAllSections();
+            showSection('jiamishiyanshi'); 
+        
+
+		</script>
+	</body>
+</html>
