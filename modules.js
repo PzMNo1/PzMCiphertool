@@ -423,24 +423,15 @@ const MODULES = {
 </div>`,
 
     // 意见反馈模块
-    yijianfankui: `<!-- 意见反馈 -->
-<div id="yijianfankui-content" class="content-section">
-    <div class="container">
-    <h3>这里是意见反馈的内容...<h3>
-        input: 你的意见...
-        return: 你的意见被碎纸机吃掉了
-    </div>
+    yijianfankui: `<div id="yijianfankui-content" class="content-section">
+    <div class="container"><h3>这里是意见反馈的内容...</h3>input: 你的意见...<br>return: 你的意见被碎纸机吃掉了</div>
 </div>`
 }; 
 
 
 // 先加载所有模块内容
 function loadModulesFromJS() {
-    if (typeof MODULES === 'undefined') {
-        console.error('模块内容未定义，请确保modules.js已正确加载');
-        return;
-    }
-    
+    if (!MODULES) return console.error('模块内容未定义');
     document.getElementById('jiamishiyanshi-container').innerHTML = MODULES.jiamishiyanshi;
     document.getElementById('zhishitupu-container').innerHTML = MODULES.zhishitupu;
     document.getElementById('damoxing-container').innerHTML = MODULES.damoxing;
