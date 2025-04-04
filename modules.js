@@ -331,66 +331,66 @@ const MODULES = {
     <div id="luojimiti" class="submodule">
         <div class="container">
             <a href="./logic/1_sudoku.html" class="btn back-btn logic-btn">数独</a>
-            <a href="./logic/2_Akari.html" class="btn back-btn">Akari</a>
-            <a href="./logic/3_Aqre.html" class="btn back-btn">Aqre</a>
-            <a href="./logic/4_aquapelago.html" class="btn back-btn">aquapelago</a>
-            <a href="./logic/5_aquarium.html" class="btn back-btn">aquarium</a>
-            <a href="./logic/6_balanceloop.html" class="btn back-btn">balanceloop</a>
-            <a href="./logic/7_battleship.html" class="btn back-btn">battleship</a>
-            <a href="./logic/8_binairo.html" class="btn back-btn">binairo</a>
-            <a href="./logic/9_castlewall.html" class="btn back-btn">castlewall</a>
-            <a href="./logic/10_cave.html" class="btn back-btn">cave</a>
-            <a href="./logic/11_chocobanana.html" class="btn back-btn">chocobanana</a>
-            <a href="./logic/12_chocona.html" class="btn back-btn">chocona</a>
-            <a href="./logic/15_countryroad.html" class="btn back-btn">countryroad</a>
-            <a href="./logic/16_doppelblock.html" class="btn back-btn">doppelblock</a>
-            <a href="./logic/17_easyas.html" class="btn back-btn">easyas</a>
-            <a href="./logic/18_fillomino.html" class="btn back-btn">fillomino</a>
-            <a href="./logic/19_gokigen.html" class="btn back-btn">gokigen</a>
-            <a href="./logic/20_haisu.html" class="btn back-btn">haisu</a>
-            <a href="./logic/21_haisuslow.html" class="btn back-btn">haisuslow</a>
-            <a href="./logic/22_hamle.html" class="btn back-btn">hamle</a>
-            <a href="./logic/23_hashi.html" class="btn back-btn">hashi</a>
-            <a href="./logic/24_heteromino.html" class="btn back-btn">heteromino</a>
-            <a href="./logic/25_heyawake.html" class="btn back-btn">heyawake</a>
-            <a href="./logic/26_hitori.html" class="btn back-btn">hitori</a>
-            <a href="./logic/27_hotaru.html" class="btn back-btn">hotaru</a>
-            <a href="./logic/28_kakuro.html" class="btn back-btn">kakuro</a>
-            <a href="./logic/29_kuromasu.html" class="btn back-btn">kuromasu</a>
-            <a href="./logic/30_kurotto.html" class="btn back-btn">kurotto</a>
-            <a href="./logic/31_lits.html" class="btn back-btn">lits</a>
-            <a href="./logic/32_magnets.html" class="btn back-btn">magnets</a>
-            <a href="./logic/33_masyu.html" class="btn back-btn">masyu</a>
-            <a href="./logic/34_minesweeper.html" class="btn back-btn">minesweeper</a>
-            <a href="./logic/35_moonsun.html" class="btn back-btn">moonsun</a>
-            <a href="./logic/36_nagare.html" class="btn back-btn">nagare</a>
-            <a href="./logic/37_nanro.html" class="btn back-btn">nanro</a>
-            <a href="./logic/38_ncells.html" class="btn back-btn">ncells</a>
-            <a href="./logic/39_nonogram.html" class="btn back-btn">nonogram</a>
-            <a href="./logic/40_norinori.html" class="btn back-btn">norinori</a>
-            <a href="./logic/41_numberlink.html" class="btn back-btn">numberlink</a>
-            <a href="./logic/42_nuribou.html" class="btn back-btn">nuribou</a>
-            <a href="./logic/43_nurikabe.html" class="btn back-btn">nurikabe</a>
-            <a href="./logic/44_nurimisaki.html" class="btn back-btn">nurimisaki</a>
-            <a href="./logic/45_onsen.html" class="btn back-btn">onsen</a>
-            <a href="./logic/46_rippleeffect.html" class="btn back-btn">rippleeffect</a>
-            <a href="./logic/47_shakashaka.html" class="btn back-btn">shakashaka</a>
-            <a href="./logic/48_shikaku.html" class="btn back-btn">shikaku</a>
-            <a href="./logic/49_shimaguni.html" class="btn back-btn">shimaguni</a>
-            <a href="./logic/50_skyscrapers.html" class="btn back-btn">skyscrapers</a>
-            <a href="./logic/51_slitherlink.html" class="btn back-btn">slitherlink</a>
-            <a href="./logic/52_spiralgalaxies.html" class="btn back-btn">spiralgalaxies</a>
-            <a href="./logic/53_starbattle.html" class="btn back-btn">starbattle</a>
-            <a href="./logic/54_statuepark.html" class="btn back-btn">statuepark</a>
-            <a href="./logic/55_stostone.html" class="btn back-btn">stostone</a>
-            <a href="./logic/56_tapa.html" class="btn back-btn">tapa</a>
-            <a href="./logic/57_tatamibari.html" class="btn back-btn">tatamibari</a>
-            <a href="./logic/58_tents.html" class="btn back-btn">tents</a>
-            <a href="./logic/59_tll.html" class="btn back-btn">tll</a>
-            <a href="./logic/60_tren.html" class="btn back-btn">tren</a>
-            <a href="./logic/61_yajilin.html" class="btn back-btn">yajilin</a>
-            <a href="./logic/62_yajisankazusan.html" class="btn back-btn">yajisankazusan</a>
-            <a href="./logic/63_yinyang.html" class="btn back-btn">yinyang</a>
+            <a href="./logic/2_Akari.html" class="btn back-btn logic-btn">Akari</a>
+            <a href="./logic/3_Aqre.html" class="btn back-btn logic-btn">Aqre</a>
+            <a href="./logic/4_aquapelago.html" class="btn back-btn logic-btn">aquapelago</a>
+            <a href="./logic/5_aquarium.html" class="btn back-btn logic-btn">aquarium</a>
+            <a href="./logic/6_balanceloop.html" class="btn back-btn logic-btn">balanceloop</a>
+            <a href="./logic/7_battleship.html" class="btn back-btn logic-btn">battleship</a>
+            <a href="./logic/8_binairo.html" class="btn back-btn logic-btn">binairo</a>
+            <a href="./logic/9_castlewall.html" class="btn back-btn logic-btn">castlewall</a>
+            <a href="./logic/10_cave.html" class="btn back-btn logic-btn">cave</a>
+            <a href="./logic/11_chocobanana.html" class="btn back-btn logic-btn">chocobanana</a>
+            <a href="./logic/12_chocona.html" class="btn back-btn logic-btn">chocona</a>
+            <a href="./logic/15_countryroad.html" class="btn back-btn logic-btn">countryroad</a>
+            <a href="./logic/16_doppelblock.html" class="btn back-btn logic-btn">doppelblock</a>
+            <a href="./logic/17_easyas.html" class="btn back-btn logic-btn">easyas</a>
+            <a href="./logic/18_fillomino.html" class="btn back-btn logic-btn">fillomino</a>
+            <a href="./logic/19_gokigen.html" class="btn back-btn logic-btn">gokigen</a>
+            <a href="./logic/20_haisu.html" class="btn back-btn logic-btn">haisu</a>
+            <a href="./logic/21_haisuslow.html" class="btn back-btn logic-btn">haisuslow</a>
+            <a href="./logic/22_hamle.html" class="btn back-btn logic-btn">hamle</a>
+            <a href="./logic/23_hashi.html" class="btn back-btn logic-btn">hashi</a>
+            <a href="./logic/24_heteromino.html" class="btn back-btn logic-btn">heteromino</a>
+            <a href="./logic/25_heyawake.html" class="btn back-btn logic-btn">heyawake</a>
+            <a href="./logic/26_hitori.html" class="btn back-btn logic-btn">hitori</a>
+            <a href="./logic/27_hotaru.html" class="btn back-btn logic-btn">hotaru</a>
+            <a href="./logic/28_kakuro.html" class="btn back-btn logic-btn">kakuro</a>
+            <a href="./logic/29_kuromasu.html" class="btn back-btn logic-btn">kuromasu</a>
+            <a href="./logic/30_kurotto.html" class="btn back-btn logic-btn">kurotto</a>
+            <a href="./logic/31_lits.html" class="btn back-btn logic-btn">lits</a>
+            <a href="./logic/32_magnets.html" class="btn back-btn logic-btn">magnets</a>
+            <a href="./logic/33_masyu.html" class="btn back-btn logic-btn">masyu</a>
+            <a href="./logic/34_minesweeper.html" class="btn back-btn logic-btn">minesweeper</a>
+            <a href="./logic/35_moonsun.html" class="btn back-btn logic-btn">moonsun</a>
+            <a href="./logic/36_nagare.html" class="btn back-btn logic-btn">nagare</a>
+            <a href="./logic/37_nanro.html" class="btn back-btn logic-btn">nanro</a>
+            <a href="./logic/38_ncells.html" class="btn back-btn logic-btn">ncells</a>
+            <a href="./logic/39_nonogram.html" class="btn back-btn logic-btn">nonogram</a>
+            <a href="./logic/40_norinori.html" class="btn back-btn logic-btn">norinori</a>
+            <a href="./logic/41_numberlink.html" class="btn back-btn logic-btn">numberlink</a>
+            <a href="./logic/42_nuribou.html" class="btn back-btn logic-btn">nuribou</a>
+            <a href="./logic/43_nurikabe.html" class="btn back-btn logic-btn">nurikabe</a>
+            <a href="./logic/44_nurimisaki.html" class="btn back-btn logic-btn">nurimisaki</a>
+            <a href="./logic/45_onsen.html" class="btn back-btn logic-btn">onsen</a>
+            <a href="./logic/46_rippleeffect.html" class="btn back-btn logic-btn">rippleeffect</a>
+            <a href="./logic/47_shakashaka.html" class="btn back-btn logic-btn">shakashaka</a>
+            <a href="./logic/48_shikaku.html" class="btn back-btn logic-btn">shikaku</a>
+            <a href="./logic/49_shimaguni.html" class="btn back-btn logic-btn">shimaguni</a>
+            <a href="./logic/50_skyscrapers.html" class="btn back-btn logic-btn">skyscrapers</a>
+            <a href="./logic/51_slitherlink.html" class="btn back-btn logic-btn">slitherlink</a>
+            <a href="./logic/52_spiralgalaxies.html" class="btn back-btn logic-btn">spiralgalaxies</a>
+            <a href="./logic/53_starbattle.html" class="btn back-btn logic-btn">starbattle</a>
+            <a href="./logic/54_statuepark.html" class="btn back-btn logic-btn">statuepark</a>
+            <a href="./logic/55_stostone.html" class="btn back-btn logic-btn">stostone</a>
+            <a href="./logic/56_tapa.html" class="btn back-btn logic-btn">tapa</a>
+            <a href="./logic/57_tatamibari.html" class="btn back-btn logic-btn">tatamibari</a>
+            <a href="./logic/58_tents.html" class="btn back-btn logic-btn">tents</a>
+            <a href="./logic/59_tll.html" class="btn back-btn logic-btn">tll</a>
+            <a href="./logic/60_tren.html" class="btn back-btn logic-btn">tren</a>
+            <a href="./logic/61_yajilin.html" class="btn back-btn logic-btn">yajilin</a>
+            <a href="./logic/62_yajisankazusan.html" class="btn back-btn logic-btn">yajisankazusan</a>
+            <a href="./logic/63_yinyang.html" class="btn back-btn logic-btn">yinyang</a>
         </div>
     </div>
     
@@ -405,21 +405,13 @@ const MODULES = {
 </div>`,
 
     // 知识图谱模块
-    zhishitupu: `<!-- 知识图谱 -->
-<div id="zhishitupu-content" class="content-section">
-    <div class="container">
-    <h3>这里是知识图谱的内容...<h3>
-        知识图谱
-    </div>
+    zhishitupu: `<div id="zhishitupu-content" class="content-section">
+    <div class="container"><h3>这里是知识图谱的内容...</h3>知识图谱</div>
 </div>`,
 
     // 大模型模块
-    damoxing: `<!-- 大模型 -->
-<div id="damoxing-content" class="content-section" > 
-    <div class="container">
-    <h3>这里是大模型的内容...<h3>
-        大模型
-    </div>
+    damoxing: `<div id="damoxing-content" class="content-section">
+    <div class="container"><h3>这里是大模型的内容...</h3>大模型</div>
 </div>`,
 
     // 意见反馈模块
@@ -428,113 +420,47 @@ const MODULES = {
 </div>`
 }; 
 
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+        [
+            './cipher/1_cipherlab.js',
+            './cipher/2_ADFGXCipher.js',
+            './cipher/3_Enigma.js',
+            './cipher/4_MD5.js',
+            './cipher/6_semaphore.js',
+            '0_sidebar_funtion.js',
+            './cipher/999_funtion.js'
+        ]
 
-// 先加载所有模块内容
-function loadModulesFromJS() {
-    if (!MODULES) return console.error('模块内容未定义');
-    document.getElementById('jiamishiyanshi-container').innerHTML = MODULES.jiamishiyanshi;
-    document.getElementById('zhishitupu-container').innerHTML = MODULES.zhishitupu;
-    document.getElementById('damoxing-container').innerHTML = MODULES.damoxing;
-    document.getElementById('yijianfankui-container').innerHTML = MODULES.yijianfankui;
-    
-    // 延迟初始化Enigma
-    setTimeout(window.initEnigma, 300);
-}
-
-function showModule(moduleId) {
-    const containers = document.querySelectorAll('.container1 > div');
-    containers.forEach(container => {
-        container.style.display = 'none';
-    });
-    document.getElementById(moduleId + '-container').style.display = 'block';
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(item => {
-        if (item.getAttribute('data-target') === moduleId) {
-            item.classList.add('active');
-        } else {
-            item.classList.remove('active');
-        }
-    });
-}
-
-function initSubmoduleButtons() {
-    document.querySelectorAll('.submodule-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.submodule-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            const targetId = this.getAttribute('data-target');
-            document.querySelectorAll('.submodule').forEach(sub => sub.classList.remove('active'));
-            document.getElementById(targetId).classList.add('active');
+        .reduce((promise, src) => promise.then(() => new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                document.body.appendChild(script);
+            })), Promise.resolve()).then(() => {
+            if (typeof initSearchFunction === 'function') initSearchFunction();
         });
-    });
-}
-function initSearchFunction() {
-    const searchInput = document.getElementById('cardSearch');
-    searchInput.addEventListener('keydown', (event) => { 
-        if (event.key === 'Enter') {
-            event.preventDefault(); 
-            const searchTerm = searchInput.value.toLowerCase();
-            let foundCard = null;
-            document.querySelectorAll('.card').forEach(card => {
-                const badge = card.querySelector('.badge');
-                if (badge) {const cardTitle = badge.textContent.toLowerCase();
-                    if (cardTitle.includes(searchTerm)) {if (!foundCard) {foundCard = card;}}}});
-            if (foundCard) {
-                foundCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-                foundCard.classList.add('card-highlight');
-                setTimeout(() => {foundCard.classList.remove('card-highlight');}, 5000);
-            }}});}
-
-function initQiyuCanvas() {
-    if (typeof setupQiyuCanvas === 'function') {
-        setupQiyuCanvas();
-    }
-}
-
-function initApp() {
-    loadModulesFromJS();
-    showModule('jiamishiyanshi');
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            const target = this.getAttribute('data-target');
-            showModule(target);
-        });
-    });
-    const scripts = [
-        './cipher/1_cipherlab.js',
-        './cipher/2_ADFGXCipher.js',
-        './cipher/3_Enigma.js',
-        './cipher/4_MD5.js',
-        './cipher/6_semaphore.js',
-        '0_sidebar_funtion.js',
-        './cipher/999_funtion.js'
-    ];
-    function loadScriptsSequentially(index) {
-        if (index >= scripts.length) {
-            initSubmoduleButtons();
-            initSearchFunction();
-            initQiyuCanvas();
-            return;
-        }
         
-        const script = document.createElement('script');
-        script.src = scripts[index];
-        script.onload = function() {
-            loadScriptsSequentially(index + 1);
-        };
-        document.body.appendChild(script);
-    }
-    loadScriptsSequentially(0);
-}
-document.addEventListener('DOMContentLoaded', initApp);
+    if (!MODULES) return console.error('模块内容未定义');
+    ['jiamishiyanshi', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id => 
+        document.getElementById(id + '-container').innerHTML = MODULES[id]
+    );
+    const showModule = id => {
+        document.querySelectorAll('.container1 > div').forEach(e => e.style.display = 'none');
+        document.getElementById(id + '-container').style.display = 'block';
+        document.querySelectorAll('.menu-item').forEach(item => 
+            item.classList[item.getAttribute('data-target') === id ? 'add' : 'remove']('active')
+        );
+    };
+    showModule('jiamishiyanshi');
+    document.querySelectorAll('.menu-item').forEach(item => 
+        item.addEventListener('click', e => {
+            e.preventDefault();
+            showModule(item.getAttribute('data-target'));
+        })
+    );
+});
 
-// 全局暴露Enigma初始化函数
-window.initEnigma = function() {
-    if (typeof initEnigmaUI === 'function') {
-        initEnigmaUI();
-    } else if (typeof updateEnigmaLayout === 'function') {
-        updateEnigmaLayout();
-    }
-};
+window.CCC_TABLE = window.CCC_TABLE || [];
+window.performance && window.performance.mark && window.performance.mark('app-start');
+

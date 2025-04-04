@@ -1,4 +1,3 @@
-
 // 这是侧边栏选项的交互作用函数
 const contentSections = document.querySelectorAll('.content-section');
 const menuItems = document.querySelectorAll('.menu-item');
@@ -18,26 +17,6 @@ menuItems.forEach(menuItem => {
 hideAllSections();
 showSection('jiamishiyanshi'); 
 
-/* 这是侧边栏搜索定位功能 */
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('cardSearch');
-    const cards = document.querySelectorAll('.card');
-    searchInput.addEventListener('keydown', (event) => { 
-        if (event.key === 'Enter') {
-            event.preventDefault(); 
-            const searchTerm = searchInput.value.toLowerCase();
-            let foundCard = null;
-            cards.forEach(card => {const badge = card.querySelector('.badge');
-                if (badge) {const cardTitle = badge.textContent.toLowerCase();
-                    if (cardTitle.includes(searchTerm)) {if (!foundCard) {foundCard = card;}}
-                }});
-            if (foundCard) {
-                foundCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-                foundCard.classList.add('card-highlight');
-                setTimeout(() => {foundCard.classList.remove('card-highlight');}, 5000);
-            }}});
-        });
-
 // 这是加密实验室里的子模块切换逻辑
 document.querySelectorAll('.submodule-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -48,6 +27,31 @@ document.querySelectorAll('.submodule-btn').forEach(btn => {
         document.getElementById(this.dataset.target).classList.add('active');
     });
 });
+
+// 这是侧边栏搜索框定位功能
+function initSearchFunction() {
+    const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s)
+    $('#cardSearch').addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return
+        e.preventDefault()
+        let target
+        $$('.card, .logic-btn').forEach(el => {
+            const text = el.classList.contains('card') 
+                ? el.querySelector('.badge')?.textContent 
+                : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
+            if (text?.toLowerCase().includes(e.target.value.toLowerCase()
+                .trim())) target ??= el
+        })
+
+        if (!target) return $('#searchToast')?.remove() || ($('body').insertAdjacentHTML('beforeend', 
+            '<div id=searchToast class=search-toast>🔍 未找到相关谜题</div>') && setTimeout(() => $('#searchToast')?.remove(), 2e3))
+        const isLogic = target.classList.contains('logic-btn')
+        isLogic && ($('.submodule-nav [data-target="luojimiti"]').click(), target.closest('.submodule').classList.add('active'))
+        target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight')
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setTimeout(() => target.classList.remove(isLogic ? 'logic-highlight' : 'card-highlight'), 5e3)
+    })
+}
 
 
 

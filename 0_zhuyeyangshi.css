@@ -679,3 +679,197 @@ body::before {
 .cyber-button:hover .cyber-button__glitch {
 	animation: glitch 0.5s infinite;
 }
+
+
+.logic-highlight { animation: logic-highlight 1.5s ease; }
+
+.logic-btn.logic-highlight {
+    animation: logic-pulse 0.8s ease;
+    border-color: #ffd700 !important;
+    box-shadow: 0 0 15px #ffd70080 !important;
+}
+
+@keyframes logic-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 响应式设计 - 移动端适配 */
+@media screen and (max-width: 768px) {
+  /* 容器布局调整 */
+  .container {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+    padding-top: 5rem;
+    gap: 1rem;
+  }
+  
+  /* 侧边栏调整 */
+  .sidebar {
+    width: 100%;
+    height: auto;
+    left: 0;
+    top: 0;
+    border-radius: 0 0 15px 15px;
+    padding: 0.5rem 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    overflow: visible;
+  }
+  
+  .sidebar h1 {
+    display: none;
+  }
+  
+  .sidebar-title {
+    padding: 0.5rem;
+    margin-bottom: 0;
+    flex: 1;
+  }
+  
+  .sidebar-title h2 {
+    font-size: 1.2rem;
+  }
+  
+  .sidebar:hover {
+    height: auto;
+    width: 100%;
+    border-radius: 0 0 15px 15px;
+  }
+  
+  .sidebar:hover + .container1 {
+    padding-left: 0;
+  }
+  
+  /* 侧边栏展开时的布局 */
+  .sidebar:hover .menu-item {
+    display: block;
+  }
+  
+  .menu-item {
+    display: none;
+    padding: 0.8rem 1rem;
+  }
+  
+  .sidebar:hover {
+    flex-direction: column;
+  }
+  
+  /* 按钮样式调整 */
+  .btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+    margin: 0.3rem;
+  }
+  
+  .back-btn {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.8rem;
+  }
+  
+  /* 卡片样式调整 */
+  .card {
+    padding: 1.2rem;
+    border-radius: 12px;
+  }
+  
+  /* 网格布局调整 */
+  .grid-2, .grid-3 {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  
+  /* 子模块导航 */
+  .submodule-nav {
+    margin-top: 3.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  /* 逻辑谜题区域 */
+  #luojimiti .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  #luojimiti .logic-btn {
+    margin: 0.3rem;
+    flex: 0 0 calc(50% - 0.6rem);
+  }
+  
+  /* 搜索框 */
+  .sidebar-search {
+    width: 100%;
+    padding: 0.5rem;
+  }
+  
+  .sidebar:hover .sidebar-search {
+    display: block;
+  }
+  
+  /* 菜单展开按钮 */
+  .menu-toggle {
+    display: block;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    z-index: 1002;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  
+  /* 输入区域调整 */
+  textarea {
+    min-height: 100px;
+  }
+  
+  /* 表单元素调整 */
+  input, select {
+    font-size: 16px; /* 防止iOS自动缩放 */
+  }
+}
+
+/* 小型手机屏幕 */
+@media screen and (max-width: 375px) {
+  .sidebar-title h2 {
+    font-size: 1rem;
+  }
+  
+  .btn {
+    padding: 0.7rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+  
+  #luojimiti .logic-btn {
+    flex: 0 0 calc(100% - 0.6rem);
+  }
+}
+
+/* 适配横屏模式 */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  .container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .sidebar {
+    height: auto;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  
+  #luojimiti .logic-btn {
+    flex: 0 0 calc(33.33% - 0.6rem);
+  }
+}

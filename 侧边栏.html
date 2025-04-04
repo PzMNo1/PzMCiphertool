@@ -140,47 +140,26 @@
 				gap: 1rem;
 			}
 		</style>
-		<link rel="stylesheet" href="./cebianlan.css"> 
+		<link rel="stylesheet" href="./0_zhuyeyangshi.css"> 
 	</head>
 
 	<body>
 
-		<!-- 新增侧边栏 -->
-            <aside class="sidebar">
-                <a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi"> <div class="menu-icon"></div><span class="menu-text">加密实验室</span></a>
-                <a href="#suanfakanban" class="menu-item" data-target="suanfakanban"> <div class="menu-icon"></div><span class="menu-text">算法看板</span></a>
-                <a href="#shishijiankong" class="menu-item" data-target="shishijiankong"> <div class="menu-icon"></div><span class="menu-text">实时监控</span></a>
-                <a href="#shujuliufenxi" class="menu-item" data-target="shujuliufenxi"> <div class="menu-icon"></div><span class="menu-text">数据流分析</span></a>
-            </aside>
-		
-
-		<h1>密码工具箱 | By泡面的面</h1>
-        <div class="container">
-        <div id="jiamishiyanshi-content" class="content-section">
-            <h2>加密实验室</h2>
-            <p>这里是加密实验室的内容...</p>
-            </div>
-
-        <div id="suanfakanban-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
-            <h2>算法看板</h2>
-            <p>这里是算法看板的内容...</p>
-            </div>
-
-        <div id="shishijiankong-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
-            <h2>实时监控</h2>
-            <p>这里是实时监控的内容...</p>
-            </div>
-
-        <div id="shujuliufenxi-content" class="content-section" style="display: none;"> <! -- 初始隐藏 -->
-            <h2>数据流分析</h2>
-            <p>这里是数据流分析的内容...</p>
-            </div>
-
-        <div class="card main-input">
-            <div class="badge">输入</div>
-            <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
-        </div>
-    </div>
+		<aside class="sidebar" id="sidebar">
+			<h1>By泡面的面</h1>
+			<div class="sidebar-title"><h2>密码工具箱</h2></div>
+			<div class="sidebar-search"><input type="text" id="cardSearch" placeholder="搜索密码卡片..."></div>
+			<a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi"><div class="menu-icon"></div><span class="menu-text">加密实验室</span></a>
+			<a href="#zhishitupu" class="menu-item" data-target="zhishitupu"><div class="menu-icon"></div><span class="menu-text">知识图谱</span></a>
+			<a href="#damoxing" class="menu-item" data-target="damoxing"><div class="menu-icon"></div><span class="menu-text">大模型</span></a>
+			<a href="#yijianfankui" class="menu-item" data-target="yijianfankui"><div class="menu-icon"></div><span class="menu-text">意见反馈</span></a>
+		</aside>
+		<div class="container1"> 
+			<div id="jiamishiyanshi-container"></div>
+			<div id="zhishitupu-container"></div>
+			<div id="damoxing-container"></div>
+			<div id="yijianfankui-container"></div>
+		</div>
 
 		<script>
 			

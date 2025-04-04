@@ -226,10 +226,6 @@ document.getElementById('qiyuType').addEventListener('change', function() {
 	setupQiyuCanvas(); // 重新初始化画布
 });
 
-document.addEventListener('DOMContentLoaded', function() {
-	setupQiyuCanvas();
-});
-
 function drawSemaphoreBackground(canvas) {
 	const ctx = canvas.getContext('2d');
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -357,8 +353,8 @@ function drawBrailleDots(canvas, bits) {
 				pts[i][0] / 100 * canvas.width, pts[i][1] * 120 / 100, 0,
 				pts[i][0] / 100 * canvas.width, pts[i][1] * 120 / 100, 7 * 120 / 100
 			);
-			dotGradient.addColorStop(0, '#2ecc71'); // 明亮的绿色中心
-			dotGradient.addColorStop(1, '#00bcd4'); // 亮青色边缘
+			dotGradient.addColorStop(0, '#2ecc71'); 
+			dotGradient.addColorStop(1, '#00bcd4'); 
 			ctx.fillStyle = dotGradient;
 			ctx.fill();
 			ctx.beginPath();

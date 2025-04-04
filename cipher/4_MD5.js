@@ -120,7 +120,7 @@ function hh (a, b, c, d, x, s, t) {return cmn(b ^ c ^ d, a, b, x, s, t)}
 function ii (a, b, c, d, x, s, t) {return cmn(c ^ (b | (~d)), a, b, x, s, t)}
 
 
-// Hmac算法及校验
+// Hmac
 function hmacMD5(keyBytes, messageBytes) {
   if (keyBytes.length > 64) {
       keyBytes = md5(keyBytes);  

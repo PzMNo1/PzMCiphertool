@@ -464,6 +464,7 @@ const TapCode = {
       i > 0 && (r += lm);
       r += tm.repeat(row) + gm + tm.repeat(col);
     } return r;},
+    
   d: (c, tm='.', gm=' ', lm='  ') => {
     if(!c) return '';
     const a = 'abcdefghijlmnopqrstuvwxyz';
@@ -571,7 +572,7 @@ const baseCipher = {
             if(cp >= 128512 && cp < 128768) b.push(cp - 128512);}
           return new TextDecoder().decode(new Uint8Array(b));
         } default: return `不支持的解码: base${m}`;
-      }} catch(e) { return `解码错误: ${e.message}`; }
+      }} catch(e) { return `无效字符`; }
   }
 };
 

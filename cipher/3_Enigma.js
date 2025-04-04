@@ -548,18 +548,14 @@ class EnigmaEncoder {
         }
 
         stepReflector = reflectorRotating && turnover
-      } else {
-        for (i = 0; i < slotCount; i++) {
+      } else {for (i = 0; i < slotCount; i++) {
           if (
             slotRotating[i] &&
             ((reflectorRotating && i === 0) || slotRotating[i - 1]) &&
             EnigmaEncoder.rotorAtTurnover(rotors[i], positions[i])
           ) {
             stepRotors[i] = true
-            if (i > 0) {
-              stepRotors[i - 1] = true
-            } else {
-              stepReflector = true
+            if (i > 0) {stepRotors[i - 1] = true} else {stepReflector = true
             }
           }
         }
@@ -812,16 +808,14 @@ class EnigmaEncoder {
   }
 }
 
-// 修改页面加载初始化逻辑，确保DOM元素存在
+
 function initEnigmaUI() {
   const enigmaModelSelect = document.getElementById('enigmaModel');
   if (!enigmaModelSelect) {
-    // 如果元素还不存在，延迟重试
     setTimeout(initEnigmaUI, 200);
     return;
   }
   
-  // 清空现有选项并添加所有模型
   enigmaModelSelect.innerHTML = '';
   Enigmamodels.forEach(model => {
     const option = document.createElement('option');
@@ -830,18 +824,15 @@ function initEnigmaUI() {
     enigmaModelSelect.appendChild(option);
   });
   
-  // 初始化界面布局
   updateEnigmaLayout();
   enigmaModelSelect.addEventListener('change', updateEnigmaLayout);
-  
-  // 确保mainInput有事件监听
   const mainInput = document.getElementById('mainInput');
   if (mainInput && !mainInput._enigmaListenerAdded) {
     mainInput.addEventListener('input', processEnigma);
     mainInput._enigmaListenerAdded = true;
   }
   
-  // 确保Plugboard有事件监听
+
   const plugboard = document.getElementById('Plugboard');
   if (plugboard && !plugboard._enigmaListenerAdded) {
     plugboard.addEventListener('input', processEnigma);
@@ -849,24 +840,17 @@ function initEnigmaUI() {
   }
 }
 
-// 替换旧的DOMContentLoaded事件监听
 window.addEventListener('load', initEnigmaUI);
-
-// 更新恩尼格玛界面布局
 function updateEnigmaLayout() {
   const modelSelect = document.getElementById('enigmaModel')
   const rotorSettings = document.getElementById('rotorSettings')
   const plugboardInput = document.getElementById('Plugboard')
   const selectedModel = EnigmaEncoder.getModel(modelSelect.value)
-  
   if (!selectedModel) return
-  
   rotorSettings.innerHTML = ''
-  
   const reflectorRotors = EnigmaEncoder.getRotors(selectedModel.reflectorRotors)
   const reflectorRow = document.createElement('div')
   reflectorRow.className = 'grid-full2'
-  
   if (reflectorRotors.length > 1 || selectedModel.reflectorThumbwheel) {
     const reflectorSelect = document.createElement('select')
     reflectorSelect.id = 'enigmaReflector'
@@ -914,21 +898,16 @@ function updateEnigmaLayout() {
   
   rotorSettings.appendChild(reflectorRow)
   
-  // 添加转子设置
+  // 转子
   for (let i = 0; i < selectedModel.slots.length; i++) {
     const slot = selectedModel.slots[i]
     const rotors = EnigmaEncoder.getRotors(slot.rotors)
-    
-    // 为每个转子创建3列布局容器
     const rotorContainer = document.createElement('div')
     rotorContainer.className = 'grid-3'
-    
-    // 转子选择器（第1列）
     const rotorColumn1 = document.createElement('div')
     const rotorSelect = document.createElement('select')
     rotorSelect.id = `enigmaRotor${i+1}`
     rotorSelect.addEventListener('change', processEnigma)
-    
     rotors.forEach(rotor => {
       const option = document.createElement('option')
       option.value = rotor.name
@@ -940,8 +919,6 @@ function updateEnigmaLayout() {
     rotorLabel.textContent = `转子${i+1}: `
     rotorColumn1.appendChild(rotorLabel)
     rotorColumn1.appendChild(rotorSelect)
-    
-    // 位置输入（第2列）
     const rotorColumn2 = document.createElement('div')
     const positionInput = document.createElement('input')
     positionInput.type = 'number'
@@ -951,13 +928,10 @@ function updateEnigmaLayout() {
     positionInput.value = 1
     positionInput.placeholder = '位置'
     positionInput.addEventListener('input', processEnigma)
-    
     const positionLabel = document.createElement('span')
     positionLabel.textContent = '位置: '
     rotorColumn2.appendChild(positionLabel)
     rotorColumn2.appendChild(positionInput)
-    
-    // 环设置输入（第3列）
     const rotorColumn3 = document.createElement('div')
     const ringInput = document.createElement('input')
     ringInput.type = 'number'
@@ -967,37 +941,25 @@ function updateEnigmaLayout() {
     ringInput.value = 1
     ringInput.placeholder = '环设置'
     ringInput.addEventListener('input', processEnigma)
-    
     const ringLabel = document.createElement('span')
     ringLabel.textContent = '环设置: '
     rotorColumn3.appendChild(ringLabel)
     rotorColumn3.appendChild(ringInput)
-    
-    // 添加三列到容器
     rotorContainer.appendChild(rotorColumn1)
     rotorContainer.appendChild(rotorColumn2)
     rotorContainer.appendChild(rotorColumn3)
-    
     rotorSettings.appendChild(rotorContainer)
   }
   
-  // 处理插板可见性
   plugboardInput.parentElement.style.display = selectedModel.plugboard ? '' : 'none'
-  
-  // 初始化加密结果
   processEnigma()
 }
 
-// 处理恩尼格玛加密
 function processEnigma() {
   const inputText = document.getElementById('mainInput').value.toLowerCase();
   const result = document.getElementById('EnigmaResult');
   const modelSelect = document.getElementById('enigmaModel');
-  
-  if (!inputText) {
-    result.textContent = '';
-    return;
-  }
+  if (!inputText) {result.textContent = ''; return;}
   
   try {
     const enigma = new EnigmaEncoder();
@@ -1009,7 +971,6 @@ function processEnigma() {
       enigma.setSettingValue('reflector', reflectorSelect.value);
     }
     
-    // 设置反射器位置和环设置
     const reflectorPosition = document.getElementById('reflectorPosition');
     const reflectorRing = document.getElementById('reflectorRing');
     if (reflectorPosition) {
@@ -1019,12 +980,10 @@ function processEnigma() {
       enigma.setSettingValue('ringReflector', parseInt(reflectorRing.value, 10) || 1);
     }
     
-    // 设置转子
     for (let i = 0; i < selectedModel.slots.length; i++) {
       const rotorSelect = document.getElementById(`enigmaRotor${i+1}`);
       const positionInput = document.getElementById(`rotor${i+1}Position`);
       const ringInput = document.getElementById(`rotor${i+1}Ring`);
-      
       if (rotorSelect && positionInput && ringInput) {
         enigma.setSettingValue(`rotor${i+1}`, rotorSelect.value);
         enigma.setSettingValue(`position${i+1}`, parseInt(positionInput.value, 10) || 1);
@@ -1050,10 +1009,8 @@ class StringContent {
   getCodePoints() {return Array.from(this._string).map(char => char.charCodeAt(0))}
 }
 
-// 模拟数学工具类
+// 数学工具类
 const MathUtil = {mod: (n, m) => ((n % m) + m) % m}
-
-// 模拟数组工具类
 const ArrayUtil = {
   isUnique: (arr) => new Set(arr).size === arr.length,
   unique: (arr) => [...new Set(arr)],
@@ -1062,12 +1019,10 @@ const ArrayUtil = {
     for (let i = newArr.length - 1; i > 0; i--) {
       const j = Math.floor((random || Math.random)() * (i + 1))
       [newArr[i], newArr[j]] = [newArr[j], newArr[i]]
-    }
-    return newArr
+    } return newArr
   }
 }
-
-// 模拟字符串工具类
+// 字符串工具类
 const StringUtil = {
   chunk: (str, size) => {
     const chunks = []
@@ -1078,6 +1033,6 @@ const StringUtil = {
   }
 }
 
-// 全局暴露必要的变量和对象
 window.EnigmaEncoder = EnigmaEncoder
 window.models = Enigmamodels
+

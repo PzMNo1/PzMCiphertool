@@ -1,0 +1,332 @@
+.aqre-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.size-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.size-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--quantum-blue);
+}
+
+.size-controls input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(64,224,255,0.3);
+    border-radius: 8px;
+    padding: 0.5rem;
+    width: 60px;
+    color: white;
+}
+
+.small-btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+}
+
+.aqre-grid {
+    display: grid;
+    gap: 1px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    background: var(--quantum-glass);
+    padding: 1rem;
+    border-radius: 24px;
+    backdrop-filter: blur(15px);
+    box-shadow: 
+        0 8px 32px rgba(0,0,0,0.2),
+        0 0 30px var(--quantum-blue) inset;
+}
+
+.aqre-cell {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 1.5rem;
+    color: var(--neon-cyan);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.aqre-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(64,224,255,0.2);
+}
+
+.aqre-cell.black {
+    background: rgba(64,64,64,0.8);
+    border-color: rgba(128,128,128,0.3);
+}
+
+.aqre-cell.clue {
+    background: rgba(64,224,255,0.1);
+    border-color: rgba(64,224,255,0.3);
+    font-weight: bold;
+    color: white;
+}
+
+.mode-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.mode-btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+}
+
+.action-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.active-btn {
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.3) 0%,
+        rgba(179, 136, 255, 0.2) 100%);
+    box-shadow:
+        0 8px 32px rgba(64,224,255,0.15),
+        0 0 20px rgba(179,136,255,0.1) inset;
+}
+
+.error-msg {
+    color: #ff6b6b;
+    margin: 1rem 0;
+    font-weight: bold;
+}
+
+.success-msg {
+    color: #72f1b8;
+    margin: 1rem 0;
+    font-weight: bold;
+}
+
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10,12,23,0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.loading-text {
+    color: var(--neon-cyan);
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--neon-cyan);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.warning-msg {
+    color: #ffcc00;
+    margin: 1rem 0;
+    font-weight: bold;
+}
+
+#cancel-btn {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.5);
+    transition: all 0.2s;
+}
+
+#cancel-btn:hover {
+    background: rgba(255, 0, 0, 0.4);
+}
+
+#solution-grid {
+    margin-top: 1rem;
+}
+
+.solution-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(64, 224, 255, 0.05);
+    border-radius: 12px;
+}
+
+.solution-btn {
+    background: var(--quantum-glass);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    margin: 0 0.5rem;
+    transition: all 0.2s;
+}
+
+.solution-btn:hover {
+    background: rgba(64, 224, 255, 0.2);
+}
+
+.solution-counter {
+    font-size: 1.1rem;
+    color: var(--neon-cyan);
+    padding: 0 1rem;
+    font-weight: bold;
+}
+
+.aqre-cell.editing {
+    box-shadow: 0 0 15px rgba(64,224,255,0.5);
+    outline: none;
+    background: rgba(64,224,255,0.2);
+    caret-color: white; /* 显示输入光标 */
+}
+
+.aqre-cell.border-top {
+    border-top: 3px solid rgba(255, 0, 128, 0.8);
+}
+
+.aqre-cell.border-right {
+    border-right: 3px solid rgba(255, 0, 128, 0.8);
+}
+
+.aqre-cell.border-bottom {
+    border-bottom: 3px solid rgba(255, 0, 128, 0.8);
+}
+
+.aqre-cell.border-left {
+    border-left: 3px solid rgba(255, 0, 128, 0.8);
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+}
+
+.instructions p {
+    color: var(--neon-cyan);
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.instructions ul {
+    padding-left: 1.5rem;
+    margin: 0;
+}
+
+.instructions li {
+    margin: 0.3rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.grid-line {
+    transition: background-color 0.2s;
+    box-sizing: border-box;
+    pointer-events: auto;
+}
+
+.grid-line:hover {
+    background-color: rgba(255, 0, 128, 0.4) !important;
+}
+
+.grid-line.active {
+    background-color: rgba(255, 0, 128, 0.8) !important;
+    box-shadow: 0 0 4px rgba(255, 0, 128, 0.5);
+}
+
+.horizontal-line {
+    height: 8px !important;
+}
+
+.horizontal-line::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 3.5px;
+    width: 100%;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+.vertical-line {
+    width: 8px !important;
+}
+
+.vertical-line::after {
+    content: '';
+    position: absolute;
+    left: 3.5px;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+/* 确保活动状态的线条更明显 */
+.horizontal-line.active::after {
+    height: 2px;
+    background-color: rgba(255, 0, 128, 0.8);
+    box-shadow: 0 0 8px rgba(255, 0, 128, 0.7);
+}
+
+.vertical-line.active::after {
+    width: 2px;
+    background-color: rgba(255, 0, 128, 0.8);
+    box-shadow: 0 0 8px rgba(255, 0, 128, 0.7);
+}
+
+/* 拖动时的临时高亮 */
+.grid-line.drag-hover {
+    background-color: rgba(255, 0, 128, 0.6) !important;
+    box-shadow: 0 0 12px rgba(255, 0, 128, 0.8);
+}
+
+/* 优化网格线的触摸区域 */
+.horizontal-line {
+    height: 10px !important; /* 稍微增加高度 */
+    z-index: 35 !important; /* 确保垂直拖动时水平线优先检测到 */
+}
+
+.vertical-line {
+    width: 10px !important; /* 稍微增加宽度 */
+}

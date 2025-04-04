@@ -12,7 +12,6 @@
 ├── 11_chocobanana.html
 ├── 12_chocona.html
 ├── 13_clasp.exe
-├── 14_claspy.html
 ├── 15_countryroad.html
 ├── 16_doppelblock.html
 ├── 17_easyas.html

@@ -4,38 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>密码工具箱 | By泡面的面</title>
-
-    <script>window.CCC_TABLE = window.CCC_TABLE || []; </script> <!-- 安全初始化 -->
-    <script src="./cipher/888_chinese_code_table.js"></script>  <!-- 导入中文电码表js文件 -->
-    <link rel="stylesheet" href="./0_zhuyeyangshi.css">  <!-- 导入主页样式css文件 -->
+    <link rel="preload" href="./0_zhuyeyangshi.css" as="style">
+    <link rel="preload" href="modules.js" as="script">
+    <script src="./cipher/888_chinese_code_table.js" defer></script>
+    <link rel="stylesheet" href="./0_zhuyeyangshi.css">
 </head>
-
 <body>
-
-    <!-- 移动端菜单按钮 -->
-    <div class="mobile-menu-toggle" id="mobileMenuToggle">
-        <div class="hamburger-icon"></div>
-    </div>
-
-    <!-- 侧边栏 -->
-	<aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar">
         <h1>By泡面的面</h1>
         <div class="sidebar-title"><h2>密码工具箱</h2></div>
-        <div class="sidebar-search">  <input type="text" id="cardSearch" placeholder="搜索密码卡片..."></div>
-                <a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi"> <div class="menu-icon"></div><span class="menu-text">加密实验室</span></a>
-                <a href="#zhishitupu" class="menu-item" data-target="zhishitupu"> <div class="menu-icon"></div><span class="menu-text">知识图谱</span></a>
-                <a href="#damoxing" class="menu-item" data-target="damoxing"> <div class="menu-icon"></div><span class="menu-text">大模型</span></a>
-                <a href="#yijianfankui" class="menu-item" data-target="yijianfankui"> <div class="menu-icon"></div><span class="menu-text">意见反馈</span></a>
-	</aside>
-    
-    <!-- 内容容器 -->
+        <div class="sidebar-search"><input type="text" id="cardSearch" placeholder="搜索密码卡片..."></div>
+        <a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi"><div class="menu-icon"></div><span class="menu-text">加密实验室</span></a>
+        <a href="#zhishitupu" class="menu-item" data-target="zhishitupu"><div class="menu-icon"></div><span class="menu-text">知识图谱</span></a>
+        <a href="#damoxing" class="menu-item" data-target="damoxing"><div class="menu-icon"></div><span class="menu-text">大模型</span></a>
+        <a href="#yijianfankui" class="menu-item" data-target="yijianfankui"><div class="menu-icon"></div><span class="menu-text">意见反馈</span></a>
+    </aside>
     <div class="container1"> 
         <div id="jiamishiyanshi-container"></div>
         <div id="zhishitupu-container"></div>
         <div id="damoxing-container"></div>
         <div id="yijianfankui-container"></div>
     </div>
-
-    <script src="modules.js"></script>  <!-- 导入模块内容JS文件 -->
+    <script src="modules.js"></script>
 </body>
-</html>
+</html> 
