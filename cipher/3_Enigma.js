@@ -792,7 +792,6 @@ class EnigmaEncoder {
   }
 
   getSetting(name) {
-    // 简单返回设置对象，模拟原始代码中的行为
     return {
       getName: () => name,
       getValue: () => this.settings.get(name),
@@ -960,8 +959,6 @@ function processEnigma() {
   const result = document.getElementById('EnigmaResult');
   const modelSelect = document.getElementById('enigmaModel');
   if (!inputText) {result.textContent = ''; return;}
-  
-  try {
     const enigma = new EnigmaEncoder();
     const modelName = modelSelect.value;
     const selectedModel = EnigmaEncoder.getModel(modelName);
@@ -998,9 +995,7 @@ function processEnigma() {
     
     enigma.setSettingValue('includeForeignChars', true);
     result.textContent = `加密结果: ${enigma.encode(new StringContent(inputText)).getString()}`;
-  } catch (error) {
-    result.textContent = `错误: ${error.message}`;
-  }
+
 }
 
 class StringContent {
@@ -1022,6 +1017,7 @@ const ArrayUtil = {
     } return newArr
   }
 }
+
 // 字符串工具类
 const StringUtil = {
   chunk: (str, size) => {

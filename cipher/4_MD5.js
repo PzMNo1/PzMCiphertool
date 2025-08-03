@@ -127,14 +127,9 @@ function hmacMD5(keyBytes, messageBytes) {
   }
   const paddedKey = new Uint8Array(64);
   paddedKey.set(keyBytes);
-  const ipad = new Uint8Array(64).fill(0x36);
-  const opad = new Uint8Array(64).fill(0x5C);
-  const iKeyPad = paddedKey.map((b, i) => b ^ ipad[i]);
-  const oKeyPad = paddedKey.map((b, i) => b ^ opad[i]);
-  const innerData = new Uint8Array([...iKeyPad, ...messageBytes]);
-  const innerHash = md5(innerData);
-  const outerData = new Uint8Array([...oKeyPad, ...innerHash]);
-  return md5(outerData);
+  return md5(new Uint8Array([...paddedKey.map((b, i) => b ^ new Uint8Array(64).fill(0x5C)[i]), 
+  ...md5(new Uint8Array([...paddedKey.map((b, i) => b ^ new Uint8Array(64).fill(0x36)[i]), 
+  ...messageBytes]))]));
 }
 
 function hexStringToBytes(hexStr) {

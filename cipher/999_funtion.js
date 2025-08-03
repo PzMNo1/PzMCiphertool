@@ -13,7 +13,7 @@ async function updateAll(){
     document.getElementById('atbashResult').textContent = `解密: ${AtBash.e(t)}`;
   
     // 进制转换 摩尔斯电码 手机九键 比尔密码 反切码 mRNA V字键盘 QWE键盘 培根密码
-    // 柱状栅栏 W型栅栏 01248密码 元音密码 ASCII转换 中文电码 ROT密码转换
+    // 柱状栅栏 W型栅栏 01248密码 元音密码 ASCII转换 中文电码 四角号码 ROT密码转换
     const fromBase = parseInt(document.getElementById('fromBase').value) || 36;
     const toBase = parseInt(document.getElementById('toBase').value) || 2;
     const bealeKey = document.getElementById('bealeKey').value || '';
@@ -22,6 +22,7 @@ async function updateAll(){
     const inputType = document.getElementById('asciiInputType').value;
     const outputType = document.getElementById('asciiOutputType').value;
     const cccText = document.getElementById('mainInput').value; 
+    const fourcccText = document.getElementById('mainInput').value; 
     const rotOutputType = document.getElementById('rotOutputType').value
     document.getElementById('baseResult').textContent = `结果: ${BaseConverter.convert(t, fromBase, toBase)}\n` + `字符隔开结果: ${BaseConverter.convertByChar(t, fromBase, toBase)}`;
     document.getElementById('morseResult').textContent = `加密: ${MorseCode.e(t)}\n解密: ${MorseCode.d(t)}`;
@@ -38,6 +39,7 @@ async function updateAll(){
     document.getElementById('vowelCipherResult').textContent = `加密: ${VowelCipher.e(t)}\n解密: ${VowelCipher.d(t)}`;
     document.getElementById('asciiResult').textContent = `结果: ${ASCIIHandler.convert(t, inputType, outputType)}`;
 	document.getElementById('cccResult').textContent =`结果: ${CCCHandler.convert(cccText)}`;
+    document.getElementById('fourcccResult').textContent =`结果: ${fourCCCHandler.convert(fourcccText)}`;
     document.getElementById('rotResult').textContent = `结果: ${ROTCipher.e(t, rotOutputType)}`;
 
     // Polybius方阵 ADFGX/ADFVGX 仿射密码 敲击码
@@ -65,18 +67,18 @@ async function updateAll(){
     let sha384Key = document.getElementById('SHA384Key').value;
     let sha512Key = document.getElementById('SHA512Key').value;
     document.getElementById('MD5Result').textContent = `MD5结果: ${MD5Cipher.e(t)}\nHMAC结果: ${MD5Cipher.hmac(md5k, t)}`; 
-    SHA1Cipher.e(t).then(hash => document.getElementById('SHA1Result').textContent = `结果: ${hash}`);
-    SHA256Cipher.e(t).then(hash => document.getElementById('SHA256Result').textContent = `结果: ${hash}`);
-    SHA384Cipher.e(t).then(hash => document.getElementById('SHA384Result').textContent = `结果: ${hash}`);
-    SHA512Cipher.e(t).then(hash => document.getElementById('SHA512Result').textContent = `结果: ${hash}`);
+    document.getElementById('SHA1Result').textContent = `结果: ${await SHA1Cipher.e(t)}` + (sha1Key?.trim() ? `\nHMAC结果: ${await SHA1Cipher.hmac(sha1Key, t)}` : "");
+    document.getElementById('SHA256Result').textContent = `结果: ${await SHA256Cipher.e(t)}` + (sha256Key?.trim() ? `\nHMAC结果: ${await SHA256Cipher.hmac(sha256Key, t)}` : "");
+    document.getElementById('SHA384Result').textContent =  `结果: ${await SHA384Cipher.e(t)}` + (sha384Key?.trim() ? `\nHMAC结果: ${await SHA384Cipher.hmac(sha384Key, t)}` : "");
+    document.getElementById('SHA512Result').textContent = `结果: ${await SHA512Cipher.e(t)}` + (sha512Key?.trim() ? `\nHMAC结果: ${await SHA512Cipher.hmac(sha512Key, t)}` : "");
     
-    // Enigma机
-    if (typeof processEnigma === 'function') {try {processEnigma();} catch (error) {console.error('Enigma处理错误:', error);
-        document.getElementById('EnigmaResult').textContent = `错误: ${error.message}`;}}
-
-    // Base码
+    // Enigma Base码
+    if (typeof processEnigma === 'function') {processEnigma(); }
     const baseOutputType = document.getElementById('baseOutputType').value
     document.getElementById('baseEncodeResult').textContent = `结果: ${baseCipher.e(t, baseOutputType)}\n加密结果: ${baseCipher.d(t, baseOutputType)}`;
+
+    let BifidCipherKey = document.getElementById('BifidCipherkey').value;
+    document.getElementById('BifidCipherResult').textContent = `加密: ${BifidCipher.e(t,BifidCipherKey)}\n解密: ${BifidCipher.d(t,BifidCipherKey)}`;
 
 }
 

@@ -59,16 +59,13 @@ document.addEventListener('DOMContentLoaded', function() {
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = `auto repeat(${c}, 1fr)`;
         grid.style.gridTemplateRows = `auto repeat(${r}, 1fr)`;
-        
         const corner = document.createElement('div');
         corner.className = 'nonogram-cell corner-cell';
         grid.appendChild(corner);
-        
         for (let j = 0; j < c; j++) {
             const clueCell = document.createElement('div');
             clueCell.className = 'nonogram-cell clue-cell';
             clueCell.id = `col-clue-container-${j}`;
-            
             const input = document.createElement('input');
             input.type = 'text'; input.className = 'clue-input';
             input.id = `col-clue-${j}`; input.placeholder = '线索';
@@ -82,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const rowClueCell = document.createElement('div');
             rowClueCell.className = 'nonogram-cell clue-cell';
             rowClueCell.id = `row-clue-container-${i}`;
-            
             const input = document.createElement('input');
             input.type = 'text'; input.className = 'clue-input';
             input.id = `row-clue-${i}`; input.placeholder = '线索';

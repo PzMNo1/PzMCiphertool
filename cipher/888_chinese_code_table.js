@@ -34817,5 +34817,290 @@ const CCC_TABLE = [
     {
       "CCCCharacter": "麸",
       "CCCnumber": 9690
+    },
+    {
+      "CCCCharacter": "ㄅ",
+      "CCCnumber": 9720
+    },
+    {
+      "CCCCharacter": "ㄆ",
+      "CCCnumber": 9721
+    },
+    {
+      "CCCCharacter": "ㄇ",
+      "CCCnumber": 9722
+    },
+    {
+      "CCCCharacter": "ㄈ",
+      "CCCnumber": 9723
+    },
+    {
+      "CCCCharacter": "ㄉ",
+      "CCCnumber": 9724
+    },
+    {
+      "CCCCharacter": "ㄊ",
+      "CCCnumber": 9725
+    },
+    {
+      "CCCCharacter": "ㄋ",
+      "CCCnumber": 9726
+    },
+    {
+      "CCCCharacter": "ㄌ",
+      "CCCnumber": 9727
+    },
+    {
+      "CCCCharacter": "ㄍ",
+      "CCCnumber": 9728
+    },
+    {
+      "CCCCharacter": "ㄎ",
+      "CCCnumber": 9729
+    },
+    {
+      "CCCCharacter": "ㄏ",
+      "CCCnumber": 9730
+    },
+    {
+      "CCCCharacter": "ㄐ",
+      "CCCnumber": 9731
+    },
+    {
+      "CCCCharacter": "ㄑ",
+      "CCCnumber": 9732
+    },
+    {
+      "CCCCharacter": "ㄒ",
+      "CCCnumber": 9733
+    },
+    {
+      "CCCCharacter": "ㄓ",
+      "CCCnumber": 9734
+    },
+    {
+      "CCCCharacter": "ㄔ",
+      "CCCnumber": 9735
+    },
+    {
+      "CCCCharacter": "ㄕ",
+      "CCCnumber": 9736
+    },
+    {
+      "CCCCharacter": "ㄖ",
+      "CCCnumber": 9737
+    },
+    {
+      "CCCCharacter": "ㄗ",
+      "CCCnumber": 9738
+    },
+    {
+      "CCCCharacter": "ㄘ",
+      "CCCnumber": 9739
+    },
+    {
+      "CCCCharacter": "ㄙ",
+      "CCCnumber": 9740
+    },
+    {
+      "CCCCharacter": "ㄚ",
+      "CCCnumber": 9744
+    },
+    {
+      "CCCCharacter": "ㄛ",
+      "CCCnumber": 9745
+    },
+    {
+      "CCCCharacter": "ㄜ",
+      "CCCnumber": 9746
+    },
+    {
+      "CCCCharacter": "ㄝ",
+      "CCCnumber": 9747
+    },
+    {
+      "CCCCharacter": "ㄞ",
+      "CCCnumber": 9748
+    },
+    {
+      "CCCCharacter": "ㄟ",
+      "CCCnumber": 9749
+    },
+    {
+      "CCCCharacter": "ㄠ",
+      "CCCnumber": 9750
+    },
+    {
+      "CCCCharacter": "ㄡ",
+      "CCCnumber": 9751
+    },
+    {
+      "CCCCharacter": "ㄢ",
+      "CCCnumber": 9752
+    },
+    {
+      "CCCCharacter": "ㄣ",
+      "CCCnumber": 9753
+    },
+    {
+      "CCCCharacter": "ㄤ",
+      "CCCnumber": 9754
+    },
+    {
+      "CCCCharacter": "ㄥ",
+      "CCCnumber": 9755
+    },
+    {
+      "CCCCharacter": "ㄦ",
+      "CCCnumber": 9756
+    },
+    {
+      "CCCCharacter": "ㄧ",
+      "CCCnumber": 9741
+    },
+    {
+      "CCCCharacter": "ㄨ",
+      "CCCnumber": 9742
+    },
+    {
+      "CCCCharacter": "ㄩ",
+      "CCCnumber": 9743
+    },
+    {
+      "CCCCharacter": "、",
+      "CCCnumber": 9977
+    },
+    {
+      "CCCCharacter": "。",
+      "CCCnumber": 9975
+    },
+    {
+      "CCCCharacter": "•",
+      "CCCnumber": 9978
+    },
+    {
+      "CCCCharacter": "·",
+      "CCCnumber": 9992
+    },
+    {
+      "CCCCharacter": "•",
+      "CCCnumber": 9993
+    },
+    {
+      "CCCCharacter": "–",
+      "CCCnumber": 9994
+    },
+    {
+      "CCCCharacter": "—",
+      "CCCnumber": 9995
+    },
+    {
+      "CCCCharacter": "……",
+      "CCCnumber": 9991
+    },
+    {
+      "CCCCharacter": "'",
+      "CCCnumber": 9984
+    },
+    {
+      "CCCCharacter": "'",
+      "CCCnumber": 9985
+    },
+    {
+      "CCCCharacter": "“",
+      "CCCnumber": 9986
+    },
+    {
+      "CCCCharacter": "”",
+      "CCCnumber": 9987
+    },
+    {
+      "CCCCharacter": "《",
+      "CCCnumber": 9996
+    },
+    {
+      "CCCCharacter": "》",
+      "CCCnumber": 9997
+    },
+    {
+      "CCCCharacter": "÷",
+      "CCCnumber": 9974
+    },
+    {
+      "CCCCharacter": "Ⅰ",
+      "CCCnumber": 9941
+    },
+    {
+      "CCCCharacter": "Ⅱ",
+      "CCCnumber": 9942
+    },
+    {
+      "CCCCharacter": "Ⅲ",
+      "CCCnumber": 9943
+    },
+    {
+      "CCCCharacter": "Ⅳ",
+      "CCCnumber": 9944
+    },
+    {
+      "CCCCharacter": "Ⅴ",
+      "CCCnumber": 9945
+    },
+    {
+      "CCCCharacter": "Ⅵ",
+      "CCCnumber": 9946
+    },
+    {
+      "CCCCharacter": "Ⅶ",
+      "CCCnumber": 9947
+    },
+    {
+      "CCCCharacter": "Ⅷ",
+      "CCCnumber": 9948
+    },
+    {
+      "CCCCharacter": "Ⅸ",
+      "CCCnumber": 9949
+    },
+    {
+      "CCCCharacter": "！",
+      "CCCnumber": 9982
+    },
+    {
+      "CCCCharacter": "(",
+      "CCCnumber": 9988
+    },
+    {
+      "CCCCharacter": ")",
+      "CCCnumber": 9989
+    },
+    {
+      "CCCCharacter": ",",
+      "CCCnumber": 9976
+    },
+    {
+      "CCCCharacter": "/",
+      "CCCnumber": 9970
+    },
+    {
+      "CCCCharacter": "：",
+      "CCCnumber": 9980
+    },
+    {
+      "CCCCharacter": ":",
+      "CCCnumber": 9980
+    },
+    {
+      "CCCCharacter": ";",
+      "CCCnumber": 9979
+    },
+    {
+      "CCCCharacter": "=",
+      "CCCnumber": 9983
+    },
+    {
+      "CCCCharacter": "？",
+      "CCCnumber": 9981
     }
+
 ]; 

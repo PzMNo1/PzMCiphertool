@@ -1,17 +1,14 @@
 // 这是侧边栏选项的交互作用函数
-const contentSections = document.querySelectorAll('.content-section');
-const menuItems = document.querySelectorAll('.menu-item');
-function hideAllSections() {contentSections.forEach(section => {section.style.display = 'none';});}
+function hideAllSections() {document.querySelectorAll('.content-section').forEach(section => {section.style.display = 'none';});}
 function showSection(sectionId) {
     const section = document.getElementById(sectionId + '-content'); 
     if (section) {section.style.display = 'block'; }
 }
-menuItems.forEach(menuItem => {
+document.querySelectorAll('.menu-item').forEach(menuItem => {
     menuItem.addEventListener('click', function(event) {
         event.preventDefault(); 
-        const targetSectionId = this.dataset.target; 
         hideAllSections(); 
-        showSection(targetSectionId); 
+        showSection(this.dataset.target); 
     });
 });
 hideAllSections();

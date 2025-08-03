@@ -162,6 +162,12 @@ const MODULES = {
             <div class="result" id="cccResult"></div>
         </div>
 
+        <!-- 四角号码 -->
+        <div class="card">
+            <div class="badge">四角号码</div>
+            <div class="result" id="fourcccResult"></div>
+        </div>
+
         <!-- ROT 转换 -->
         <div class="card">
             <div class="badge">ROT</div>
@@ -226,6 +232,15 @@ const MODULES = {
             <div class="result" id="tapCodeResult"></div>
         </div>
 
+        <!-- BifidCipher -->
+        <div class="card">
+            <div class="badge">BifidCipher</div>
+            <div class="grid-2"> 
+                <input type="text" id="BifidCipherkey" placeholder="Key" value="abc123">
+            </div>
+            <div class="result" id="BifidCipherResult"></div>
+        </div>
+
         <!-- 旗语-盲文 -->
         <div class="card">
             <div class="badge">旗语-盲文</div>
@@ -262,7 +277,6 @@ const MODULES = {
             </div>
             <div class="result" id="baseEncodeResult"></div>
         </div>
-
         </div>
     </div>
 
@@ -286,28 +300,28 @@ const MODULES = {
             <!-- SHA-1 -->
             <div class="card">
                 <div class="badge">SHA-1</div>
-                <input type="text" id="SHA1Key" placeholder="输入十六进制生成Hmac">
+                <input type="text" id="SHA1Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
                 <div class="result" id="SHA1Result"></div>
             </div>
 
             <!-- SHA-256 -->
             <div class="card">
                 <div class="badge">SHA-256</div>
-                <input type="text" id="SHA256Key" placeholder="输入十六进制生成Hmac">
+                <input type="text" id="SHA256Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
                 <div class="result" id="SHA256Result"></div>
             </div>
 
             <!-- SHA-384 -->
             <div class="card">
                 <div class="badge">SHA-384</div>
-                <input type="text" id="SHA384Key" placeholder="输入十六进制生成Hmac">
+                <input type="text" id="SHA384Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
                 <div class="result" id="SHA384Result"></div>
             </div>
 
             <!-- SHA-512 -->
             <div class="card">
                 <div class="badge">SHA-512</div>
-                <input type="text" id="SHA512Key" placeholder="输入十六进制生成Hmac">
+                <input type="text" id="SHA512Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
                 <div class="result" id="SHA512Result"></div>
             </div>
 
@@ -323,7 +337,6 @@ const MODULES = {
                 </div>
                 <div class="result" id="EnigmaResult"></div>
             </div>
-
         </div>
     </div>
 
@@ -411,7 +424,48 @@ const MODULES = {
 
     // 大模型模块
     damoxing: `<div id="damoxing-content" class="content-section">
-    <div class="container"><h3>这里是大模型的内容...</h3>大模型</div>
+    <div id="damoxing-container">
+        <div class="chat-interface">
+            <!-- 主对话区域 -->
+            <div class="chat-main">
+                <div id="chat-messages">
+                    <!-- 初始消息 -->
+                    <div class="message system-message">
+                        <div class="message-content">请输入您的问题...</div>
+                    </div>
+                </div>
+                
+                <div class="input-container">
+                    <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    <button id="send-message" class="cyber-button">
+                        <span class="cyber-button__tag">发送</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 右侧边栏（历史对话） -->
+            <div class="chat-sidebar">
+                <div class="sidebar-header">
+                    <button id="new-chat" class="cyber-button">
+                        <span class="cyber-button__tag">新对话</span>
+                    </button>
+                </div>
+                <div class="search-container">
+                    <input type="text" id="history-search" placeholder="搜索对话...">
+                </div>
+                
+                <div id="chat-history-list">
+                    <!-- 历史对话会动态添加到这里 -->
+                </div>
+                
+                <div class="sidebar-footer">
+                    <button id="delete-history" class="cyber-button">
+                        <span class="cyber-button__tag">删除选中</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>`,
 
     // 意见反馈模块
@@ -422,25 +476,30 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-        [
-            './cipher/1_cipherlab.js',
-            './cipher/2_ADFGXCipher.js',
-            './cipher/3_Enigma.js',
-            './cipher/4_MD5.js',
-            './cipher/6_semaphore.js',
-            '0_sidebar_funtion.js',
-            './cipher/999_funtion.js'
-        ]
-
-        .reduce((promise, src) => promise.then(() => new Promise(resolve => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = resolve;
-                document.body.appendChild(script);
-            })), Promise.resolve()).then(() => {
-            if (typeof initSearchFunction === 'function') initSearchFunction();
-        });
+    [
+        './cipher/1_cipherlab.js',
+        './cipher/2_ADFGXCipher.js',
+        './cipher/3_Enigma.js',
+        './cipher/4_MD5.js',
+        './cipher/6_semaphore.js',
+        '0_sidebar_funtion.js',
+        './cipher/999_funtion.js',
+        './script.js'
+    ]
+    .reduce((promise, src) => promise.then(() => new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            document.body.appendChild(script);
+        })), Promise.resolve()).then(() => {
+        if (typeof initSearchFunction === 'function') initSearchFunction();
         
+        // 初始化大模型功能
+        if (typeof initChatFunctions === 'function') {
+            initChatFunctions();
+        }
+    });
+    
     if (!MODULES) return console.error('模块内容未定义');
     ['jiamishiyanshi', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id => 
         document.getElementById(id + '-container').innerHTML = MODULES[id]
@@ -451,6 +510,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.menu-item').forEach(item => 
             item.classList[item.getAttribute('data-target') === id ? 'add' : 'remove']('active')
         );
+        
+        // 如果切换到大模型模块，确保绑定事件
+        if (id === 'damoxing' && typeof bindChatEvents === 'function') {
+            bindEvents();
+        }
     };
     showModule('jiamishiyanshi');
     document.querySelectorAll('.menu-item').forEach(item => 
@@ -461,6 +525,5 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 });
 
-window.CCC_TABLE = window.CCC_TABLE || [];
-window.performance && window.performance.mark && window.performance.mark('app-start');
+
 

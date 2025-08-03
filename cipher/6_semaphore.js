@@ -219,11 +219,11 @@ document.getElementById('qiyuClear').addEventListener('click', function() {
 
 document.getElementById('qiyuInput').addEventListener('input', function() {
 	updateCanvasesFromInput();
-	document.getElementById('qiyuResult').textContent = ''; // 清空结果显示
+	document.getElementById('qiyuResult').textContent = ''; 
 });
 
 document.getElementById('qiyuType').addEventListener('change', function() {
-	setupQiyuCanvas(); // 重新初始化画布
+	setupQiyuCanvas(); 
 });
 
 function drawSemaphoreBackground(canvas) {
@@ -268,11 +268,10 @@ function drawSemaphoreLines(canvas, bits) {
 	const pts = [[90, 50], [78, 22], [50, 10], [22, 22], [10, 50], [22, 78], [50, 90], [78, 78]];
 	for (let i = 0; i < 8; i++) {
 		if (bits & (1 << i)) {
-			// 明亮的辉光层
 			ctx.beginPath();
 			ctx.moveTo(50 * 120 / 100, 50 * 120 / 100);
 			ctx.lineTo(pts[i][0] * 120 / 100, pts[i][1] * 120 / 100);
-			ctx.strokeStyle = "rgba(46, 204, 113, 0.4)"; // 绿色辉光
+			ctx.strokeStyle = "rgba(46, 204, 113, 0.4)"; 
 			ctx.lineWidth = 8;
 			ctx.stroke();
 		}
@@ -285,8 +284,8 @@ function drawSemaphoreLines(canvas, bits) {
 		}
 	}
 	const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-	gradient.addColorStop(0, '#00bcd4'); // 亮青色
-	gradient.addColorStop(1, '#2ecc71'); // 亮绿色
+	gradient.addColorStop(0, '#00bcd4'); 
+	gradient.addColorStop(1, '#2ecc71'); 
 	ctx.strokeStyle = gradient;
 	ctx.lineWidth = 3;
 	ctx.stroke();
@@ -323,9 +322,9 @@ function drawBrailleBackground(canvas) {
 		ctx.beginPath();
 		ctx.arc(pts[i][0] / 100 * canvas.width, pts[i][1] * 120 / 100, 7 * 120 / 100, 0, 2 * Math.PI, false);
 		ctx.lineWidth = 1.5;
-		ctx.strokeStyle = '#3498db'; // 明亮的蓝色
+		ctx.strokeStyle = '#3498db'; 
 		ctx.stroke();
-		ctx.fillStyle = 'rgba(52, 152, 219, 0.15)'; // 蓝色半透明填充
+		ctx.fillStyle = 'rgba(52, 152, 219, 0.15)'; 
 		ctx.fill();
 	}
 }

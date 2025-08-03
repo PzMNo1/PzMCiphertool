@@ -41,7 +41,6 @@ const ADFGXCipher = {
             return reverseSquare[coords.substr(i*2, 2)] || '';
         }).join('');
     },
-
     gCO(keyword) {
       const sorted = [...keyword].map((c, i) => ({
         char: c.toLowerCase(),

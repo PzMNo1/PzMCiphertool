@@ -53,25 +53,40 @@ const AtBash = {
 const BaseConverter = {
   CHAR_SET: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
   convert: (i, f, t) => i.split(' ').map(n => {
-    let d = 0n;
-    for(const c of n.toUpperCase()) {
+    const [p, q] = n.split('.');
+    let d = 0n, r = [];
+    for (const c of (p || '').toUpperCase()) {
       const v = BaseConverter.CHAR_SET.indexOf(c);
-      if(v < 0 || v >= f) return `?${n}`;
+      if (v < 0 || v >= f) return `?${n}`;
       d = d * BigInt(f) + BigInt(v);
     }
-    if(t == 1) return '0'.repeat(Number(d));
-    let r = [];
-    while(d > 0n) {r.unshift(BaseConverter.CHAR_SET[Number(d % BigInt(t))]);d/=BigInt(t);}
-    return r.join('') || '0';
+    if (t == 1) return '0'.repeat(Number(d));
+    if (d === 0n) r.push('0');
+    while (d > 0n) {
+      r.unshift(BaseConverter.CHAR_SET[Number(d % BigInt(t))]);
+      d /= BigInt(t);
+    }
+    const i = r.join('') || '0';
+    if (!q) return i; let e = 0;
+    for (const c of q.toUpperCase()) {
+      const v = BaseConverter.CHAR_SET.indexOf(c);
+      if (v < 0 || v >= f) return `?${n}`;
+      e = e * f + v;
+    }
+    if ((e /= Math.pow(f, q.length)) <= 0) return i;
+    let s = '.';
+    for (let j = 0; j < 20 && e > 0; j++) {
+      e *= t;
+      s += BaseConverter.CHAR_SET[Math.floor(e)];
+      e -= Math.floor(e);
+    }
+    return i + s;
   }).join(' '),
-  
-  convertByChar: (i, f, t) => [...i.toUpperCase()].map(c => {
-    const v = BaseConverter.CHAR_SET.indexOf(c);
-    if(v < 0 || v >= f) return `?${c}`;
-    let n = BigInt(v), r = [];
-    while(n > 0n){r.unshift(BaseConverter.CHAR_SET[Number(n % BigInt(t))]);n/=BigInt(t);}
-    return v ? r.join('') : '0';
-  }).join(' ')
+  convertByChar: (i, f, t) => [...i.toUpperCase()]
+  .map(c => c === '.' ? '.' : (v = BaseConverter
+    .CHAR_SET.indexOf(c)) < 0 || v >= f ? `?${c}` : v ? BigInt(v)
+    .toString(t).toUpperCase() : '0')
+    .join(' ')
 };
 
 // 摩尔斯电码
@@ -129,9 +144,9 @@ const FanqieCipher = {
         return (this.initials[i] || '') + (this.finals[f] || '') || '输入如15-8';
       }).join(' ')},
     d(pt) {
-      const ri = this.rev(this.initials), rf = this.rev(this.finals);
+      const rf = this.rev(this.finals);
       return pt.trim().split(/\s+/).map(w => {
-        const code = Object.entries(ri).find(([p]) => w.startsWith(p));
+        const code = Object.entries(this.rev(this.initials)).find(([p]) => w.startsWith(p));
         return code ? `${code[1]}/${rf[w.slice(code[0].length)] || ''}` 
              : rf[w] ? `0/${rf[w]}` : '输入如qiu'
       }).join(' ')
@@ -264,7 +279,7 @@ const WShapeRailFenceCipher = {
         const rows = cnt.map((c,i) => 
           s.slice(cnt.slice(0,i).reduce((a,b)=>a+b,0), 
           cnt.slice(0,i+1).reduce((a,b)=>a+b,0)));
-        let res = '', row = 0, step = 1;
+        let row = 0, step = 1;
 
         return Array.from({length:n}, 
           () => {const c = rows[row][0];
@@ -330,7 +345,7 @@ const ASCIIHandler = {
             case 'bin': decimals = t.split(/[ ,]/).filter(Boolean).map(b => parseInt(b, 2)); break;
         }
         return decimals.map(d => {
-            if (isNaN(d)) return '请输入正确字符'; // 非法字符处理
+            if (isNaN(d)) return '请输入正确字符'; 
             switch (ot) {
                 case 'char': return String.fromCharCode(d);
                 case 'dec': return d.toString(10);
@@ -343,39 +358,45 @@ const ASCIIHandler = {
 }
 
 // 中文电码
-let CCCHandler = null; 
-CCCHandler = { 
-    codeTable: CCC_TABLE || [],
-    convert(text) {
-        if (this.codeTable.length === 0) {return "电码表未正确加载";}
-        if (/^[\d\s]+$/.test(text.trim())) {return this.decode(text);} 
-        else {return this.encode(text);}
-    },
-    decode(codeText) {
-        const codes = codeText.trim().split(/\s+/); let result = "";
-        for (const code of codes) {const char = this.findCharByCode(code);
-            if (!char) 
-            return `无效电码 ${code}`;result += char;}
-        return `${result}`;
-    },
-    encode(chineseText) {
-        let result = "";
-        for (const char of chineseText) {const code = this.findCodeByChar(char);
-            if (!code) 
-            return `未找到「${char}」对应电码`;result += `${code} `;}
-        return `${result.trim()}`;
-    },
-    findCharByCode(inputCode) {
-        const codeStr = inputCode.toString().replace(/^0+/, '');
-        if (codeStr === '') return null; const targetCode = parseInt(codeStr, 10);
-        if (isNaN(targetCode)) return null;
-        return this.codeTable.find(item => item.CCCnumber === targetCode)?.CCCCharacter || null;
-    },
-    findCodeByChar(char) {
-        const entry = this.codeTable.find(item => item.CCCCharacter === char);
-        if (!entry) return null; return entry.CCCnumber.toString().padStart(4, '0');
-    }
-}
+const CCCHandler = {
+  codeTable: CCC_TABLE || [],
+  convert(text) {
+    if(!text.trim()) return "";
+    return /^[\d\s]+$/.test(text.trim()) ? this.d(text) : this.e(text);
+  },
+  d(text) {
+    return text.trim().split(/\s+/).map(c => {
+      const codeNum = parseInt(c.replace(/^0+/, '') || '0', 10);
+      return this.codeTable.find(i => i.CCCnumber === codeNum)?.CCCCharacter || `错误:${c}`;
+    }).join("");
+  },
+  e(text) {
+    return [...text].map(c => {
+      const e = this.codeTable.find(i => i.CCCCharacter === c);
+      return e ? e.CCCnumber.toString().padStart(4, '0') : `错误:${c}`;
+    }).join(" ");
+  }
+};
+
+// 四角号码处理函数
+const fourCCCHandler = {
+  codeTable: fourCCC_TABLE || [],
+  convert(text) {
+    if(!text.trim()) return "";
+    return /^[\d\s]+$/.test(text.trim()) ? this.d(text) : this.e(text);
+  },
+  d(text) {
+    return text.trim().split(/\s+/).map(c => 
+      this.codeTable.find(i => i.fourCCCnumber === parseInt(c, 10))?.fourCCCCharacter || `错误:${c}`
+    ).join("");
+  },
+  e(text) {
+    return [...text].map(c => {
+      const e = this.codeTable.find(i => i.fourCCCCharacter === c);
+      return e ? e.fourCCCnumber : `错误:${c}`;
+    }).join(" ");
+  }
+};
 
 // ROT密码转换
 const ROTCipher = {
@@ -396,7 +417,7 @@ const ROTCipher = {
     e: (t, type) => ROTCipher._process(t, ROTCipher.rotMethods[type] || []) || t
 }
 
-//Polybius方阵
+//Polybius方阵  
 class PolybiusCipher {
     static createSquare(abc,r,c){
         const sq = {}; let idx=0;for(const ro of r)
@@ -578,14 +599,160 @@ const baseCipher = {
 
 // SHA-1 SHA-256 SHA-384 SHA-512
 function createHashCipher(algorithm) {
-    return {e: async function(input) {
-        return Array.from(new Uint8Array(
-            await crypto.subtle.digest(
-            algorithm, new TextEncoder().encode(input))))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')}}
+    return {
+        e: async function(input) {
+            return Array.from(new Uint8Array(
+                await crypto.subtle.digest(
+                algorithm, new TextEncoder().encode(input))))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('')
+        },
+        hmac: async function(key, message) {
+            const messageBytes = typeof message === 'string' 
+                ? new TextEncoder().encode(message) 
+                : message;
+            const blockSize = algorithm === 'SHA-1' || algorithm === 'SHA-256' ? 64 : 128;
+            let keyBytes;
+            if (typeof key === 'string') {
+                const hexRegex = /^([0-9a-fA-F]{2}\s*)+$/;
+                if (hexRegex.test(key)) {
+                    const cleanHex = key.replace(/\s+/g, '');
+                    keyBytes = new Uint8Array(cleanHex.length / 2);
+                    for (let i = 0; i < cleanHex.length; i += 2) {
+                        keyBytes[i/2] = parseInt(cleanHex.substring(i, i + 2), 16);
+                    }
+                } else {keyBytes = new TextEncoder().encode(key);}
+            } else {keyBytes = key;}
+            if (keyBytes.length > blockSize) {
+                keyBytes = new Uint8Array(
+                    await crypto.subtle.digest(algorithm, keyBytes)
+                );
+            }
+            const innerPadding = new Uint8Array(blockSize).fill(0x36);
+            const outerPadding = new Uint8Array(blockSize).fill(0x5C);
+            for (let i = 0; i < keyBytes.length; i++) {
+                innerPadding[i] ^= keyBytes[i];
+                outerPadding[i] ^= keyBytes[i];
+            }
+            const innerInput = new Uint8Array(innerPadding.length + messageBytes.length);
+            innerInput.set(innerPadding);
+            innerInput.set(messageBytes, innerPadding.length);
+            const innerHash = await crypto.subtle.digest(algorithm, innerInput);
+            const outerInput = new Uint8Array(outerPadding.length + innerHash.byteLength);
+            outerInput.set(outerPadding);
+            outerInput.set(new Uint8Array(innerHash), outerPadding.length);
+            return Array.from(new Uint8Array(await crypto.subtle.digest(algorithm, outerInput)))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+    }
 }
 const SHA1Cipher = createHashCipher('SHA-1')
 const SHA256Cipher = createHashCipher('SHA-256')
 const SHA384Cipher = createHashCipher('SHA-384')
 const SHA512Cipher = createHashCipher('SHA-512')
+
+const BifidCipher = {    
+  e: function(text, key = '') {
+    if (!text) return '';
+
+    const defaultAlphabet = 'abcdefghiklmnopqrstuvwxyz';
+    const filteredKey = key.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
+    let customAlphabet = '';
+    const used = {};
+    for (const char of filteredKey) {
+      if (!used[char]) {
+        customAlphabet += char;
+        used[char] = true;
+      }
+    }
+    for (const char of defaultAlphabet) {
+      if (!used[char]) {
+        customAlphabet += char;
+        used[char] = true;
+      }
+    }
+    const square = {};
+    const reverseSquare = {};
+    
+    for (let i = 0; i < customAlphabet.length; i++) {
+      const char = customAlphabet[i];
+      const row = Math.floor(i / 5) + 1;
+      const col = (i % 5) + 1;
+      square[char] = [row, col];
+      reverseSquare[`${row}${col}`] = char;
+    }
+    
+    const cleanText = text.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
+    if (!cleanText) return '';
+    const rows = [];
+    const cols = [];
+    
+    for (const char of cleanText) {
+      if (square[char]) {
+        rows.push(square[char][0]);
+        cols.push(square[char][1]);
+      }
+    }
+    const transposed = [...rows, ...cols];
+    let result = '';
+    for (let i = 0; i < transposed.length - 1; i += 2) {
+      const key = `${transposed[i]}${transposed[i+1]}`;
+      result += reverseSquare[key] || '';
+    }
+    
+    return result;
+  },
+  
+  d: function(text, key = '') {
+    if (!text) return '';
+    const defaultAlphabet = 'abcdefghiklmnopqrstuvwxyz';
+    const filteredKey = key.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
+    let customAlphabet = '';
+    const used = {};
+    for (const char of filteredKey) {
+      if (!used[char]) {
+        customAlphabet += char;
+        used[char] = true;
+      }
+    }
+    
+    // 添加剩余字母
+    for (const char of defaultAlphabet) {
+      if (!used[char]) {
+        customAlphabet += char;
+        used[char] = true;
+      }
+    }
+    const square = {};
+    const reverseSquare = {};
+    
+    for (let i = 0; i < customAlphabet.length; i++) {
+      const char = customAlphabet[i];
+      const row = Math.floor(i / 5) + 1;
+      const col = (i % 5) + 1;
+      square[char] = [row, col];
+      reverseSquare[`${row}${col}`] = char;
+    }
+    
+    const cleanText = text.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
+    if (!cleanText) return '';
+    const coords = [];
+    for (const char of cleanText) {
+      if (square[char]) {
+        coords.push(square[char][0], square[char][1]);
+      }
+    }
+    
+    const plainLength = coords.length / 2;
+    const rows = coords.slice(0, plainLength);
+    const cols = coords.slice(plainLength);
+    let plainText = '';
+    for (let i = 0; i < Math.min(rows.length, cols.length); i++) {
+      const key = `${rows[i]}${cols[i]}`;
+      plainText += reverseSquare[key] || '';
+    }
+    
+    return plainText;
+  }
+}

@@ -326,8 +326,6 @@ class AkariSolver {
     solve() {
         // 推导数字0和4的约束
         this.deduceNumberConstraints();
-        
-        // 开始回溯搜索
         const result = this.backtrack(0, 0);
         return this.solutions;
     }
