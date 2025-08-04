@@ -91,7 +91,7 @@ body::before {
 }
 
 /* 量子玻璃网格 */
-.sudoku-grid {
+.logic-grid {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     gap: 1px;
@@ -107,7 +107,7 @@ body::before {
     transform: translateZ(30px);
 }
 
-.sudoku-grid::before {
+.logic-grid::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -522,7 +522,7 @@ input[type="checkbox"]:focus-visible + span::before {
         max-width: 1000px;
     }
     
-    .sudoku-grid {
+    .logic-grid {
         order: 2;
     }
 }

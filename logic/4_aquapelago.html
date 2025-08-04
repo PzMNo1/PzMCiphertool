@@ -3,16 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aquapelago - 逻辑谜题</title>
-    <link rel="stylesheet" href="../0_zhuyeyangshi.css">
+    <title>Aquapelago求解器</title>
+    <link rel="stylesheet" href="./css/logic.css"> 
 </head>
+
 <body>
-    <div class="container">
-        <h1>Aquapelago</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期待</div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <!-- 返回按钮 返回主页面 -->
+    <a href="../index.html#jiamishiyanshi-content##luojimiti" class="btn back-btn">◈ 返回</a>
+
+    <div class="header">
+        <h1 class="title">Aquapelago求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+
+    <div class="container">
+        <div class="logic-grid" id="logic"></div>
+        
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            <button class="btn" onclick="solveSudoku()">开始求解</button>
+            <button class="btn" onclick="undoLastStep()">返回上步</button>
+            <button class="btn" onclick="clearGrid()">重置网格</button>
+            <input type="checkbox" id="diagonal">
+                    
+            <div id="result" style="margin-top: 2rem;"></div>
+            <div id="result"></div>
+            <div class="solution-nav" id="solutionNav" style="display: none;">
+                <button class="solution-btn" onclick="showSolution(-1)">◀</button>
+                <span class="solution-counter" id="solutionCounter"></span>
+                <button class="solution-btn" onclick="showSolution(1)">▶</button>
+            </div>
+        </div>
+    </div>
+    <div class="loading" id="loading"></div>
+    <script src="./js/4_aquapelago.js"></script> 
 </body>
-</html> 
+</html>
