@@ -696,3 +696,39 @@ animation: glitch 0.5s infinite;
 }
 
 
+
+/* 整个滚动条 */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 10px;
+}
+
+/* 滚动条滑块 */
+::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 10px;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.2),
+              0 0 10px rgba(255, 255, 255, 0.1),
+              inset 0 0 3px rgba(255, 255, 255, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+/* 悬停时的滑块效果 */
+::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3),
+              0 0 15px rgba(255, 255, 255, 0.2),
+              inset 0 0 5px rgba(255, 255, 255, 0.4);
+}
+
+/* 拖动时的滑块效果 */
+::-webkit-scrollbar-thumb:active {
+  background: #5a5a5a;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4),
+              0 0 20px rgba(255, 255, 255, 0.3),
+              inset 0 0 5px rgba(255, 255, 255, 0.5);
+}

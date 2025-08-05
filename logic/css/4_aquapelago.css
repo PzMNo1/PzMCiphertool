@@ -1,0 +1,172 @@
+/* Aquapelago特定样式 */
+
+.aquapelago-cell {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--neon-cyan);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    outline: none;
+}
+
+.aquapelago-cell:hover {
+    transform: translateZ(10px);
+    box-shadow: 0 0 15px rgba(64,224,255,0.3);
+}
+
+.aquapelago-cell:focus {
+    outline: 2px solid var(--quantum-blue);
+    outline-offset: 2px;
+}
+
+.aquapelago-cell.shaded {
+    background: rgba(64,64,64,0.8);
+    border-color: rgba(128,128,128,0.5);
+}
+
+.aquapelago-cell.clue {
+    background: rgba(64,224,255,0.2);
+    border-color: rgba(64,224,255,0.5);
+    font-weight: bold;
+    color: white;
+}
+
+.aquapelago-cell.solution-shaded {
+    background: rgba(46, 204, 113, 0.3);
+    border-color: rgba(46, 204, 113, 0.5);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+}
+
+.instructions p {
+    color: var(--neon-cyan);
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.instructions ul {
+    padding-left: 1.5rem;
+    margin: 0;
+}
+
+.instructions li {
+    margin: 0.3rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.action-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.action-controls .btn {
+    width: 100%;
+    margin: 0;
+}
+
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10,12,23,0.9);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.loading .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--neon-cyan);
+    animation: spin 1s ease-in-out infinite;
+}
+
+.loading .loading-text {
+    color: var(--neon-cyan);
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 解决方案导航样式 */
+.solution-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(64, 224, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+}
+
+.solution-btn {
+    background: var(--quantum-glass);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+}
+
+.solution-btn:hover {
+    background: rgba(64, 224, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.solution-counter {
+    font-size: 1.1rem;
+    color: var(--neon-cyan);
+    font-weight: bold;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .aquapelago-cell {
+        font-size: 1.2rem;
+    }
+    
+    .action-controls {
+        gap: 0.5rem;
+    }
+    
+    .instructions {
+        padding: 0.8rem;
+    }
+    
+    .instructions li {
+        font-size: 0.9rem;
+    }
+}

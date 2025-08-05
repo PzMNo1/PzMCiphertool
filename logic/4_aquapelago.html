@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aquapelago求解器</title>
+    <title>Aquapelago - 逻辑谜题</title>
     <link rel="stylesheet" href="./css/logic.css"> 
+    <link rel="stylesheet" href="./css/4_aquapelago.css">
 </head>
 
 <body>
@@ -21,13 +22,24 @@
         
         <div class="controls">
             <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
-            <button class="btn" onclick="solveSudoku()">开始求解</button>
-            <button class="btn" onclick="undoLastStep()">返回上步</button>
-            <button class="btn" onclick="clearGrid()">重置网格</button>
-            <input type="checkbox" id="diagonal">
-                    
+            
+            <div class="instructions">
+                <p>📋 使用说明:</p>
+                <ul>
+                    <li>左键点击格子: 输入数字线索</li>
+                    <li>右键点击格子: 切换阴影状态</li>
+                    <li>数字表示该区域应包含的格子数量</li>
+                    <li>阴影区域必须连通且不能有2x2白色区域</li>
+                </ul>
+            </div>
+            
+            <div class="action-controls">
+                <button class="btn" id="solve-btn">求解Aquapelago</button>
+                <button class="btn" id="undo-btn">返回上步</button>
+                <button class="btn" id="reset-btn">重置网格</button>
+            </div>
+            
             <div id="result" style="margin-top: 2rem;"></div>
-            <div id="result"></div>
             <div class="solution-nav" id="solutionNav" style="display: none;">
                 <button class="solution-btn" onclick="showSolution(-1)">◀</button>
                 <span class="solution-counter" id="solutionCounter"></span>
@@ -36,6 +48,6 @@
         </div>
     </div>
     <div class="loading" id="loading"></div>
-    <script src="./js/4_aquapelago.js"></script> 
+    <script src="./js/4_aquapelago.js"></script>
 </body>
 </html>
