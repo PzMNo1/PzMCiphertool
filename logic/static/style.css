@@ -1,0 +1,132 @@
+h2
+{
+	margin-left: -10px;
+	margin-bottom: 15px;
+	margin-top: 0px;
+}
+
+html *
+{
+	font-family: Arial;
+}
+
+.section
+{
+	margin: auto;
+	width: 70%;
+	padding: 5px;
+}
+
+.puz
+{
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	border-spacing: 10px;
+}
+
+.puz tr
+{
+	padding-bottom: 10px;
+}
+.puz td
+{
+	vertical-align: bottom;
+}
+
+.row
+{
+	display:			flex;
+	flex-direction:		row;
+	justify-content:	center;
+	margin-left: 		15px;
+	margin-right: 		15px;
+	margin-bottom: 		25px;
+	padding: 5px;
+}
+
+.row > .smallhalfrow
+{
+	width: 200px;
+	margin-right: 15px;
+}
+
+.row > .largehalfrow
+{
+	margin-left: 15px;
+	margin-top: -20px;
+	width: 60%;
+}
+
+.figure
+{
+	display: 		block;
+	margin-left: 	auto;
+	margin-right: 	auto;
+	margin-bottom: 	5px;
+	width:			min(90%,200px);
+}
+
+.caption
+{
+	font-size: 	0.8em;
+	font-style: italic;
+	text-align: center;
+}
+
+.header
+{
+	display: 		flex;
+	flex-direction: row;
+	text-align:		center;
+	width: 50%;
+	margin: auto;
+}
+
+.header div
+{
+	margin:	auto;
+}
+
+.header li
+{
+	display:		inline;
+	margin-left:	10px;
+	margin-right:	10px;
+	padding-left:	5px;
+	padding-right:	5px;
+	padding-top:	2px;
+	padding-bottom:	2px;
+}
+
+.header hr
+{
+	margin-top:		-10px;
+	margin-bottom:	25px;
+}
+
+.header .active::before
+{
+	content: '[';
+}
+
+.header .active::after
+{
+	content: ']';
+}
+
+#typegroups
+{
+	display: grid;
+  	grid-template-columns: 1fr 1fr 1fr;
+}
+
+.typegroup
+{	
+	border: 1px solid black;
+	margin: 10px;
+	padding: 10px;
+	min-width: 25%;
+}

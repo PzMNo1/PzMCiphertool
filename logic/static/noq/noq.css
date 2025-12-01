@@ -1,0 +1,259 @@
+:root /* variables */
+{
+	--dimension: 40px;
+	--border: 3px; 
+} 	
+
+/* https://stackoverflow.com/questions/826782/how-to-disable-text-selection-highlighting */
+.noselect {
+	-webkit-touch-callout: none; /* iOS Safari */
+		-webkit-user-select: none; /* Safari */
+		 -khtml-user-select: none; /* Konqueror HTML */
+			 -moz-user-select: none; /* Old versions of Firefox */
+				-ms-user-select: none; /* Internet Explorer/Edge */
+						user-select: none; /* Non-prefixed version, currently
+																	supported by Chrome, Edge, Opera and Firefox */
+}		
+
+.copy_cell {
+	width: 12px;
+	height: 12px;
+	border: 1px solid black;
+}
+
+#noq
+{
+	font: Arial;
+}
+
+#top_pane
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	margin-bottom: 20px;
+}
+
+#controls_div
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+#controls_listings, #controls_descriptions
+{
+	display: flex;
+	flex-direction: column;
+	margin: 5px;
+}
+
+#controls_listings
+{
+	align-items: right;
+	text-align: right;
+}
+
+#controls_descriptions
+{
+	align-items: left;
+}
+
+#buttons_div
+{
+	display: flex;
+	justify-content: center;
+}
+
+#examples_div
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+#controls_button
+{
+	width: 100px;
+}
+
+.example_button
+{
+	width: fit-content;
+	margin: 5px;
+}
+
+#puzzle_type
+{
+	width: auto;
+}
+
+#puzzle_type, #top_pane button, #puzzle_info button
+{
+	align-self: center;
+	margin: 5px;
+}
+
+#puzzle_interface
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+#header_div
+{
+	height: 20px;
+	padding-bottom: 5px;
+	margin: auto;
+	text-align: center;
+}
+
+#puzzle_input
+{
+	text-align: center;
+}
+
+#params_div
+{
+	margin: 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.param_input
+{
+	font-size: 20px;
+	text-align: center;
+	min-width: 30px;
+	height: 30px;
+	margin: 10px;
+}
+
+.shift_click_cell {z-index: 4;}
+.container_cell *, .container_border_vertical *, .container_border_horizontal * {z-index: 3;}
+.solution_cell *, .solution_border_vertical *, .solution_border_horizontal * {z-index: 2;}
+.puzzle_cell *, .puzzle_border_vertical *, .puzzle_border_horizontal * {z-index: 1;}
+
+.container_cell, .aux_cell, .shift_click_cell
+{
+	width: var(--dimension);
+	height: var(--dimension);
+}
+
+.shift_click_cell
+{
+	opacity: 0.15;
+}
+
+.puzzle_cell, .solution_cell
+{
+	width: var(--dimension);
+	height: var(--dimension);
+		line-height: var(--dimension);
+		background-size: var(--dimension) var(--dimension);
+
+	font-size: 30px;
+	text-align: center;
+	position: absolute;
+}
+
+.container_border_vertical
+{
+	width: var(--border);
+	height: var(--dimension);
+}
+
+.container_border_horizontal
+{
+	width: var(--dimension);
+	height: var(--border);
+}
+
+.puzzle_border_vertical, .solution_border_vertical
+{
+	min-height: var(--dimension);
+	min-width: var(--border);
+	background-color: gainsboro;
+
+	position: absolute;
+}
+
+.puzzle_border_horizontal, .solution_border_horizontal
+{
+	min-width: var(--dimension);
+	min-height: var(--border);
+	background-color: gainsboro;
+
+	position: absolute;
+}
+
+.puzzle_dot
+{
+	min-width: var(--border);
+	min-height: var(--border);
+	background-color: gainsboro;
+}
+
+.grid_row
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.imp_dropdown
+{
+	font-size: 15px;
+}
+
+.kakuro_across_clue, .kakuro_down_clue
+{
+	width: calc(var(--dimension)/2);
+	height: calc(var(--dimension)/2);
+	line-height: calc(var(--dimension)/2);
+	font-size: 15px;
+	position: absolute;
+	color: white;
+}
+
+.kakuro_across_clue
+{
+	right: 0px; top: 0px;
+}
+
+.kakuro_down_clue
+{
+	left: 0px; bottom: 0px;
+	text-anchor: start;
+}
+
+.nanro_signpost
+{
+	left: 2px;
+	top: calc(2px - var(--dimension)/4);
+	width: calc(var(--dimension)/2);
+	height: calc(var(--dimension)/2);
+	font-size: 15px;
+	position: absolute;
+}
+
+.tapa_clue
+{
+	width: calc(var(--dimension)/2);
+	height: calc(var(--dimension)/2);
+	font-size: 20px;
+	position: absolute;
+}
+
+.tapa_2L { left: 2px; top: calc(2px - var(--dimension)/4); }
+.tapa_2R { right: 2px; bottom: calc(2px + var(--dimension)/4); }
+.tapa_3L { left: 0px; top: calc(2px - var(--dimension)/4); }
+.tapa_3D { left: calc(var(--dimension)/4); bottom: calc(2px + var(--dimension)/4); }
+.tapa_3R { right: 0px; top: calc(2px - var(--dimension)/4); }
+.tapa_4U { left: calc(var(--dimension)/4); top: calc(0px - 1px - var(--dimension)/4); }
+.tapa_4R { right: 0px; bottom: calc(var(--dimension)/2); }
+.tapa_4D { left: calc(var(--dimension)/4); bottom: calc(var(--dimension)/4); }
+.tapa_4L { left: 0px; bottom: calc(var(--dimension)/2); }

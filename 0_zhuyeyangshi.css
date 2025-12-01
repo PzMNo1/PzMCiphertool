@@ -32,9 +32,9 @@
 
 .card {
 background: linear-gradient(145deg, 
-  rgba(64,224,255,0.12) -30%,  
-  rgba(30,41,59,0.92) 40%,    
-  rgba(153,50,204,0.12) 130%); 
+rgba(0, 9, 59, 0.082) 0%,    
+rgba(0, 163, 175, 0.589) 40%,      
+rgba(44, 40, 255, 0.041) 100%);  
 border-radius: 18px;
 padding: 1.75rem;
 box-shadow: 
@@ -45,11 +45,13 @@ box-shadow 0.5s ease-in-out,
 border 0.5s ease-in-out;
 border: 1px solid transparent;
 position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cstyle%3E.trace%7Bfill:none;stroke:rgba(64,224,255,0.08);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round%7D.thin%7Bstroke-width:1;stroke:rgba(64,224,255,0.05)%7D.pad%7Bfill:rgba(64,224,255,0.1)%7D.via%7Bfill:none;stroke:rgba(64,224,255,0.15);stroke-width:1.5%7D.chip%7Bfill:rgba(64,224,255,0.02);stroke:rgba(64,224,255,0.1);stroke-width:1%7D%3C/style%3E%3C/defs%3E%3C!-- 芯片封装 --%3E%3Crect class='chip' x='160' y='160' width='80' height='80' rx='5'/%3E%3C!-- 密集数据总线 --%3E%3Cpath class='trace thin' d='M0 40h100l40 40h120l40-40h100 M0 46h98l40 40h124l40-40h98 M0 52h96l40 40h128l40-40h96'/%3E%3C!-- 蛇形等长布线 --%3E%3Cpath class='trace' d='M350 100v20h-20v10h20v10h-20v10h20v100 M360 100v15h20v10h-20v10h20v10h-20v105'/%3E%3C!-- 扇出走线 --%3E%3Cpath class='trace' d='M160 180h-20l-40-40V50 M160 200h-40l-40-40H20 M160 220h-20l-40 40v90 M240 180h20l40-40V50 M240 220h20l40 40v90'/%3E%3C!-- 焊盘与过孔 --%3E%3Ccircle class='pad' cx='100' cy='140' r='3'/%3E%3Ccircle class='pad' cx='300' cy='140' r='3'/%3E%3Ccircle class='via' cx='40' cy='300' r='2'/%3E%3Ccircle class='via' cx='360' cy='320' r='2'/%3E%3C/svg%3E"),
+  linear-gradient(145deg, rgba(2, 14, 39, 0.7) 0%, rgba(0, 80, 100, 0.5) 40%, rgba(0, 30, 60, 0.6) 100%);
+  background-size: 400px 400px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  background-position: calc(50% + 42px) -30px, center center;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-}
 
 h1 {
   font-family: Arial, sans-serif; 
@@ -64,7 +66,7 @@ h1 {
   position: fixed; 
   pointer-events: none;
   transition: filter 0.5s ease, box-shadow 1s ease;
-  z-index: 1001;
+  z-index: 100;
 }
 
 
@@ -198,6 +200,7 @@ margin-top: 8px;
 margin-bottom: 8px;  
 }
 
+
 /* 侧边栏样式+搜索框样式 */
 .sidebar {
   position: fixed;
@@ -210,7 +213,7 @@ margin-bottom: 8px;
   padding: 2rem 0;
   transition: all 0.3s ease;
   overflow: hidden; /* 确保圆角可见 */
-  z-index: 1000;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -226,7 +229,7 @@ margin-bottom: 8px;
   border-radius: 0 30px 30px 0;
   overflow: hidden; 
   backdrop-filter: blur(6px); 
-  z-index: 2;
+  z-index: 1001; 
 }
 
 .sidebar:hover .menu-text {
@@ -237,6 +240,12 @@ margin-bottom: 8px;
 .sidebar:hover h1 {
   filter: blur(26px); 
   z-index: 1;
+}
+
+@media (min-width: 769px) {
+  .sidebar:hover + .container1 {
+    padding-left: 110px;
+  }
 }
 
 .menu-item {
@@ -322,7 +331,7 @@ margin-bottom: 8px;
  .sidebar-title h2 {
   font-size: 1.5rem; 
   font-weight: bold; 
-  background: linear-gradient(45deg, #fdfdfd, #ffd000); 
+  background: linear-gradient(15deg, #fdfdfd, #ffd000); 
   -webkit-background-clip: text; 
   background-clip: text; 
   -webkit-text-fill-color: transparent; 
@@ -335,7 +344,7 @@ margin-bottom: 8px;
 
 .sidebar:hover .sidebar-title h2 {
   font-size: 1.8rem; 
-  text-shadow: 0 6px 8px rgba(0,0,0,0.6); 
+  text-shadow: 0 6px 8px rgba(43, 43, 43, 0.6); 
 }
 
 .container1 {
@@ -349,9 +358,7 @@ margin-bottom: 8px;
   transition: padding-left 0.3s linear; 
 }
 
-.sidebar:hover + .container1 {
-  padding-left: 110px;
-}
+
 
 
 
@@ -572,38 +579,12 @@ filter: blur(80px);
 
 
 .card:hover {
+  transform: translateY(-5px);
 box-shadow: 
   0 8px 40px -8px rgba(64,224,255,0.4),
   inset 0 0 30px rgba(64,224,255,0.3);
 border: 1px solid rgba(64,224,255,0.5);
 }
-
-.card::before {
-content: "";
-position: absolute;
-top: 0;
-left: 0;
-right: 0;
-bottom: 0;
-background: linear-gradient(
-  120deg,
-  rgba(64,224,255,0.1) 25%,
-  rgba(179,136,255,0.1) 50%,
-  rgba(64,224,255,0.1) 75%
-);
-mask: 
-  linear-gradient(rgba(0,0,0,1) 50%, transparent 100%) 
-  content-box;
-z-index: -1;
-animation: hologram 6s linear infinite;
-}
-
-@keyframes hologram {
-0% { opacity: 0.6; }
-50% { opacity: 0.3; }
-100% { opacity: 0.6; }
-}
-
 
 /* 【清空】按钮  */
 .cyber-button {
@@ -622,7 +603,7 @@ font-weight: 600;
 letter-spacing: 1px;
 background: transparent;
 border: 2px solid var(--primary-clr);
-border-radius: 6px; /* 从8px减小到6px */
+border-radius: 6px; 
 color: var(--text);
 text-transform: uppercase;
 overflow: hidden;
@@ -696,39 +677,209 @@ animation: glitch 0.5s infinite;
 }
 
 
-
-/* 整个滚动条 */
+/* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
+  height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+  background: #0A192F; 
+  border-radius: 4px;
+  box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3); 
+  }
+  ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522); 
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 255, 0.5); 
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.6); 
+  }
+  ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom,  #0231319d, #0ca591d3, #012522); 
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.8); 
+  }
+  ::-webkit-scrollbar-corner {
+  background: #0A192F;
+  }
+
+
+
+  /* --- 标题--- */
+.module-header {
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 4rem; 
+  position: relative;
+  z-index: 10;
+  pointer-events: none; 
 }
 
-/* 滚动条轨道 */
-::-webkit-scrollbar-track {
-  background: #2a2a2a;
-  border-radius: 10px;
+.neon-subtitle {
+  font-size: 0.9rem;
+  color: #3498db;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
-/* 滚动条滑块 */
-::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
-  border-radius: 10px;
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.2),
-              0 0 10px rgba(255, 255, 255, 0.1),
-              inset 0 0 3px rgba(255, 255, 255, 0.3);
-  transition: box-shadow 0.3s ease;
+@keyframes flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+      text-shadow: 
+          0 0 5px #fff,
+          0 0 10px #fff,
+          0 0 20px #2ecc71,
+          0 0 40px #2ecc71;
+  }
+  20%, 24%, 55% {
+      text-shadow: none;
+      opacity: 0.5;
+  }
 }
 
-/* 悬停时的滑块效果 */
-::-webkit-scrollbar-thumb:hover {
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3),
-              0 0 15px rgba(255, 255, 255, 0.2),
-              inset 0 0 5px rgba(255, 255, 255, 0.4);
+.neon-title {
+  font-family: 'Orbitron', 'Segoe UI', sans-serif; /* 优先使用科幻字体 */
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 8px;
+  color: #fff;
+  text-transform: uppercase;
+  text-shadow: 
+      0 0 5px #fff,
+      0 0 10px #fff,
+      0 0 20px #2eccbf,
+      0 0 40px #2ec1cc,
+      0 0 80px #2eccaa;
+  margin-bottom: 0.5rem;
+  position: relative;
+  display: inline-block;
 }
 
-/* 拖动时的滑块效果 */
-::-webkit-scrollbar-thumb:active {
-  background: #5a5a5a;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4),
-              0 0 20px rgba(255, 255, 255, 0.3),
-              inset 0 0 5px rgba(255, 255, 255, 0.5);
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .neon-title {
+      font-size: 1.8rem;
+      letter-spacing: 4px;
+  }
+  .module-header {
+      margin-bottom: 2rem;
+  }
 }
+
+
+
+/* 逻辑谜题区样式 */
+#luojimiti .container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+  gap: 1.5rem !important; 
+  padding: 6rem 1rem 4rem !important;
+  perspective: 1000px;
+  counter-reset: logic-counter; 
+}
+
+/* 逻辑按钮 */
+#luojimiti .logic-btn {
+  position: relative;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 141, 180, 0.473) 100%);
+  border: 1px solid rgba(64, 223, 255, 0.466); 
+  padding: 1rem;
+  height: 60px; 
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif; 
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase; 
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  backdrop-filter: blur(4px);
+  clip-path: polygon(
+    15px 0, 100% 0, 
+    100% calc(100% - 15px), calc(100% - 15px) 100%, 
+    0 100%, 0 15px
+  );
+  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+}
+
+/* 自动编号 (NO.01, NO.02...) */
+#luojimiti .logic-btn::after {
+  counter-increment: logic-counter;
+  content: "NO." counter(logic-counter, decimal-leading-zero);
+  position: absolute;
+  bottom: 6px;
+  right: 20px; 
+  font-size: 0.6rem;
+  color: rgba(64, 224, 255, 0.3);
+  font-family: monospace;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+#luojimiti .logic-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 15px;
+  height: 15px;
+  border-top: 2px solid rgba(64, 224, 255, 0.5);
+  border-left: 2px solid rgba(64, 224, 255, 0.5);
+  transition: all 0.4s ease;
+  opacity: 0.6;
+}
+
+/* 悬停交互效果 */
+#luojimiti .logic-btn:hover {
+  transform: translateY(-5px) scale(1.02);
+  background: rgba(64, 224, 255, 0.1);
+  border-color: rgba(64, 224, 255, 0.6);
+  color: #fff;
+  text-shadow: 0 0 15px rgba(64, 224, 255, 0.8);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 243, 255, 0.2),
+    inset 0 0 20px rgba(64, 224, 255, 0.15);
+}
+
+/* 悬停时角标变化 */
+#luojimiti .logic-btn:hover::before {
+  width: 98%; /* 线条延伸 */
+  height: 95%;
+  border-color: #fff;
+  opacity: 1;
+  box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
+}
+
+#luojimiti .logic-btn:hover::after {
+  color: rgba(64, 224, 255, 0.9);
+  letter-spacing: 2px; 
+}
+
+/* 点击效果 */
+#luojimiti .logic-btn:active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+}
+
+/* 搜索定位高亮样式 (保持黄色以示区别) */
+#luojimiti .logic-btn.logic-highlight {
+    border-color: #ffd700 !important;
+    background: rgba(255, 215, 0, 0.15) !important;
+    color: #ffd700 !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) !important;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3) !important;
+
+}
+
+/* 针对高亮状态的特殊角标颜色 */
+#luojimiti .logic-btn.logic-highlight::before {
+    border-color: #ffd700;
+}
+#luojimiti .logic-btn.logic-highlight::after {
+    color: #ffd700;
+    content: "TARGET"; 
+}
+

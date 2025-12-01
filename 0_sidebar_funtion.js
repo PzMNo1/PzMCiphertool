@@ -40,8 +40,7 @@ function initSearchFunction() {
                 .trim())) target ??= el
         })
 
-        if (!target) return $('#searchToast')?.remove() || ($('body').insertAdjacentHTML('beforeend', 
-            '<div id=searchToast class=search-toast>🔍 未找到相关谜题</div>') && setTimeout(() => $('#searchToast')?.remove(), 2e3))
+
         const isLogic = target.classList.contains('logic-btn')
         isLogic && ($('.submodule-nav [data-target="luojimiti"]').click(), target.closest('.submodule').classList.add('active'))
         target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight')

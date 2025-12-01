@@ -454,3 +454,151 @@
         opacity: 1;
     }
 }
+
+
+/* --- 赛博朋克思维链样式 --- */
+
+/* 1. 外层容器：全息面板风格 */
+.reasoning-details {
+  margin: 12px 0;
+  border: 1px solid rgba(64, 224, 255, 0.3); /* 青色微弱边框 */
+  border-radius: 4px;
+  background: rgba(10, 20, 30, 0.6); /* 深色半透明背景 */
+  box-shadow: 0 0 15px rgba(64, 224, 255, 0.05), inset 0 0 20px rgba(64, 224, 255, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* 展开时的发光增强 */
+.reasoning-details[open] {
+  border-color: rgba(64, 224, 255, 0.6);
+  box-shadow: 0 0 20px rgba(64, 224, 255, 0.15), inset 0 0 10px rgba(64, 224, 255, 0.1);
+}
+
+/* 2. 标题栏：系统状态栏风格 */
+.reasoning-details summary {
+  padding: 10px 15px;
+  cursor: pointer;
+  color: #40e0ff; /* 霓虹青色 */
+  font-family: 'Orbitron', 'Consolas', sans-serif; /* 如果有科幻字体最好 */
+  font-size: 0.85em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  background: rgba(64, 224, 255, 0.05);
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s;
+  user-select: none;
+}
+
+.reasoning-details[open] summary {
+  border-bottom: 1px solid rgba(64, 224, 255, 0.2);
+  background: rgba(64, 224, 255, 0.1);
+  text-shadow: 0 0 8px rgba(64, 224, 255, 0.6);
+}
+
+/* 隐藏原生三角，自定义图标 */
+.reasoning-details summary::marker { display: none; }
+.reasoning-details summary::-webkit-details-marker { display: none; }
+
+.reasoning-details summary::before {
+  content: '►'; 
+  display: inline-block;
+  margin-right: 10px;
+  font-size: 0.8em;
+  transition: transform 0.3s ease;
+  color: var(--primary);
+}
+
+.reasoning-details[open] summary::before {
+  transform: rotate(90deg);
+  color: #ff0055; /* 展开变色，增加警示感 */
+}
+
+/* 3. 动态状态指示器 (呼吸灯) */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #2ecc71;
+  border-radius: 50%;
+  margin-left: auto; /* 推到最右边 */
+  box-shadow: 0 0 8px #2ecc71;
+}
+
+.thinking-state .status-dot {
+  background-color: #f1c40f; /* 思考中黄色 */
+  box-shadow: 0 0 8px #f1c40f;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0.4; transform: scale(0.9); }
+}
+
+/* 4. 内容区域：终端数据流风格 */
+.reasoning-content {
+  padding: 15px;
+  color: rgba(200, 220, 255, 0.8); /* 偏冷的白色 */
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  position: relative;
+  /* 扫描线背景图 */
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.06),
+    rgba(0, 255, 0, 0.02),
+    rgba(0, 0, 255, 0.06)
+  );
+  background-size: 100% 4px, 6px 100%;
+}
+
+/* 顶部扫描光效 */
+.reasoning-content::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #40e0ff;
+  box-shadow: 0 0 10px #40e0ff;
+  opacity: 0.3;
+  animation: scanline 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanline {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.5; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* 5. 光标闪烁效果 */
+.cursor-blink {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  background: #40e0ff;
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: blink 0.8s infinite;
+}
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+
+
+
+

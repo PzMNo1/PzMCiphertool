@@ -1,22 +1,23 @@
 // 模块内容作为JavaScript变量
 const MODULES = {
     // 加密实验室模块
-    jiamishiyanshi: `<!-- 加密实验室 -->
-<div id="jiamishiyanshi-content" class="content-section">
+    jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
 
-    <!-- 模块内切换按钮 -->
-    <div class="submodule-nav">
+    <div class="module-header">
+        <h2 class="neon-title" data-text="CIPHER LABORATORY">CIPHER LAB</h2>
+    </div>
+
+    <div class="submodule-nav" style="margin-top: 2rem;">
         <button class="btn back-btn submodule-btn active" data-target="mimaqu">经典区</button>
         <button class="btn back-btn submodule-btn" data-target="xiandaiqu">现代区</button>
         <button class="btn back-btn submodule-btn" data-target="luojimiti">逻辑区</button>
         <button class="btn back-btn submodule-btn" data-target="cihuibaopoqu">词汇区</button>
+        <button class="btn back-btn submodule-btn" data-target="yuliu">预留区</button>
     </div>
 
-    <!-- 密码区 -->
     <div id="mimaqu" class="submodule active">
         <div class="container">
-
-        <!-- 输入 -->
+        
         <div class="card main-input">
             <div class="badge">输入</div>
             <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
@@ -24,34 +25,34 @@ const MODULES = {
 
         <!-- 凯撒密码 -->
         <div class="card">
-            <div class="badge">凯撒</div>
+            <div class="badge">凯撒 Caesar</div>
             <input type="number" id="caesarShift" placeholder="偏移量" value="3" min="-26" max="26">
             <div class="result" id="caesarResult"></div>
         </div>
 
         <!-- 维吉尼亚密码 -->
         <div class="card">
-            <div class="badge">维吉尼亚</div>
+            <div class="badge">维吉尼亚 Vigenère</div>
             <input type="text" id="vigenereKey" placeholder="输入密钥">
             <div class="result" id="vigenereResult"></div>
         </div>
 
         <!-- 栅栏密码 -->
         <div class="card">
-            <div class="badge">栅栏</div>
+            <div class="badge">栅栏 Rail Fence</div>
             <input type="number" id="railCount" placeholder="层数" value="3">
             <div class="result" id="railResult"></div>
         </div>
 
         <!-- AtBash密码 -->
         <div class="card">
-            <div class="badge">AtBash</div>
+            <div class="badge">AtBash 埃特巴什</div>
             <div class="result" id="atbashResult"></div>
         </div>
 
         <!-- 进制转换 -->
         <div class="card">
-            <div class="badge">进制</div>
+            <div class="badge">进制 Base Converter</div>
             <div class="grid-2">
                 <input type="number" id="fromBase" placeholder="原进制" value="36">
                 <input type="number" id="toBase" placeholder="目标进制" value="10">
@@ -61,82 +62,82 @@ const MODULES = {
 
         <!-- 摩尔斯电码 -->
         <div class="card">
-            <div class="badge">摩尔斯</div>
+            <div class="badge">摩尔斯 Morse</div>
             <div class="result" id="morseResult"></div>
         </div>
 
         <!-- 手机九键 -->
         <div class="card">
-            <div class="badge">手机九键</div>
+            <div class="badge">手机九键 Phone Keypad</div>
             <div class="result" id="phoneResult"></div>
         </div>
 
         <!-- 比尔密码 -->
         <div class="card">
-            <div class="badge">比尔密码</div>
+            <div class="badge">比尔密码 Beale Cipher</div>
             <input type="text" id="bealeKey" placeholder="密钥用空格分隔">
             <div class="result" id="bealeResult"></div>
         </div>
 
         <!-- 反切码 -->
         <div class="card">
-            <div class="badge">反切码</div>
+            <div class="badge">反切码 Fanqie</div>
             <div class="result" id="fanqieResult"></div>
         </div>
 
         <!-- mRNA序列 -->
         <div class="card">
-            <div class="badge">mRNA序列</div>
+            <div class="badge">mRNA序列 mRNA Sequence</div>
             <div class="result" id="dnaResult"></div>
         </div>
 
         <!-- V字键盘密码 -->
         <div class="card">
-            <div class="badge">V字键盘</div>
+            <div class="badge">V字键盘 V-Keyboard</div>
             <div class="result" id="vKeyboardResult"></div>
         </div>
 
         <!-- QWE密码 -->
         <div class="card">
-            <div class="badge">QWE键盘</div>
+            <div class="badge">QWE键盘 QWE Keyboard</div>
             <div class="result" id="qweResult"></div>
         </div>
 
         <!-- Bacon密码 --> 
         <div class="card">
-            <div class="badge">Bacon培根</div>
+            <div class="badge">Bacon 培根</div>
             <div class="result" id="baconResult"></div>
         </div>
 
         <!-- 柱状栅栏密码 -->
         <div class="card">
-            <div class="badge">柱状栅栏</div>
+            <div class="badge">柱状栅栏 Columnar Rail Fence</div>
             <input type="number" id="columnarRailCount" placeholder="列数" value="2">
             <div class="result" id="columnarRailResult"></div>
         </div>
 
         <!-- w型栅栏密码 -->
         <div class="card">
-            <div class="badge">W型栅栏</div>
+            <div class="badge">W型栅栏 W-Rail Fence</div>
             <input type="number" id="wRailCount" placeholder="层数" value="3">
             <div class="result" id="wRailResult"></div>
         </div>
 
         <!-- 01248密码 -->
         <div class="card">
-            <div class="badge">01248密码</div>
+            <div class="badge">01248密码 01248 Cipher</div>
             <div class="result" id="cipher01248Result"></div>
         </div>
 
         <!-- 元音密码 -->
         <div class="card">
-            <div class="badge">元音密码</div>
+            <div class="badge">元音密码 Vowel Cipher</div>
             <div class="result" id="vowelCipherResult"></div>
         </div>
 
         <!-- ASCII 转换 -->
         <div class="card">
-            <div class="badge">ASCII</div>
+            <div class="badge">ASCII 美国标准信息交换码</div>
             <div class="grid-2">
                 <select id="asciiInputType">
                     <option value="char">字符</option>
@@ -158,19 +159,19 @@ const MODULES = {
 
         <!-- 中文电码 -->
         <div class="card">
-            <div class="badge">中文电码</div>
+            <div class="badge">中文电码 Chinese Telegraph Code</div>
             <div class="result" id="cccResult"></div>
         </div>
 
         <!-- 四角号码 -->
         <div class="card">
-            <div class="badge">四角号码</div>
+            <div class="badge">四角号码 Four Corner Code</div>
             <div class="result" id="fourcccResult"></div>
         </div>
 
         <!-- ROT 转换 -->
         <div class="card">
-            <div class="badge">ROT</div>
+            <div class="badge">ROT 旋转加密</div>
             <div class="grid-full">
                 <select id="rotOutputType">
                     <option value="char">ROT5</option>
@@ -184,7 +185,7 @@ const MODULES = {
 
         <!-- Polybius 方阵 -->
         <div class="card">
-            <div class="badge">Polybius Square</div>
+            <div class="badge">Polybius Square 波利比乌斯方阵</div>
             <div class="grid-full"> 
                 <input type="text" id="psAlpha" placeholder="字母" value="abcdefghiklmnopqrstuvwxyz"></div>
             <div class="grid-2"> 
@@ -196,7 +197,7 @@ const MODULES = {
 
         <!-- ADFGX/ADFVGX -->
         <div class="card">
-            <div class="badge">ADFGX/ADFVGX</div>
+            <div class="badge">ADFGX/ADFVGX 密码</div>
             <div class="grid-full">
                 <input type="text" id="ADFAlpha" placeholder="字母" value="abcdefghiklmnopqrstuvwxyz"></div>
             <div class="grid-2"> 
@@ -211,7 +212,7 @@ const MODULES = {
 
         <!-- 仿射 -->
         <div class="card">
-            <div class="badge">仿射</div>
+            <div class="badge">仿射 Affine</div>
             <div class="grid-full">
                 <input type="text" id="AffineAlpha" placeholder="字母" value="abcdefghijklmnopqrstuvwxyz"></div>
             <div class="grid-2"> 
@@ -223,7 +224,7 @@ const MODULES = {
 
         <!-- 敲击码 -->
         <div class="card">
-            <div class="badge">敲击码</div>
+            <div class="badge">敲击码 Tap Code</div>
             <div class="grid-3"> 
                 <input type="text" id="tapMark" placeholder="Tap" value=".">
                 <input type="text" id="groupMark" placeholder="Group" value="a">
@@ -234,16 +235,16 @@ const MODULES = {
 
         <!-- BifidCipher -->
         <div class="card">
-            <div class="badge">BifidCipher</div>
+            <div class="badge">BifidCipher 双密码</div>
             <div class="grid-2"> 
-                <input type="text" id="BifidCipherkey" placeholder="Key" value="abc123">
+                <input type="text" id="BifidCipherkey" placeholder="Key" value="abcdefghiklmnopqrstuvwxyz">
             </div>
             <div class="result" id="BifidCipherResult"></div>
         </div>
 
         <!-- 旗语-盲文 -->
         <div class="card">
-            <div class="badge">旗语-盲文</div>
+            <div class="badge">旗语-盲文 Semaphore-Braille</div>
             <div class="grid-full2">
                 <select id="qiyuType">
                     <option value="semaphore">旗语 (Semaphore)</option>
@@ -263,7 +264,7 @@ const MODULES = {
 
         <!-- Base码 -->
         <div class="card">
-            <div class="badge">Base</div>
+            <div class="badge">Base 编码</div>
             <div class="grid-full">
                 <select id="baseOutputType">
                     <option value="base16">BASE16</option>
@@ -343,67 +344,67 @@ const MODULES = {
     <!-- 逻辑谜题区 -->
     <div id="luojimiti" class="submodule">
         <div class="container">
-            <a href="./logic/1_sudoku.html" class="btn back-btn logic-btn">数独</a>
-            <a href="./logic/2_Akari.html" class="btn back-btn logic-btn">Akari</a>
-            <a href="./logic/3_Aqre.html" class="btn back-btn logic-btn">Aqre</a>
-            <a href="./logic/4_aquapelago.html" class="btn back-btn logic-btn">aquapelago</a>
-            <a href="./logic/5_aquarium.html" class="btn back-btn logic-btn">aquarium</a>
-            <a href="./logic/6_balanceloop.html" class="btn back-btn logic-btn">balanceloop</a>
-            <a href="./logic/7_battleship.html" class="btn back-btn logic-btn">battleship</a>
-            <a href="./logic/8_binairo.html" class="btn back-btn logic-btn">binairo</a>
-            <a href="./logic/9_castlewall.html" class="btn back-btn logic-btn">castlewall</a>
-            <a href="./logic/10_cave.html" class="btn back-btn logic-btn">cave</a>
-            <a href="./logic/11_chocobanana.html" class="btn back-btn logic-btn">chocobanana</a>
-            <a href="./logic/12_chocona.html" class="btn back-btn logic-btn">chocona</a>
-            <a href="./logic/15_countryroad.html" class="btn back-btn logic-btn">countryroad</a>
-            <a href="./logic/16_doppelblock.html" class="btn back-btn logic-btn">doppelblock</a>
-            <a href="./logic/17_easyas.html" class="btn back-btn logic-btn">easyas</a>
-            <a href="./logic/18_fillomino.html" class="btn back-btn logic-btn">fillomino</a>
-            <a href="./logic/19_gokigen.html" class="btn back-btn logic-btn">gokigen</a>
-            <a href="./logic/20_haisu.html" class="btn back-btn logic-btn">haisu</a>
-            <a href="./logic/21_haisuslow.html" class="btn back-btn logic-btn">haisuslow</a>
-            <a href="./logic/22_hamle.html" class="btn back-btn logic-btn">hamle</a>
-            <a href="./logic/23_hashi.html" class="btn back-btn logic-btn">hashi</a>
-            <a href="./logic/24_heteromino.html" class="btn back-btn logic-btn">heteromino</a>
-            <a href="./logic/25_heyawake.html" class="btn back-btn logic-btn">heyawake</a>
-            <a href="./logic/26_hitori.html" class="btn back-btn logic-btn">hitori</a>
-            <a href="./logic/27_hotaru.html" class="btn back-btn logic-btn">hotaru</a>
-            <a href="./logic/28_kakuro.html" class="btn back-btn logic-btn">kakuro</a>
-            <a href="./logic/29_kuromasu.html" class="btn back-btn logic-btn">kuromasu</a>
-            <a href="./logic/30_kurotto.html" class="btn back-btn logic-btn">kurotto</a>
-            <a href="./logic/31_lits.html" class="btn back-btn logic-btn">lits</a>
-            <a href="./logic/32_magnets.html" class="btn back-btn logic-btn">magnets</a>
-            <a href="./logic/33_masyu.html" class="btn back-btn logic-btn">masyu</a>
-            <a href="./logic/34_minesweeper.html" class="btn back-btn logic-btn">minesweeper</a>
-            <a href="./logic/35_moonsun.html" class="btn back-btn logic-btn">moonsun</a>
-            <a href="./logic/36_nagare.html" class="btn back-btn logic-btn">nagare</a>
-            <a href="./logic/37_nanro.html" class="btn back-btn logic-btn">nanro</a>
-            <a href="./logic/38_ncells.html" class="btn back-btn logic-btn">ncells</a>
-            <a href="./logic/39_nonogram.html" class="btn back-btn logic-btn">nonogram</a>
-            <a href="./logic/40_norinori.html" class="btn back-btn logic-btn">norinori</a>
-            <a href="./logic/41_numberlink.html" class="btn back-btn logic-btn">numberlink</a>
-            <a href="./logic/42_nuribou.html" class="btn back-btn logic-btn">nuribou</a>
-            <a href="./logic/43_nurikabe.html" class="btn back-btn logic-btn">nurikabe</a>
-            <a href="./logic/44_nurimisaki.html" class="btn back-btn logic-btn">nurimisaki</a>
-            <a href="./logic/45_onsen.html" class="btn back-btn logic-btn">onsen</a>
-            <a href="./logic/46_rippleeffect.html" class="btn back-btn logic-btn">rippleeffect</a>
-            <a href="./logic/47_shakashaka.html" class="btn back-btn logic-btn">shakashaka</a>
-            <a href="./logic/48_shikaku.html" class="btn back-btn logic-btn">shikaku</a>
-            <a href="./logic/49_shimaguni.html" class="btn back-btn logic-btn">shimaguni</a>
-            <a href="./logic/50_skyscrapers.html" class="btn back-btn logic-btn">skyscrapers</a>
-            <a href="./logic/51_slitherlink.html" class="btn back-btn logic-btn">slitherlink</a>
-            <a href="./logic/52_spiralgalaxies.html" class="btn back-btn logic-btn">spiralgalaxies</a>
-            <a href="./logic/53_starbattle.html" class="btn back-btn logic-btn">starbattle</a>
-            <a href="./logic/54_statuepark.html" class="btn back-btn logic-btn">statuepark</a>
-            <a href="./logic/55_stostone.html" class="btn back-btn logic-btn">stostone</a>
-            <a href="./logic/56_tapa.html" class="btn back-btn logic-btn">tapa</a>
-            <a href="./logic/57_tatamibari.html" class="btn back-btn logic-btn">tatamibari</a>
-            <a href="./logic/58_tents.html" class="btn back-btn logic-btn">tents</a>
-            <a href="./logic/59_tll.html" class="btn back-btn logic-btn">tll</a>
-            <a href="./logic/60_tren.html" class="btn back-btn logic-btn">tren</a>
-            <a href="./logic/61_yajilin.html" class="btn back-btn logic-btn">yajilin</a>
-            <a href="./logic/62_yajisankazusan.html" class="btn back-btn logic-btn">yajisankazusan</a>
-            <a href="./logic/63_yinyang.html" class="btn back-btn logic-btn">yinyang</a>
+            <a href="./logic/1_sudoku.html" class="logic-btn">数独</a>
+            <a href="./logic/2_Akari.html" class="logic-btn">Akari</a>
+            <a href="./logic/3_Aqre.html" class="logic-btn">Aqre</a>
+            <a href="./logic/4_aquapelago.html" class="logic-btn">aquapelago</a>
+            <a href="./logic/5_aquarium.html" class="logic-btn">aquarium</a>
+            <a href="./logic/6_balanceloop.html" class="logic-btn">balanceloop</a>
+            <a href="./logic/7_battleship.html" class="logic-btn">battleship</a>
+            <a href="./logic/8_binairo.html" class="logic-btn">binairo</a>
+            <a href="./logic/9_castlewall.html" class="logic-btn">castlewall</a>
+            <a href="./logic/10_cave.html" class="logic-btn">cave</a>
+            <a href="./logic/11_chocobanana.html" class="logic-btn">chocobanana</a>
+            <a href="./logic/12_chocona.html" class="logic-btn">chocona</a>
+            <a href="./logic/15_countryroad.html" class="logic-btn">countryroad</a>
+            <a href="./logic/16_doppelblock.html" class="logic-btn">doppelblock</a>
+            <a href="./logic/17_easyas.html" class="logic-btn">easyas</a>
+            <a href="./logic/18_fillomino.html" class="logic-btn">fillomino</a>
+            <a href="./logic/19_gokigen.html" class="logic-btn">gokigen</a>
+            <a href="./logic/20_haisu.html" class="logic-btn">haisu</a>
+            <a href="./logic/21_haisuslow.html" class="logic-btn">haisuslow</a>
+            <a href="./logic/22_hamle.html" class="logic-btn">hamle</a>
+            <a href="./logic/23_hashi.html" class="logic-btn">hashi</a>
+            <a href="./logic/24_heteromino.html" class="logic-btn">heteromino</a>
+            <a href="./logic/25_heyawake.html" class="logic-btn">heyawake</a>
+            <a href="./logic/26_hitori.html" class="logic-btn">hitori</a>
+            <a href="./logic/27_hotaru.html" class="logic-btn">hotaru</a>
+            <a href="./logic/28_kakuro.html" class="logic-btn">kakuro</a>
+            <a href="./logic/29_kuromasu.html" class="logic-btn">kuromasu</a>
+            <a href="./logic/30_kurotto.html" class="logic-btn">kurotto</a>
+            <a href="./logic/31_lits.html" class="logic-btn">lits</a>
+            <a href="./logic/32_magnets.html" class="logic-btn">magnets</a>
+            <a href="./logic/33_masyu.html" class="logic-btn">masyu</a>
+            <a href="./logic/34_minesweeper.html" class="logic-btn">minesweeper</a>
+            <a href="./logic/35_moonsun.html" class="logic-btn">moonsun</a>
+            <a href="./logic/36_nagare.html" class="logic-btn">nagare</a>
+            <a href="./logic/37_nanro.html" class="logic-btn">nanro</a>
+            <a href="./logic/38_ncells.html" class="logic-btn">ncells</a>
+            <a href="./logic/39_nonogram.html" class="logic-btn">nonogram</a>
+            <a href="./logic/40_norinori.html" class="logic-btn">norinori</a>
+            <a href="./logic/41_numberlink.html" class="logic-btn">numberlink</a>
+            <a href="./logic/42_nuribou.html" class="logic-btn">nuribou</a>
+            <a href="./logic/43_nurikabe.html" class="logic-btn">nurikabe</a>
+            <a href="./logic/44_nurimisaki.html" class="logic-btn">nurimisaki</a>
+            <a href="./logic/45_onsen.html" class="logic-btn">onsen</a>
+            <a href="./logic/46_rippleeffect.html" class="logic-btn">rippleeffect</a>
+            <a href="./logic/47_shakashaka.html" class="logic-btn">shakashaka</a>
+            <a href="./logic/48_shikaku.html" class="logic-btn">shikaku</a>
+            <a href="./logic/49_shimaguni.html" class="logic-btn">shimaguni</a>
+            <a href="./logic/50_skyscrapers.html" class="logic-btn">skyscrapers</a>
+            <a href="./logic/51_slitherlink.html" class="logic-btn">slitherlink</a>
+            <a href="./logic/52_spiralgalaxies.html" class="logic-btn">spiralgalaxies</a>
+            <a href="./logic/53_starbattle.html" class="logic-btn">starbattle</a>
+            <a href="./logic/54_statuepark.html" class="logic-btn">statuepark</a>
+            <a href="./logic/55_stostone.html" class="logic-btn">stostone</a>
+            <a href="./logic/56_tapa.html" class="logic-btn">tapa</a>
+            <a href="./logic/57_tatamibari.html" class="logic-btn">tatamibari</a>
+            <a href="./logic/58_tents.html" class="logic-btn">tents</a>
+            <a href="./logic/59_tll.html" class="logic-btn">tll</a>
+            <a href="./logic/60_tren.html" class="logic-btn">tren</a>
+            <a href="./logic/61_yajilin.html" class="logic-btn">yajilin</a>
+            <a href="./logic/62_yajisankazusan.html" class="logic-btn">yajisankazusan</a>
+            <a href="./logic/63_yinyang.html" class="logic-btn">yinyang</a>
         </div>
     </div>
     
@@ -415,15 +416,78 @@ const MODULES = {
             </div>
         </div>
     </div>
+
+        <!-- 预留区 -->
+    <div id="yuliu" class="submodule">
+        <div class="container">
+            <div class="card">
+                <div class="result">词汇爆破内容...</div>
+            </div>
+        </div>
+    </div>
+
 </div>`,
+
+    // 电子实验室模块
+    electroniclab: `
+    <div class="module-header">
+        <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
+    </div>
+`,
+
+    // 工作流模块
+    workflow: `
+    <div id="workflow-content" class="content-section">
+        <div class="workflow-header">
+            <h2 class="neon-title">WORKFLOW STUDIO</h2>
+        </div>
+
+        <div class="card main-input">
+            <div class="badge">全局输入</div>
+            <textarea id="mainInputCoze" placeholder="输入要处理的内容 (所有工作流将共用此输入)..." autofocus></textarea>
+        </div>
+
+        <div id="workflow-list">
+            </div>
+
+        <div class="global-controls">
+            <button class="cyber-button" id="addNewWorkflowBtn">
+                <span class="cyber-button__tag">+ 添加新工作流组</span>
+            </button>
+        </div>
+    </div>
+`,
 
     // 知识图谱模块
     zhishitupu: `<div id="zhishitupu-content" class="content-section">
-    <div class="container"><h3>这里是知识图谱的内容...</h3>知识图谱</div>
-</div>`,
+        <div id="zstp-vignette"></div>
+
+        <div id="ui-layer">
+            <div class="hud-panel">
+                <h1> Knowledge Graph </h1>
+                <div class="subtitle">---</div>
+                <div style="height: 1px; background: linear-gradient(90deg, rgba(0, 255, 255, 0.99), transparent); margin-bottom: 10px;"></div>
+                <div class="controls">
+                    <div><span class="key">L-CLICK</span> ROTATE 旋转</div>
+                    <div><span class="key">R-CLICK</span> PAN 平移</div>
+                    <div><span class="key">SCROLL</span> ZOOM 缩放</div>
+                    <div><span class="key">CLICK</span> FOCUS 聚焦</div>
+                </div>
+                <div style="margin-top: 15px; font-size: 10px; color: #4a6; letter-spacing: 1px;">● SYSTEM ONLINE</div>
+            </div>
+        </div>
+
+        <div id="zstp-loader">
+            <div>INITIALIZING LINK...</div>
+            <div class="scan-line"></div>
+        </div>
+        
+        <div id="graph-wrapper"></div>
+    </div>`,
 
     // 大模型模块
-    damoxing: `<div id="damoxing-content" class="content-section">
+    damoxing: `
+    <div id="damoxing-content" class="content-section">
     <div id="damoxing-container">
         <div class="chat-interface">
             <!-- 主对话区域 -->
@@ -484,7 +548,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './cipher/6_semaphore.js',
         '0_sidebar_funtion.js',
         './cipher/999_funtion.js',
-        './script.js'
+        './model/cipher_bridge_auto.js',
+        './model/script.js',
+        './workflow/workflow.js',
+        './zhishitupu/zhishitupu.js',
     ]
     .reduce((promise, src) => promise.then(() => new Promise(resolve => {
             const script = document.createElement('script');
@@ -498,24 +565,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initChatFunctions === 'function') {
             initChatFunctions();
         }
+        
+        // 初始化工作流
+        initWorkflowCoze();
     });
     
     if (!MODULES) return console.error('模块内容未定义');
-    ['jiamishiyanshi', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id => 
+    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id => 
         document.getElementById(id + '-container').innerHTML = MODULES[id]
     );
+
     const showModule = id => {
+        // 性能优化：每次点击菜单切换时，都会检查知识图谱模块，如果是，唤醒图谱；如果不是，就休眠
+        if (window.ZSTP) {
+            if (id === 'zhishitupu') {
+                window.ZSTP.resume();
+            } else {
+                window.ZSTP.pause();
+            }
+        }
+
         document.querySelectorAll('.container1 > div').forEach(e => e.style.display = 'none');
-        document.getElementById(id + '-container').style.display = 'block';
+        const targetContainer = document.getElementById(id + '-container');
+        if (targetContainer) {
+            targetContainer.style.display = 'block';
+        }
+
         document.querySelectorAll('.menu-item').forEach(item => 
             item.classList[item.getAttribute('data-target') === id ? 'add' : 'remove']('active')
         );
         
-        // 如果切换到大模型模块，确保绑定事件
+        // 知识图谱模块特殊处理
+        if (id === 'zhishitupu') {
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+                if(typeof initKnowledgeGraph === 'function') {
+                    initKnowledgeGraph();
+                }
+            }, 50);  
+        }
+
+        // 大模型特殊处理
         if (id === 'damoxing' && typeof bindChatEvents === 'function') {
-            bindEvents();
+            bindChatEvents(); 
         }
     };
+
     showModule('jiamishiyanshi');
     document.querySelectorAll('.menu-item').forEach(item => 
         item.addEventListener('click', e => {

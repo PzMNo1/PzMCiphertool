@@ -476,10 +476,9 @@ const TapCode = {
   e: (t, tm='.', gm=' ', lm='  ') => {
     t = t.toLowerCase().replace(/k/g,'c').replace(/[^a-z]/g,'');
     if(!t) return '';
-    const a = 'abcdefghijlmnopqrstuvwxyz';
     let r = '';
     for(let i=0, l=t.length; i<l; i++) {
-      const p = a.indexOf(t[i]);
+      const p = 'abcdefghijlmnopqrstuvwxyz'.indexOf(t[i]);
       if(p < 0) continue;
       const row = ~~(p/5)+1, col = p%5+1;
       i > 0 && (r += lm);
@@ -504,6 +503,33 @@ const TapCode = {
     return r;
   }
 }
+
+//Bifid Cipher
+const Bifid={
+  generateSquare:k=>{k=k.toLowerCase()
+    .replace(/[^a-z]/g,"").replace(/j/g,"i");let s="",n=new Set;
+    for(let e of k)n.has(e)||(s+=e,n.add(e));
+    for(let e of"abcdefghiklmnopqrstuvwxyz")n.has(e)||(s+=e,n.add(e));
+    return s},
+    e:(t,k)=>{t=t.toLowerCase().replace(/[^a-z]/g,"")
+      .replace(/j/g,"i");if(!t)return"";
+      let s=Bifid.generateSquare(k),
+      r="",o="";for(let e of t){
+        let a=s.indexOf(e),l=Math.floor(a/5)+1,f=a%5+1;r+=l,o+=f}
+        let n=r+o,c="";for(let e=0;e<n.length;e+=2){
+          let r=parseInt(n[e])-1,a=parseInt(n[e+1])-1;c+=s[5*r+a]
+        } return c
+      },
+      
+    d:(t,k)=>{t=t.toLowerCase().replace(/[^a-z]/g,"")
+      .replace(/j/g,"i");if(!t)return"";
+      let s=Bifid.generateSquare(k),r="";
+      for(let e of t){let a=s.indexOf(e),l=Math.floor(a/5)+1,f=a%5+1;r+=l+""+f}
+      let o=t.length,n=r.substring(0,o),c=r.substring(o),a="";
+      for(let e=0;e<o;e++){let l=parseInt(n[e])-1,t=parseInt(c[e])-1;a+=s[5*l+t]}
+      return a
+    }
+};
 
 // Base码 Base16 Base32 Base64 Base58 Base85 Base91 Base100
 const baseCipher = {
@@ -647,112 +673,11 @@ function createHashCipher(algorithm) {
         }
     }
 }
+
+
 const SHA1Cipher = createHashCipher('SHA-1')
 const SHA256Cipher = createHashCipher('SHA-256')
 const SHA384Cipher = createHashCipher('SHA-384')
 const SHA512Cipher = createHashCipher('SHA-512')
 
-const BifidCipher = {    
-  e: function(text, key = '') {
-    if (!text) return '';
 
-    const defaultAlphabet = 'abcdefghiklmnopqrstuvwxyz';
-    const filteredKey = key.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
-    let customAlphabet = '';
-    const used = {};
-    for (const char of filteredKey) {
-      if (!used[char]) {
-        customAlphabet += char;
-        used[char] = true;
-      }
-    }
-    for (const char of defaultAlphabet) {
-      if (!used[char]) {
-        customAlphabet += char;
-        used[char] = true;
-      }
-    }
-    const square = {};
-    const reverseSquare = {};
-    
-    for (let i = 0; i < customAlphabet.length; i++) {
-      const char = customAlphabet[i];
-      const row = Math.floor(i / 5) + 1;
-      const col = (i % 5) + 1;
-      square[char] = [row, col];
-      reverseSquare[`${row}${col}`] = char;
-    }
-    
-    const cleanText = text.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
-    if (!cleanText) return '';
-    const rows = [];
-    const cols = [];
-    
-    for (const char of cleanText) {
-      if (square[char]) {
-        rows.push(square[char][0]);
-        cols.push(square[char][1]);
-      }
-    }
-    const transposed = [...rows, ...cols];
-    let result = '';
-    for (let i = 0; i < transposed.length - 1; i += 2) {
-      const key = `${transposed[i]}${transposed[i+1]}`;
-      result += reverseSquare[key] || '';
-    }
-    
-    return result;
-  },
-  
-  d: function(text, key = '') {
-    if (!text) return '';
-    const defaultAlphabet = 'abcdefghiklmnopqrstuvwxyz';
-    const filteredKey = key.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
-    let customAlphabet = '';
-    const used = {};
-    for (const char of filteredKey) {
-      if (!used[char]) {
-        customAlphabet += char;
-        used[char] = true;
-      }
-    }
-    
-    // 添加剩余字母
-    for (const char of defaultAlphabet) {
-      if (!used[char]) {
-        customAlphabet += char;
-        used[char] = true;
-      }
-    }
-    const square = {};
-    const reverseSquare = {};
-    
-    for (let i = 0; i < customAlphabet.length; i++) {
-      const char = customAlphabet[i];
-      const row = Math.floor(i / 5) + 1;
-      const col = (i % 5) + 1;
-      square[char] = [row, col];
-      reverseSquare[`${row}${col}`] = char;
-    }
-    
-    const cleanText = text.toLowerCase().replace(/j/g, 'i').replace(/[^a-z]/g, '');
-    if (!cleanText) return '';
-    const coords = [];
-    for (const char of cleanText) {
-      if (square[char]) {
-        coords.push(square[char][0], square[char][1]);
-      }
-    }
-    
-    const plainLength = coords.length / 2;
-    const rows = coords.slice(0, plainLength);
-    const cols = coords.slice(plainLength);
-    let plainText = '';
-    for (let i = 0; i < Math.min(rows.length, cols.length); i++) {
-      const key = `${rows[i]}${cols[i]}`;
-      plainText += reverseSquare[key] || '';
-    }
-    
-    return plainText;
-  }
-}

@@ -42,7 +42,7 @@ async function updateAll(){
     document.getElementById('fourcccResult').textContent =`结果: ${fourCCCHandler.convert(fourcccText)}`;
     document.getElementById('rotResult').textContent = `结果: ${ROTCipher.e(t, rotOutputType)}`;
 
-    // Polybius方阵 ADFGX/ADFVGX 仿射密码 敲击码
+    // Polybius方阵 ADFGX/ADFVGX 仿射密码 敲击码 BifidCipher
     const psAlpha = document.getElementById('psAlpha').value;
     const psRows = document.getElementById('psRows').value;
     const psColumns = document.getElementById('psColumns').value;
@@ -59,6 +59,8 @@ async function updateAll(){
     document.getElementById('ADFGXResult').textContent = `加密: ${ADFGXCipher.ect(t, alp, afK, aCi)}\n解密: ${ADFGXCipher.dpt(t, alp, afK, aCi)}`;
     document.getElementById('AffineResult').textContent = `加密: ${Affine.e(t,alpha,a,b)}\n解密: ${Affine.d(t,alpha,a,b)}`;
     document.getElementById('tapCodeResult').textContent = `加密: ${TapCode.e(t,tm,gm,lm)}\n解密: ${TapCode.d(t,tm,gm,lm)}`; 
+    let bk = document.getElementById('BifidCipherkey').value || '';
+    document.getElementById('BifidCipherResult').textContent = `加密: ${Bifid.e(t, bk)}\n解密: ${Bifid.d(t, bk)}`;
 
     // MD5码 SHA-1 SHA-256 SHA-384 SHA-512
     let md5k = document.getElementById('MD5Key').value;
@@ -77,24 +79,24 @@ async function updateAll(){
     const baseOutputType = document.getElementById('baseOutputType').value
     document.getElementById('baseEncodeResult').textContent = `结果: ${baseCipher.e(t, baseOutputType)}\n加密结果: ${baseCipher.d(t, baseOutputType)}`;
 
-    let BifidCipherKey = document.getElementById('BifidCipherkey').value;
-    document.getElementById('BifidCipherResult').textContent = `加密: ${BifidCipher.e(t,BifidCipherKey)}\n解密: ${BifidCipher.d(t,BifidCipherKey)}`;
-
 }
 
 //事件监听
 document.querySelectorAll('#mainInput, input, textarea, select').forEach(el => {el.addEventListener('input', updateAll);});
 
-// 获取两个输入框元素
+// 获取三个输入框元素并进行绑定
 const inputClassic = document.querySelector('#mimaqu #mainInput');
 const inputModern = document.querySelector('#xiandaiqu #mainInput');
+const inputCoze = document.querySelector('#workflow-content #mainInputCoze');
 async function syncInputs(e) {
-    if (e.target === inputClassic) {inputModern.value = e.target.value; } 
-    else {inputClassic.value = e.target.value; }
-    updateAll(); 
+    if (e.target === inputClassic) {inputModern.value = e.target.value; inputCoze.value = e.target.value; } 
+    else if (e.target === inputModern) {inputClassic.value = e.target.value; inputCoze.value = e.target.value; }
+    else if (e.target === inputCoze) {inputClassic.value = e.target.value; inputModern.value = e.target.value; }
+    updateAll();    
 }
 inputClassic.addEventListener('input', syncInputs);
 inputModern.addEventListener('input', syncInputs);
+inputCoze.addEventListener('input', syncInputs);
 
 updateAll();
 
