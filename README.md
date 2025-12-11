@@ -1,8 +1,15 @@
-目前市面上缺乏一个现代的、UI精美的、基于 TypeScript/Javascript的开源电路计算器合集。我想我们尝试一下
+怎么打开这个项目
+
+1.如果你安装了VS Code 或者 cursor，那么可以安装live server插件，然后在目录栏里右键index.html，选择Open with live server来打开。
+
+2.如果你已经安装了 Node.js，直接在终端输入命令并回车：npx http-server，终端会显示访问地址，通常是 http://127.0.0.1:8080。按住 Ctrl 点击链接即可打开。
+
+3.如果你已经安装了cursor，那么可以按 Ctrl + Shift + P 打开搜索框，输入Simple Browser: Show（注意大小写和英文冒号），然后回车，然后在框里输入 http://127.0.0.1:5500/你解压工程后的文件夹名称/index.html，这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
+
+
 
 
 开发文档
-
 ## 1. 项目简介
 基于Python/HTML/CSS/JS/TS构建，不依赖任何框架
 工程的UI、前后端算法、部署、函数作用等都是作者从0-1原生构建

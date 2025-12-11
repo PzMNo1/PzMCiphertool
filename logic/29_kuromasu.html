@@ -3,15 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kuromasu - 逻辑谜题</title>
+    <title>Kuromasu - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/29_kuromasu.css">
 </head>
 <body>
-    <div class="container">
-        <h1>kuromasu</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <!-- 返回按钮 返回主页面 -->
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+
+    <div class="header">
+        <h1 class="title">Kuromasu 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+            
+    <div class="container">
+        <div class="kuromasu-wrapper">
+            <div class="controls-bar">
+                <div class="size-controls">
+                    <label>行：<input type="number" id="rows" min="3" max="15" value="8"></label>
+                    <label>列：<input type="number" id="cols" min="3" max="15" value="8"></label>
+                    <button class="btn small-btn" id="create-grid">创建网格</button>
+                </div>
+            </div>
+            
+            <div class="kuromasu-grid" id="puzzle-grid"></div>
+            
+            <div class="solution-nav" id="solutionNav" style="display: none; margin-top: 1rem;">
+                <button class="solution-btn" id="prev-solution">◀</button>
+                <span class="solution-counter" id="solution-count">0/0</span>
+                <button class="solution-btn" id="next-solution">▶</button>
+                <button class="btn small-btn" id="back-to-edit" style="margin-left: 1rem;">返回编辑</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            
+            <div class="instructions">
+                <p>📋 使用说明:</p>
+                <ul>
+                    <li>左键点击格子: 输入数字 (视野范围)</li>
+                    <li>右键点击格子: 标记为黑格 (用于手动解题)</li>
+                    <li>规则:
+                        <ul>
+                            <li>数字表示从该格出发(含自身)，水平和垂直方向能看到的连续白格总数。</li>
+                            <li>视线会被黑格或网格边缘阻挡。</li>
+                            <li>黑格不能正交相邻。</li>
+                            <li>所有白格必须连通。</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="action-controls">
+                <button class="btn" id="solve-btn">开始求解</button>
+                <button class="btn" id="reset-btn">重置网格</button>
+            </div>
+        
+            <div id="result" style="margin-top: 2rem;"></div>
+        </div>
+    </div>
+        
+    <div class="loading" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">求解中，请稍候...<br><span id="loading-time">0</span>秒</div>
+    </div>
+    
+    <script src="./js/29_kuromasu.js"></script>
 </body>
 </html>

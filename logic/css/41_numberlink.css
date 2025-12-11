@@ -1,0 +1,57 @@
+/* Numberlink Specific Styles */
+.numberlink-cell {
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.numberlink-cell:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.numberlink-cell.active-input {
+    background: rgba(64, 224, 255, 0.2);
+    box-shadow: inset 0 0 10px rgba(64, 224, 255, 0.5);
+}
+
+/* Path visualization */
+.numberlink-cell svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+    max-width: 200px;
+}
+
+.num-btn {
+    padding: 0.8rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.num-btn:hover {
+    background: var(--quantum-blue);
+    color: black;
+}
+

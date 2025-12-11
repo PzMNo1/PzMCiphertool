@@ -1,0 +1,70 @@
+.nanro-cell {
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1); /* 默认细边框 */
+    color: var(--neon-cyan);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.nanro-cell:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.nanro-cell.active-input {
+    background: rgba(64, 224, 255, 0.2);
+    box-shadow: inset 0 0 10px rgba(64, 224, 255, 0.5);
+}
+
+/* Region Borders - Thicker and brighter */
+.nanro-cell.border-top { border-top: 3px solid var(--quantum-blue); }
+.nanro-cell.border-bottom { border-bottom: 3px solid var(--quantum-blue); }
+.nanro-cell.border-left { border-left: 3px solid var(--quantum-blue); }
+.nanro-cell.border-right { border-right: 3px solid var(--quantum-blue); }
+
+.nanro-cell.shaded {
+    background: rgba(255, 255, 255, 0.15); /* Shaded state */
+}
+
+.nanro-cell.clue {
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px var(--quantum-blue);
+}
+
+.grid-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+/* Number Pad for Touch/Click input */
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+    max-width: 200px;
+}
+
+.num-btn {
+    padding: 0.8rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.num-btn:hover {
+    background: var(--quantum-blue);
+    color: black;
+}
+

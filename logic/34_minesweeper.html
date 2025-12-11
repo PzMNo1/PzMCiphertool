@@ -3,15 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>minesweeper - 逻辑谜题</title>
+    <title>Minesweeper求解器</title>
+    <link rel="stylesheet" href="./css/34_minesweeper.css"> 
 </head>
 <body>
+    <div class="hologram-effect"></div>
+    
+    <a href="../index.html#jiamishiyanshi-content##luojimiti" class="back-button">返回</a>
+    
     <div class="container">
-        <h1>minesweeper</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
+        <div class="control-panel cyber-border">
+            <h1 style="color: var(--neon-blue); margin-bottom: 2rem;">Minesweeper求解器</h1>
+            <div style="display: grid; gap: 1rem;">
+                <input type="number" id="size" placeholder="谜题大小" value="10" min="3" max="20">
+                <button onclick="initGrid()">生成网格</button>
+                <button onclick="solvePuzzle()" class="cyber-glow">求解谜题</button>
+                <button onclick="clearGrid()">重置</button>
+                
+                <div class="example-grid">
+                    <button onclick="buildSimpleExample()" style="font-size: 0.9rem; padding: 0.7rem;">简单示例</button>
+                </div>
+            </div>
+
+            <div class="stats" id="stats">
+                <div>找到解决方案: <span id="solutionsCount">0</span></div>
+                <div>耗时: <span id="timeElapsed">0</span>ms</div>
+            </div>
+
+            <div class="instructions">
+                <h3 style="margin-bottom: 1rem; color: var(--neon-purple);">操作说明:</h3>
+                <p>左键点击: 切换 空白 -> 线索(0-8)</p>
+                <p>右键点击: 切换 线索(回退) / 标记</p>
+                <p>目标: 找出地雷位置</p>
+                <p>线索格本身不是地雷</p>
+            </div>
         </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+
+        <div class="grid-container">
+            <div id="grid" class="puzzle-grid"></div>
+            <div id="solution-nav" style="display: none; margin-top: 1rem; color: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                    <button id="prev-solution" class="nav-btn">上一个解</button>
+                    <span id="solution-counter">解 1/1</span>
+                    <button id="next-solution" class="nav-btn">下一个解</button>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script src="./js/34_minesweeper.js"></script>   
 </body>
 </html>

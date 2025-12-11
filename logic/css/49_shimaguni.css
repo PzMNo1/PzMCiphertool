@@ -1,0 +1,125 @@
+/* Styles for Shimaguni to match Logic/Sudoku theme */
+
+/* logic-grid class is handled by logic.css, we just need to ensure our overrides work */
+#grid-container {
+    /* Remove default grid-template-columns from logic.css because JS sets it dynamically */
+    grid-template-columns: none; 
+    display: grid;
+    justify-content: center;
+    gap: 1px;
+    padding: 10px;
+}
+
+.cell {
+    width: 40px; /* Fixed width */
+    height: 40px; /* Fixed height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Default subtle border */
+    color: var(--neon-cyan);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.cell:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateZ(5px);
+    z-index: 10;
+}
+
+/* Shaded cells (Solution) */
+.cell.solution-shaded {
+    background: rgba(64, 224, 255, 0.3);
+    box-shadow: 0 0 15px rgba(64, 224, 255, 0.2) inset;
+}
+
+/* Region Borders - using quantum blue/white for visibility */
+/* Thicker borders for region boundaries */
+/* Use !important to override default border */
+.cell.border-top { border-top: 3px solid var(--quantum-blue) !important; }
+.cell.border-bottom { border-bottom: 3px solid var(--quantum-blue) !important; }
+.cell.border-left { border-left: 3px solid var(--quantum-blue) !important; }
+.cell.border-right { border-right: 3px solid var(--quantum-blue) !important; }
+
+.cell.active {
+    background-color: rgba(179, 136, 255, 0.2); /* Highlight active cell */
+    box-shadow: inset 0 0 10px rgba(179, 136, 255, 0.3);
+    border-color: var(--hologram-purple);
+}
+
+/* Controls Tweaks */
+.control-group {
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+}
+
+.control-group label {
+    color: var(--neon-cyan);
+    font-size: 0.9rem;
+}
+
+.control-group input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    color: white;
+    padding: 4px;
+    border-radius: 4px;
+    width: 50px;
+    text-align: center;
+}
+
+/* Improved Button Styling for tighter layout */
+.btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+}
+
+.mode-controls button.active {
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.4) 0%,
+        rgba(179, 136, 255, 0.3) 100%);
+    box-shadow: 0 0 20px rgba(64, 224, 255, 0.3);
+    border-color: var(--neon-cyan);
+}
+
+/* Numpad */
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
+    margin-bottom: 1rem;
+    display: none; /* toggled by JS */
+}
+
+.num-btn {
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--neon-cyan);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+}
+
+.num-btn:hover {
+    background: rgba(64, 224, 255, 0.1);
+    border-color: var(--quantum-blue);
+}
+
+.message {
+    min-height: 20px;
+    color: var(--hologram-purple);
+    font-family: monospace;
+    font-size: 1rem;
+    text-align: center;
+    margin-top: 0.5rem;
+    text-shadow: 0 0 10px rgba(179, 136, 255, 0.3);
+}

@@ -1,6 +1,5 @@
 
-
-/* --- 核心容器修改：全屏固定，脱离文档流 --- */
+/*这是知识图谱的样式*/
 #zhishitupu-content {
     position: fixed; 
     top: 0;
@@ -19,7 +18,6 @@
     to { opacity: 1; }
 }
 
-/* --- 视觉增强遮罩 (Vignette) --- */
 #zstp-vignette {
     position: absolute;
     top: 0;
@@ -36,7 +34,6 @@
     box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
 }
 
-/* --- UI 层 --- */
 #ui-layer {
     position: absolute;
     bottom: 30px;
@@ -48,21 +45,44 @@
     text-shadow: 0 0 5px #0ff;
 }
 
-/* HUD 面板样式 */
+/* HUD 面板 */
 .hud-panel {
-    background: rgba(0, 10, 20, 0.75);
+    background: transparent;
     border: 1px solid rgba(0, 255, 255, 0.2);
     border-left: 3px solid #0ff;
     padding: 20px;
-    backdrop-filter: blur(8px); /* 磨砂玻璃感 */
+    backdrop-filter: blur(8px); 
     clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
     width: 260px;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.5s ease;
+    position: relative;
+    pointer-events: auto; 
 }
 
 .hud-panel:hover {
     transform: translateX(5px);
-    background: rgba(0, 15, 30, 0.85);
+    background: transparent;
+}
+
+.hud-close-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: rgba(0, 255, 255, 0.6);
+    font-size: 20px;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    transition: all 0.3s ease;
+    z-index: 20;
+    padding: 0 5px;
+}
+
+.hud-close-btn:hover {
+    color: #0ff;
+    text-shadow: 0 0 8px #0ff;
+    transform: scale(1.1);
 }
 
 #zhishitupu-content h1 {
@@ -89,7 +109,7 @@
 }
 
 .controls {
-    margin-top: 35px;   
+    margin-top: 15px;   
     font-size: 13px;
     color: #8899aa;
     font-family: 'Rajdhani', sans-serif;
@@ -138,7 +158,7 @@
     100% { transform: scaleX(0); opacity: 0; }
 }
 
-/* 确保 Canvas 能够被交互 */
+
 #graph-wrapper {
     width: 100%;
     height: 100%;

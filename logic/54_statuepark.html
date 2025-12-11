@@ -3,15 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>statuepark - 逻辑谜题</title>
+    <title>Statue Park 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/54_statuepark.css">
 </head>
 <body>
-    <div class="container">
-        <h1>statuepark</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Statue Park 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+
+    <div class="container">
+        <div class="statuepark-container">
+            <div class="statuepark-grid" id="grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            
+            <div class="controls-row">
+                <label>
+                    行数: <input type="number" id="rows" class="size-input" value="10" min="5" max="15" style="width: 60px;">
+                </label>
+                <label>
+                    列数: <input type="number" id="cols" class="size-input" value="10" min="5" max="15" style="width: 60px;">
+                </label>
+                <button class="btn" id="create-grid-btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">创建网格</button>
+            </div>
+
+            <div class="controls-row">
+                <label>形状集合: 
+                    <select id="shape-set" class="shape-select">
+                        <option value="Pentominoes">Pentominoes (12)</option>
+                        <option value="Tetrominoes">Tetrominoes (5)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">开始求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+
+            <div class="controls-row">
+                <div class="solution-nav" id="solution-nav" style="display: none;">
+                    <button class="solution-btn" id="prev-sol">◀</button>
+                    <span class="solution-counter" id="sol-count">0/0</span>
+                    <button class="solution-btn" id="next-sol">▶</button>
+                </div>
+            </div>
+
+            <div id="status-msg" style="margin-top: 1rem; color: var(--neon-cyan); text-align: center;">
+                点击格子切换状态：空 -> 黑圆 -> 白圆 -> 空
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">正在求解...</div>
+    </div>
+
+    <script src="./js/54_statuepark.js"></script>
 </body>
 </html>

@@ -3,15 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>shakashaka - 逻辑谜题</title>
+    <title>Shakashaka 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/47_shakashaka.css">
 </head>
 <body>
-    <div class="container">
-        <h1>shakashaka</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Shakashaka 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
     </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="shakashaka-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>放置线索</strong>: 选择黑色+数字，点击放置。</li>
+                    <li><strong>放置三角形</strong>: 选择三角形方向，点击白色格子。</li>
+                    <li><strong>规则</strong>: 白色区域必须形成矩形。数字表示周围相邻的三角形数量。</li>
+                </ul>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Rows:</label>
+                <input type="number" id="grid-rows" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+                <label>Cols:</label>
+                <input type="number" id="grid-cols" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="create-grid">重置网格</button>
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="clear-btn">清空</button>
+            </div>
+
+            <div class="tools-grid">
+                <div class="tool-btn active" data-tool="black">⬛ 黑格</div>
+                <div class="tool-btn" data-tool="empty">⬜ 清除</div>
+                <div class="tool-btn" data-tool="TL">◤ TL</div>
+                <div class="tool-btn" data-tool="TR">◥ TR</div>
+                <div class="tool-btn" data-tool="BL">◣ BL</div>
+                <div class="tool-btn" data-tool="BR">◢ BR</div>
+            </div>
+            
+            <h3 style="margin-top:1rem; font-size:1rem;">黑格线索数字</h3>
+            <div class="numpad" style="grid-template-columns: repeat(5, 1fr);">
+                <button class="num-btn">0</button><button class="num-btn">1</button><button class="num-btn">2</button>
+                <button class="num-btn">3</button><button class="num-btn">4</button>
+                <button class="num-btn" style="grid-column: span 5">None</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/47_shakashaka.js"></script>
 </body>
 </html>

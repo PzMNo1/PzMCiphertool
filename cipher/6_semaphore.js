@@ -58,7 +58,6 @@ function updateCanvasDisplay() {
 		}
 		canvas.style.borderRadius = '8px';
 		
-		// 绘制背景
 		if (type === 'semaphore') {
 			drawSemaphoreBackground(canvas);
 			if (currentBitsArray[i] > 0) {
@@ -71,7 +70,6 @@ function updateCanvasDisplay() {
 			}
 		}
 		
-		// 添加点击事件
 		canvas.addEventListener('click', function(e) {
 			const idx = parseInt(this.dataset.index);
 			activeCanvasIndex = idx;
@@ -213,7 +211,7 @@ function updateCanvasesFromInput() {
 
 document.getElementById('qiyuClear').addEventListener('click', function() {
 	document.getElementById('qiyuInput').value = '';
-	setupQiyuCanvas(); // 重新初始化画布
+	setupQiyuCanvas(); 
 	document.getElementById('qiyuResult').textContent = '';
 });
 
@@ -248,13 +246,13 @@ function drawSemaphoreBackground(canvas) {
 	for (const coord of pts) {
 		ctx.moveTo(50 * 120 / 100, 50 * 120 / 100);
 		ctx.lineTo(coord[0] * 120 / 100, coord[1] * 120 / 100);
-		ctx.strokeStyle = '#1e88e5'; // 亮蓝色替代暗色
+		ctx.strokeStyle = '#1e88e5'; 
 		ctx.lineWidth = 1.5;
 	}
 	ctx.stroke();
 	ctx.beginPath();
 	ctx.arc(50 * 120 / 100, 50 * 120 / 100, 4, 0, 2 * Math.PI);
-	ctx.fillStyle = '#2ecc71'; // 绿色中心点
+	ctx.fillStyle = '#2ecc71'; 
 	ctx.fill();
 	ctx.beginPath();
 	ctx.arc(50 * 120 / 100, 50 * 120 / 100, 6, 0, 2 * Math.PI);

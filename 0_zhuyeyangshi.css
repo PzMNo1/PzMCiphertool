@@ -212,7 +212,7 @@ margin-bottom: 8px;
   border-radius: 35px 35px 35px 35px; 
   padding: 2rem 0;
   transition: all 0.3s ease;
-  overflow: hidden; /* 确保圆角可见 */
+  overflow: hidden; 
   z-index: 1001;
   display: flex;
   flex-direction: column;
@@ -662,21 +662,6 @@ animation: glitch 0.5s infinite;
 }
 
 
-.logic-highlight { animation: logic-highlight 1.5s ease; }
-
-.logic-btn.logic-highlight {
-  animation: logic-pulse 0.8s ease;
-  border-color: #ffd700 !important;
-  box-shadow: 0 0 15px #ffd70080 !important;
-}
-
-@keyframes logic-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -713,6 +698,42 @@ animation: glitch 0.5s infinite;
   pointer-events: none; 
 }
 
+/* 置顶功能样式 */
+.card.pinned {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 1200px;
+    z-index: 233;
+    border: 1px solid var(--secondary);
+    backdrop-filter: blur(5px);
+    background: transparent;
+}
+
+.pin-toggle-btn {
+    position: absolute;
+    top: -13px;
+    right: 580px;
+    z-index: 2;
+    padding: 0.3rem 0.8rem ;
+    min-width: auto;
+    height: 30px;
+    font-size: 0.75rem;
+    background: transparent;
+    backdrop-filter: blur(4px);
+    left: 50%; 
+    transform: translateX(-50%); 
+    right: auto;
+}
+
+.pin-toggle-btn:hover {
+  transform: translate(-50%, -3px) !important; 
+}
+
+
+
 .neon-subtitle {
   font-size: 0.9rem;
   color: #3498db;
@@ -736,7 +757,7 @@ animation: glitch 0.5s infinite;
 }
 
 .neon-title {
-  font-family: 'Orbitron', 'Segoe UI', sans-serif; /* 优先使用科幻字体 */
+  font-family: 'Orbitron', 'Segoe UI', sans-serif; 
   font-size: 3rem;
   font-weight: 900;
   letter-spacing: 8px;
@@ -753,6 +774,7 @@ animation: glitch 0.5s infinite;
   display: inline-block;
 }
 
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .neon-title {
@@ -761,6 +783,9 @@ animation: glitch 0.5s infinite;
   }
   .module-header {
       margin-bottom: 2rem;
+  }
+  .card.pinned {
+      z-index: 1003;
   }
 }
 
@@ -866,11 +891,11 @@ animation: glitch 0.5s infinite;
 
 /* 搜索定位高亮样式 (保持黄色以示区别) */
 #luojimiti .logic-btn.logic-highlight {
-    border-color: #ffd700 !important;
-    background: rgba(255, 215, 0, 0.15) !important;
-    color: #ffd700 !important;
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) !important;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3) !important;
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.15) ;
+    color: #ffd700 ;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) ;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3) ;
 
 }
 
@@ -883,3 +908,115 @@ animation: glitch 0.5s infinite;
     content: "TARGET"; 
 }
 
+.logic-highlight { animation: logic-highlight 1.5s ease; }
+
+.logic-btn.logic-highlight {
+  transform: translateY(-6px); 
+  border-color: #ffd700;
+  box-shadow: 0 0 15px #ffd70080;
+  animation: none; 
+}
+
+/* --- 瀑布流布局优化 (经典区 & 现代区) --- */
+#mimaqu .container,
+#xiandaiqu .container {
+    display: block; 
+    column-count: 3; 
+    column-gap: 1.5rem; 
+}
+
+/* 移动端调整：屏幕变窄时的列数 */
+@media (max-width: 1100px) {
+    #mimaqu .container,
+    #xiandaiqu .container {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 700px) {
+    #mimaqu .container,
+    #xiandaiqu .container {
+        column-count: 1;
+    }
+}
+
+/* 瀑布流布局 */
+#mimaqu .card:not(.main-input),  
+#xiandaiqu .card:not(.main-input) {
+    break-inside: avoid; 
+    margin-bottom: 1.5rem; 
+    display: inline-block; 
+    width: 100%; 
+}
+
+#mimaqu .main-input,
+#xiandaiqu .main-input {
+    column-span: all; 
+    margin-bottom: 2rem;
+    display: block; 
+    width: 100%;
+}
+
+/* 移动端优化：子模块导航菜单换行 */
+@media (max-width: 768px) {
+    .submodule-nav,.lianxiwomen-submodule{
+        display: flex;
+        flex-wrap: wrap; 
+        justify-content: center;
+        gap: 0.5rem; 
+        margin-top: 2rem ; 
+        padding: 0.5rem;
+    }
+
+    .submodule-btn,.contact-submodule-btn {
+        flex: 1 1 30%; 
+        min-width: 80px; 
+        margin: 0 ;
+        padding: 0.8rem 0.5rem ; 
+        font-size: 0.9rem ;
+        text-align: center;
+    }
+}
+
+/* 移动端逻辑区强制两列布局 */
+@media (max-width: 768px) {
+    #luojimiti .container {
+        grid-template-columns: repeat(2, 1fr) !important; 
+        gap: 0.8rem !important; 
+        padding: 6rem 0.5rem 4rem !important; 
+    }
+    
+    #luojimiti .logic-btn {
+        height: 45px !important;  
+        min-height: auto !important; 
+        padding: 0.3rem !important; 
+        font-size: 0.85rem !important; 
+    }
+    
+    #luojimiti .logic-btn::before {
+        width: 10px;
+        height: 10px;
+    }
+    
+    #luojimiti .logic-btn::after {
+        font-size: 0.35rem;
+        bottom: 1px;
+        right: 10px;
+    }
+}
+
+/* 意见反馈子模块切换样式 */
+.lianxiwomen-submodule {
+    display: none;
+}
+
+.lianxiwomen-submodule.active {
+    display: block;
+}
+
+.contact-submodule-btn.active {
+    background: linear-gradient(145deg, 
+        rgba(64,224,255,0.3) 20%,
+        rgba(179,136,255,0.2) 80%) !important;
+    box-shadow: 0 0 15px var(--secondary) !important;
+}

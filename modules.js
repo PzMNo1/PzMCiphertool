@@ -4,14 +4,14 @@ const MODULES = {
     jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
 
     <div class="module-header">
-        <h2 class="neon-title" data-text="CIPHER LABORATORY">CIPHER LAB</h2>
+        <h2 class="neon-title" data-text="CIPHER LABORATORY">CIPHER LABORATORY</h2>
     </div>
 
     <div class="submodule-nav" style="margin-top: 2rem;">
         <button class="btn back-btn submodule-btn active" data-target="mimaqu">经典区</button>
         <button class="btn back-btn submodule-btn" data-target="xiandaiqu">现代区</button>
         <button class="btn back-btn submodule-btn" data-target="luojimiti">逻辑区</button>
-        <button class="btn back-btn submodule-btn" data-target="cihuibaopoqu">词汇区</button>
+        <button class="btn back-btn submodule-btn" data-target="cihuiqu">词汇区</button>
         <button class="btn back-btn submodule-btn" data-target="yuliu">预留区</button>
     </div>
 
@@ -20,6 +20,10 @@ const MODULES = {
         
         <div class="card main-input">
             <div class="badge">输入</div>
+            <button class="cyber-button pin-toggle-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">置顶</span>
+            </button>
             <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
         </div>
 
@@ -245,6 +249,10 @@ const MODULES = {
         <!-- 旗语-盲文 -->
         <div class="card">
             <div class="badge">旗语-盲文 Semaphore-Braille</div>
+            <button class="cyber-button pin-toggle-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">置顶</span>
+            </button>
             <div class="grid-full2">
                 <select id="qiyuType">
                     <option value="semaphore">旗语 (Semaphore)</option>
@@ -255,7 +263,7 @@ const MODULES = {
                 <input type="text" id="qiyuInput" placeholder="输入字母" value="">
                 <button id="qiyuClear" class="cyber-button">
                     <span class="cyber-button__glitch"></span>
-                    <span class="cyber-button__tag">清空</span>
+                    <span class="cyber-button__tag">刷新</span>
                 </button>
             </div>
             <div id="qiyuCanvasContainer" class="input-group" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;"></div>
@@ -288,6 +296,10 @@ const MODULES = {
             <!-- 输入 -->
             <div class="card main-input">
                 <div class="badge">输入</div>
+                <button class="cyber-button pin-toggle-btn">
+                    <span class="cyber-button__glitch"></span>
+                    <span class="cyber-button__tag">置顶</span>
+                </button>
                 <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
             </div>
 
@@ -409,12 +421,8 @@ const MODULES = {
     </div>
     
     <!-- 词汇区 -->
-    <div id="cihuibaopoqu" class="submodule">
-        <div class="container">
-            <div class="card">
-                <div class="result">词汇爆破内容...</div>
-            </div>
-        </div>
+    <div id="cihuiqu" class="submodule">
+        <!-- 内容将由 wordsearch.js 动态加载 -->
     </div>
 
         <!-- 预留区 -->
@@ -430,8 +438,27 @@ const MODULES = {
 
     // 电子实验室模块
     electroniclab: `
-    <div class="module-header">
-        <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
+    <div id="electroniclab-content" class="content-section">
+        <div class="module-header">
+            <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
+            <div class="source-selector-container">
+                <select id="circuit-source-select" class="circuit-source-select">
+                    <option value="./electronic/war/circuitjs.html">线路1: 本地源 (Local)</option>
+                    <option value="https://lushprojects.com/circuitjs/circuitjs.html">线路2: 官方源</option>
+                    <option value="https://www.falstad.com/circuit/circuitjs.html">线路3: 备用源</option>
+                </select>
+            </div>
+        </div>
+        <div class="engine-viewport">
+            <div id="circuit-loading" class="loading-mask active">
+                <div><i class="fas fa-spinner fa-spin"></i> 正在初始化电路引擎...</div>
+            </div>
+            <iframe 
+                id="circuit-frame" 
+                src="./electronic/war/circuitjs.html" 
+                allowfullscreen>
+            </iframe>
+        </div>
     </div>
 `,
 
@@ -444,6 +471,10 @@ const MODULES = {
 
         <div class="card main-input">
             <div class="badge">全局输入</div>
+            <button class="cyber-button pin-toggle-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">置顶</span>
+            </button>
             <textarea id="mainInputCoze" placeholder="输入要处理的内容 (所有工作流将共用此输入)..." autofocus></textarea>
         </div>
 
@@ -463,10 +494,11 @@ const MODULES = {
         <div id="zstp-vignette"></div>
 
         <div id="ui-layer">
-            <div class="hud-panel">
-                <h1> Knowledge Graph </h1>
-                <div class="subtitle">---</div>
-                <div style="height: 1px; background: linear-gradient(90deg, rgba(0, 255, 255, 0.99), transparent); margin-bottom: 10px;"></div>
+            <div class="hud-panel" id="hud-panel">
+                <button id="hud-close-btn" class="hud-close-btn">×</button>
+                <h2> Knowledge Graph </h2>
+                <div class="subtitle">知识图谱</div>
+                <div style="height: 1px; background: linear-gradient(90deg, rgba(0, 255, 255, 0.99), transparent); margin-bottom: 1px;"></div>
                 <div class="controls">
                     <div><span class="key">L-CLICK</span> ROTATE 旋转</div>
                     <div><span class="key">R-CLICK</span> PAN 平移</div>
@@ -492,6 +524,14 @@ const MODULES = {
         <div class="chat-interface">
             <!-- 主对话区域 -->
             <div class="chat-main">
+                <div class="chat-mobile-header" style="display: none;">
+                    <button id="sidebar-toggle" class="cyber-button">
+                        <span class="cyber-button__tag">≡</span>
+                    </button>
+                    <button id="new-chat-mobile" class="cyber-button">
+                        <span class="cyber-button__tag">+</span>
+                    </button>
+                </div>
                 <div id="chat-messages">
                     <!-- 初始消息 -->
                     <div class="message system-message">
@@ -501,9 +541,14 @@ const MODULES = {
                 
                 <div class="input-container">
                     <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
-                    <button id="send-message" class="cyber-button">
-                        <span class="cyber-button__tag">发送</span>
-                    </button>
+                    <div class="input-actions">
+                        <button id="deep-think-toggle" class="cyber-button" title="深度思考">
+                            <span class="cyber-button__tag">深度思考</span>
+                        </button>
+                        <button id="send-message" class="cyber-button">
+                            <span class="cyber-button__tag">发送</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -533,14 +578,59 @@ const MODULES = {
 </div>`,
 
     // 意见反馈模块
-    yijianfankui: `<div id="yijianfankui-content" class="content-section">
-    <div class="container"><h3>这里是意见反馈的内容...</h3>input: 你的意见...<br>return: 你的意见被碎纸机吃掉了</div>
-</div>`
+    yijianfankui: 
+    `<div id="yijianfankui-content" class="content-section">
+        <div class="module-header"><h2 class="neon-title" data-text="YIJIANFANKUI">「SENDFEEDBACK」关于作者</h2></div>
+
+        <div class="submodule-nav" style="margin-top: 2rem;">
+            <button class="btn back-btn contact-submodule-btn active" data-target="guanyuzuozhe">关于作者</button>
+            <button class="btn back-btn contact-submodule-btn" data-target="zuozhecaifang">作者采访</button>
+            <button class="btn back-btn contact-submodule-btn" data-target="yijianfankui">意见反馈</button>
+            <button class="btn back-btn contact-submodule-btn" data-target="kaifarizhi">开发日志</button>
+        </div>
+
+        <div id="guanyuzuozhe" class="lianxiwomen-submodule active">
+            <div class="container">
+                <div class="card">
+                    <div class="badge">关于作者</div>
+                        <p>这里是关于作者的内容...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="zuozhecaifang" class="lianxiwomen-submodule">
+            <div class="container">
+                <div class="card">
+                    <div class="badge">作者采访</div>
+                        <p>这里是作者采访的内容...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="yijianfankui" class="lianxiwomen-submodule">
+            <div class="container">
+                <div class="card">
+                    <div class="badge">意见反馈</div>
+                        <p>这里是意见反馈的内容...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="kaifarizhi" class="lianxiwomen-submodule">
+            <div class="container">
+                <div class="card">
+                    <div class="badge">开发日志</div>
+                        <p>这里是开发日志的内容...</p>
+                </div>
+            </div>
+        </div>
+    </div>`
 }; 
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     [
+        './electronic/electronic_lab.js',
         './cipher/1_cipherlab.js',
         './cipher/2_ADFGXCipher.js',
         './cipher/3_Enigma.js',
@@ -548,10 +638,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './cipher/6_semaphore.js',
         '0_sidebar_funtion.js',
         './cipher/999_funtion.js',
-        './model/cipher_bridge_auto.js',
         './model/script.js',
         './workflow/workflow.js',
         './zhishitupu/zhishitupu.js',
+        './wordsearch/wordsearch.js',
     ]
     .reduce((promise, src) => promise.then(() => new Promise(resolve => {
             const script = document.createElement('script');
@@ -568,6 +658,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 初始化工作流
         initWorkflowCoze();
+        // 初始化电子实验室
+        if (typeof initElectronicLab === 'function') initElectronicLab();
     });
     
     if (!MODULES) return console.error('模块内容未定义');
@@ -576,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     const showModule = id => {
-        // 性能优化：每次点击菜单切换时，都会检查知识图谱模块，如果是，唤醒图谱；如果不是，就休眠
+        // 性能优化：菜单切换时唤醒图谱或休眠
         if (window.ZSTP) {
             if (id === 'zhishitupu') {
                 window.ZSTP.resume();

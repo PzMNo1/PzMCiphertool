@@ -3,15 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kurotto - 逻辑谜题</title>
+    <title>Kurotto - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/30_kurotto.css">
 </head>
 <body>
-    <div class="container">
-        <h1>kurotto</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    
+    <!-- 返回按钮 -->
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <!-- 标题区 -->
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">KUROTTO</div>
     </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="controls">
+            <div class="instructions">
+                <p>规则说明_</p>
+                <ul>
+                    <li>带数字的圆圈是“线索”。</li>
+                    <li>线索中的数字表示与该单元格上下左右相连的黑色格子总数。</li>
+                    <li>线索格本身必须是白色的。</li>
+                    <li><strong>编辑模式</strong>：点击格子放置线索，输入数字。</li>
+                    <li><strong>解题模式</strong>：点击格子填充黑色。</li>
+                </ul>
+            </div>
+
+            <!-- 网格设置 -->
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="8" min="2" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="8" min="2" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <!-- 模式切换 -->
+            <div class="mode-switcher">
+                <div id="mode-edit" class="mode-opt active" onclick="setMode('edit')">✏️ 放置线索</div>
+                <div id="mode-play" class="mode-opt" onclick="setMode('play')">⬛ 填充解答</div>
+            </div>
+
+            <!-- 动作按钮 -->
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button onclick="clearState()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">清空</button>
+                    <button onclick="copyToClipboard()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">复制</button>
+                </div>
+            </div>
+            
+            <div id="status-msg">SYSTEM READY...</div>
+        </div>
+
+        <!-- 右侧：游戏网格 -->
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="kurotto-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/30_kurotto.js"></script>
 </body>
 </html>

@@ -96,11 +96,11 @@
 
 .add-step-area {
     display: grid;
-    grid-template-columns: 1.5fr 0.8fr 1.2fr auto; /* 紧凑的 Grid */
+    grid-template-columns: 1.5fr 0.8fr 1.2fr auto; 
     gap: 0.5rem;
     align-items: center;
     background: rgba(255, 255, 255, 0.02);
-    padding: 0.8rem; /* 增加一点内边距 */
+    padding: 0.8rem; 
     border-radius: 8px;
 }
 
@@ -118,8 +118,8 @@
 
 .add-step-area .cyber-button {
     top: 0;
-    padding: 0 1.2rem; /* 增加按钮左右内边距 */
-    height: 45px;      /* 匹配输入框高度 */
+    padding: 0 1.2rem; 
+    height: 45px;      
     min-width: auto;
     display: flex;
     align-items: center;
@@ -171,6 +171,32 @@
     border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
+/* 复制按钮 */
+.copy-workflow-btn {
+    position: absolute;
+    top: 10px;
+    right: 75px; /* 在删除按钮左侧 */
+    opacity: 0;
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.5);
+    color: #3498db;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    z-index: 10;
+    transition: opacity 0.2s ease;
+}
+
+.workflow-row:hover .copy-workflow-btn {
+    opacity: 1;
+}
+
+.copy-workflow-btn:hover {
+    background: rgba(52, 152, 219, 0.2);
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
 /* 删除按钮 */
 .delete-workflow-btn {
     position: absolute;
@@ -185,6 +211,7 @@
     padding: 2px 8px;
     font-size: 0.7rem;
     z-index: 10;
+    transition: opacity 0.2s ease;
 }
 .workflow-row:hover .delete-workflow-btn {
     opacity: 1;

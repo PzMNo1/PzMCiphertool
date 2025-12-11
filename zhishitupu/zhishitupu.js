@@ -21,39 +21,30 @@ async function initKnowledgeGraph() {
     const loader = document.getElementById('zstp-loader');
     
     if (!container) return;
-    // 防止重复初始化
     if (container.querySelector('canvas')) return;
 
     try {
-        // 0. 加载科幻字体 (Orbitron)
         if (!document.getElementById('sci-fi-font')) {
             const fontLink = document.createElement('link');
             fontLink.id = 'sci-fi-font';
             fontLink.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap';
             fontLink.rel = 'stylesheet';
             document.head.appendChild(fontLink);
-            // 尝试等待字体加载
             try { await document.fonts.load('1em Orbitron'); } catch(e) {}
         }
 
-        // 1. 动态加载依赖库 (按顺序)
         if (typeof THREE === 'undefined') {
-            // console.log('正在加载 Three.js...');
             await loadScript('https://unpkg.com/three@0.160.0/build/three.min.js');
         }
         if (typeof SpriteText === 'undefined') {
-            // console.log('正在加载 SpriteText...');
             await loadScript('https://unpkg.com/three-spritetext@1.8.1/dist/three-spritetext.min.js');
         }
         if (typeof ForceGraph3D === 'undefined') {
-            // console.log('正在加载 3D Force Graph...');
             await loadScript('https://unpkg.com/3d-force-graph@1.73.1/dist/3d-force-graph.min.js');
         }
 
-        // 2. 库加载完毕，开始渲染图谱
         renderGraph(container);
 
-        // 3. 隐藏 Loading 动画
         if(loader) {
             setTimeout(() => {
                 loader.style.opacity = 0;
@@ -67,19 +58,18 @@ async function initKnowledgeGraph() {
     }
 }
 
-// --- 核心渲染逻辑 ---
+
 function renderGraph(container) {
-    // 1. 配色方案
     const THEME = {
-        root: 0xFFD700,      // 红色核心
-        category: 0x00ffff,  // 青色分类
-        classic: 0x3498db,   // 蓝色经典
-        modern: 0x9b59b6,    // 紫色现代
-        logic: 0xf1c40f,     // 金色逻辑
-        text: '#e0ffff',     // 科幻白 (LightCyan)，比纯白更具全息感
+        root: 0xFFD700,
+        eleroot: 0x00ffff,
+        category: 0x00ffff,  
+        classic: 0x3498db,   
+        modern: 0x9b59b6,    
+        logic: 0xf1c40f,     
+        text: '#e0ffff',     
     };
 
-    // 2. 创建发光贴图 (Glow Texture)
     function createGlowTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 32;
@@ -97,14 +87,129 @@ function renderGraph(container) {
     }
     const glowTexture = createGlowTexture();
 
-    // 3. 数据结构 
+    // 数据结构 
     const gData = {
         nodes: [
             { id: 'root', name: '加密实验室', val: 80, color: THEME.root, group: 'root' },
+            { id: 'cat_eleroot', name: '电子实验室', val: 80, color: THEME.eleroot, group: 'root' },
             { id: 'cat_classic', name: '经典区', val: 40, color: THEME.category, group: 'category' },
             { id: 'cat_modern', name: '现代区', val: 40, color: THEME.category, group: 'category' },
             { id: 'cat_logic', name: '逻辑区', val: 40, color: THEME.category, group: 'category' },
             { id: 'cat_word', name: '词汇区', val: 20, color: THEME.category, group: 'category' },
+            // 电子实验室
+            { id: 'e_passive', name: '无源元件', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_active', name: '有源元件', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_input', name: '输入与电源', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_ic', name: '集成电路', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_logic', name: '组合电路', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_gates', name: '逻辑门', val: 30, color: THEME.category, group: 'category' },
+            { id: 'e_ic_chip', name: 'IC', val: 30, color: THEME.category, group: 'category' },
+            // 无源元件子节点
+            { id: 'ep_resistor', name: '电阻', group: 'classic' },
+            { id: 'ep_capacitor', name: '电容', group: 'classic' },
+            { id: 'ep_p_capacitor', name: '极性电容', group: 'classic' },
+            { id: 'ep_inductor', name: '电感', group: 'classic' },
+            { id: 'ep_switch', name: '开关', group: 'classic' },
+            { id: 'ep_transformer', name: '变压器', group: 'classic' },
+            { id: 'ep_trans_line', name: '输电电路', group: 'classic' },
+            { id: 'ep_relay', name: '继电器', group: 'classic' },
+            { id: 'ep_photo_res', name: '光敏电阻', group: 'classic' },
+            { id: 'ep_thermistor', name: '热敏电阻', group: 'classic' },
+            { id: 'ep_varistor', name: '压敏电阻', group: 'classic' },
+            { id: 'ep_spark_gap', name: '火花隙', group: 'classic' },
+            { id: 'ep_fuse', name: '保险丝', group: 'classic' },
+            { id: 'ep_crystal', name: '晶振', group: 'classic' },
+            // 有源元件子节点
+            { id: 'ea_diode', name: '二极管', group: 'classic' },
+            { id: 'ea_zener', name: '齐纳二极管', group: 'classic' },
+            { id: 'ea_varactor', name: '变容二极管', group: 'classic' },
+            { id: 'ea_tunnel', name: '隧道二极管', group: 'classic' },
+            { id: 'ea_transistor', name: '三极管', group: 'classic' },
+            { id: 'ea_ujt', name: '单结型晶体管', group: 'classic' },
+            { id: 'ea_npn', name: 'NPN', group: 'classic' },
+            { id: 'ea_pnp', name: 'PNP', group: 'classic' },
+            { id: 'ea_mosfet', name: 'MOSFET', group: 'classic' },
+            { id: 'ea_jfet', name: 'JFET', group: 'classic' },
+            { id: 'ea_scr', name: '可控硅', group: 'classic' },
+            { id: 'ea_darlington', name: '达林顿管', group: 'classic' },
+            // 输入与电源子节点
+            { id: 'ei_gnd', name: 'GND', group: 'classic' },
+            { id: 'ei_voltage', name: '可变电压', group: 'classic' },
+            { id: 'ei_dc', name: 'DC', group: 'classic' },
+            { id: 'ei_ac', name: 'AC', group: 'classic' },
+            { id: 'ei_square', name: '方波', group: 'classic' },
+            { id: 'ei_clock', name: '时钟', group: 'classic' },
+            { id: 'ei_sweep', name: '扫频', group: 'classic' },
+            { id: 'ei_antenna', name: '天线', group: 'classic' },
+            { id: 'ei_am', name: '调幅', group: 'classic' },
+            { id: 'ei_fm', name: '调频', group: 'classic' },
+            { id: 'ei_current', name: '电流源', group: 'classic' },
+            { id: 'ei_noise', name: '噪音发生器', group: 'classic' },
+            // 集成电路子节点
+            { id: 'eic_opamp', name: '运算放大器', group: 'classic' },
+            { id: 'eic_spst', name: 'SPST', group: 'classic' },
+            { id: 'eic_spdt', name: 'SPDT', group: 'classic' },
+            { id: 'eic_buffer', name: '三态缓冲', group: 'classic' },
+            { id: 'eic_schmitt', name: '施密特触发器', group: 'classic' },
+            { id: 'eic_delay', name: '延迟缓冲器', group: 'classic' },
+            { id: 'eic_ccii', name: 'CCIl+-', group: 'classic' },
+            { id: 'eic_comparator', name: '比较器', group: 'classic' },
+            { id: 'eic_ota', name: 'OTA', group: 'classic' },
+            { id: 'eic_vcvs', name: '电压控制电压源', group: 'classic' },
+            { id: 'eic_vccs', name: '电压控制电流源', group: 'classic' },
+            { id: 'eic_ccvs', name: '电流控制电压源', group: 'classic' },
+            { id: 'eic_cccs', name: '电流控制电流源', group: 'classic' },
+            { id: 'eic_optocoupler', name: '光耦', group: 'classic' },
+            { id: 'eic_timer_relay', name: '延时继电器', group: 'classic' },
+            { id: 'eic_lm317', name: 'LM317', group: 'classic' },
+            { id: 'eic_tl431', name: 'TL431', group: 'classic' },
+            { id: 'eic_mps', name: 'Motor Protection Switch', group: 'classic' },
+            // 逻辑门子节点
+            { id: 'eg_not', name: '非门', group: 'classic' },
+            { id: 'eg_nand', name: '与非门', group: 'classic' },
+            { id: 'eg_nor', name: '或非门', group: 'classic' },
+            { id: 'eg_and', name: '与门', group: 'classic' },
+            { id: 'eg_or', name: '或门', group: 'classic' },
+            { id: 'eg_xor', name: '异或门', group: 'classic' },
+            // IC子节点
+            { id: 'eicc_d_flipflop', name: 'D触发器', group: 'classic' },
+            { id: 'eicc_jk_flipflop', name: 'JK触发器', group: 'classic' },
+            { id: 'eicc_t_flipflop', name: 'T触发器', group: 'classic' },
+            { id: 'eicc_7seg_led', name: '7段LED显示器', group: 'classic' },
+            { id: 'eicc_7seg_decoder', name: '7段译码器', group: 'classic' },
+            { id: 'eicc_multiplexer', name: '多路复用器', group: 'classic' },
+            { id: 'eicc_demultiplexer', name: '信号分离器', group: 'classic' },
+            { id: 'eicc_sipo', name: 'SIPO移位寄存器', group: 'classic' },
+            { id: 'eicc_piso', name: 'PISO移位寄存器', group: 'classic' },
+            { id: 'eicc_counter', name: '计数器', group: 'classic' },
+            { id: 'eicc_ring_counter', name: '环形计数器', group: 'classic' },
+            { id: 'eicc_latch', name: '锁存器', group: 'classic' },
+            { id: 'eicc_seq_gen', name: '序列发生器', group: 'classic' },
+            { id: 'eicc_adder', name: '加法器', group: 'classic' },
+            { id: 'eicc_half_adder', name: '半加器', group: 'classic' },
+            { id: 'eicc_sram', name: '静态随机存储器', group: 'classic' },
+            // 组合电路子节点
+            { id: 'el_lrc', name: 'LRC电路', group: 'classic' },
+            { id: 'el_vdiv', name: '分压器', group: 'classic' },
+            { id: 'el_potdiv', name: '电位器分压器', group: 'classic' },
+            { id: 'el_thevenin', name: '戴维宁定理', group: 'classic' },
+            { id: 'el_norton', name: '诺顿定理', group: 'classic' },
+            { id: 'el_series_res', name: '申联谐振', group: 'classic' },
+            { id: 'el_parallel_res', name: '并联共振', group: 'classic' },
+            { id: 'el_filter', name: '滤波器', group: 'classic' },
+            { id: 'el_diff', name: '微分电路', group: 'classic' },
+            { id: 'el_wheatstone', name: '惠斯通电桥', group: 'classic' },
+            { id: 'el_coupled_lc', name: '耦合LC', group: 'classic' },
+            { id: 'el_phase_seq', name: '相序网络', group: 'classic' },
+            { id: 'el_lissajous', name: '莉萨如图形', group: 'classic' },
+            { id: 'el_pll', name: '锁相环', group: 'classic' },
+            { id: 'el_sawtooth', name: '锯齿波发生器', group: 'classic' },
+            { id: 'el_tesla', name: '特斯拉线圈', group: 'classic' },
+            { id: 'el_marx', name: '马克思发生器', group: 'classic' },
+            { id: 'el_ota_mod', name: 'OTA环调制器', group: 'classic' },
+            { id: 'el_lm13700', name: 'LM137000增益', group: 'classic' },
+            { id: 'el_memristor', name: '忆阻器', group: 'classic' },
+            { id: 'el_lc_osc', name: 'LC振荡器', group: 'classic' },
             // 经典区
             { id: 'c_caesar', name: '凯撒 Caesar', group: 'classic' },
             { id: 'c_vigenere', name: '维吉尼亚 Vigenère', group: 'classic' },
@@ -207,9 +312,125 @@ function renderGraph(container) {
         ],
         links: [
             { source: 'root', target: 'cat_classic' },
+            { source: 'root', target: 'cat_eleroot' },
             { source: 'root', target: 'cat_modern' },
             { source: 'root', target: 'cat_logic' },
             { source: 'root', target: 'cat_word' },
+            // 电子实验室连线
+            { source: 'cat_eleroot', target: 'e_passive' },
+            { source: 'cat_eleroot', target: 'e_active' },
+            { source: 'cat_eleroot', target: 'e_input' },
+            { source: 'cat_eleroot', target: 'e_ic' },
+            { source: 'cat_eleroot', target: 'e_logic' },
+            { source: 'cat_eleroot', target: 'e_gates' },
+            { source: 'cat_eleroot', target: 'e_ic_chip' },
+            // 无源元件连线
+            { source: 'e_passive', target: 'ep_resistor' },
+            { source: 'e_passive', target: 'ep_capacitor' },
+            { source: 'e_passive', target: 'ep_p_capacitor' },
+            { source: 'e_passive', target: 'ep_inductor' },
+            { source: 'e_passive', target: 'ep_switch' },
+            { source: 'e_passive', target: 'ep_transformer' },
+            { source: 'e_passive', target: 'ep_trans_line' },
+            { source: 'e_passive', target: 'ep_relay' },
+            { source: 'e_passive', target: 'ep_photo_res' },
+            { source: 'e_passive', target: 'ep_thermistor' },
+            { source: 'e_passive', target: 'ep_varistor' },
+            { source: 'e_passive', target: 'ep_spark_gap' },
+            { source: 'e_passive', target: 'ep_fuse' },
+            { source: 'e_passive', target: 'ep_crystal' },
+            // 有源元件连线
+            { source: 'e_active', target: 'ea_diode' },
+            { source: 'e_active', target: 'ea_zener' },
+            { source: 'e_active', target: 'ea_varactor' },
+            { source: 'e_active', target: 'ea_tunnel' },
+            { source: 'e_active', target: 'ea_transistor' },
+            { source: 'e_active', target: 'ea_ujt' },
+            { source: 'e_active', target: 'ea_npn' },
+            { source: 'e_active', target: 'ea_pnp' },
+            { source: 'e_active', target: 'ea_mosfet' },
+            { source: 'e_active', target: 'ea_jfet' },
+            { source: 'e_active', target: 'ea_scr' },
+            { source: 'e_active', target: 'ea_darlington' },
+            // 输入与电源连线
+            { source: 'e_input', target: 'ei_gnd' },
+            { source: 'e_input', target: 'ei_voltage' },
+            { source: 'e_input', target: 'ei_dc' },
+            { source: 'e_input', target: 'ei_ac' },
+            { source: 'e_input', target: 'ei_square' },
+            { source: 'e_input', target: 'ei_clock' },
+            { source: 'e_input', target: 'ei_sweep' },
+            { source: 'e_input', target: 'ei_antenna' },
+            { source: 'e_input', target: 'ei_am' },
+            { source: 'e_input', target: 'ei_fm' },
+            { source: 'e_input', target: 'ei_current' },
+            { source: 'e_input', target: 'ei_noise' },
+            // 集成电路连线
+            { source: 'e_ic', target: 'eic_opamp' },
+            { source: 'e_ic', target: 'eic_spst' },
+            { source: 'e_ic', target: 'eic_spdt' },
+            { source: 'e_ic', target: 'eic_buffer' },
+            { source: 'e_ic', target: 'eic_schmitt' },
+            { source: 'e_ic', target: 'eic_delay' },
+            { source: 'e_ic', target: 'eic_ccii' },
+            { source: 'e_ic', target: 'eic_comparator' },
+            { source: 'e_ic', target: 'eic_ota' },
+            { source: 'e_ic', target: 'eic_vcvs' },
+            { source: 'e_ic', target: 'eic_vccs' },
+            { source: 'e_ic', target: 'eic_ccvs' },
+            { source: 'e_ic', target: 'eic_cccs' },
+            { source: 'e_ic', target: 'eic_optocoupler' },
+            { source: 'e_ic', target: 'eic_timer_relay' },
+            { source: 'e_ic', target: 'eic_lm317' },
+            { source: 'e_ic', target: 'eic_tl431' },
+            { source: 'e_ic', target: 'eic_mps' },
+            // 逻辑门连线
+            { source: 'e_gates', target: 'eg_not' },
+            { source: 'e_gates', target: 'eg_nand' },
+            { source: 'e_gates', target: 'eg_nor' },
+            { source: 'e_gates', target: 'eg_and' },
+            { source: 'e_gates', target: 'eg_or' },
+            { source: 'e_gates', target: 'eg_xor' },
+            // IC连线
+            { source: 'e_ic_chip', target: 'eicc_d_flipflop' },
+            { source: 'e_ic_chip', target: 'eicc_jk_flipflop' },
+            { source: 'e_ic_chip', target: 'eicc_t_flipflop' },
+            { source: 'e_ic_chip', target: 'eicc_7seg_led' },
+            { source: 'e_ic_chip', target: 'eicc_7seg_decoder' },
+            { source: 'e_ic_chip', target: 'eicc_multiplexer' },
+            { source: 'e_ic_chip', target: 'eicc_demultiplexer' },
+            { source: 'e_ic_chip', target: 'eicc_sipo' },
+            { source: 'e_ic_chip', target: 'eicc_piso' },
+            { source: 'e_ic_chip', target: 'eicc_counter' },
+            { source: 'e_ic_chip', target: 'eicc_ring_counter' },
+            { source: 'e_ic_chip', target: 'eicc_latch' },
+            { source: 'e_ic_chip', target: 'eicc_seq_gen' },
+            { source: 'e_ic_chip', target: 'eicc_adder' },
+            { source: 'e_ic_chip', target: 'eicc_half_adder' },
+            { source: 'e_ic_chip', target: 'eicc_sram' },
+            // 组合电路连线
+            { source: 'e_logic', target: 'el_lrc' },
+            { source: 'e_logic', target: 'el_vdiv' },
+            { source: 'e_logic', target: 'el_potdiv' },
+            { source: 'e_logic', target: 'el_thevenin' },
+            { source: 'e_logic', target: 'el_norton' },
+            { source: 'e_logic', target: 'el_series_res' },
+            { source: 'e_logic', target: 'el_parallel_res' },
+            { source: 'e_logic', target: 'el_filter' },
+            { source: 'e_logic', target: 'el_diff' },
+            { source: 'e_logic', target: 'el_wheatstone' },
+            { source: 'e_logic', target: 'el_coupled_lc' },
+            { source: 'e_logic', target: 'el_phase_seq' },
+            { source: 'e_logic', target: 'el_lissajous' },
+            { source: 'e_logic', target: 'el_pll' },
+            { source: 'e_logic', target: 'el_sawtooth' },
+            { source: 'e_logic', target: 'el_tesla' },
+            { source: 'e_logic', target: 'el_marx' },
+            { source: 'e_logic', target: 'el_ota_mod' },
+            { source: 'e_logic', target: 'el_lm13700' },
+            { source: 'e_logic', target: 'el_memristor' },
+            { source: 'e_logic', target: 'el_lc_osc' },
+            // 经典区连线
             { source: 'cat_classic', target: 'c_caesar' },
             { source: 'cat_classic', target: 'c_vigenere' },
             { source: 'cat_classic', target: 'c_rail' },
@@ -312,12 +533,11 @@ function renderGraph(container) {
     // 4. 初始化图谱
     const Graph = ForceGraph3D()(container)
         .graphData(gData)
-        .backgroundColor('#000005') // 深邃太空黑
+        .backgroundColor('#000005') 
         .showNavInfo(false)
         .width(container.clientWidth)
         .height(container.clientHeight)
         
-        // --- 节点自定义渲染  ---
         .nodeThreeObject(node => {
             const group = new THREE.Group();
 
@@ -356,7 +576,7 @@ function renderGraph(container) {
                 mesh = new THREE.Mesh(geometry, material);
             } else {
                 // 叶子节点：小方块或四面体
-                geometry = node.group === 'classic' ? new THREE.BoxGeometry(size, size, size) : new THREE.TetrahedronGeometry(size);
+                geometry = (node.group === 'classic' || node.group === 'eleroot') ? new THREE.BoxGeometry(size, size, size) : new THREE.TetrahedronGeometry(size);
                 material = new THREE.MeshLambertMaterial({ color: color, transparent: true, opacity: 0.8 });
                 mesh = new THREE.Mesh(geometry, material);
                 
@@ -470,6 +690,45 @@ function renderGraph(container) {
         }
     });
 
+    // --- 面板控制逻辑 ---
+    let panelTimeout;
+    const hudPanel = document.getElementById('hud-panel');
+    const hudCloseBtn = document.getElementById('hud-close-btn');
+
+    function hidePanel() {
+        if (hudPanel) {
+            hudPanel.style.opacity = '0';
+            setTimeout(() => {
+                if (hudPanel.style.opacity === '0') {
+                    hudPanel.style.display = 'none';
+                }
+            }, 500); // 等待淡出动画
+        }
+    }
+
+    function resetPanel() {
+        if (hudPanel) {
+            hudPanel.style.display = 'block';
+            // 强制重绘
+            void hudPanel.offsetWidth;
+            hudPanel.style.opacity = '1';
+            
+            if (panelTimeout) clearTimeout(panelTimeout);
+            panelTimeout = setTimeout(hidePanel, 5000); // 5秒后自动关闭
+        }
+    }
+
+    if (hudCloseBtn) {
+        hudCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 防止触发其它点击事件
+            hidePanel();
+            if (panelTimeout) clearTimeout(panelTimeout);
+        });
+    }
+
+    // 初始调用
+    resetPanel();
+
     // 在函数末尾暴露全局控制接口
     window.ZSTP = {
         pause: () => {
@@ -483,6 +742,7 @@ function renderGraph(container) {
             window.isZSTPActive = true;
             if (Graph) Graph.resumeAnimation(); // 恢复物理计算
             animateStars(); // 重启星空动画循环
+            resetPanel(); // 重置面板显示和定时器
             console.log('知识图谱已恢复');
         }
     };

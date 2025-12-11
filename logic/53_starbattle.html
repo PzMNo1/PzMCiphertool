@@ -3,15 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>starbattle - 逻辑谜题</title>
+    <title>Starbattle 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/53_starbattle.css">
 </head>
 <body>
-    <div class="container">
-        <h1>starbattle</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Starbattle 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+    <div class="container">
+        <div class="game-container">
+            <div class="grid-wrapper" id="grid-wrapper">
+                <!-- Grid generated here -->
+            </div>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label>行数: <input type="number" id="rows-input" value="10" min="5" max="20"></label>
+                <label>列数: <input type="number" id="cols-input" value="10" min="5" max="20"></label>
+                <label>星星数: <input type="number" id="stars-input" value="2" min="1" max="5"></label>
+                <button class="btn" id="new-grid-btn">新建网格</button>
+            </div>
+            
+            <div class="control-group mode-controls">
+                <button class="btn active" id="mode-border">编辑区域</button>
+                <button class="btn" id="mode-play">放置星星</button>
+                <button class="btn" id="mode-solve">求解</button>
+                <button class="btn" id="mode-reset">重置</button>
+            </div>
+
+            <div id="message" class="message"></div>
+            
+            <div class="instructions">
+                <p>规则：</p>
+                <ul>
+                    <li>在每个行、列和粗线区域中放置指定数量的星星（通常为2颗）。</li>
+                    <li>星星不能相互接触，甚至对角线也不能。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script src="./js/53_starbattle.js"></script>
 </body>
 </html>

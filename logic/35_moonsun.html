@@ -3,15 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>moonsun - 逻辑谜题</title>
+    <title>Moonsun 求解器</title>
+    <link rel="stylesheet" href="./css/35_moonsun.css"> 
 </head>
 <body>
+    <div class="hologram-effect"></div>
+    
+    <a href="../index.html#jiamishiyanshi-content##luojimiti" class="back-button">返回</a>
+    
     <div class="container">
-        <h1>moonsun</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
+        <div class="control-panel cyber-border">
+            <h1 style="color: var(--neon-blue); margin-bottom: 2rem;">Moonsun 求解器</h1>
+            <div style="display: grid; gap: 1rem;">
+                <input type="number" id="size" placeholder="网格大小" value="8" min="4" max="12">
+                <button onclick="initGrid()">重置网格</button>
+                
+                <div class="mode-switcher">
+                    <div id="mode-regions" class="mode-opt active" onclick="setMode('regions')">区域划分</div>
+                    <div id="mode-symbols" class="mode-opt" onclick="setMode('symbols')">放置符号</div>
+                    <div id="mode-play" class="mode-opt" onclick="setMode('play')">画线(Play)</div>
+                </div>
+
+                <button onclick="solvePuzzle()" class="cyber-glow">求解谜题</button>
+                <button onclick="clearGrid()">清空</button>
+            </div>
+
+            <div class="instructions">
+                <h3 style="margin-bottom: 1rem; color: var(--neon-purple);">规则:</h3>
+                <p>1. 画一条单一回路穿过每个区域。</p>
+                <p>2. 在每个区域中，必须经过所有的月亮，或者所有的太阳（但不能同时经过）。</p>
+                <p>3. 每个区域必须至少经过一个符号。</p>
+                <p>4. 回路不能交叉或分叉。</p>
+            </div>
+            
+            <div id="status-msg" class="stats">READY</div>
         </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+
+        <div class="grid-container">
+            <div id="grid" class="puzzle-grid"></div>
+        </div>
     </div>
+
+    <script src="./js/35_moonsun.js"></script>   
 </body>
 </html>

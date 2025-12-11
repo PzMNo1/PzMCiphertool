@@ -25,6 +25,17 @@ document.querySelectorAll('.submodule-btn').forEach(btn => {
     });
 });
 
+// 这是意见反馈模块里的子模块切换逻辑
+document.querySelectorAll('.contact-submodule-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.contact-submodule-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.lianxiwomen-submodule').forEach(m => m.classList.remove('active'));
+        document.getElementById(this.dataset.target).classList.add('active');
+    });
+});
+
 // 这是侧边栏搜索框定位功能
 function initSearchFunction() {
     const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s)
@@ -40,7 +51,6 @@ function initSearchFunction() {
                 .trim())) target ??= el
         })
 
-
         const isLogic = target.classList.contains('logic-btn')
         isLogic && ($('.submodule-nav [data-target="luojimiti"]').click(), target.closest('.submodule').classList.add('active'))
         target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight')
@@ -49,7 +59,18 @@ function initSearchFunction() {
     })
 }
 
-
-
-
-
+// 输入框置顶功能的交互逻辑
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.pin-toggle-btn'); 
+    if (btn) {
+        const card = btn.closest('.card');
+        if (card) {
+            card.classList.toggle('pinned');
+            const isPinned = card.classList.contains('pinned');
+            const tag = btn.querySelector('.cyber-button__tag');
+            if (tag) {
+                tag.textContent = isPinned ? '取消置顶' : '置顶';
+            }
+        }
+    }
+});

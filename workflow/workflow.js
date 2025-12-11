@@ -47,6 +47,7 @@ function initWorkflowCoze() {
         row.className = 'workflow-row';
         row.dataset.id = id;
         row.innerHTML = `
+            <button class="copy-workflow-btn" data-action="copy-workflow" data-id="${id}">复制</button>
             <button class="delete-workflow-btn" data-action="delete-workflow" data-id="${id}">删除此组</button>
             
             <div class="workflow-config-area">
@@ -305,6 +306,27 @@ function initWorkflowCoze() {
             delete workflowState[id];
             const row = document.querySelector(`.workflow-row[data-id="${id}"]`);
             if (row) row.remove();
+            return;
+        }
+
+        if (action === 'copy-workflow') {
+            const originalSteps = workflowState[id];
+            const newSteps = JSON.parse(JSON.stringify(originalSteps)); // 深拷贝
+            
+            const newId = nextWorkflowId++;
+            workflowState[newId] = newSteps;
+            
+            const newRow = createWorkflowRow(newId);
+            const currentRow = document.querySelector(`.workflow-row[data-id="${id}"]`);
+            
+            if (currentRow) {
+                currentRow.insertAdjacentElement('afterend', newRow);
+            } else {
+                workflowListEl.appendChild(newRow);
+            }
+            
+            setupCustomDropdown(newId);
+            renderSteps(newId);
             return;
         }
 

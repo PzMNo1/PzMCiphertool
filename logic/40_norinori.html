@@ -3,15 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>norinori - 逻辑谜题</title>
+    <title>Norinori 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/40_norinori.css">
 </head>
 <body>
-    <div class="container">
-        <h1>norinori</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Norinori 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
     </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="norinori-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>划分区域</strong>: 点击格子边缘或拖拽以绘制粗边框（区域）。</li>
+                    <li><strong>标记阴影</strong>: 点击格子以切换阴影状态 (Shade)。</li>
+                    <li><strong>规则</strong>: 每个区域必须包含正好2个阴影格。阴影格必须组成2x1的多米诺骨牌。</li>
+                </ul>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Rows:</label>
+                <input type="number" id="grid-rows" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+                <label>Cols:</label>
+                <input type="number" id="grid-cols" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="create-grid">重置网格</button>
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="clear-btn">清空</button>
+            </div>
+
+            <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:center;">
+                 <button class="btn tool-btn active" data-mode="border" style="padding:0.5rem 1rem; font-size:1rem;">边界模式</button>
+                 <button class="btn tool-btn" data-mode="shade" style="padding:0.5rem 1rem; font-size:1rem;">阴影模式</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/40_norinori.js"></script>
 </body>
 </html>

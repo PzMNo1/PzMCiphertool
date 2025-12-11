@@ -3,15 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tapa - 逻辑谜题</title>
+    <title>Tapa 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/56_tapa.css">
 </head>
 <body>
-    <div class="container">
-        <h1>tapa</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Tapa 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+
+    <div class="container">
+        <div class="tapa-container">
+            <div id="grid" class="tapa-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2>控制面板</h2>
+            <div class="controls-row">
+                <label>Size: <input type="number" id="size" value="10" min="5" max="15" style="width:50px"></label>
+                <button class="btn" id="create-btn">创建</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+            <div id="status" style="margin-top:1rem; text-align:center; color:var(--neon-cyan);"></div>
+            <div class="instructions" style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                <p>操作说明:</p>
+                <ul>
+                    <li>点击格子输入线索 (如 "1 3")。</li>
+                    <li>再次点击可清除输入。</li>
+                    <li>求解后显示黑色路径。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/56_tapa.js"></script>
 </body>
 </html>

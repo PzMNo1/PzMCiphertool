@@ -3,15 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tatamibari - 逻辑谜题</title>
+    <title>Tatamibari 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/57_tatamibari.css">
 </head>
 <body>
-    <div class="container">
-        <h1>tatamibari</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Tatamibari 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
     </div>
+
+    <div class="container">
+        <div class="tatamibari-container">
+            <div id="grid" class="tatamibari-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2>控制面板</h2>
+            <div class="controls-row">
+                <label>Size: <input type="number" id="size" value="8" min="4" max="12" style="width:50px"></label>
+                <button class="btn" id="create-btn">创建</button>
+            </div>
+            <div class="controls-row">
+                <label>当前符号: 
+                    <select id="symbol-select" class="symbol-select">
+                        <option value="">无</option>
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                        <option value="|">|</option>
+                    </select>
+                </label>
+            </div>
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+            <div id="status" style="margin-top:1rem; text-align:center; color:var(--neon-cyan);"></div>
+            <div class="instructions" style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                <p>操作说明:</p>
+                <ul>
+                    <li>选择符号，点击格子放置线索。</li>
+                    <li>点击求解生成区域边界。</li>
+                    <li>规则: + (正方形), - (宽>高), | (高>宽)。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/57_tatamibari.js"></script>
 </body>
 </html>

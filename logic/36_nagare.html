@@ -3,15 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>nagare - 逻辑谜题</title>
+    <title>Nagare 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/36_nagare.css">
 </head>
 <body>
-    <div class="container">
-        <h1>nagare</h1>
-        <div class="card">
-            <div class="result">正在开发中，敬请期�?/div>
-        </div>
-        <a href="../index.html" class="btn back-btn">返回主页</a>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    
+    <div class="header">
+        <h1 class="title">Nagare 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
     </div>
+
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="nagare-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li>选择工具，点击网格放置线索</li>
+                    <li>Wind (风): 强制气流方向</li>
+                    <li>Path (路): 强制路径方向</li>
+                    <li>Black (黑): 阻挡气流</li>
+                </ul>
+            </div>
+
+            <div class="config-row">
+                <label>行:</label>
+                <input type="number" id="grid-rows" class="config-input" value="10" min="5" max="20">
+                <label>列:</label>
+                <input type="number" id="grid-cols" class="config-input" value="10" min="5" max="20">
+                <button class="btn" id="create-grid" style="padding: 0.5rem 1rem; font-size: 1rem; margin: 0;">重置</button>
+            </div>
+
+            <div class="tools-grid">
+                <div class="tool-btn active" data-tool="black">⬛ 黑格</div>
+                <div class="tool-btn" data-tool="empty">⬜ 清除</div>
+                <div class="tool-btn" style="visibility: hidden;"></div>
+                
+                <div class="tool-btn" data-tool="wind-U">💨 ↑</div>
+                <div class="tool-btn" data-tool="wind-D">💨 ↓</div>
+                <div class="tool-btn" data-tool="wind-L">💨 ←</div>
+                <div class="tool-btn" data-tool="wind-R">💨 →</div>
+                
+                <div class="tool-btn" data-tool="path-U">🛣️ ↑</div>
+                <div class="tool-btn" data-tool="path-D">🛣️ ↓</div>
+                <div class="tool-btn" data-tool="path-L">🛣️ ←</div>
+                <div class="tool-btn" data-tool="path-R">🛣️ →</div>
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="solve-btn">启动计算核心</button>
+                <button class="btn" id="reset-btn">清空所有线索</button>
+            </div>
+            
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">QUANTUM COMPUTING...</div>
+    </div>
+
+    <script src="./js/36_nagare.js"></script>
 </body>
 </html>
