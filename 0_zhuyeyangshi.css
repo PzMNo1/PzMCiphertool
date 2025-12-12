@@ -226,6 +226,7 @@ margin-bottom: 8px;
   left: 0px;
   width: 220px;
   height: 100vh;
+  height: 100lvh;
   border-radius: 0 30px 30px 0;
   overflow: hidden; 
   backdrop-filter: blur(6px); 
