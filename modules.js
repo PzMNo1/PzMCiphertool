@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
         './cipher/3_Enigma.js',
         './cipher/4_MD5.js',
         './cipher/6_semaphore.js',
-        '0_sidebar_funtion.js',
+        './0_sidebar_funtion.js',
         './cipher/999_funtion.js',
         './model/script.js',
         './workflow/workflow.js',
@@ -649,7 +649,8 @@ document.addEventListener('DOMContentLoaded', () => {
             script.onload = resolve;
             document.body.appendChild(script);
         })), Promise.resolve()).then(() => {
-        if (typeof initSearchFunction === 'function') initSearchFunction();
+                if (typeof initSearchFunction === 'function') initSearchFunction();
+        if (typeof initWordSearch === 'function') initWordSearch();
         
         // 初始化大模型功能
         if (typeof initChatFunctions === 'function') {

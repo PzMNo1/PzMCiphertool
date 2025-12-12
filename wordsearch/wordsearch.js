@@ -63,7 +63,7 @@ const WORDSEARCH_HTML = `
     </div>
 `;
 
-function initSearchFunction() {
+function initWordSearch() {
     const container = document.getElementById('cihuiqu');
     if (container) {
         container.innerHTML = WORDSEARCH_HTML;

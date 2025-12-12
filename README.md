@@ -4,7 +4,9 @@
 
 2.如果你已经安装了 Node.js，直接在终端输入命令并回车：npx http-server，终端会显示访问地址，通常是 http://127.0.0.1:8080。按住 Ctrl 点击链接即可打开。
 
-3.如果你已经安装了cursor，那么可以按 Ctrl + Shift + P 打开搜索框，输入Simple Browser: Show（注意大小写和英文冒号），然后回车，然后在框里输入 http://127.0.0.1:5500/你解压工程后的文件夹名称/index.html，这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
+3.如果你已经安装了cursor，那么可以按 Ctrl + Shift + P 打开搜索框，输入>Simple Browser: Show（注意大小写和英文冒号），然后回车，然后在框里输入 http://127.0.0.1:5500/你解压工程后的文件夹名称/index.html，
+一般是http://127.0.0.1:5500/08_Ciphertool/frontendciphertool/index.html。
+这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
 
 
 
