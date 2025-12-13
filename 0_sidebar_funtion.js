@@ -74,3 +74,23 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+// 移动端侧边栏高度优化：防止键盘弹出时挤压
+function initMobileHeight() {
+    const setHeight = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    
+    setHeight();
+    
+    // 监听 resize，但在键盘弹出（宽度不变但高度变小）时不更新
+    let lastWidth = window.innerWidth;
+    window.addEventListener('resize', () => {
+        if (window.innerWidth !== lastWidth) {
+            lastWidth = window.innerWidth;
+            setHeight();
+        }
+    });
+}
+initMobileHeight();

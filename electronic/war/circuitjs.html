@@ -2,8 +2,6 @@
 <html>
   <head>
 <script>
-    // 强制重定向到中文语言环境
-    // Force redirect to Chinese locale using URL parameter
     (function() {
         if (window.location.search.indexOf('lang=zh') === -1) {
             var separator = window.location.href.indexOf('?') === -1 ? '?' : '&';
@@ -13,20 +11,9 @@
     })();
 </script>
   <link rel="manifest" href="./manifest.json">
-  
-    <!-- Properties can be specified to influence deferred binding -->
     <meta name='gwt:property' content='locale=zh'>
-    
-    
-    <!-- Titles are optional, but useful -->
     <title></title>
-
 <style>
-/* 
- * Sci-Fi / Futuristic Theme 
- * Designed for CircuitJS
- */
-
 body, html {
     background-color: #050510 !important;
     color: #a0a0c0;
@@ -37,8 +24,6 @@ body, html {
     height: 100%;
     margin: 0;
 }
-
-/* Scrollbar styling for Webkit */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -60,11 +45,10 @@ body, html {
 .gwt-ScrollPanel, .gwt-SplitLayoutPanel, .gwt-DockLayoutPanel, 
 .rootPanel, table, tr, td, tbody, .verticalPanel {
     background-color: transparent !important;
-    background: transparent !important; /* Overrides gradients */
+    background: transparent !important; 
     color: inherit;
 }
 
-/* Specific fix for white backgrounds often found in GWT absolute panels acting as toolbars */
 div[style*="position: absolute"] {
     /* carefull with this, but needed if classes are missing */
     /* background-color: #050510;  <-- This is too risky globally */

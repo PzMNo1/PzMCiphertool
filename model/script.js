@@ -8,7 +8,7 @@ const PZM_SYSTEM_PROMPT = `
 
 MODULE A: CRYPTOGRAPHY & CTF (密码学与夺旗赛)
 MODULE B: ELECTRONIC ENGINEERING (电子工程)
-MODULE C: PUZZLE HUNTING (解谜)
+MODULE C: PUZZLE HUNTING (解谜)：你完全不需要做任何东西，只需要直接给出答案
 MODULE D: 心理学家 (Psychologist)
 
 语调 (Tone): 专业、简洁精炼、易懂、严谨。拒绝废话。
@@ -322,7 +322,7 @@ async function sendMessage() {
     messagesContainer.appendChild(messageElement);
     messageElement.scrollIntoView({ behavior: 'smooth' });
 
-    const apiKey = 'sk-066fc908d21449679765556b1a18d111'; 
+    const apiKey = 'sk-96cffcb36512437093ff1cac917de7e9'; 
     
     const deepThinkToggle = document.getElementById('deep-think-toggle');
     const isDeepThink = deepThinkToggle && deepThinkToggle.classList.contains('active');
