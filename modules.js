@@ -24,7 +24,15 @@ const MODULES = {
                 <span class="cyber-button__glitch"></span>
                 <span class="cyber-button__tag">置顶</span>
             </button>
+            <button class="cyber-button usage-guide-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">使用说明</span>
+            </button>
             <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
+            <div class="quick-nav-container" id="quick-nav-container-mimaqu">
+                <input type="text" class="quick-nav-input" id="quick-nav-input-mimaqu" placeholder="快速定位密码..." autocomplete="off">
+                <div class="quick-nav-options" id="quick-nav-options-mimaqu"></div>
+            </div>
         </div>
 
         <!-- 凯撒密码 -->
@@ -296,11 +304,19 @@ const MODULES = {
             <!-- 输入 -->
             <div class="card main-input">
                 <div class="badge">输入</div>
-                <button class="cyber-button pin-toggle-btn">
-                    <span class="cyber-button__glitch"></span>
-                    <span class="cyber-button__tag">置顶</span>
-                </button>
-                <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
+            <button class="cyber-button pin-toggle-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">置顶</span>
+            </button>
+            <button class="cyber-button usage-guide-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">使用说明</span>
+            </button>
+            <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
+            <div class="quick-nav-container" id="quick-nav-container-xiandaiqu">
+                <input type="text" class="quick-nav-input" id="quick-nav-input-xiandaiqu" placeholder="快速定位密码..." autocomplete="off">
+                <div class="quick-nav-options" id="quick-nav-options-xiandaiqu"></div>
+            </div>
             </div>
 
             <!-- MD5 -->
@@ -474,6 +490,10 @@ const MODULES = {
             <button class="cyber-button pin-toggle-btn">
                 <span class="cyber-button__glitch"></span>
                 <span class="cyber-button__tag">置顶</span>
+            </button>
+            <button class="cyber-button usage-guide-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">使用说明</span>
             </button>
             <textarea id="mainInputCoze" placeholder="输入要处理的内容 (所有工作流将共用此输入)..." autofocus></textarea>
         </div>
@@ -675,6 +695,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.ZSTP.resume();
             } else {
                 window.ZSTP.pause();
+            }
+        }
+
+        // 性能优化：电子实验室休眠
+        if (typeof window.pauseElectronicLab === 'function' && typeof window.resumeElectronicLab === 'function') {
+            if (id === 'electroniclab') {
+                window.resumeElectronicLab();
+            } else {
+                window.pauseElectronicLab();
             }
         }
 

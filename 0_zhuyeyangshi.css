@@ -362,7 +362,6 @@ margin-bottom: 8px;
 
 
 
-
  /*  侧边栏搜索框样式  */
  .sidebar-search {
   padding: 0 1rem 1rem; 
@@ -707,7 +706,7 @@ animation: glitch 0.5s infinite;
     transform: translateX(-50%);
     width: 100%;
     max-width: 1200px;
-    z-index: 233;
+    z-index: 1003;
     border: 1px solid var(--secondary);
     backdrop-filter: blur(5px);
     background: transparent;
@@ -731,6 +730,24 @@ animation: glitch 0.5s infinite;
 
 .pin-toggle-btn:hover {
   transform: translate(-50%, -3px) !important; 
+}
+
+.usage-guide-btn {
+    position: absolute;
+    bottom: 0px;
+    left: 28px;
+    z-index: 2;
+    padding: 0.3rem 0.8rem;
+    min-width: auto;
+    height: 36px;
+    font-size: 0.75rem;
+    background: transparent;
+    backdrop-filter: blur(4px);
+    top: auto;
+}
+
+.usage-guide-btn:hover {
+    transform: translateY(-3px);
 }
 
 
@@ -784,9 +801,6 @@ animation: glitch 0.5s infinite;
   }
   .module-header {
       margin-bottom: 2rem;
-  }
-  .card.pinned {
-      z-index: 1003;
   }
 }
 
@@ -1020,4 +1034,76 @@ animation: glitch 0.5s infinite;
         rgba(64,224,255,0.3) 20%,
         rgba(179,136,255,0.2) 80%) !important;
     box-shadow: 0 0 15px var(--secondary) !important;
+}
+
+
+
+
+/* --- 输入框快速定位自定义搜索下拉框样式 */
+.quick-nav-container {
+    position: absolute;
+    bottom: 154px; 
+    left: 28px; 
+    width: 18%; 
+    margin: 0 ;
+    z-index: 2;
+    display: flex; 
+    align-items: flex-end; 
+}
+
+.quick-nav-input {
+    width: 100%;
+    padding: 0px 8px ;
+    height: 30px ;
+    min-height: 28px ;
+    line-height: 26px ;
+    font-size: 0.75rem; 
+    
+    background: transparent;
+    color: var(--text);
+    border-radius: 6px; 
+    cursor: text;
+    transition: all 0.3s ease;
+}
+
+.quick-nav-input:focus {
+    outline: none;
+    border-color: #3498db; 
+    box-shadow: 0 0 12px rgba(46, 204, 113, 0.5), inset 0 0 8px rgba(46, 204, 113, 0.5); 
+}
+
+/* 下拉选项列表容器 */
+.quick-nav-options {
+    display: none; /* 默认隐藏 */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1a2334; /* 深色背景 */
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.quick-nav-options.show {
+    display: block;
+}
+
+/* 单个选项 */
+.quick-nav-option {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #ecf0f1;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.quick-nav-option:hover, .quick-nav-option.selected {
+    background: rgba(64, 224, 255, 0.15);
+    color: #2ecc71;
 }

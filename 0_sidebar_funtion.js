@@ -39,24 +39,149 @@ document.querySelectorAll('.contact-submodule-btn').forEach(btn => {
 // 这是侧边栏搜索框定位功能
 function initSearchFunction() {
     const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s)
-    $('#cardSearch').addEventListener('keydown', e => {
-        if (e.key !== 'Enter') return
-        e.preventDefault()
-        let target
-        $$('.card, .logic-btn').forEach(el => {
-            const text = el.classList.contains('card') 
-                ? el.querySelector('.badge')?.textContent 
-                : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
-            if (text?.toLowerCase().includes(e.target.value.toLowerCase()
-                .trim())) target ??= el
-        })
+    
+    // 原有的侧边栏搜索
+    const cardSearch = $('#cardSearch');
+    if (cardSearch) {
+        cardSearch.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            let target
+            $$('.card, .logic-btn').forEach(el => {
+                const text = el.classList.contains('card') 
+                    ? el.querySelector('.badge')?.textContent 
+                    : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
+                if (text?.toLowerCase().includes(e.target.value.toLowerCase()
+                    .trim())) target ??= el
+            })
 
-        const isLogic = target.classList.contains('logic-btn')
-        isLogic && ($('.submodule-nav [data-target="luojimiti"]').click(), target.closest('.submodule').classList.add('active'))
-        target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight')
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setTimeout(() => target.classList.remove(isLogic ? 'logic-highlight' : 'card-highlight'), 5e3)
-    })
+            if (target) highlightAndScroll(target);
+        })
+    }
+
+    // 初始化经典区快速导航
+    initQuickNav('mimaqu');
+    // 初始化现代区快速导航
+    initQuickNav('xiandaiqu');
+}
+
+// 统一的定位和高亮函数
+function highlightAndScroll(target) {
+    if (!target) return;
+    const isLogic = target.classList.contains('logic-btn');
+    
+    // 如果是逻辑区的按钮，需要先切换到逻辑区
+    if (isLogic) {
+        document.querySelector('.submodule-nav [data-target="luojimiti"]')?.click();
+        target.closest('.submodule')?.classList.add('active');
+    } else {
+        // 如果是普通卡片，确保所在的子模块是激活的
+        const submodule = target.closest('.submodule');
+        if (submodule && !submodule.classList.contains('active')) {
+            const id = submodule.id;
+            document.querySelector(`.submodule-nav [data-target="${id}"]`)?.click();
+        }
+    }
+
+    target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => target.classList.remove(isLogic ? 'logic-highlight' : 'card-highlight'), 5000);
+}
+
+// 快速导航初始化函数
+function initQuickNav(regionId) {
+    const inputId = `quick-nav-input-${regionId}`;
+    const listId = `quick-nav-options-${regionId}`;
+    const containerId = `quick-nav-container-${regionId}`;
+    
+    const input = document.getElementById(inputId);
+    const listContainer = document.getElementById(listId);
+    const container = document.getElementById(containerId);
+    
+    if (!input || !listContainer) return;
+
+    // 获取当前区域内所有的卡片标题
+    function getCardOptions() {
+        const cards = document.querySelectorAll(`#${regionId} .card:not(.main-input)`);
+        const options = [];
+        cards.forEach(card => {
+            const badge = card.querySelector('.badge');
+            if (badge) {
+                options.push({
+                    text: badge.textContent,
+                    element: card
+                });
+            }
+        });
+        return options;
+    }
+
+    // 渲染下拉选项
+    function renderOptions(filterText = '') {
+        listContainer.innerHTML = '';
+        const options = getCardOptions();
+        const lowerFilter = filterText.toLowerCase();
+        
+        const filtered = options.filter(opt => 
+            opt.text.toLowerCase().includes(lowerFilter)
+        );
+
+        if (filtered.length === 0) {
+            listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
+            return;
+        }
+
+        filtered.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'quick-nav-option';
+            div.textContent = opt.text;
+            
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // input.value = opt.text; // 选中后不一定要填入，直接跳转更好体验，或者填入也可
+                input.value = ''; // 清空，方便下次搜索
+                listContainer.classList.remove('show');
+                highlightAndScroll(opt.element);
+            });
+            listContainer.appendChild(div);
+        });
+    }
+
+    // 输入框事件
+    input.addEventListener('focus', () => {
+        renderOptions(input.value);
+        listContainer.classList.add('show');
+    });
+
+    input.addEventListener('input', (e) => {
+        renderOptions(e.target.value);
+        listContainer.classList.add('show');
+    });
+
+    // Enter 键直接定位到第一个匹配项
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const filterText = input.value.toLowerCase().trim();
+            if (!filterText) return;
+
+            const options = getCardOptions();
+            const matched = options.find(opt => opt.text.toLowerCase().includes(filterText));
+            
+            if (matched) {
+                input.blur(); 
+                listContainer.classList.remove('show');
+                highlightAndScroll(matched.element);
+            }
+        }
+    });
+
+    // 点击外部关闭下拉框
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            listContainer.classList.remove('show');
+        }
+    });
 }
 
 // 输入框置顶功能的交互逻辑

@@ -17,6 +17,7 @@
 
 .chat-main {
   flex: 1;
+  min-width: 0; /* 防止内容撑开容器 */
   display: flex;
   flex-direction: column;
   background-color: transparent; 
@@ -105,6 +106,9 @@
 .message-content {
   line-height: 1.6; 
   font-size: 0.95rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .input-container {
@@ -678,6 +682,9 @@
   font-size: 0.85em;
   line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-all;
   position: relative;
   /* 扫描线背景图 */
   background: linear-gradient(

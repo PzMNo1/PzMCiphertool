@@ -77,7 +77,7 @@ function initElectronicLab() {
     // 【新增修复】如果 iframe 在监听前已经加载完毕（错过了onload事件），手动触发
     // Fix: If iframe is already loaded before listener is attached, trigger onload manually
     try {
-        if (frame.contentDocument && frame.contentDocument.readyState === 'complete') {
+        if (frame.contentWindow && frame.contentWindow.document.readyState === 'complete') {
             console.log("Iframe already loaded, triggering handler manually.");
             frame.onload();
         }
@@ -106,5 +106,41 @@ function initElectronicLab() {
 
     window.openDocs = function() {
         window.open('https://www.falstad.com/circuit/doc/', '_blank');
+    };
+
+    // --- 性能优化：休眠/唤醒 ---
+    window.pauseElectronicLab = function() {
+        // console.log("Attempting to pause Electronic Lab...");
+        const frame = document.getElementById('circuit-frame');
+        if (!frame) return;
+
+        // 大多数现代浏览器在 iframe display:none 时会自动节流 RAF
+        // 这里尝试更深层的暂停（如果支持）
+        try {
+            // 尝试通过 postMessage 通知（如果 iframe 支持）
+            // frame.contentWindow.postMessage('pause', '*');
+            
+            // 如果是同源，可以尝试直接访问内部对象 (circuitJS 可能会暴露 sim 对象)
+            if (frame.contentWindow.sim && typeof frame.contentWindow.sim.stop === 'function') {
+                frame.contentWindow.sim.stop();
+            }
+        } catch (e) {
+            // 跨域忽略
+        }
+    };
+
+    window.resumeElectronicLab = function() {
+        // console.log("Attempting to resume Electronic Lab...");
+        const frame = document.getElementById('circuit-frame');
+        if (!frame) return;
+
+        try {
+            // frame.contentWindow.postMessage('resume', '*');
+            if (frame.contentWindow.sim && typeof frame.contentWindow.sim.start === 'function') {
+                frame.contentWindow.sim.start();
+            }
+        } catch (e) {
+            // 跨域忽略
+        }
     };
 }
