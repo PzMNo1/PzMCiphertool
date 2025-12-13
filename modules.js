@@ -30,7 +30,7 @@ const MODULES = {
             </button>
             <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
             <div class="quick-nav-container" id="quick-nav-container-mimaqu">
-                <input type="text" class="quick-nav-input" id="quick-nav-input-mimaqu" placeholder="快速定位密码..." autocomplete="off">
+                <input type="text" class="quick-nav-input" id="quick-nav-input-mimaqu" placeholder="[搜索密码卡片...]" autocomplete="off">
                 <div class="quick-nav-options" id="quick-nav-options-mimaqu"></div>
             </div>
         </div>
@@ -314,7 +314,7 @@ const MODULES = {
             </button>
             <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
             <div class="quick-nav-container" id="quick-nav-container-xiandaiqu">
-                <input type="text" class="quick-nav-input" id="quick-nav-input-xiandaiqu" placeholder="快速定位密码..." autocomplete="off">
+                <input type="text" class="quick-nav-input" id="quick-nav-input-xiandaiqu" placeholder="[搜索密码卡片...]" autocomplete="off">
                 <div class="quick-nav-options" id="quick-nav-options-xiandaiqu"></div>
             </div>
             </div>
@@ -457,11 +457,9 @@ const MODULES = {
     <div id="electroniclab-content" class="content-section">
         <div class="module-header">
             <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
-            <div class="source-selector-container">
+            <div class="source-selector-container"">
                 <select id="circuit-source-select" class="circuit-source-select">
                     <option value="./electronic/war/circuitjs.html">线路1: 本地源 (Local)</option>
-                    <option value="https://lushprojects.com/circuitjs/circuitjs.html">线路2: 官方源</option>
-                    <option value="https://www.falstad.com/circuit/circuitjs.html">线路3: 备用源</option>
                 </select>
             </div>
         </div>
@@ -471,7 +469,8 @@ const MODULES = {
             </div>
             <iframe 
                 id="circuit-frame" 
-                src="./electronic/war/circuitjs.html" 
+                src="" 
+                data-src="./electronic/war/circuitjs.html" 
                 allowfullscreen>
             </iframe>
         </div>
@@ -649,7 +648,7 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    [
+    const scripts = [
         './electronic/electronic_lab.js',
         './cipher/1_cipherlab.js',
         './cipher/2_ADFGXCipher.js',
@@ -662,13 +661,15 @@ document.addEventListener('DOMContentLoaded', () => {
         './workflow/workflow.js',
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
-    ]
-    .reduce((promise, src) => promise.then(() => new Promise(resolve => {
+    ];
+
+    Promise.all(scripts.map(src => new Promise(resolve => {
             const script = document.createElement('script');
             script.src = src;
             script.onload = resolve;
+            //异步加载，提高并行度
             document.body.appendChild(script);
-        })), Promise.resolve()).then(() => {
+        }))).then(() => {
                 if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
         
@@ -698,19 +699,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 性能优化：电子实验室休眠
-        if (typeof window.pauseElectronicLab === 'function' && typeof window.resumeElectronicLab === 'function') {
-            if (id === 'electroniclab') {
-                window.resumeElectronicLab();
-            } else {
-                window.pauseElectronicLab();
-            }
-        }
-
         document.querySelectorAll('.container1 > div').forEach(e => e.style.display = 'none');
         const targetContainer = document.getElementById(id + '-container');
         if (targetContainer) {
             targetContainer.style.display = 'block';
+        }
+
+        // 电子实验室懒加载
+        if (id === 'electroniclab') {
+            const frame = document.getElementById('circuit-frame');
+            const loading = document.getElementById('circuit-loading');
+            if (frame && !frame.getAttribute('src')) {
+                if (loading) loading.classList.add('active'); // 显示加载遮罩
+                frame.src = frame.getAttribute('data-src');
+            }
         }
 
         document.querySelectorAll('.menu-item').forEach(item => 

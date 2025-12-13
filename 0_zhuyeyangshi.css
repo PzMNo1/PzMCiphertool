@@ -793,18 +793,6 @@ animation: glitch 0.5s infinite;
 }
 
 
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .neon-title {
-      font-size: 1.8rem;
-      letter-spacing: 4px;
-  }
-  .module-header {
-      margin-bottom: 2rem;
-  }
-}
-
-
 
 /* 逻辑谜题区样式 */
 #luojimiti .container {
@@ -972,53 +960,16 @@ animation: glitch 0.5s infinite;
     width: 100%;
 }
 
-/* 移动端优化：子模块导航菜单换行 */
-@media (max-width: 768px) {
-    .submodule-nav,.lianxiwomen-submodule{
-        display: flex;
-        flex-wrap: wrap; 
-        justify-content: center;
-        gap: 0.5rem; 
-        margin-top: 2rem ; 
-        padding: 0.5rem;
-    }
 
-    .submodule-btn,.contact-submodule-btn {
-        flex: 1 1 30%; 
-        min-width: 80px; 
-        margin: 0 ;
-        padding: 0.8rem 0.5rem ; 
-        font-size: 0.9rem ;
-        text-align: center;
-    }
-}
 
-/* 移动端逻辑区强制两列布局 */
-@media (max-width: 768px) {
-    #luojimiti .container {
-        grid-template-columns: repeat(2, 1fr) !important; 
-        gap: 0.8rem !important; 
-        padding: 6rem 0.5rem 4rem !important; 
-    }
-    
-    #luojimiti .logic-btn {
-        height: 45px !important;  
-        min-height: auto !important; 
-        padding: 0.3rem !important; 
-        font-size: 0.85rem !important; 
-    }
-    
-    #luojimiti .logic-btn::before {
-        width: 10px;
-        height: 10px;
-    }
-    
-    #luojimiti .logic-btn::after {
-        font-size: 0.35rem;
-        bottom: 1px;
-        right: 10px;
-    }
-}
+
+
+
+
+
+
+
+
 
 /* 意见反馈子模块切换样式 */
 .lianxiwomen-submodule {
@@ -1106,4 +1057,65 @@ animation: glitch 0.5s infinite;
 .quick-nav-option:hover, .quick-nav-option.selected {
     background: rgba(64, 224, 255, 0.15);
     color: #2ecc71;
+}
+
+
+
+
+
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .neon-title {
+    font-size: 1.8rem;
+    letter-spacing: 4px;
+}
+.module-header {
+    margin-bottom: 2rem;
+}
+#luojimiti .container {
+    grid-template-columns: repeat(2, 1fr) !important; 
+    gap: 0.8rem !important; 
+    padding: 6rem 0.5rem 4rem !important; 
+}
+
+#luojimiti .logic-btn {
+    height: 45px !important;  
+    min-height: auto !important; 
+    padding: 0.3rem !important; 
+    font-size: 0.85rem !important; 
+}
+
+#luojimiti .logic-btn::before {
+    width: 10px;
+    height: 10px;
+}
+
+#luojimiti .logic-btn::after {
+    font-size: 0.35rem;
+    bottom: 1px;
+    right: 10px;
+}
+
+.submodule-nav,.lianxiwomen-submodule{
+  display: flex;
+  flex-wrap: wrap; 
+  justify-content: center;
+  gap: 0.5rem; 
+  margin-top: 2rem ; 
+  padding: 0.5rem;
+}
+
+.submodule-btn,.contact-submodule-btn {
+  flex: 1 1 30%; 
+  min-width: 80px; 
+  margin: 0 ;
+  padding: 0.8rem 0.5rem ; 
+  font-size: 0.9rem ;
+  text-align: center;
+}
+
+.quick-nav-container {
+width: 35%; /* 调大宽度，往右拉长 */
+}
 }
