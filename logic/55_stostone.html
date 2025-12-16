@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stostone 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/55_stostone.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Stostone 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+
+    <div class="container">
+        <div class="stostone-container">
+            <div id="grid" class="stostone-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2>控制面板</h2>
+            <div class="controls-row">
+                <label>行(偶数): <input type="number" id="rows" value="6" min="4" max="12" step="2" style="width:50px"></label>
+                <label>列: <input type="number" id="cols" value="6" min="4" max="12" style="width:50px"></label>
+                <button class="btn" id="create-btn">创建</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn tool-btn active" data-mode="border" id="mode-border">区域边界</button>
+                <button class="btn tool-btn" data-mode="number" id="mode-number">输入数字</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+            <div id="status" style="margin-top:1rem; text-align:center; color:var(--neon-cyan);"></div>
+            <div class="instructions" style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                <p>操作说明:</p>
+                <ul>
+                    <li><strong>区域边界模式</strong>: 点击格子边缘切换粗边框，划分房间。</li>
+                    <li><strong>输入数字模式</strong>: 点击格子输入该房间内的石头数量。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/55_stostone.js"></script>
+</body>
+</html>

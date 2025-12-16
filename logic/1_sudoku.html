@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数独求解器</title>
+    <link rel="stylesheet" href="./css/logic.css"> 
+</head>
+
+<body>
+    <!-- 返回按钮 返回主页面 -->
+    <a href="../index.html#jiamishiyanshi-content##luojimiti" class="btn back-btn">◈ 返回</a>
+
+    <div class="header">
+        <h1 class="title">数独求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+
+    <div class="container">
+        <div class="logic-grid" id="logic"></div>
+        
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            <button class="btn" onclick="solveSudoku()">开始求解</button>
+            <button class="btn" onclick="undoLastStep()">返回上步</button>
+            <button class="btn" onclick="clearGrid()">重置网格</button>
+            <div style="margin: 2rem 0; display: inline-block;  margin-right: 50px; ">  <h2>高级规则</h2>
+                <label class="btn" style="display: inline-block; margin: 0.5rem 0;">
+                    <input type="checkbox" id="diagonal">
+                    <span>对角线约束</span>
+                </label>
+            </div>
+
+            <div id="result" style="margin-top: 2rem;"></div>
+            <div id="result"></div>
+            <div class="solution-nav" id="solutionNav" style="display: none;">
+                <button class="solution-btn" onclick="showSolution(-1)">◀</button>
+                <span class="solution-counter" id="solutionCounter"></span>
+                <button class="solution-btn" onclick="showSolution(1)">▶</button>
+            </div>
+        </div>
+    </div>
+    <div class="loading" id="loading"></div>
+    <script src="./js/1_sudoku.js"></script> <!-- 导入sudoku.js文件 -->
+</body>
+</html>

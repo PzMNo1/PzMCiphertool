@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxies 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/52_spiralgalaxies.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Spiral Galaxies 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+    <div class="container">
+        <div class="game-container">
+            <div class="grid-wrapper" id="grid-wrapper">
+                <!-- Grid and Dots generated here -->
+            </div>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label>行数: <input type="number" id="rows-input" value="7" min="4" max="15"></label>
+                <label>列数: <input type="number" id="cols-input" value="7" min="4" max="15"></label>
+                <button class="btn" id="new-grid-btn">新建网格</button>
+            </div>
+            
+            <div class="control-group mode-controls">
+                <button class="btn active" id="mode-play">填色模式</button>
+                <button class="btn" id="mode-edit">编辑星系中心</button>
+                <button class="btn" id="mode-solve">求解</button>
+                <button class="btn" id="mode-reset">重置</button>
+            </div>
+
+            <div id="message" class="message"></div>
+            
+            <div class="instructions">
+                <p>规则：</p>
+                <ul>
+                    <li>将网格划分为多个区域。</li>
+                    <li>每个区域必须包含且仅包含一个圆点（星系中心）。</li>
+                    <li>每个区域必须以其圆点为中心进行180度旋转对称。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script src="./js/52_spiralgalaxies.js"></script>
+</body>
+</html>

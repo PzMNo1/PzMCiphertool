@@ -1,0 +1,343 @@
+/* workflow模块的样式*/
+
+/* --- 整体容器：启用 Grid 布局 --- */
+#workflow-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem; 
+}
+
+/* --- 单个工作流卡片 --- */
+.workflow-row {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(64, 224, 255, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    position: relative;
+    display: flex;   
+    flex-direction: column;  
+    gap: 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 100%;           
+}
+
+.workflow-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 0 15px rgba(64, 224, 255, 0.05);
+    border-color: rgba(64, 224, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+/* 手机端适配：强制单列 */
+@media (max-width: 600px) {
+    #workflow-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+.workflow-config-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+
+.workflow-steps-container {
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.step-item {
+    background: linear-gradient(90deg, rgba(64, 224, 255, 0.15), rgba(64, 224, 255, 0.02));
+    border-left: 2px solid #2ecc71;
+    padding: 0.5rem 0.8rem;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between; /* 两端对齐 */
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.step-info {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.step-type {
+    font-weight: bold;
+    color: #2ecc71;
+    font-size: 0.95rem;
+}
+
+.step-param {
+    font-size: 0.8rem;
+    color: #bdc3c7;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.step-controls {
+    display: flex;
+    gap: 0.2rem;
+}
+
+.add-step-area {
+    display: grid;
+    grid-template-columns: 1.5fr 0.8fr 1.2fr auto; 
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 0.8rem; 
+    border-radius: 8px;
+}
+
+.add-step-area select, .add-step-area input {
+    padding: 0.8rem; 
+    font-size: 0.95rem; 
+    background: linear-gradient(145deg, rgba(64,224,255,0.12) -30%, rgba(30,41,59,0.92) 40%, rgba(153,50,204,0.12) 130%);
+    border: 2px solid transparent; 
+    height: auto; 
+    min-height: 45px; 
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(64,224,255,0.2);
+    transition: all 0.3s ease;
+}
+
+.add-step-area .cyber-button {
+    top: 0;
+    padding: 0 1.2rem; 
+    height: 45px;      
+    min-width: auto;
+    display: flex;
+    align-items: center;
+}
+
+.param-input {
+    display: none;
+}
+.param-input.active {
+    display: block;
+}
+
+.workflow-result-area {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-grow: 1; 
+    position: relative;
+    border-top: 2px solid rgba(46, 204, 113, 0.3);
+}
+
+.workflow-result-title {
+    font-size: 0.8rem;
+    color: #2ecc71;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+.workflow-final-output {
+    font-size: 1rem;
+    color: #ecf0f1;
+    word-break: break-all;
+    white-space: pre-wrap;
+    font-family: 'Consolas', monospace;
+    line-height: 1.4;
+}
+
+.intermediate-results {
+    margin-top: 0.8rem;
+    padding-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+/* 复制按钮 */
+.copy-workflow-btn {
+    position: absolute;
+    top: 10px;
+    right: 75px; /* 在删除按钮左侧 */
+    opacity: 0;
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.5);
+    color: #3498db;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    z-index: 10;
+    transition: opacity 0.2s ease;
+}
+
+.workflow-row:hover .copy-workflow-btn {
+    opacity: 1;
+}
+
+.copy-workflow-btn:hover {
+    background: rgba(52, 152, 219, 0.2);
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+/* 删除按钮 */
+.delete-workflow-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    opacity: 0;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    color: #e74c3c;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    z-index: 10;
+    transition: opacity 0.2s ease;
+}
+.workflow-row:hover .delete-workflow-btn {
+    opacity: 1;
+}
+
+/* 全局按钮区 */
+.global-controls {
+    grid-column: 1 / -1; 
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    padding-bottom: 3rem;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* --- 标题区域 --- */
+.workflow-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    margin-top: 1rem;
+    position: relative;
+}
+
+/* --- 拖拽功能样式 --- */
+.step-item {
+    /* 允许用户知道这是可拖拽的 */
+    cursor: grab; 
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.step-item:active {
+    cursor: grabbing;
+}
+
+/* 当元素被拖起时添加的类 */
+.step-item.dragging {
+    opacity: 0.5;
+    background: rgba(46, 204, 113, 0.2);
+    border: 1px dashed #2ecc71;
+    transform: scale(0.98);
+}
+
+/* 拖拽经过的目标区域高亮 */
+.step-item.drag-over {
+    border-top: 2px solid #e74c3c; /* 指示将插入这里 */
+}
+
+
+/* --- 自定义搜索下拉框样式 --- */
+.custom-select-container {
+    position: relative;
+    min-width: 150px;
+    flex-grow: 1;
+}
+
+/* 输入框样式替代原来的 select */
+.custom-select-input {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 0.95rem;
+    
+    /* 1. 背景改为渐变 */
+    background: linear-gradient(145deg, rgba(64,224,255,0.12) -30%, rgba(30,41,59,0.92) 40%, rgba(153,50,204,0.12) 130%);
+    
+    /* 2. 边框设为透明（或细微的颜色）以配合阴影 */
+    border: 2px solid transparent; 
+    
+    color: var(--text);
+    height: auto;
+    min-height: 45px;
+    
+    /* 3. 统一圆角，可以根据你的喜好调整，这里设为 8px 看起来比较舒服 */
+    border-radius: 8px;
+    
+    cursor: text;
+    
+    /* 4. 初始状态的微弱发光 */
+    box-shadow: 0 0 8px rgba(64,224,255,0.2);
+    transition: all 0.3s ease;
+}
+
+.custom-select-input:focus {
+    /* 聚焦时的高亮样式，参考 0_zhuyeyangshi.css 116-117行 */
+    outline: none;
+    border-color: rgba(64,224,255,0.6); /* 青色边框 */
+    box-shadow: 0 0 12px rgba(64,224,255,0.4); /* 增强的青色光晕 */
+}
+
+/* 下拉选项列表容器 */
+.custom-select-options {
+    display: none; /* 默认隐藏 */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1a2334; /* 深色背景 */
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    margin-top: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.custom-select-options.show {
+    display: block;
+}
+
+/* 单个选项 */
+.custom-option {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #ecf0f1;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.custom-option:hover, .custom-option.selected {
+    background: rgba(64, 224, 255, 0.15);
+    color: #2ecc71;
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnets - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/32_magnets.css">
+</head>
+<body>
+    
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">MAGNETS</div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="instructions">
+                <p>规则说明_</p>
+                <ul>
+                    <li>整个网格被划分为若干个多米诺骨牌（2格）。</li>
+                    <li>每个骨牌可以放置一对磁极 (+, -) 或保持中性 (全黑)。</li>
+                    <li>同性磁极不能相邻（+不能挨着+，-不能挨着-）。</li>
+                    <li>上/左侧数字表示该行/列 + 的数量。</li>
+                    <li>下/右侧数字表示该行/列 - 的数量。</li>
+                </ul>
+            </div>
+
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="6" min="2" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="6" min="2" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <div class="mode-switcher">
+                <div id="mode-edit" class="mode-opt active" onclick="setMode('edit')">✏️ 划分骨牌</div>
+                <div id="mode-play" class="mode-opt" onclick="setMode('play')">🧲 放置磁极</div>
+            </div>
+
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button onclick="clearState()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">清空</button>
+                    <button onclick="copyToClipboard()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">复制</button>
+                </div>
+            </div>
+            
+            <div id="status-msg">SYSTEM READY...</div>
+        </div>
+
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="magnets-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/32_magnets.js"></script>
+</body>
+</html>

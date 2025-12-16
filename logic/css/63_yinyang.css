@@ -1,0 +1,79 @@
+.yinyang-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.yinyang-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.yinyang-cell {
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%; /* Optional: make cells round? No, YinYang is grid based usually. */
+    border-radius: 4px;
+}
+
+.cell-white {
+    background: #fff;
+    box-shadow: inset 0 0 10px #ccc;
+}
+
+.cell-black {
+    background: #000;
+    box-shadow: inset 0 0 10px #333;
+}
+
+.cell-white::after {
+    content: ''; /* potentially symbol */
+}
+
+/* Fixed clues styling */
+.cell-fixed {
+    position: relative;
+}
+.cell-fixed::before {
+    content: '•';
+    position: absolute;
+    color: red;
+    font-size: 2rem;
+    line-height: 0;
+}
+/* Actually standard UI: just filled circles. Fixed clues maybe indicated by dot? */
+
+.controls-row {
+    margin: 1rem 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

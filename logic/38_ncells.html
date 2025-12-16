@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ncells 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/38_ncells.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Ncells 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
+    </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="ncells-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>输入数字</strong>: 选中格子，输入该格子的邻居区域数。</li>
+                    <li><strong>绘制区域</strong>: 点击边缘划分区域。</li>
+                    <li><strong>区域大小</strong>: 在下方设置目标区域大小。</li>
+                </ul>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem;">
+                <label>Rows:</label>
+                <input type="number" id="grid-rows" value="10" class="config-input" style="width:40px; padding:0.2rem;">
+                <label>Cols:</label>
+                <input type="number" id="grid-cols" value="10" class="config-input" style="width:40px; padding:0.2rem;">
+                <label>Region Size:</label>
+                <input type="number" id="region-size" value="5" class="config-input" style="width:40px; padding:0.2rem;">
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="create-grid">重置网格</button>
+                <button class="btn" id="solve-btn">求解 Ncells</button>
+                <button class="btn" id="clear-btn">清空数据</button>
+            </div>
+
+            <h3 style="margin-top:1rem; margin-bottom:0.5rem; color:rgba(255,255,255,0.7);">线索输入</h3>
+            <div class="numpad">
+                <button class="num-btn">0</button><button class="num-btn">1</button><button class="num-btn">2</button>
+                <button class="num-btn">3</button><button class="num-btn">4</button><button class="num-btn">5</button>
+                <button class="num-btn">6</button><button class="num-btn">7</button><button class="num-btn">8</button>
+                <button class="num-btn" style="grid-column:span 3">Backspace</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">ANALYZING...</div>
+    </div>
+
+    <script src="./js/38_ncells.js"></script>
+</body>
+</html>

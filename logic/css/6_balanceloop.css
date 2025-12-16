@@ -1,0 +1,189 @@
+:root {
+    --bl-cell-size: 45px;
+    --bl-line-width: 4px;
+    --bl-line-color: var(--quantum-blue);
+}
+
+.balanceloop-grid-container {
+    display: inline-grid;
+    gap: 1px;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bl-cell {
+    width: var(--bl-cell-size);
+    height: var(--bl-cell-size);
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.bl-cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Clues */
+.bl-clue {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    font-size: 1.2rem;
+    z-index: 10;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.bl-clue.white {
+    background: #e0e0e0;
+    color: #000;
+    border: 2px solid #fff;
+}
+
+.bl-clue.black {
+    background: #222;
+    color: #fff;
+    border: 2px solid #555;
+}
+
+/* Lines (SVG or Divs) */
+/* We will use SVG inside cell for lines */
+.bl-line-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.bl-line {
+    stroke: var(--bl-line-color);
+    stroke-width: var(--bl-line-width);
+    fill: none;
+    stroke-linecap: round;
+}
+
+/* Controls */
+.config-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.config-input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--quantum-blue);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 8px;
+    width: 60px;
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.mode-switcher {
+    display: flex;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.mode-opt {
+    flex: 1;
+    text-align: center;
+    padding: 0.8rem;
+    cursor: pointer;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.6);
+    transition: all 0.3s;
+    font-weight: bold;
+}
+
+.mode-opt.active {
+    background: var(--quantum-blue);
+    color: var(--dark-matter);
+    box-shadow: 0 0 15px rgba(64,224,255,0.4);
+}
+
+#status-msg {
+    min-height: 2em;
+    color: var(--hologram-purple);
+    text-shadow: 0 0 5px currentColor;
+    font-weight: bold;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+/* Solution Nav */
+.solution-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.solution-btn {
+    background: var(--quantum-blue);
+    color: var(--dark-matter);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.solution-btn:hover {
+    background: var(--neon-cyan);
+}
+
+.solution-counter {
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

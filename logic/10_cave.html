@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cave - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/10_cave.css">
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <!-- 标题区 -->
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">CAVE</div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="controls">
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>左键点击</strong>: 切换 墙壁/洞穴/空</li>
+                    <li><strong>右键点击</strong>: 输入数字线索</li>
+                    <li><strong>规则</strong>:
+                        <ul>
+                            <li>所有洞穴格子必须连通</li>
+                            <li>所有墙壁必须连通到边界</li>
+                            <li>数字表示从该格可见的洞穴格子总数(含自身)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 网格设置 -->
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="8" min="4" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="8" min="4" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <!-- 动作按钮 -->
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+            </div>
+            
+            <div id="status-msg">READY</div>
+        </div>
+
+        <!-- 右侧：游戏网格 -->
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="cave-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">EXPLORING CAVE SYSTEM...</div>
+    </div>
+
+    <script src="./js/10_cave.js"></script>
+</body>
+</html>

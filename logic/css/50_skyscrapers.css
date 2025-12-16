@@ -1,0 +1,111 @@
+/* Skyscrapers CSS */
+.game-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+    padding: 10px;
+}
+
+.grid-wrapper {
+    display: grid;
+    /* Template columns/rows set by JS */
+    gap: 1px;
+    background-color: transparent;
+    padding: 10px;
+    border-radius: 12px;
+    /* backdrop-filter: blur(10px); - removed to avoid blurriness on text */
+}
+
+.cell {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.02);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #00f3ff;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.cell:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.cell.clue {
+    background-color: transparent;
+    border: none;
+    color: var(--hologram-purple); /* Purple for clues */
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-shadow: 0 0 5px rgba(179, 136, 255, 0.5);
+}
+
+.cell.grid-cell {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cell.active {
+    background-color: rgba(0, 243, 255, 0.15);
+    border: 1px solid var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+
+.cell.solved {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+}
+
+/* Fixed numbers (user input) style distinction */
+.cell.fixed {
+    color: white;
+    font-weight: bold;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Compact buttons */
+.btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+}
+
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+}
+
+.num-btn {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    min-width: 36px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.num-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--neon-cyan);
+}
+
+.message {
+    min-height: 20px;
+    color: var(--hologram-purple);
+    font-family: monospace;
+    margin-top: 5px;
+}

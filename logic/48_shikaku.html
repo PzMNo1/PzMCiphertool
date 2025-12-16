@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shikaku 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/48_shikaku.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Shikaku 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
+    </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="shikaku-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>输入数字</strong>: 选中格子输入区域面积。</li>
+                    <li><strong>划分区域</strong>: 点击边缘绘制矩形边界。</li>
+                    <li><strong>规则</strong>: 将网格划分为矩形，每个矩形包含一个数字，数字等于矩形面积。</li>
+                </ul>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Rows:</label>
+                <input type="number" id="grid-rows" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+                <label>Cols:</label>
+                <input type="number" id="grid-cols" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="create-grid">重置网格</button>
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="clear-btn">清空</button>
+            </div>
+
+            <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:center;">
+                 <button class="btn tool-btn active" data-mode="border" style="padding:0.5rem 1rem; font-size:1rem;">边界模式</button>
+                 <button class="btn tool-btn" data-mode="number" style="padding:0.5rem 1rem; font-size:1rem;">数字模式</button>
+            </div>
+
+            <div class="numpad">
+                <button class="num-btn">1</button><button class="num-btn">2</button><button class="num-btn">3</button>
+                <button class="num-btn">4</button><button class="num-btn">5</button><button class="num-btn">6</button>
+                <button class="num-btn">7</button><button class="num-btn">8</button><button class="num-btn">9</button>
+                <button class="num-btn" style="grid-column:span 3">Delete</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">DIVIDING...</div>
+    </div>
+
+    <script src="./js/48_shikaku.js"></script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+.gokigen-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+}
+
+.controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 1rem;
+}
+
+.size-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.size-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--quantum-blue);
+}
+
+.size-controls input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(64,224,255,0.3);
+    border-radius: 8px;
+    padding: 0.5rem;
+    width: 60px;
+    color: white;
+}
+
+.small-btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+}
+
+.gokigen-grid {
+    display: grid;
+    /* Grid template will be set in JS */
+    width: fit-content;
+    margin: 0 auto;
+    background: var(--quantum-glass);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+/* Intersection Points (Clues) */
+.gokigen-node {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(10, 12, 23, 0.8);
+    border-radius: 50%;
+    z-index: 10;
+    position: relative;
+    border: 1px solid rgba(64, 224, 255, 0.3);
+}
+
+.gokigen-node input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: #ffcc00;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+.gokigen-node input:focus {
+    outline: none;
+    color: #fff;
+}
+
+/* Cells */
+.gokigen-cell {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.gokigen-cell:hover {
+    background: rgba(64, 224, 255, 0.05);
+}
+
+/* Diagonal Lines */
+.slash-line {
+    position: absolute;
+    background: var(--neon-cyan);
+    box-shadow: 0 0 5px var(--neon-cyan);
+    height: 2px;
+    width: 140%; /* ~sqrt(2) * 100% */
+    top: 50%;
+    left: 50%;
+    pointer-events: none;
+}
+
+/* Forward Slash / : connects bottom-left to top-right? 
+   In CSS rotation:
+   -45deg goes from top-left to bottom-right (\)
+   45deg goes from bottom-left to top-right (/)
+   Wait:
+   0deg is horizontal.
+   45deg is \ (TL to BR) in some contexts? 
+   Let's check visually. 
+   transform-origin: center.
+*/
+
+.slash-forward { /* / */
+    transform: translate(-50%, -50%) rotate(-45deg); 
+}
+
+.slash-backward { /* \ */
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Solution highlight */
+.gokigen-cell.solved .slash-line {
+    background: #72f1b8;
+    box-shadow: 0 0 8px #72f1b8;
+}
+
+/* Clue States */
+.gokigen-node.satisfied {
+    border-color: #72f1b8;
+    color: #72f1b8;
+    box-shadow: 0 0 5px #72f1b8;
+}
+
+.gokigen-node.error {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+    box-shadow: 0 0 5px #ff6b6b;
+}
+
+.controls {
+    width: 100%;
+    max-width: 600px;
+}
+
+.solution-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(64, 224, 255, 0.05);
+    border-radius: 12px;
+}
+
+.solution-btn {
+    background: var(--quantum-glass);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    margin: 0 0.5rem;
+    transition: all 0.2s;
+}
+
+.solution-btn:hover {
+    background: rgba(64, 224, 255, 0.2);
+}
+
+.solution-counter {
+    font-size: 1.1rem;
+    color: var(--neon-cyan);
+    padding: 0 1rem;
+    font-weight: bold;
+}
+
+.error-msg {
+    color: #ff6b6b;
+    margin: 1rem 0;
+    font-weight: bold;
+}
+
+.success-msg {
+    color: #72f1b8;
+    margin: 1rem 0;
+    font-weight: bold;
+}
+
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10,12,23,0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.loading-text {
+    color: var(--neon-cyan);
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--neon-cyan);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+}
+
+.instructions p {
+    color: var(--neon-cyan);
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.instructions ul {
+    padding-left: 1.5rem;
+    margin: 0;
+}
+
+.instructions li {
+    margin: 0.3rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

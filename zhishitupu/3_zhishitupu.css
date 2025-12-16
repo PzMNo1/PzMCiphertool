@@ -1,0 +1,170 @@
+
+/*这是知识图谱的样式*/
+#zhishitupu-content {
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000005;
+    z-index: 1; 
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeInGraph 0.8s ease-in-out forwards;
+}
+
+@keyframes fadeInGraph {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+#zstp-vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    background: 
+        radial-gradient(circle at center, transparent 40%, rgba(0, 5, 10, 0.6) 90%, #000 100%),
+        linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 80px 80px, 80px 80px;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
+}
+
+#ui-layer {
+    position: absolute;
+    bottom: 30px;
+    right: 20px; 
+    z-index: 10;
+    pointer-events: none;
+    color: #0ff;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 5px #0ff;
+}
+
+/* HUD 面板 */
+.hud-panel {
+    background: transparent;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-left: 3px solid #0ff;
+    padding: 20px;
+    backdrop-filter: blur(8px); 
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
+    width: 260px;
+    transition: transform 0.3s ease, opacity 0.5s ease;
+    position: relative;
+    pointer-events: auto; 
+}
+
+.hud-panel:hover {
+    transform: translateX(5px);
+    background: transparent;
+}
+
+.hud-close-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: rgba(0, 255, 255, 0.6);
+    font-size: 20px;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    transition: all 0.3s ease;
+    z-index: 20;
+    padding: 0 5px;
+}
+
+.hud-close-btn:hover {
+    color: #0ff;
+    text-shadow: 0 0 8px #0ff;
+    transform: scale(1.1);
+}
+
+#zhishitupu-content h1 {
+    margin: 0 0 15px 0; 
+    font-size: 24px;
+    line-height: 1.4;  
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #fff, #0ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: 2px; 
+}
+
+.subtitle {
+    font-family: 'Rajdhani', sans-serif;
+    color: #3498db;
+    font-size: 14px;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.controls {
+    margin-top: 15px;   
+    font-size: 13px;
+    color: #8899aa;
+    font-family: 'Rajdhani', sans-serif;
+    line-height: 1.8;
+}
+
+.key {
+    color: #fff;
+    font-weight: bold;
+    background: rgba(0, 255, 255, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    font-size: 0.9em;
+}
+
+/* 加载动画 */
+#zstp-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0ff;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 5px;
+    text-shadow: 0 0 20px #0ff;
+    z-index: 999;
+    transition: opacity 0.5s;
+    text-align: center;
+    pointer-events: none;
+}
+
+.scan-line {
+    width: 200px;
+    height: 2px;
+    background: #0ff;
+    box-shadow: 0 0 15px #0ff;
+    animation: scan 1.5s infinite ease-in-out;
+    margin: 15px auto 0;
+}
+
+@keyframes scan {
+    0% { transform: scaleX(0); opacity: 0; }
+    50% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(0); opacity: 0; }
+}
+
+
+#graph-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+#graph-wrapper canvas {
+    display: block;
+    outline: none;
+}

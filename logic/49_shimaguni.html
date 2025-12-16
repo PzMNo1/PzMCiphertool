@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shimaguni 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/49_shimaguni.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Shimaguni 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+    <div class="container">
+        <div class="logic-grid" id="grid-container">
+            <!-- Grid will be generated here -->
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label>行数: <input type="number" id="rows-input" value="10" min="5" max="20"></label>
+                <label>列数: <input type="number" id="cols-input" value="10" min="5" max="20"></label>
+                <button class="btn" id="new-grid-btn">新建网格</button>
+            </div>
+            
+            <div class="control-group mode-controls">
+                <button class="btn active" id="mode-border">编辑区域</button>
+                <button class="btn" id="mode-clue">输入线索</button>
+                <button class="btn" id="mode-solve">求解</button>
+                <button class="btn" id="mode-reset">重置</button>
+            </div>
+
+            <div class="numpad" id="numpad">
+                <button class="num-btn">1</button>
+                <button class="num-btn">2</button>
+                <button class="num-btn">3</button>
+                <button class="num-btn">4</button>
+                <button class="num-btn">5</button>
+                <button class="num-btn">6</button>
+                <button class="num-btn">7</button>
+                <button class="num-btn">8</button>
+                <button class="num-btn">9</button>
+                <button class="num-btn">0</button>
+                <button class="num-btn">Clear</button>
+            </div>
+
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+    <script src="./js/49_shimaguni.js"></script>
+</body>
+</html>

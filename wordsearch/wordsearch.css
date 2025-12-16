@@ -1,0 +1,151 @@
+.cihuibtn {
+    padding: 1rem 2rem; width: 100%; color: rgba(255,255,255,0.95); font-weight: 600; letter-spacing: 2px; cursor: pointer;
+    transition: all 0.3s ease; position: relative; overflow: hidden; font-family: 'Orbitron', sans-serif; font-size: 1.1rem;
+    text-shadow: 0 0 8px rgba(64,224,255,0.3); background: linear-gradient(145deg, rgba(64,224,255,0.15) 20%, rgba(179,136,255,0.1) 80%);
+    border: 1px solid rgba(64,224,255, 0.4); border-radius: 8px; text-transform: uppercase;
+}
+.cihuibtn:hover { background: linear-gradient(145deg, rgba(64,224,255,0.3) 20%, rgba(179,136,255,0.2) 80%); box-shadow: 0 0 20px rgba(64,224,255,0.3); transform: translateY(-2px); }
+.cihuibtn:active { transform: scale(0.98); }
+
+
+cihuih1 {
+    font-family: 'Orbitron', Arial, sans-serif; margin-bottom: 1rem; margin-top: -12px; font-size: 1.5rem;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.5); color: #fff; position: relative; z-index: 100;
+}
+
+.cihuiresult-container { margin-top: 1.5rem; position: relative; }
+.cihuiresult-label { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--secondary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 1px; }
+
+
+.cihuiinput-group { margin-bottom: 1.5rem; position: relative; }
+
+cihuiinput[type="text"] {
+    width: 100%; padding: 1rem; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(64, 224, 255, 0.3); border-radius: 8px;
+    color: var(--text); font-family: monospace; font-size: 1.1rem; transition: all 0.3s ease; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+cihuiinput[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 15px rgba(46, 204, 113, 0.3), inset 0 0 10px rgba(0,0,0,0.5); }
+
+/* 加载动画 */
+.cihuiloader { display: none; text-align: center; margin-top: 10px; }
+.cihuiloader span { display: inline-block; width: 10px; height: 10px; background-color: var(--primary); border-radius: 50%; margin: 0 3px; animation: bounce 0.6s infinite alternate; }
+.cihuiloader span:nth-child(2) { animation-delay: 0.2s; }
+.cihuiloader span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { to { transform: translateY(-10px); opacity: 0.5; } }
+
+/* 单词项样式 */
+.cihuiword-item {
+    display: inline-block; margin: 4px 8px; cursor: pointer; transition: all 0.2s;
+    border-bottom: 1px solid transparent;
+    position: relative;
+}
+.cihuiword-item:hover {
+    color: var(--primary); text-shadow: 0 0 8px var(--primary);
+    border-bottom: 1px dashed rgba(46, 204, 113, 0.5);
+}
+.cihuiword-item:active { transform: scale(0.95); color: #fff; }
+
+/* 全局 Toast 提示 */
+#cihuitoast {
+    visibility: hidden;
+    min-width: 250px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #e0ffff;
+    text-shadow: 0 0 8px rgba(64, 224, 255, 0.5);
+    text-align: center;
+    border: 1px solid rgba(64, 224, 255, 0.4);
+    border-radius: 12px; 
+    padding: 16px;
+    position: fixed;
+    z-index: 1002;
+    left: 50%;
+    top: 30px;
+    transform: translateX(-50%);
+    font-size: 1rem;
+    box-shadow: 0 0 20px rgba(64, 224, 255, 0.2), inset 0 0 15px rgba(64, 224, 255, 0.1);
+    opacity: 0;
+    transition: opacity 0.3s, top 0.3s;
+}
+#cihuitoast.show {
+    visibility: visible;
+    opacity: 1;
+    top: 50px;
+}
+
+/* 提示工具 Tip */
+.cihuitip-toast {
+    position: absolute; top: -30px; right: 0; 
+    background: rgba(46, 204, 113, 0.2); border: 1px solid var(--primary);
+    color: var(--primary); padding: 2px 8px; font-size: 0.7rem; border-radius: 4px;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.cihuiresult-container:hover .cihuitip-toast { opacity: 1; }
+
+/* 分页控制区 */
+.cihuipagination-controls {
+    display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.cihuipage-btn {
+    background: transparent; border: 1px solid var(--secondary); color: var(--secondary);
+    padding: 0.5rem 1.5rem; border-radius: 20px; cursor: pointer; font-family: 'Orbitron', sans-serif;
+    transition: all 0.3s;
+}
+.cihuipage-btn:hover { background: rgba(52, 152, 219, 0.2); box-shadow: 0 0 10px var(--secondary); color: #fff; }
+.cihuipage-btn.disabled { opacity: 0.3; cursor: not-allowed; border-color: gray; color: gray; }
+
+/* 标题部分 */
+.cihuimodule-header { text-align: center; margin-top: 1rem; margin-bottom: 4rem; position: relative; z-index: 10; pointer-events: none; }
+.cihuineon-subtitle { font-size: 0.9rem; color: #3498db; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; }
+.cihuineon-title {
+    font-family: 'Orbitron', sans-serif; font-size: 3rem; font-weight: 900; letter-spacing: 8px; color: #fff;
+    text-transform: uppercase; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #2eccbf, 0 0 40px #2ec1cc;
+    margin-bottom: 0.5rem; display: inline-block;
+}
+.cihui-layout-wrapper {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+
+.cihui-layout-wrapper .main-input {
+    flex: 3;
+    width: 100%;
+    margin: 0 !important; 
+    max-width: none !important;
+}
+
+.cihui-tip-panel {
+    flex: 1;
+    min-width: 300px;
+    padding: 1.5rem;
+    height: fit-content;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.cihui-tip-content {
+    white-space: pre-wrap;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+    margin-top: 1rem;
+    text-align: left;
+}
+
+@media (max-width: 1000px) {
+    .cihui-layout-wrapper {
+        flex-direction: column;
+    }
+    .cihui-tip-panel {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+

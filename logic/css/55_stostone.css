@@ -1,0 +1,76 @@
+.stostone-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stostone-grid {
+    display: grid;
+    gap: 0;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border: 2px solid rgba(255,255,255,0.2);
+    user-select: none;
+}
+
+.stostone-cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    color: var(--neon-cyan);
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1); /* internal faint borders */
+    position: relative;
+}
+
+/* Bold borders for regions */
+.stostone-cell.border-top { border-top: 3px solid var(--quantum-blue); }
+.stostone-cell.border-bottom { border-bottom: 3px solid var(--quantum-blue); }
+.stostone-cell.border-left { border-left: 3px solid var(--quantum-blue); }
+.stostone-cell.border-right { border-right: 3px solid var(--quantum-blue); }
+
+/* Shading for stones */
+.stostone-cell.shaded {
+    background-color: rgba(64, 224, 255, 0.4);
+}
+
+.stostone-cell.active-input {
+    background: rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 10px var(--neon-cyan);
+}
+
+.tool-btn.active {
+    background: var(--quantum-blue);
+    color: #000;
+    box-shadow: 0 0 15px var(--quantum-blue);
+}
+
+.controls-row {
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

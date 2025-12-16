@@ -1,0 +1,221 @@
+:root {
+    --neon-blue: #00f3ff;
+    --neon-purple: #bc13fe;
+    --neon-yellow: #ffff00;
+    --dark-bg: #0a0a0f;
+    --grid-size: 40px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--dark-bg);
+    font-family: 'Segoe UI', system-ui;
+    min-height: 100vh;
+    overflow-x: hidden;
+    color: white;
+}
+
+.cyber-border {
+    position: relative;
+    border: 3px solid var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue), inset 0 0 15px var(--neon-blue);
+    background: linear-gradient(45deg, rgba(0, 243, 255, 0.1), rgba(188, 19, 254, 0.1));
+}
+
+.cyber-glow {
+    animation: cyber-glow 2s infinite alternate;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.control-panel {
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.grid-container {
+    position: relative;
+    padding: 2rem;
+    perspective: 1000px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.puzzle-grid {
+    display: grid;
+    position: relative;
+    margin: 0 auto;
+}
+
+.cell {
+    width: var(--grid-size);
+    height: var(--grid-size);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+}
+
+/* Region Borders */
+.cell.border-top { border-top: 3px solid var(--neon-blue); }
+.cell.border-bottom { border-bottom: 3px solid var(--neon-blue); }
+.cell.border-left { border-left: 3px solid var(--neon-blue); }
+.cell.border-right { border-right: 3px solid var(--neon-blue); }
+
+/* Symbols */
+.moon::after {
+    content: '🌙';
+    font-size: 1.2rem;
+    filter: drop-shadow(0 0 2px white);
+}
+
+.sun::after {
+    content: '☀️';
+    font-size: 1.2rem;
+    filter: drop-shadow(0 0 2px yellow);
+}
+
+/* Loop Edges */
+.edge-h {
+    position: absolute;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 10;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.edge-v {
+    position: absolute;
+    width: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 10;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.edge-h.active, .edge-v.active {
+    background: var(--neon-purple);
+    box-shadow: 0 0 5px var(--neon-purple);
+}
+
+.edge-h:hover, .edge-v:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Interaction Handles for Region editing */
+.border-handle-v, .border-handle-h {
+    position: absolute;
+    background: transparent;
+    z-index: 5;
+}
+.border-handle-v {
+    right: -4px; top: 0; width: 8px; height: 100%; cursor: col-resize;
+}
+.border-handle-h {
+    bottom: -4px; left: 0; width: 100%; height: 8px; cursor: row-resize;
+}
+.border-handle-v:hover, .border-handle-h:hover {
+    background: rgba(0, 243, 255, 0.3);
+}
+
+.mode-switcher {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.mode-opt {
+    flex: 1;
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px solid var(--neon-blue);
+    cursor: pointer;
+    opacity: 0.7;
+}
+.mode-opt.active {
+    background: rgba(0, 243, 255, 0.2);
+    opacity: 1;
+    font-weight: bold;
+}
+
+@keyframes cyber-glow {
+    from { box-shadow: 0 0 10px var(--neon-blue); }
+    to { box-shadow: 0 0 20px var(--neon-purple); }
+}
+
+button {
+    background: none;
+    border: 2px solid var(--neon-blue);
+    color: white;
+    padding: 0.8rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+button:hover {
+    background: rgba(0, 243, 255, 0.1);
+}
+
+.hologram-effect {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+    opacity: 0.05;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.back-button {
+    position: fixed;
+    top: 20px; right: 20px;
+    border: 2px solid var(--neon-blue);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    text-decoration: none;
+    z-index: 100;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

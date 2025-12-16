@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nanro 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/37_nanro.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Nanro 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
+    </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="nanro-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>输入数字</strong>: 选中格子后按键盘数字键 (0-9) 或使用下方按键。</li>
+                    <li><strong>划分区域</strong>: 点击格子边缘 (或拖拽) 来绘制/擦除粗边框。</li>
+                    <li><strong>右键点击</strong>: 标记阴影/非阴影 (辅助解题)。</li>
+                </ul>
+            </div>
+
+            <div class="action-controls" style="flex-direction: row; gap: 1rem; margin-bottom: 1.5rem;">
+                <button class="btn" id="create-grid" style="padding: 0.8rem;">重置</button>
+                <button class="btn" id="solve-btn" style="padding: 0.8rem;">求解</button>
+                <button class="btn" id="clear-btn" style="padding: 0.8rem;">清空</button>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>尺寸:</label>
+                <input type="number" id="grid-rows" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+                <span>x</span>
+                <input type="number" id="grid-cols" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+            </div>
+            
+            <h3 style="margin-bottom:0.5rem; font-size:1rem; color:rgba(255,255,255,0.7);">数字键盘</h3>
+            <div class="numpad">
+                <button class="num-btn">1</button><button class="num-btn">2</button><button class="num-btn">3</button>
+                <button class="num-btn">4</button><button class="num-btn">5</button><button class="num-btn">6</button>
+                <button class="num-btn">7</button><button class="num-btn">8</button><button class="num-btn">9</button>
+                <button class="num-btn" style="grid-column:span 3">Backspace</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/37_nanro.js"></script>
+</body>
+</html>

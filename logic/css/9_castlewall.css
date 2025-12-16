@@ -1,0 +1,102 @@
+/* Castlewall Styles */
+:root {
+    --cw-cell-size: 45px;
+    --cw-wall-color: #fff;
+    --cw-bg-dark: #333;
+    --cw-bg-light: #eee;
+}
+
+.castlewall-grid-container {
+    display: inline-grid;
+    gap: 1px;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cw-cell {
+    width: var(--cw-cell-size);
+    height: var(--cw-cell-size);
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+    cursor: pointer;
+}
+
+/* Clues */
+.cw-clue {
+    position: absolute;
+    top: 2px; left: 2px; right: 2px; bottom: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    z-index: 10;
+}
+
+.cw-clue.black {
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+}
+
+.cw-clue.white {
+    background: #eee;
+    color: #000;
+    border: 1px solid #ccc;
+}
+
+.cw-arrow {
+    font-size: 0.8rem;
+    margin-top: -2px;
+}
+
+/* Loop Lines (SVG overlay per cell) */
+.cw-line-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.cw-line {
+    stroke: var(--quantum-blue);
+    stroke-width: 4px;
+    stroke-linecap: round;
+    fill: none;
+}
+
+/* Interaction Highlights */
+.cw-cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

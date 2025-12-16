@@ -1,0 +1,120 @@
+/* Nagare Specific Styles */
+
+/* Layout Adjustment: Grid gets more space, controls get less */
+.container {
+    grid-template-columns: 2fr 1fr !important; 
+    gap: 2rem;
+}
+
+.grid-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+}
+
+#nagare-grid {
+    width: 100%;
+    max-width: 800px; /* Increased from default */
+    aspect-ratio: 1; /* Keep square if possible */
+}
+
+.nagare-cell {
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.nagare-cell:hover {
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 15px rgba(64,224,255,0.1);
+    z-index: 1;
+}
+
+.nagare-cell.black {
+    background-color: #000;
+    border-color: #333;
+    box-shadow: inset 0 0 10px #000;
+}
+
+.nagare-cell.wind {
+    color: var(--hologram-purple);
+    font-weight: bold;
+    font-size: 1.4rem;
+    text-shadow: 0 0 5px currentColor;
+}
+
+.nagare-cell.path-clue {
+    color: var(--neon-cyan);
+    font-size: 1rem;
+}
+
+.nagare-cell.solution-path {
+    position: relative;
+}
+
+.nagare-cell svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.tool-btn {
+    padding: 0.8rem;
+    font-size: 0.9rem;
+    text-align: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.tool-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.tool-btn.active {
+    background: rgba(64, 224, 255, 0.2);
+    border-color: var(--quantum-blue);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(64, 224, 255, 0.2);
+}
+
+.config-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.config-input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(64,224,255,0.3);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    width: 60px;
+    text-align: center;
+}
+

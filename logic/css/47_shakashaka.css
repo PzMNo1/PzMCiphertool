@@ -1,0 +1,83 @@
+/* Shakashaka Specific Styles */
+.shakashaka-cell {
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.shakashaka-cell:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.shakashaka-cell.black {
+    background: #000;
+    border-color: #333;
+    color: #fff;
+    font-weight: bold;
+}
+
+/* Triangles using CSS gradients */
+.shakashaka-cell.TL {
+    background: linear-gradient(135deg, #888 50%, transparent 50%);
+}
+.shakashaka-cell.TR {
+    background: linear-gradient(-135deg, #888 50%, transparent 50%);
+}
+.shakashaka-cell.BL {
+    background: linear-gradient(45deg, #888 50%, transparent 50%);
+}
+.shakashaka-cell.BR {
+    background: linear-gradient(-45deg, #888 50%, transparent 50%);
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tool-btn {
+    padding: 0.8rem;
+    text-align: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.tool-btn.active {
+    background: rgba(64, 224, 255, 0.2);
+    border-color: var(--quantum-blue);
+    color: var(--neon-cyan);
+}
+
+.numpad {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    max-width: 300px;
+}
+
+.num-btn {
+    padding: 0.5rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.num-btn:hover {
+    background: var(--hologram-purple);
+}
+

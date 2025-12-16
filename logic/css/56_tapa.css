@@ -1,0 +1,86 @@
+.tapa-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tapa-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.tapa-cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--neon-cyan);
+    background: rgba(255,255,255,0.05);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    text-align: center;
+    font-weight: bold;
+}
+
+.tapa-cell.shaded {
+    background-color: #000;
+    border-color: #333;
+}
+
+.tapa-cell.clue-cell {
+    background: #fff;
+    color: #000;
+    cursor: text;
+}
+
+.tapa-input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* Handling multi-digit clues nicely */
+.clue-text {
+    line-height: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.controls-row {
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

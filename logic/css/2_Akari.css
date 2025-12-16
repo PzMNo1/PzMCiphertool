@@ -1,0 +1,238 @@
+:root {
+    --neon-blue: #00f3ff;
+    --neon-purple: #bc13fe;
+    --dark-bg: #0a0a0f;
+    --grid-size: 60px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--dark-bg);
+    font-family: 'Segoe UI', system-ui;
+    min-height: 100vh;
+    overflow-x: hidden;
+    color: white;
+}
+
+.cyber-border {
+    position: relative;
+    border: 3px solid var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue),
+        inset 0 0 15px var(--neon-blue);
+    background: linear-gradient(45deg, 
+        rgba(0, 243, 255, 0.1),
+        rgba(188, 19, 254, 0.1));
+}
+
+.cyber-glow {
+    animation: cyber-glow 2s infinite alternate;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.control-panel {
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.grid-container {
+    position: relative;
+    padding: 2rem;
+    perspective: 1000px;
+}
+
+.puzzle-grid {
+    display: grid;
+    gap: 2px;
+    transform-style: preserve-3d;
+}
+
+.cell {
+    width: var(--grid-size);
+    height: var(--grid-size);
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    color: var(--neon-purple);
+}
+
+.cell:hover {
+    transform: scale(1.1) translateZ(20px);
+    z-index: 2;
+    box-shadow: 0 0 20px var(--neon-purple);
+}
+
+.cell.wall {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid var(--neon-blue);
+}
+
+.cell.bulb::after {
+    content: '💡';
+    position: absolute;
+    font-size: 1.5rem;
+    filter: drop-shadow(0 0 5px yellow);
+    animation: bulb-glow 1s infinite alternate;
+}
+
+.cell.lit {
+    background: rgba(255, 255, 100, 0.15);
+}
+
+@keyframes cyber-glow {
+    from { box-shadow: 0 0 10px var(--neon-blue); }
+    to { box-shadow: 0 0 20px var(--neon-purple); }
+}
+
+@keyframes bulb-glow {
+    from { opacity: 0.8; }
+    to { opacity: 1; }
+}
+
+.hologram-effect {
+    position: fixed;
+    width: 200vw;
+    height: 200vh;
+    background: linear-gradient(45deg, 
+        var(--neon-blue), 
+        var(--neon-purple));
+    opacity: 0.05;
+    z-index: -1;
+    animation: hologram 20s linear infinite;
+}
+
+@keyframes hologram {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+button {
+    background: none;
+    border: 2px solid var(--neon-blue);
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    width: 100%;
+}
+
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(0, 243, 255, 0.2),
+        transparent);
+    transition: 0.5s;
+}
+
+button:hover::before {
+    left: 100%;
+}
+
+.stats {
+    color: white;
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    text-shadow: 0 0 10px var(--neon-blue);
+}
+
+input {
+    padding: 0.8rem;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--neon-blue);
+    color: white;
+    font-size: 1.1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+    outline: none;
+}
+
+.instructions {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: rgba(0,0,0,0.3);
+    border-left: 3px solid var(--neon-purple);
+}
+
+.nav-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    width: auto;
+    background: rgba(0,0,0,0.5);
+}
+
+#solution-counter {
+    font-size: 1.1rem;
+    color: var(--neon-purple);
+    text-shadow: 0 0 5px var(--neon-purple);
+}
+
+.example-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.back-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: 2px solid var(--neon-blue);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 100;
+    text-decoration: none;
+    display: inline-block;
+    box-shadow: 0 0 10px var(--neon-blue);
+}
+
+.back-button:hover {
+    box-shadow: 0 0 20px var(--neon-purple);
+    border-color: var(--neon-purple);
+    transform: scale(1.05);
+}
+
+@keyframes shine {
+    0% { left: -100%; }
+    20% { left: 100%; }
+    100% { left: 100%; }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.5; transform: translateX(-3px); }
+    50% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0.5; transform: translateX(-3px); }
+}

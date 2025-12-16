@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<script>
+    (function() {
+        if (window.location.search.indexOf('lang=zh') === -1) {
+            var separator = window.location.href.indexOf('?') === -1 ? '?' : '&';
+            var newUrl = window.location.href + separator + 'lang=zh';
+            window.location.replace(newUrl);
+        }
+    })();
+</script>
+  <link rel="manifest" href="./manifest.json">
+    <meta name='gwt:property' content='locale=zh'>
+    <title></title>
+<style>
+body, html {
+    background-color: #050510 !important;
+    color: #a0a0c0;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    scrollbar-width: thin;
+    scrollbar-color: #00f3ff #050510;
+    overflow: hidden; /* Prevent body scroll if app handles it */
+    height: 100%;
+    margin: 0;
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #050510;
+}
+::-webkit-scrollbar-thumb {
+    background: #007acc;
+    border: 1px solid #00f3ff;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #00f3ff;
+    box-shadow: 0 0 10px #00f3ff;
+}
+
+
+.gwt-Panel, .gwt-HorizontalPanel, .gwt-VerticalPanel, 
+.gwt-ScrollPanel, .gwt-SplitLayoutPanel, .gwt-DockLayoutPanel, 
+.rootPanel, table, tr, td, tbody, .verticalPanel {
+    background-color: transparent !important;
+    background: transparent !important; 
+    color: inherit;
+}
+
+div[style*="position: absolute"] {
+    /* carefull with this, but needed if classes are missing */
+    /* background-color: #050510;  <-- This is too risky globally */
+}
+
+/* Instead, let's target the panels we know are white */
+.verticalPanel {
+    background-color: #050510 !important;
+    border: 1px solid #303050;
+}
+
+/* The IFrame holder */
+.gwt-Frame {
+    background-color: #050510 !important;
+    border: none !important;
+}
+
+/* Table Cells used for layout - often culprits of white background */
+td {
+    color: #a0a0c0;
+}
+
+/* Sliders area often in a cell with valign top */
+td[valign="top"] {
+    background-color: #050510 !important; /* Ensure sliders sit on dark */
+}
+
+/* Toolbar items area */
+td[valign="middle"] {
+    /* background-color: #000 !important; */ /* Let it be transparent or dark */
+}
+
+
+/* =========================================
+   Specific Component Styling
+   ========================================= */
+
+/* Menu Bar */
+.gwt-MenuBar {
+    background-color: #0a0a15 !important;
+    border-bottom: 1px solid #00f3ff;
+    background-image: none !important;
+}
+
+.gwt-MenuItem {
+	font-size: 12px !important;
+    color: #00f3ff !important;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+}
+
+.gwt-MenuItem-selected {
+    background-color: rgba(0, 243, 255, 0.15) !important;
+    color: #fff !important;
+    text-shadow: 0 0 8px #00f3ff;
+    box-shadow: inset 2px 0 0 #00f3ff;
+}
+
+.gwt-MenuBar-horizontal {
+	font-size: 12px !important;
+}
+
+/* Stack Panel (Sidebars) */
+.gwt-StackPanel {
+    border-right: 1px solid #303050;
+    background-color: #050510 !important;
+}
+.gwt-StackPanel .gwt-StackPanelItem {
+    background-color: #101020 !important;
+    background-image: none !important;
+    border-bottom: 1px solid #303050 !important;
+    color: #8080a0 !important;
+    padding: 8px !important;
+    font-weight: bold;
+    cursor: pointer;
+}
+.gwt-StackPanel .gwt-StackPanelItem-selected {
+    background-color: #151530 !important;
+    color: #00f3ff !important;
+    border-left: 3px solid #00f3ff !important;
+    text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
+}
+
+/* Tab Panel */
+.gwt-TabPanelBottom {
+    border: 1px solid #303050 !important;
+    background-color: #050510 !important;
+}
+.gwt-TabBar .gwt-TabBarItem {
+    background-color: #101020 !important;
+    background-image: none !important;
+    color: #8080a0 !important;
+    border: 1px solid #303050 !important;
+    margin-right: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+.gwt-TabBar .gwt-TabBarItem-selected {
+    background-color: #050510 !important;
+    color: #00f3ff !important;
+    border-top: 2px solid #00f3ff !important;
+    border-bottom: none !important;
+}
+
+/* Popups & Dialogs */
+.gwt-PopupPanel, .gwt-DialogBox, .gwt-DecoratedPopupPanel {
+    background-color: #0a0a15 !important;
+    border: 1px solid #00f3ff !important;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2) !important;
+    color: #a0a0c0 !important;
+    padding: 0 !important;
+}
+.gwt-DialogBox .Caption {
+    background: #102040 !important;
+    background-image: none !important;
+    color: #00f3ff !important;
+    border-bottom: 1px solid #00f3ff;
+    padding: 6px;
+    font-weight: bold;
+    cursor: move;
+}
+
+/* Splitters */
+.gwt-SplitLayoutPanel-HDragger, .gwt-SplitLayoutPanel-VDragger {
+    background-color: #000 !important;
+    border: 1px solid #303050 !important;
+}
+
+/* Labels & Text */
+.gwt-Label-selected {
+	font-size: 1.3em;
+	font-weight: 700;
+    color: #00f3ff;
+	border-top: 1px solid #00f3ff;
+	border-bottom: 1px solid #00f3ff;
+    background: rgba(0, 243, 255, 0.05) !important;
+    text-shadow: 0 0 5px #00f3ff;
+    padding: 2px 5px;
+}
+.gwt-Label-1off { color: #606080; }
+.gwt-Label-2off { font-size:0.8em; color: #404050; }
+.gwt-Label-current { color: #e0e0ff; }
+
+/* Buttons */
+.gwt-Button, .topButton, .topButton-red, .gwt-Button.chbut {
+    background: rgba(10, 20, 40, 0.9) !important;
+    color: #00f3ff !important;
+    border: 1px solid #007acc !important;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: small;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 2px rgba(0, 243, 255, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-image: none !important;
+}
+
+.gwt-Button:hover, .topButton:hover {
+    background: rgba(0, 243, 255, 0.15) !important;
+    border-color: #00f3ff !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
+    text-shadow: 0 0 5px #00f3ff;
+}
+
+.gwt-Button[disabled] {
+    color: #404050 !important;
+    border-color: #303040 !important;
+    box-shadow: none !important;
+    cursor: default;
+}
+
+/* Specific Button Variants */
+.gwt-Button.chbut { padding:3px 8px; margin: 3px; }
+.gwt-Button.chbut.chsel {
+	font-weight: bold;
+    background: #00f3ff !important;
+    color: #000 !important;
+    box-shadow: 0 0 10px #00f3ff;
+}
+.gwt-Button.chbut-black {
+	background: #000 !important;
+    border: 1px solid #333 !important;
+	color: #888 !important;
+}
+.gwt-Button.chbut-white {
+	background: #ccc !important;
+	color: black !important;
+}
+
+/* Form Controls */
+.gwt-TextBox, input[type="text"], input[type="number"], select, textarea {
+    background-color: #0a0a15 !important;
+    border: 1px solid #007acc !important;
+    color: #00f3ff !important;
+    padding: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+.gwt-TextBox:focus, input:focus, select:focus, textarea:focus {
+    border-color: #00f3ff !important;
+    box-shadow: 0 0 8px rgba(0, 243, 255, 0.5) !important;
+    outline: none;
+}
+.gwt-TextBox.scalebox { width: 100px; }
+
+/* Misc */
+.disabled { color: #404050 !important; }
+.topSpace { margin-top: 12px; }
+.cursorPointer { cursor: default; }
+.cursorCross { cursor: crosshair; }
+.cursorSplitter { cursor: row-resize; }
+.gwt-MenuItem-disabled { color: #404050 !important; }
+.offScreen { position: absolute; right: 101%; overflow: hidden; }
+.gwt-Frame { scrolling="no"; border: 0px !important; }
+.radioPanel label { margin-right: 15px; color: #a0a0c0; }
+input[type="checkbox"], input[type="radio"] { accent-color: #00f3ff; }
+
+/* Red Button */
+.topButton-red {
+    color: #ff3366 !important;
+    border-color: #ff3366 !important;
+    background-color: rgba(255, 51, 102, 0.1) !important;
+}
+.topButton-red:hover {
+    background-color: #ff3366 !important; 
+    color: #fff !important;
+    box-shadow: 0 0 15px #ff3366;
+}
+
+/* Expand Button */
+.gwt-Button.expand-but {
+	line-height: 0;
+	font-size: 13px;
+	margin-right: 5px;
+	border-radius:0px;
+	display: inline-block;
+	text-align: center;
+	width: 15px;
+	height: 15px;
+	padding: 0 0 1px 0;
+	margin-bottom:1px;
+	background: #007acc !important;
+	color: #000 !important;
+    border: none !important;
+}
+.gwt-Button.expand-but:hover {
+    background: #00f3ff !important;
+    box-shadow: 0 0 5px #00f3ff;
+}
+
+</style>
+
+<link rel="stylesheet" href="./font/fontello.css">
+
+</head>
+  <body>
+  <script language="javascript" src="./lz-string.min.js"></script>
+    <script language="javascript" src="./circuitjs1/circuitjs1.nocache.js"></script>                        -->
+    <iframe src="javascript:''" id="__gwt_historyFrame" style="width:0;height:0;border:0"></iframe>
+    
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+	navigator.serviceWorker.register('service-worker.js').then(registration => {
+	  console.log('Service Worker registered with scope:', registration.scope);
+	}).catch(error => {
+	  console.error('Service Worker registration failed:', error);
+	});
+      });
+    }
+    </script>
+
+  </body>
+ </html>

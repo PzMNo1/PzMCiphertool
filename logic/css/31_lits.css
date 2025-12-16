@@ -1,0 +1,142 @@
+:root {
+    --cell-size: 45px;
+    --bg-color: #0f172a;
+    --accent: #a855f7; /* Purple for LITS */
+}
+
+.container {
+    display: flex;
+    gap: 2rem;
+    padding: 2rem;
+    min-height: 80vh;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.lits-grid-container {
+    display: grid;
+    background: #ffffff;
+    border: 3px solid var(--accent);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+.l-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.l-cell:hover {
+    background-color: #f3e8ff;
+}
+
+/* Shaded cell */
+.l-cell.shaded {
+    background-color: #333;
+}
+
+/* Marked empty (optional, usually dot) */
+.l-cell.empty::after {
+    content: '•';
+    font-size: 1.5rem;
+    color: #94a3b8;
+}
+
+/* Borders for regions */
+.l-cell.border-right {
+    border-right: 3px solid #000 !important;
+}
+
+.l-cell.border-bottom {
+    border-bottom: 3px solid #000 !important;
+}
+
+/* Border handles for interaction */
+.border-handle-v {
+    position: absolute;
+    right: -4px;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 10;
+}
+
+.border-handle-h {
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: row-resize;
+    z-index: 10;
+}
+
+.controls {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    min-width: 300px;
+}
+
+.mode-switcher {
+    display: flex;
+    margin: 1.5rem 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+}
+
+.mode-opt {
+    flex: 1;
+    text-align: center;
+    padding: 0.75rem;
+    cursor: pointer;
+    border-radius: 0.4rem;
+    transition: all 0.3s;
+    opacity: 0.7;
+}
+
+.mode-opt:hover { opacity: 1; }
+
+.mode-opt.active {
+    background: var(--accent);
+    color: white;
+    font-weight: bold;
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
