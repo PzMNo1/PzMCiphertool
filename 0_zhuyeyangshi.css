@@ -1091,11 +1091,17 @@ animation: glitch 0.5s infinite;
 /* 移动端适配 */
 @media (max-width: 768px) {
   body {
-    padding: 1rem; /* 减少移动端内边距，增加可视区域 */
+    padding: 1rem; 
   }
   .neon-title {
     font-size: 1.8rem;
     letter-spacing: 4px;
+    white-space: normal;      
+    line-height: 1.4;         
+    display: block;          
+    width: 85%;          
+    max-width: 100%;    
+    margin: 0 auto 0.5rem;   
 }
 .module-header {
     margin-bottom: 2rem;
