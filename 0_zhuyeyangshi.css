@@ -243,11 +243,11 @@ margin-bottom: 8px;
   z-index: 1;
 }
 
-@media (min-width: 769px) {
+/*@media (min-width: 769px) {
   .sidebar:hover + .container1 {
     padding-left: 110px;
   } 
-}
+} */
 
 .menu-item {
   width: 100%;
