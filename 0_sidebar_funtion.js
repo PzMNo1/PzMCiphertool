@@ -14,79 +14,161 @@ document.querySelectorAll('.menu-item').forEach(menuItem => {
 hideAllSections();
 showSection('jiamishiyanshi'); 
 
-// 全局变量锁，防止快速切换导致动画错乱
-let isSwitchingSubmodule = false;
 
-// 通用子模块切换函数 
-function switchSubmodule(targetId, direction) {
-    if (isSwitchingSubmodule) return;
-    const current = document.querySelector('.submodule.active');
-    const next = document.getElementById(targetId);
-    if (!next || current === next) return;
-    document.querySelectorAll('.submodule-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.target === targetId);
-    });
 
-    if (!current) {
-        next.classList.add('active');
-        return;
+
+
+// 这是子模块滑动切换的交互作用函数
+class CipherSwiper {
+    constructor(containerSelector, slideSelector, btnSelector, contextId) {
+        this.container = document.querySelector(containerSelector);
+        if (!this.container) return;
+        this.wrapper = this.container.querySelector('.cipher-swiper-wrapper');
+        this.slides = this.container.querySelectorAll(slideSelector);
+        this.navBtns = document.querySelectorAll(btnSelector);
+        this.contextId = contextId; 
+        this.currentIndex = 0;
+        this.startX = 0;
+        this.startY = 0;
+        this.currentTranslate = 0;
+        this.prevTranslate = 0;
+        this.isDragging = false;
+        this.animationID = null;
+        this.init();
     }
 
-    // 开启锁
-    isSwitchingSubmodule = true;
+    init() {
+        this.navBtns.forEach((btn, index) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.currentIndex = index;
+                this.setPositionByIndex();
+            });
+        });
 
-    // 确定动画方向
-    let outClass = 'slideOutToLeft';
-    let inClass = 'slideInFromRight';
+        this.container.addEventListener('touchstart', this.touchStart.bind(this), { passive: false });
+        this.container.addEventListener('touchmove', this.touchMove.bind(this), { passive: false });
+        this.container.addEventListener('touchend', this.touchEnd.bind(this));
+        this.container.addEventListener('mousedown', this.touchStart.bind(this));
+        this.container.addEventListener('mousemove', this.touchMove.bind(this));
+        this.container.addEventListener('mouseup', this.touchEnd.bind(this));
+        this.container.addEventListener('mouseleave', () => {
+            if (this.isDragging) this.touchEnd();
+        });
+
+        const resizeObserver = new ResizeObserver(() => {
+            this.setPositionByIndex(false);
+        });
+        resizeObserver.observe(this.container);
+        this.setPositionByIndex(false);
+        if (!window.cipherSwipers) window.cipherSwipers = [];
+        window.cipherSwipers.push(this);
+    }
+
+    updateNavButtons() {
+        this.navBtns.forEach(btn => btn.classList.remove('active'));
+        if(this.navBtns[this.currentIndex]) this.navBtns[this.currentIndex].classList.add('active');
+    }
+
+    setSliderPosition() {
+        this.wrapper.style.transform = `translateX(${this.currentTranslate}px)`;
+    }
+
+    setPositionByIndex(enableTransition = true) {
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        if (this.currentIndex >= this.slides.length) this.currentIndex = this.slides.length - 1;
+
+        const width = this.container.offsetWidth;
+        this.currentTranslate = this.currentIndex * -width;
+        this.prevTranslate = this.currentTranslate;
+
+        if (enableTransition) {
+            this.wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        } else {this.wrapper.style.transition = 'none';}
+        this.setSliderPosition();
+        this.updateNavButtons();
+        this.slides.forEach(s => s.classList.remove('active'));
+        if (this.slides[this.currentIndex]) this.slides[this.currentIndex].classList.add('active');
+    }
+
+    touchStart(event) {
+        if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+        this.isDragging = true;
+        this.startX = this.getPositionX(event);
+        this.startY = this.getPositionY(event);
+        this.animationID = requestAnimationFrame(this.animation.bind(this));
+        this.wrapper.style.transition = 'none';
+    }
+
+    touchMove(event) {
+        if (this.isDragging) {
+            const currentX = this.getPositionX(event);
+            const currentY = this.getPositionY(event);
+            const deltaX = currentX - this.startX;
+            const deltaY = currentY - this.startY;
+            if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+            if (event.cancelable) event.preventDefault();
+            this.currentTranslate = this.prevTranslate + deltaX;
+        }
+    }
+
+    touchEnd() {
+        this.isDragging = false;
+        cancelAnimationFrame(this.animationID);
+        const movedBy = this.currentTranslate - this.prevTranslate;
+        const width = this.container.offsetWidth;
+        if (movedBy < -width / 4 && this.currentIndex < this.slides.length - 1) {
+            this.currentIndex += 1;
+        } else if (movedBy > width / 4 && this.currentIndex > 0) {
+            this.currentIndex -= 1;
+        }
+        this.setPositionByIndex();
+    }
+
+    getPositionX(event) {return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;}
+    getPositionY(event) {return event.type.includes('mouse') ? event.pageY : event.touches[0].clientY;}
+    animation() {
+        if (this.isDragging) {
+            this.setSliderPosition();
+            requestAnimationFrame(this.animation.bind(this));
+        }
+    }
     
-    if (direction === 'left') { 
-         outClass = 'slideOutToRight'; 
-         inClass = 'slideInFromLeft';  
-    } else if (direction === 'right') { 
-         outClass = 'slideOutToLeft';  
-         inClass = 'slideInFromRight'; 
-    } else {
-         outClass = 'slideOutToLeft'; 
-         inClass = 'slideInFromRight';
+    slideToIndex(index) {
+        this.currentIndex = index;
+        this.setPositionByIndex();
     }
-
-    current.style.animation = `${outClass} 0.3s forwards ease-in`;
-    current.classList.add('animating'); 
-    setTimeout(() => {
-        current.classList.remove('active', 'animating');
-        current.style.animation = '';
-        next.classList.add('active', 'animating');
-        next.style.animation = `${inClass} 0.3s forwards ease-out`;
-        
-        setTimeout(() => {
-            next.classList.remove('animating');
-            next.style.animation = '';
-            isSwitchingSubmodule = false;
-        }, 150);
-        
-    }, 150);
 }
 
-// 这是加密实验室里的子模块切换逻辑 (更新为使用 switchSubmodule)
-document.querySelectorAll('.submodule-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        switchSubmodule(this.dataset.target, 'default');
-    });
+
+
+// 这是加密实验室和意见反馈模块的子模块滑动切换的容器支持
+const swiper1 = new CipherSwiper('#jiamishiyanshi-content .cipher-swiper-container', '.cipher-swiper-wrapper .submodule', '.submodule-btn', 'jiamishiyanshi-content');
+const swiper2 = new CipherSwiper('#yijianfankui-content .cipher-swiper-container', '.cipher-swiper-wrapper .lianxiwomen-submodule', '.contact-submodule-btn', 'yijianfankui-content');
+
+
+
+
+// 键盘切换子模块区域的交互作用函数 (通用)
+document.addEventListener('keydown', function(e) {
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const activeSection = document.querySelector('.content-section[style*="block"]');
+    if (!activeSection) return;
+    const activeSwiper = window.cipherSwipers?.find(swiper => swiper.contextId === activeSection.id);
+    if (activeSwiper) {
+        if (e.key === 'ArrowLeft') {
+            if (activeSwiper.currentIndex > 0) {
+                activeSwiper.currentIndex--;
+                activeSwiper.setPositionByIndex();
+            }
+        } else if (e.key === 'ArrowRight') {
+            if (activeSwiper.currentIndex < activeSwiper.slides.length - 1) {
+                activeSwiper.currentIndex++;
+                activeSwiper.setPositionByIndex();
+            }
+        }
+    }
 });
-
-// 这是意见反馈模块里的子模块切换逻辑
-document.querySelectorAll('.contact-submodule-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        document.querySelectorAll('.contact-submodule-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        document.querySelectorAll('.lianxiwomen-submodule').forEach(m => m.classList.remove('active'));
-        document.getElementById(this.dataset.target).classList.add('active');
-    });
-});
-
-
 
 
 // 这是侧边栏搜索框定位功能
@@ -112,23 +194,51 @@ function initSearchFunction() {
     initQuickNav('xiandaiqu');
 }
 
+
+
+// 这是侧边栏搜索框搜索后卡片按钮高亮的交互作用函数
 function highlightAndScroll(target) {
     if (!target) return;
     const isLogic = target.classList.contains('logic-btn');
-    if (isLogic) {
-        document.querySelector('.submodule-nav [data-target="luojimiti"]')?.click();
-        target.closest('.submodule')?.classList.add('active');
-    } else {const submodule = target.closest('.submodule');
-        if (submodule && !submodule.classList.contains('active')) {
-            const id = submodule.id;
-            document.querySelector(`.submodule-nav [data-target="${id}"]`)?.click();
+    const submodule = target.closest('.submodule, .lianxiwomen-submodule');
+    if (submodule && window.cipherSwipers) {
+        const swiper = window.cipherSwipers.find(s => {
+            return Array.from(s.slides).includes(submodule);
+        });
+        if (swiper) {
+            const index = Array.from(swiper.slides).indexOf(submodule);
+            if (index !== -1) {
+                swiper.slideToIndex(index);
+                swiper.container.scrollLeft = 0;
+            }
+            const section = swiper.container.closest('.content-section');
+            if (section && section.style.display === 'none') {
+                const menuId = section.id.replace('-content', '');
+                const menuItem = document.querySelector(`.menu-item[data-target="${menuId}"]`);
+                if (menuItem) menuItem.click();
+            }
         }
     }
     target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight');
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+        const rect = target.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const targetTop = rect.top + scrollTop;
+        const viewportHeight = window.innerHeight;
+        const scrollToY = targetTop - viewportHeight / 2 + rect.height / 2;
+        window.scrollTo({
+            top: scrollToY,
+            behavior: 'smooth'
+        });
+    }, 10);
+
     setTimeout(() => target.classList.remove(isLogic ? 'logic-highlight' : 'card-highlight'), 5000);
 }
 
+
+
+
+//这是经典区-现代区【搜索密码卡片】功能的交互作用函数
 function initQuickNav(regionId) {
     const inputId = `quick-nav-input-${regionId}`;
     const listId = `quick-nav-options-${regionId}`;
@@ -210,6 +320,10 @@ function initQuickNav(regionId) {
     });
 }
 
+
+
+
+
 // 输入框置顶功能的交互逻辑
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.pin-toggle-btn'); 
@@ -226,16 +340,16 @@ document.addEventListener('click', function(e) {
     }
 });
 
-//侧边栏防止键盘弹出时被挤压
+
+
+
+
+// 侧边栏防止键盘弹出时被挤压
 function initMobileHeight() {
     const setHeight = () => {
         const vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };
-    
-    setHeight();
-    
-    // 监听 resize，但在键盘弹出（宽度不变但高度变小）时不更新
+    };  setHeight();
     let lastWidth = window.innerWidth;
     window.addEventListener('resize', () => {
         if (window.innerWidth !== lastWidth) {
@@ -245,106 +359,3 @@ function initMobileHeight() {
     });
 }
 initMobileHeight();
-
-
-// Navigation logic for Encryption Lab
-function initModuleNavigation() {
-    const moduleContainer = document.getElementById('jiamishiyanshi-container');
-    const sidebar = document.querySelector('.sidebar');
-
-    function navigateSubmodule(direction) {
-        // Ensure we are in the encryption lab
-        if (!moduleContainer || moduleContainer.style.display === 'none') return;
-
-        const buttons = Array.from(document.querySelectorAll('#jiamishiyanshi-content .submodule-btn'));
-        const activeIndex = buttons.findIndex(btn => btn.classList.contains('active'));
-        
-        if (activeIndex === -1) return;
-
-        const nextIndex = activeIndex + direction;
-
-        if (nextIndex >= 0 && nextIndex < buttons.length) {
-            // Use switchSubmodule with direction instead of clicking button
-            const targetId = buttons[nextIndex].dataset.target;
-            const dirStr = direction > 0 ? 'right' : 'left';
-            switchSubmodule(targetId, dirStr);
-        } else {
-            // Boundary reached
-            if (sidebar) {
-                sidebar.classList.add('expanded');
-                
-                // Click outside to close
-                const closeSidebar = (e) => {
-                    // Check if click is outside sidebar
-                    if (!sidebar.contains(e.target)) {
-                        sidebar.classList.remove('expanded');
-                        document.removeEventListener('click', closeSidebar);
-                    }
-                };
-                
-                // Remove any existing listeners to prevent duplicates (though locally defined)
-                // Use setTimeout to avoid immediate trigger if this was caused by a click
-                setTimeout(() => document.addEventListener('click', closeSidebar), 0);
-            }
-        }
-    }
-
-    // Keyboard Navigation
-    document.addEventListener('keydown', (e) => {
-        // Check if encryption lab is visible
-        if (!moduleContainer || moduleContainer.style.display === 'none') return;
-        
-        // Ignore if user is typing in an input
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
-        if (e.key === 'ArrowLeft') {
-            navigateSubmodule(-1); // Go previous (Left)
-        } else if (e.key === 'ArrowRight') {
-            navigateSubmodule(1);  // Go next (Right)
-        }
-    });
-
-    // Mouse Swipe Navigation
-    let startX = 0;
-    let isDragging = false;
-    // Using container1 as the touch area
-    const touchArea = document.querySelector('.container1');
-    
-    if (touchArea) {
-        touchArea.addEventListener('mousedown', (e) => {
-            // Only start drag if we're not on an input
-            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-            
-            startX = e.clientX;
-            isDragging = true;
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            
-            // If encryption lab is not visible, do nothing
-            if (!moduleContainer || moduleContainer.style.display === 'none') return;
-
-            const diff = e.clientX - startX;
-            const threshold = 100; // Minimum distance for swipe
-
-            if (Math.abs(diff) > threshold) {
-                if (diff > 0) {
-                    // Drag Right -> Go Left (Previous)
-                    navigateSubmodule(-1);
-                } else {
-                    // Drag Left -> Go Right (Next)
-                    navigateSubmodule(1);
-                }
-            }
-        });
-    }
-}
-
-// Call initModuleNavigation
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initModuleNavigation);
-} else {
-    initModuleNavigation();
-}

@@ -246,7 +246,7 @@ margin-bottom: 8px;
 @media (min-width: 769px) {
   .sidebar:hover + .container1 {
     padding-left: 110px;
-  }
+  } 
 }
 
 .menu-item {
@@ -515,7 +515,7 @@ margin-bottom: 8px;
 /* 子模块切换样式 */
 .submodule-nav {
 position: sticky;
-z-index: 1;
+z-index: 2;
 border-radius: 15px;
 margin-top: 6.18rem;
 margin-bottom: -3.382rem;
@@ -526,8 +526,32 @@ backdrop-filter: blur(5px);
 display: none;
 }
 
-.submodule.active {
-display: block;
+/* 滑动区域容器 */
+.cipher-swiper-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    touch-action: pan-y; 
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 15px, #000 calc(100% - 15px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 15px, #000 calc(100% - 15px), transparent 100%);
+}
+
+.cipher-swiper-wrapper {
+    display: flex;
+    width: 100%;
+    height: auto;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+}
+.cipher-swiper-wrapper .submodule,
+.cipher-swiper-wrapper .lianxiwomen-submodule {
+    display: block !important;
+    width: 100%;
+    flex-shrink: 0;
+    min-height: 100vh; 
+    opacity: 1; 
+    box-sizing: border-box;
+    padding: 0 1.5rem; 
 }
 
 .submodule-btn.active {
@@ -535,27 +559,6 @@ background: linear-gradient(145deg,
     rgba(64,224,255,0.3) 20%,
     rgba(179,136,255,0.2) 80%) !important;
 box-shadow: 0 0 15px var(--secondary) !important;
-}
-
-/* 切换动画 Keyframes */
-@keyframes slideOutToLeft {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(-50px); }
-}
-
-@keyframes slideInFromRight {
-  from { opacity: 0; transform: translateX(50px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slideOutToRight {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(50px); }
-}
-
-@keyframes slideInFromLeft {
-  from { opacity: 0; transform: translateX(-50px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 /* 背景 */
@@ -1087,6 +1090,9 @@ animation: glitch 0.5s infinite;
 
 /* 移动端适配 */
 @media (max-width: 768px) {
+  body {
+    padding: 1rem; /* 减少移动端内边距，增加可视区域 */
+  }
   .neon-title {
     font-size: 1.8rem;
     letter-spacing: 4px;
@@ -1118,17 +1124,12 @@ animation: glitch 0.5s infinite;
     right: 10px;
 }
 
-.submodule-nav {
+.submodule-nav,.lianxiwomen-submodule{
   display: flex;
   flex-wrap: wrap; 
   justify-content: center;
   gap: 0.5rem; 
   margin-top: 2rem ; 
-  padding: 0.5rem;
-}
-
-.lianxiwomen-submodule {
-  margin-top: 2rem;
   padding: 0.5rem;
 }
 

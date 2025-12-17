@@ -15,6 +15,9 @@ const MODULES = {
         <button class="btn back-btn submodule-btn" data-target="yuliu">预留区</button>
     </div>
 
+    <div class="cipher-swiper-container">
+        <div class="cipher-swiper-wrapper">
+
     <div id="mimaqu" class="submodule active">
         <div class="container">
         
@@ -450,6 +453,9 @@ const MODULES = {
         </div>
     </div>
 
+        </div>
+    </div>
+
 </div>`,
 
     // 电子实验室模块
@@ -608,6 +614,9 @@ const MODULES = {
             <button class="btn back-btn contact-submodule-btn" data-target="kaifarizhi">开发日志</button>
         </div>
 
+    <div class="cipher-swiper-container">
+        <div class="cipher-swiper-wrapper">
+
         <div id="guanyuzuozhe" class="lianxiwomen-submodule active">
             <div class="container">
                 <div class="card">
@@ -643,6 +652,10 @@ const MODULES = {
                 </div>
             </div>
         </div>
+
+        </div>
+    </div>
+
     </div>`
 }; 
 
