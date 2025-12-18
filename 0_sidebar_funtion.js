@@ -88,7 +88,13 @@ class CipherSwiper {
         this.setSliderPosition();
         this.updateNavButtons();
         this.slides.forEach(s => s.classList.remove('active'));
-        if (this.slides[this.currentIndex]) this.slides[this.currentIndex].classList.add('active');
+        if (this.slides[this.currentIndex]) {
+            this.slides[this.currentIndex].classList.add('active');
+            // 动态调整容器高度以适应当前子模块
+            requestAnimationFrame(() => {
+                this.container.style.height = this.slides[this.currentIndex].scrollHeight + 'px';
+            });
+        }
     }
 
     touchStart(event) {
@@ -196,7 +202,7 @@ function initSearchFunction() {
 
 
 
-// 这是侧边栏搜索框搜索后卡片按钮高亮的交互作用函数
+// 这是侧边栏搜索框搜索后卡片按钮定位高亮的交互作用函数
 function highlightAndScroll(target) {
     if (!target) return;
     const isLogic = target.classList.contains('logic-btn');
@@ -240,44 +246,28 @@ function highlightAndScroll(target) {
 
 //这是经典区-现代区【搜索密码卡片】功能的交互作用函数
 function initQuickNav(regionId) {
-    const inputId = `quick-nav-input-${regionId}`;
-    const listId = `quick-nav-options-${regionId}`;
-    const containerId = `quick-nav-container-${regionId}`;
-    const input = document.getElementById(inputId);
-    const listContainer = document.getElementById(listId);
-    const container = document.getElementById(containerId);
+    const input = document.getElementById(`quick-nav-input-${regionId}`);
+    const listContainer = document.getElementById(`quick-nav-options-${regionId}`);
+    const container = document.getElementById(`quick-nav-container-${regionId}`);
     if (!input || !listContainer) return;
     function getCardOptions() {
         const cards = document.querySelectorAll(`#${regionId} .card:not(.main-input)`);
         const options = [];
         cards.forEach(card => {
             const badge = card.querySelector('.badge');
-            if (badge) {
-                options.push({
-                    text: badge.textContent,
-                    element: card
-                });
-            }
-        });
-        return options;
-    }
+            if (badge) {options.push({text: badge.textContent, element: card});}});
+        return options;}
     function renderOptions(filterText = '') {
         listContainer.innerHTML = '';
         const options = getCardOptions();
-        const lowerFilter = filterText.toLowerCase();
         const filtered = options.filter(opt => 
-            opt.text.toLowerCase().includes(lowerFilter)
-        );
-
-        if (filtered.length === 0) {
-            listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
-            return;
-        }
+            opt.text.toLowerCase().includes(filterText.toLowerCase()));
+        if (filtered.length === 0) {listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
+            return;}
         filtered.forEach(opt => {
             const div = document.createElement('div');
             div.className = 'quick-nav-option';
             div.textContent = opt.text;
-            
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
                 input.value = ''; 
@@ -288,34 +278,17 @@ function initQuickNav(regionId) {
         });
     }
 
-    input.addEventListener('focus', () => {
-        renderOptions(input.value);
-        listContainer.classList.add('show');
-    });
-
-    input.addEventListener('input', (e) => {
-        renderOptions(e.target.value);
-        listContainer.classList.add('show');
-    });
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.keyCode === 13) {
-            e.preventDefault(); 
-            const filterText = input.value.toLowerCase().trim();
-            if (!filterText) return;
-
+    input.addEventListener('focus', () => {renderOptions(input.value);listContainer.classList.add('show');});
+    input.addEventListener('input', (e) => {renderOptions(e.target.value);listContainer.classList.add('show');});
+    input.addEventListener('keydown', (e) => {if (e.key === 'Enter' || e.keyCode === 13) {e.preventDefault(); 
+            const filterText = input.value.toLowerCase().trim(); if (!filterText) return;
             const options = getCardOptions();
             const matched = options.find(opt => opt.text.toLowerCase().includes(filterText));
-            
-            if (matched) {
-                input.blur(); 
-                listContainer.classList.remove('show');
-                highlightAndScroll(matched.element);
+            if (matched) {input.blur(); listContainer.classList.remove('show'); highlightAndScroll(matched.element);
             }
         }
     });
-    document.addEventListener('click', (e) => {
-        if (!container.contains(e.target)) {
-            listContainer.classList.remove('show');
+    document.addEventListener('click', (e) => {if (!container.contains(e.target)) {listContainer.classList.remove('show');
         }
     });
 }
@@ -330,11 +303,38 @@ document.addEventListener('click', function(e) {
     if (btn) {
         const card = btn.closest('.card');
         if (card) {
-            card.classList.toggle('pinned');
+            e.preventDefault();
             const isPinned = card.classList.contains('pinned');
             const tag = btn.querySelector('.cyber-button__tag');
-            if (tag) {
-                tag.textContent = isPinned ? '取消置顶' : '置顶';
+            if (!isPinned) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'card-placeholder'; 
+                if (card.classList.contains('main-input')) {
+                    placeholder.classList.add('main-input');
+                }   placeholder.style.display = 'none';
+                const pid = 'pin-placeholder-' + Date.now();
+                placeholder.id = pid;
+                card.dataset.placeholderId = pid;
+                card.parentNode.insertBefore(placeholder, card);
+                const scrollX = window.scrollX;
+                const scrollY = window.scrollY;
+                document.body.appendChild(card);
+                requestAnimationFrame(() => {
+                    card.classList.add('pinned');
+                    // 恢复滚动位置，防止因DOM变动导致页面跳动
+                    window.scrollTo(scrollX, scrollY);
+                });
+                if (tag) tag.textContent = '取消置顶';
+            } else {
+                const pid = card.dataset.placeholderId;
+                const placeholder = document.getElementById(pid);
+                if (placeholder) {
+                    card.classList.remove('pinned');
+                    placeholder.parentNode.insertBefore(card, placeholder);
+                    placeholder.remove();
+                    delete card.dataset.placeholderId;
+                } else {card.classList.remove('pinned');}
+                if (tag) tag.textContent = '置顶';
             }
         }
     }
