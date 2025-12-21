@@ -1,0 +1,16 @@
+language: go
+
+go:
+  - 1.12.7
+
+install:
+    - go get -t -v ./...
+
+script:
+    - go vet -x
+    - go test -v -race
+    - go test -v -race github.com/funny/link/codec
+    - go test -v -coverprofile=coverage.txt -covermode=atomic 
+
+after_success:
+    - bash <(curl -s https://codecov.io/bash)
