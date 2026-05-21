@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slitherlink 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/51_slitherlink.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Slitherlink 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+    <div class="container">
+        <div class="logic-grid" id="grid-container">
+            <!-- Grid will be generated here -->
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label>行数: <input type="number" id="rows-input" value="10" min="5" max="20"></label>
+                <label>列数: <input type="number" id="cols-input" value="10" min="5" max="20"></label>
+                <button class="btn" id="new-grid-btn">新建网格</button>
+            </div>
+            
+            <div class="control-group mode-controls">
+                <button class="btn active" id="mode-play">解题模式</button>
+                <button class="btn" id="mode-edit">编辑线索</button>
+                <button class="btn" id="mode-solve">求解</button>
+                <button class="btn" id="mode-reset">重置</button>
+            </div>
+
+            <div id="message" class="message"></div>
+            
+            <div class="instructions">
+                <p>规则：</p>
+                <ul>
+                    <li>连接点与点之间的线，使其形成一个单一的闭合回路。</li>
+                    <li>数字表示该方格周围有多少条线（0-3）。</li>
+                    <li>回路不能交叉或分支。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script src="./js/51_slitherlink.js"></script>
+</body>
+</html>

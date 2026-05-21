@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gokigen (Slant) - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/19_gokigen.css">
+</head>
+<body>
+    <!-- 返回按钮 返回主页面 -->
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+
+    <div class="header">
+        <h1 class="title">Gokigen (Slant) 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+            
+    <div class="container">
+        <div class="gokigen-wrapper">
+            <div class="controls-bar">
+                <div class="size-controls">
+                    <label>行：<input type="number" id="rows" min="3" max="15" value="5"></label>
+                    <label>列：<input type="number" id="cols" min="3" max="15" value="5"></label>
+                    <button class="btn small-btn" id="create-grid">创建网格</button>
+                </div>
+            </div>
+            
+            <div class="gokigen-grid" id="puzzle-grid"></div>
+            
+            <div class="solution-nav" id="solutionNav" style="display: none; margin-top: 1rem;">
+                <button class="solution-btn" id="prev-solution">◀</button>
+                <span class="solution-counter" id="solution-count">0/0</span>
+                <button class="solution-btn" id="next-solution">▶</button>
+                <button class="btn small-btn" id="back-to-edit" style="margin-left: 1rem;">返回编辑</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem;">控制面板</h2>
+            
+            <div class="instructions">
+                <p>📋 使用说明:</p>
+                <ul>
+                    <li>点击格子: 切换斜线方向 (/ 或 \)</li>
+                    <li>交叉点输入数字 (0-4): 表示该点连接的线段数量</li>
+                    <li>目标: 满足所有数字要求，且线条不能形成闭合回路</li>
+                </ul>
+            </div>
+            
+            <div class="action-controls">
+                <button class="btn" id="solve-btn">开始求解</button>
+                <button class="btn" id="reset-btn">重置网格</button>
+            </div>
+        
+            <div id="result" style="margin-top: 2rem;"></div>
+        </div>
+    </div>
+        
+    <div class="loading" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">求解中，请稍候...<br><span id="loading-time">0</span>秒</div>
+    </div>
+    
+    <script src="./js/19_gokigen.js"></script>
+</body>
+</html>

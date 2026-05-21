@@ -1,0 +1,114 @@
+.statuepark-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.statuepark-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 1.5rem;
+    border-radius: 24px;
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 30px var(--quantum-blue) inset;
+    position: relative;
+    transform: translateZ(30px);
+}
+
+.statuepark-cell {
+    aspect-ratio: 1;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--neon-cyan);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+}
+
+.statuepark-cell:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Circles */
+.circle-black::after {
+    content: '';
+    width: 60%;
+    height: 60%;
+    background-color: #000;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.circle-white::after {
+    content: '';
+    width: 60%;
+    height: 60%;
+    background-color: #fff;
+    border-radius: 50%;
+    border: 2px solid #000;
+    box-shadow: 0 0 5px rgba(255,255,255,0.5);
+}
+
+/* Shape Colors (for solution) */
+.cell-occupied {
+    background-color: rgba(64, 224, 255, 0.4) !important;
+    border-color: rgba(64, 224, 255, 0.6);
+}
+
+.cell-shape-0 { background-color: rgba(255, 0, 0, 0.4) !important; }
+.cell-shape-1 { background-color: rgba(0, 255, 0, 0.4) !important; }
+.cell-shape-2 { background-color: rgba(0, 0, 255, 0.4) !important; }
+.cell-shape-3 { background-color: rgba(255, 255, 0, 0.4) !important; }
+.cell-shape-4 { background-color: rgba(0, 255, 255, 0.4) !important; }
+.cell-shape-5 { background-color: rgba(255, 0, 255, 0.4) !important; }
+.cell-shape-6 { background-color: rgba(128, 0, 0, 0.4) !important; }
+.cell-shape-7 { background-color: rgba(0, 128, 0, 0.4) !important; }
+.cell-shape-8 { background-color: rgba(0, 0, 128, 0.4) !important; }
+.cell-shape-9 { background-color: rgba(128, 128, 0, 0.4) !important; }
+.cell-shape-10 { background-color: rgba(0, 128, 128, 0.4) !important; }
+.cell-shape-11 { background-color: rgba(128, 0, 128, 0.4) !important; }
+
+.controls-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.shape-select {
+    background: rgba(0,0,0,0.3);
+    color: var(--neon-cyan);
+    border: 1px solid var(--quantum-blue);
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

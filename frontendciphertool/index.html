@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <title>泡面的Agent工具箱 - CTF/Puzzlehunt解密辅助与电子电路仿真在线工具</title>
+    <meta name="description"
+        content="泡面的Agent工具箱（Noodle's Toolkit）是一个集成了 Puzzlehunt 常用密码解码器与 Web 端电子电路布局/仿真功能的在线平台。无需安装，为 CTF 选手和电子爱好者提供极客风格的解题与设计体验。">
+    <meta name="keywords"
+        content="Agent工具箱,密码转换器,泡面的Agent工具箱,泡面的谜题工具箱,CTF工具,在线解密,知识图谱,大模型,摩斯密码,凯撒密码,栅栏密码,ADFGX密码,ADFGVX密码,Playfair密码,Enigma密码,MD5密码,SHA密码,Puzzlehunt,电路模拟器,在线电路仿真,逻辑电路,三维知识图谱,3D知识图谱">
+
+    <link rel="preload" href="./0_zhuyeyangshi.css" as="style">
+    <link rel="preload" href="./modules.js" as="script">
+    <script src="./cipher/888_CornerMap.js"></script>
+    <script src="./cipher/888_chinese_code_table.js" defer></script>
+    <link rel="stylesheet" href="./0_zhuyeyangshi.css">
+    <link rel="stylesheet" href="./model/2_damoxing.css">
+    <link rel="stylesheet" href="./workflow/1_workflow.css">
+    <link rel="stylesheet" href="./zhishitupu/3_zhishitupu.css">
+    <link rel="stylesheet" href="./wordsearch/wordsearch.css">
+    <link rel="stylesheet" href="./loginsystem/auth.css">
+    <link rel="stylesheet" href="./electronic/electionic_lab.css">
+    <link rel="stylesheet" href="./agentmaster/agentmaster.css">
+
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar">
+        <h1>By泡面的面</h1>
+        <div class="sidebar-title">
+            <h2>Agent工具箱</h2>
+        </div>
+        <div class="sidebar-search"><input type="text" id="cardSearch" placeholder="搜索密码卡片..."></div>
+        <a href="#jiamishiyanshi" class="menu-item" data-target="jiamishiyanshi">
+            <div class="menu-icon"></div><span class="menu-text">加密实验室</span>
+        </a>
+        <a href="#electroniclab" class="menu-item" data-target="electroniclab">
+            <div class="menu-icon"></div><span class="menu-text">电子实验室</span>
+        </a>
+        <a href="#workflow" class="menu-item" data-target="workflow">
+            <div class="menu-icon"></div><span class="menu-text">WorkFlow</span>
+        </a>
+        <a href="#zhishitupu" class="menu-item" data-target="zhishitupu">
+            <div class="menu-icon"></div><span class="menu-text">知识图谱</span>
+        </a>
+        <a href="#damoxing" class="menu-item" data-target="damoxing">
+            <div class="menu-icon"></div><span class="menu-text">大模型</span>
+        </a>
+        <a href="#yijianfankui" class="menu-item" data-target="yijianfankui">
+            <div class="menu-icon"></div><span class="menu-text">联系我们</span>
+        </a>
+    </aside>
+    <div class="container1">
+        <div id="jiamishiyanshi-container"></div>
+        <div id="electroniclab-container"></div>
+        <div id="workflow-container"></div>
+        <div id="zhishitupu-container"></div>
+        <div id="damoxing-container"></div>
+        <div id="yijianfankui-container"></div>
+    </div>
+
+    <!-- 使用说明弹窗结构 -->
+    <div id="usageModal" class="usage-modal-overlay">
+        <div class="usage-modal-content">
+            <img src="./cipher/shiyongshuoming111.png" alt="使用说明" class="usage-modal-img">
+        </div>
+    </div>
+    <!-- 通用图片预览弹窗 -->
+    <div id="imagePreviewModal" class="usage-modal-overlay">
+        <div class="usage-modal-content">
+            <img id="previewImage" src="" alt="预览图片" class="usage-modal-img">
+        </div>
+    </div>
+
+    <!-- 全局助手 Agent Master -->
+    <div id="agent-master-wrapper">
+        <div id="agent-chat-window">
+            <div class="agent-chat-header">
+                <span>PzM assistant</span>
+                <button id="agent-collapse-btn" class="agent-collapse-btn">Collapse</button>
+            </div>
+            <div class="agent-chat-history" id="agent-chat-history"></div>
+        </div>
+
+        <div class="agent-suggestions">
+            <button class="agent-suggestion-btn">如何用大模型辅助破解恩尼格玛密码机？</button>
+            <button class="agent-suggestion-btn">帮我设计一个简单的 555 定时器电路</button>
+            <button class="agent-suggestion-btn">在 CTF 比赛中常见的哈希逆向套路有哪些？</button>
+            <button class="agent-suggestion-btn">在 CTF 比赛中常见的哈希逆向套路有哪些？</button>
+        </div>
+
+        <div class="agent-input-container">
+            <textarea id="agent-textarea" placeholder="Reply..." rows="1"></textarea>
+            <button id="agent-submit-btn" class="agent-submit-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                    <line x1="19" y1="10" x2="19" y2="12"></line>
+                    <path d="M19 12a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="./loginsystem/tanchuangshengming.js"></script>
+    <script src="./loginsystem/auth.js"></script>
+    <script src="./modules.js"></script>
+    <script src="./agentmaster/agentmaster.js"></script>
+</body>
+
+</html>

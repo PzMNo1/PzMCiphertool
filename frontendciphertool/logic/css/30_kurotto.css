@@ -1,0 +1,143 @@
+:root {
+    --cell-size: 50px;
+    --bg-color: #0f172a;
+    --grid-line: #1e293b;
+    --accent: #38bdf8;
+    --text-color: #f8fafc;
+}
+
+.container {
+    display: flex;
+    gap: 2rem;
+    padding: 2rem;
+    min-height: 80vh;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.kurotto-grid-container {
+    display: grid;
+    background: #ffffff;
+    border: 3px solid var(--accent);
+    gap: 0;
+    padding: 2px;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+}
+
+.k-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background-color 0.1s;
+    color: #000;
+}
+
+.k-cell:hover {
+    background-color: #f1f5f9;
+}
+
+/* Black cell state */
+.k-cell.black {
+    background-color: #000000 !important;
+}
+
+/* Clue style (Circle) */
+.k-cell.clue {
+    background-color: #ffffff;
+}
+
+.clue-circle {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    border: 2px solid #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #fff;
+    z-index: 2;
+}
+
+.clue-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    outline: none;
+    color: #000;
+}
+
+/* Controls styling override/addition */
+.controls {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    min-width: 300px;
+}
+
+.mode-switcher {
+    display: flex;
+    margin: 1.5rem 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+}
+
+.mode-opt {
+    flex: 1;
+    text-align: center;
+    padding: 0.75rem;
+    cursor: pointer;
+    border-radius: 0.4rem;
+    transition: all 0.3s;
+    opacity: 0.7;
+}
+
+.mode-opt:hover { opacity: 1; }
+
+.mode-opt.active {
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: bold;
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: dev
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Aliyun SMS Config
+# aliyun:
+#   sms:
+#     access-key-id: ${ALIYUN_ACCESS_KEY_ID}
+#     access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET}
+#     sign-name: ${ALIYUN_SMS_SIGN_NAME}
+#     template-code: ${ALIYUN_SMS_TEMPLATE_CODE}
+
+# Email Config
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Auth Code Config
+auth:
+  code:
+    length: 6
+    expire-minutes: 5
+    send-interval-seconds: 60
+    max-send-per-hour: 5
+
+# CORS Config
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36,http://www.ozqmp.com}
+  allowed-methods: GET,POST,OPTIONS
+  allowed-headers: "*"
+  max-age: 3600
+
+logging:
+  level:
+    com.ciphertool: DEBUG
+    root: INFO
+
+

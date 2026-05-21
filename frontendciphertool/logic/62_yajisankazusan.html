@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yajisan-Kazusan 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/62_yajisankazusan.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Yajisan-Kazusan</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+
+    <div class="container">
+        <div class="yajisankazusan-container">
+            <div id="grid" class="yajisankazusan-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2>控制面板</h2>
+            <div class="controls-row">
+                <label>Size: <input type="number" id="size" value="8" min="4" max="12" style="width:50px"></label>
+                <button class="btn" id="create-btn">创建</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+            <div id="status" style="margin-top:1rem; text-align:center; color:var(--neon-cyan);"></div>
+            <div class="instructions" style="margin-top: 1rem; font-size: 0.9rem; color: #ccc;">
+                <p>规则:</p>
+                <ul>
+                    <li>涂黑部分格子，不能相邻。</li>
+                    <li>未涂黑格子必须连通。</li>
+                    <li>未涂黑的线索数字表示该方向上涂黑格子的数量。</li>
+                    <li>涂黑的线索格将被忽略。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/62_yajisankazusan.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+/* Ripple Effect Specific Styles */
+.ripple-cell {
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--neon-cyan);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.ripple-cell:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.ripple-cell.active-input {
+    background: rgba(64, 224, 255, 0.2);
+}
+
+/* Thick borders */
+.ripple-cell.border-top { border-top: 3px solid var(--hologram-purple); }
+.ripple-cell.border-bottom { border-bottom: 3px solid var(--hologram-purple); }
+.ripple-cell.border-left { border-left: 3px solid var(--hologram-purple); }
+.ripple-cell.border-right { border-right: 3px solid var(--hologram-purple); }
+
+.ripple-cell.clue {
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px var(--hologram-purple);
+}
+
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+    max-width: 200px;
+}
+
+.num-btn {
+    padding: 0.8rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.num-btn:hover {
+    background: var(--hologram-purple);
+    color: white;
+}
+

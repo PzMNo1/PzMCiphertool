@@ -1,0 +1,74 @@
+.tll-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tll-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.tll-cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--neon-cyan);
+    background: rgba(255,255,255,0.05);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+}
+
+/* Loop segments */
+.tll-cell.loop-h::before {
+    content: ''; position: absolute; width: 100%; height: 4px; background: #40e0ff; z-index: 1;
+}
+.tll-cell.loop-v::after {
+    content: ''; position: absolute; height: 100%; width: 4px; background: #40e0ff; z-index: 1;
+}
+/* Corner pieces need more complex CSS or SVG. Using borders/lines is easier. 
+   Let's use multiple divs or SVG background for loop segments.
+   Actually, simpler: use svg inside cell? Or just simple lines.
+   Tapa Loop is cell-center based.
+*/
+
+/* SVG in background or superimposed */
+.tll-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+}
+
+.clue-input {
+    width: 100%; height: 100%;
+    background: transparent; border: none;
+    text-align: center; color: #fff;
+    font-weight: bold;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

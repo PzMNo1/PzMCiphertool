@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<div id="output">Running...</div>
+<script>
+try {
+    const R = 5, C = 5;
+    const grid = Array(R).fill().map(() => Array(C).fill(null));
+    grid[0][0] = { dir:'r', num:0 };
+    grid[0][4] = { dir:'d', num:0 };
+    grid[4][4] = { dir:'l', num:0 };
+    grid[4][0] = { dir:'u', num:0 };
+
+    const dots = [], solutions = [];
+    for (let r=0;r<R;r++) for (let c=0;c<C;c++) if (grid[r][c]) dots.push({ r, c, dir:grid[r][c].dir, num:grid[r][c].num, id:dots.length });
+
+    const used = Array(R).fill().map(()=>Array(C).fill(false));
+    const path = Array(R).fill().map(()=>Array(C).fill(null));
+    for (const d of dots) used[d.r][d.c] = true;
+
+    const hasIn = new Uint8Array(dots.length);
+    const par = new Int32Array(dots.length).fill(-1);
+
+    function find(i) { while(par[i]>=0) i=par[i]; return i; }
+    function unite(a,b) {
+        a=find(a); b=find(b);
+        if (a===b) return null;
+        if (par[a]>par[b]) { const t=a; a=b; b=t; }
+        const old=par[b]; par[a]+=par[b]; par[b]=a;
+        return {p:a, ch:b, ov:old};
+    }
+    function undoUnite(u) { if(u){ par[u.p]-=u.ov; par[u.ch]=u.ov; } }
+
+    const DR={'u':-1,'d':1,'l':0,'r':0}, DC={'u':0,'d':0,'l':-1,'r':1};
+    const DIRS=['u','r','d','l'];
+    const FM={'u':'b','d':'t','l':'r','r':'l'}, TM={'u':'t','d':'b','l':'l','r':'r'};
+
+    function turnType(inD, outD) {
+        const s=[FM[inD],TM[outD]].sort().join('');
+        return s==='lt'?'ul':s==='rt'?'ur':s==='bl'?'dl':'dr';
+    }
+
+    let visits = 0, dbg = [];
+    function solve(di) {
+        if (solutions.length>=5) return;
+        if (di===dots.length) { 
+            dbg.push("Reached end, par size: " + (-par[find(0)]));
+            if (-par[find(0)]===dots.length) solutions.push(path.map(r=>[...r])); 
+            return; 
+        }
+        trace(di, dots[di].r, dots[di].c, dots[di].dir, 0, dots[di].num, []);
+    }
+
+    function trace(di, r, c, dir, turns, target, cells) {
+        if (solutions.length>=5) return;
+        if (++visits > 10000) return; // safety
+
+        const nr=r+DR[dir], nc=c+DC[dir];
+        if (nr<0||nr>=R||nc<0||nc>=C) {
+            dbg.push("OOB at " + nr + "," + nc);
+            return;
+        }
+
+        if (grid[nr][nc]) {
+            const ti=dots.findIndex(d=>d.r===nr&&d.c===nc);
+            dbg.push("Hit dot " + ti + " from " + di);
+            if (ti!==di && !hasIn[ti] && (target===null||turns===target)) {
+                hasIn[ti]=1;
+                for (const cl of cells) { used[cl.r][cl.c]=true; path[cl.r][cl.c]=cl.t; }
+                const u=unite(di,ti);
+                solve(di+1);
+                undoUnite(u);
+                for (const cl of cells) { used[cl.r][cl.c]=false; path[cl.r][cl.c]=null; }
+                hasIn[ti]=0;
+            } else {
+                dbg.push("Failed dot condition. ti=" + ti + ", di=" + di + ", hasIn=" + hasIn[ti] + ", turns=" + turns + ", target=" + target);
+            }
+            return;
+        }
+
+        if (used[nr][nc]) {
+            dbg.push("Hit used at " + nr + "," + nc);
+            return;
+        }
+        if (target!==null && turns>target) return;
+
+        const di2=DIRS.indexOf(dir);
+        // Straight
+        cells.push({r:nr,c:nc,t:(dir==='u'||dir==='d')?'v':'h'});
+        trace(di,nr,nc,dir,turns,target,cells);
+        cells.pop();
+        
+        // Turns
+        if (target===null||turns+1<=target) {
+            const lD=DIRS[(di2+3)%4], rD=DIRS[(di2+1)%4];
+            cells.push({r:nr,c:nc,t:turnType(dir,lD)});
+            trace(di,nr,nc,lD,turns+1,target,cells);
+            cells.pop();
+            cells.push({r:nr,c:nc,t:turnType(dir,rD)});
+            trace(di,nr,nc,rD,turns+1,target,cells);
+            cells.pop();
+        }
+    }
+
+    solve(0);
+    document.getElementById('output').innerHTML = "Solutions: " + solutions.length + "<br><pre>" + dbg.join('\n') + "</pre>";
+} catch(e) {
+    document.getElementById('output').innerHTML = "Error: " + e;
+}
+</script>
+</body>
+</html>

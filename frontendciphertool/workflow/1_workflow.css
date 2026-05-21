@@ -1,0 +1,606 @@
+/* ============================================
+   Workflow Studio — 可视化画布样式
+   复用 0_zhuyeyangshi.css 的 CSS 变量
+   ============================================ */
+
+/* --- 整体布局 --- */
+#workflow-content {
+    padding: 0 !important;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 999;
+    background: transparent;
+}
+
+/* 标题不占布局空间，保留全局 neon-title 样式 */
+#workflow-content .module-header {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    margin: 0;
+    pointer-events: none;
+}
+
+.wf-container {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    /* 关键：允许 flex 子项收缩 */
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+    border: none;
+}
+
+/* --- 左侧工具栏（玻璃拟态） --- */
+.wf-toolbar {
+    width: 220px;
+    min-width: 220px;
+    padding-top: 85px;
+    background: rgba(10, 18, 35, 0.45);
+    border-right: 1px solid rgba(64, 224, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    overflow: hidden;
+    min-height: 0;
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.3);
+}
+
+
+
+.wf-toolbar-search {
+    padding: 0.6rem;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.08);
+}
+
+.wf-toolbar-search input {
+    font-size: 0.78rem;
+}
+
+.wf-toolbar-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.4rem;
+}
+
+.wf-toolbar-category {
+    margin-bottom: 0.5rem;
+}
+
+.wf-toolbar-category-title {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 0.4rem 0.6rem;
+    font-weight: 600;
+}
+
+.wf-toolbar-item {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.78rem;
+    color: var(--text);
+    cursor: grab;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+}
+
+.wf-toolbar-item:hover {
+    background: rgba(64, 224, 255, 0.1);
+    color: #fff;
+    transform: translateX(3px);
+}
+
+.wf-toolbar-item:active {
+    cursor: grabbing;
+    transform: scale(0.97);
+}
+
+.wf-toolbar-item .wf-item-icon {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--primary);
+}
+
+.wf-toolbar-item.hidden {
+    display: none;
+}
+
+/* 工具栏底部按钮 */
+.wf-toolbar-actions {
+    padding: 0.6rem;
+    border-top: 1px solid rgba(64, 224, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.wf-toolbar-actions .cyber-button {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.72rem;
+    padding: 0.4rem;
+    top: 0;
+}
+
+/* --- 画布区域 --- */
+.wf-canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    cursor: grab;
+}
+
+.wf-canvas-wrap:active {
+    cursor: grabbing;
+}
+
+.wf-canvas-wrap.connecting {
+    cursor: crosshair;
+}
+
+
+
+/* SVG 连线层 */
+.wf-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    overflow: visible;
+    transform-origin: 0 0;
+}
+
+.wf-svg path.wf-connection {
+    fill: none;
+    stroke: url(#wf-line-gradient);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    pointer-events: stroke;
+    cursor: pointer;
+    transition: stroke-width 0.2s ease;
+}
+
+.wf-svg path.wf-connection:hover {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 6px rgba(46, 204, 113, 0.6));
+}
+
+.wf-svg path.wf-connection.selected {
+    stroke: #e74c3c;
+    stroke-width: 3.5;
+    filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.6));
+}
+
+.wf-svg path.wf-temp-line {
+    fill: none;
+    stroke: rgba(64, 224, 255, 0.6);
+    stroke-width: 2;
+    stroke-dasharray: 8 4;
+    pointer-events: none;
+    animation: wf-dash 0.5s linear infinite;
+}
+
+@keyframes wf-dash {
+    to {
+        stroke-dashoffset: -12;
+    }
+}
+
+/* 连线上的数据流动画光点 */
+.wf-svg circle.wf-flow-dot {
+    fill: var(--primary);
+    filter: drop-shadow(0 0 4px var(--primary));
+}
+
+/* --- 节点层 --- */
+.wf-nodes-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    transform-origin: 0 0;
+}
+
+/* --- 节点卡片（玻璃拟态） --- */
+.wf-node {
+    position: absolute;
+    min-width: 200px;
+    max-width: 280px;
+    border-radius: 14px;
+    border: 1px solid rgba(64, 224, 255, 0.15);
+    background: rgba(12, 20, 40, 0.35);
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 0 30px rgba(64, 224, 255, 0.03);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+    cursor: move;
+    user-select: none;
+    z-index: 3;
+    animation: wf-node-appear 0.3s ease-out;
+}
+
+@keyframes wf-node-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.wf-node:hover {
+    border-color: rgba(64, 224, 255, 0.4);
+    background: rgba(15, 25, 50, 0.45);
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.35),
+        0 0 25px rgba(64, 224, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 30px rgba(64, 224, 255, 0.05);
+}
+
+.wf-node.selected {
+    border-color: rgba(64, 224, 255, 0.6);
+    background: rgba(15, 25, 50, 0.5);
+    box-shadow:
+        0 0 30px rgba(64, 224, 255, 0.15),
+        0 12px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 0 30px rgba(64, 224, 255, 0.06);
+}
+
+.wf-node.dragging {
+    opacity: 0.85;
+    z-index: 100;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.6),
+        0 0 30px rgba(64, 224, 255, 0.15);
+}
+
+/* 节点头部 */
+.wf-node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.08);
+    border-radius: 14px 14px 0 0;
+    position: relative;
+}
+
+.wf-node-header .wf-node-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.wf-node-header .wf-node-type-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.wf-node-type-dot.input {
+    background: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.6);
+}
+
+.wf-node-type-dot.cipher {
+    background: var(--primary);
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+}
+
+.wf-node-type-dot.output {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(155, 89, 182, 0.6);
+}
+
+.wf-node-delete {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    line-height: 1;
+}
+
+.wf-node:hover .wf-node-delete {
+    opacity: 1;
+}
+
+.wf-node-delete:hover {
+    background: rgba(231, 76, 60, 0.4);
+    transform: scale(1.15);
+}
+
+/* 节点内容区 */
+.wf-node-body {
+    padding: 0.7rem 0.8rem;
+}
+
+/* 节点内表单元素：继承全局样式，仅覆盖尺寸 */
+.wf-node-body textarea,
+.wf-node-body input,
+.wf-node-body select {
+    font-size: 0.78rem;
+    margin-bottom: 0.4rem;
+}
+
+.wf-node-body textarea {
+    min-height: 50px;
+    resize: vertical;
+}
+
+.wf-node-body label {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.4);
+    display: block;
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.wf-node-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.wf-node-row>* {
+    flex: 1;
+}
+
+/* 结果显示区 */
+.wf-node-result {
+    padding: 0.5rem 0.8rem;
+    border-top: 1px solid rgba(64, 224, 255, 0.06);
+}
+
+/* 节点结果：继承全局 .result 样式，仅覆盖尺寸 */
+.wf-node-result .result {
+    font-size: 0.72rem;
+    min-height: auto;
+    padding: 0.5rem;
+    max-height: 60px;
+    overflow-y: auto;
+}
+
+.wf-node-result .result.error {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.wf-node-result .result.waiting {
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
+/* --- 端口 --- */
+.wf-port {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(30, 40, 60, 0.9);
+    border: 2px solid rgba(64, 224, 255, 0.5);
+    position: absolute;
+    cursor: crosshair;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.wf-port::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    /* Larger hit area */
+}
+
+.wf-port:hover {
+    background: rgba(64, 224, 255, 0.4);
+    border-color: rgba(64, 224, 255, 0.9);
+    box-shadow: 0 0 12px rgba(64, 224, 255, 0.5);
+    transform: scale(1.3);
+}
+
+.wf-port.connected {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+}
+
+.wf-port.port-in {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.wf-port.port-out {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.wf-port.port-in:hover,
+.wf-port.port-out:hover {
+    transform: translateY(-50%) scale(1.3);
+}
+
+/* --- 拖拽幽灵 --- */
+.wf-drag-ghost {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    color: #fff;
+    background: rgba(64, 224, 255, 0.2);
+    border: 1px solid rgba(64, 224, 255, 0.5);
+    border-radius: 8px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    z-index: 10000;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(64, 224, 255, 0.2);
+}
+
+/* --- Minimap (可选) --- */
+.wf-minimap {
+    position: absolute;
+    bottom: 40px;
+    right: 12px;
+    width: 150px;
+    height: 100px;
+    background: rgba(10, 15, 30, 0.9);
+    border: 1px solid rgba(64, 224, 255, 0.15);
+    border-radius: 6px;
+    z-index: 20;
+    overflow: hidden;
+    display: none;
+    /* 先隐藏, 后续可开启 */
+}
+
+
+
+/* --- 响应式 --- */
+@media (max-width: 768px) {
+    .wf-container {
+        height: calc(100vh - 80px);
+        flex-direction: column;
+    }
+
+    .wf-toolbar {
+        width: 100%;
+        min-width: unset;
+        height: 140px;
+        min-height: 140px;
+        flex-direction: column;
+        border-right: none;
+        border-bottom: 1px solid rgba(64, 224, 255, 0.15);
+    }
+
+    .wf-toolbar-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        padding: 0.3rem;
+    }
+
+    .wf-toolbar-item {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+    }
+
+    .wf-toolbar-category-title {
+        display: none;
+    }
+
+    .wf-node {
+        min-width: 160px;
+    }
+}
+
+/* --- 选区框 --- */
+.wf-selection-box {
+    position: absolute;
+    border: 1px dashed rgba(64, 224, 255, 0.5);
+    background: rgba(64, 224, 255, 0.05);
+    z-index: 50;
+    pointer-events: none;
+}
+
+/* --- 右键菜单 --- */
+.wf-context-menu {
+    position: fixed;
+    background: rgba(15, 20, 35, 0.98);
+    border: 1px solid rgba(64, 224, 255, 0.25);
+    border-radius: 8px;
+    padding: 0.3rem 0;
+    z-index: 1000;
+    min-width: 150px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.wf-context-menu.active {
+    display: block;
+}
+
+.wf-context-menu-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.78rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.wf-context-menu-item:hover {
+    background: rgba(64, 224, 255, 0.1);
+    color: #fff;
+}
+
+.wf-context-menu-item.danger {
+    color: var(--error);
+}
+
+.wf-context-menu-item.danger:hover {
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.wf-context-menu-separator {
+    height: 1px;
+    background: rgba(64, 224, 255, 0.1);
+    margin: 0.2rem 0;
+}

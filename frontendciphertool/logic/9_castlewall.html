@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Castlewall - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/9_castlewall.css">
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <!-- 标题区 -->
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">CASTLEWALL</div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="controls">
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>工具栏</strong>选择线索或画线</li>
+                    <li>点击格子放置线索(白/黑)</li>
+                    <li>重复点击线索切换方向，点击时输入数字</li>
+                    <li><strong>Line模式</strong>点击格子画线</li>
+                    <li><strong>规则</strong>:
+                        <ul>
+                            <li>画单一闭合回路</li>
+                            <li>线不能穿过线索格</li>
+                            <li>白格在回路内，黑格在回路外</li>
+                            <li>数字 = 箭头方向上的线段长度和</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 网格设置 -->
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="10" min="4" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="10" min="4" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <!-- 模式切换 -->
+            <div class="mode-switcher">
+                <div id="tool-clue_w" class="mode-opt tool-btn active" onclick="setTool('clue_w')">⬜ 白线索</div>
+                <div id="tool-clue_b" class="mode-opt tool-btn" onclick="setTool('clue_b')">⬛ 黑线索</div>
+                <div id="tool-line" class="mode-opt tool-btn" onclick="setTool('line')">✏️ 画线</div>
+                <div id="tool-clear" class="mode-opt tool-btn" onclick="setTool('clear')">❌ 清除</div>
+            </div>
+
+            <!-- 动作按钮 -->
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+            </div>
+            
+            <div id="status-msg">READY</div>
+        </div>
+
+        <!-- 右侧：游戏网格 -->
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="castlewall-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">BUILDING WALLS...</div>
+    </div>
+
+    <script src="./js/9_castlewall.js"></script>
+</body>
+</html>

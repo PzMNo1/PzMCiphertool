@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binairo - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/8_binairo.css">
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <!-- 标题区 -->
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">BINAIRO</div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="controls">
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li>左键点击：切换 白圆 / 黑圆 / 空</li>
+                    <li>右键点击：锁定/解锁线索 (加深背景)</li>
+                    <li>规则：
+                        <ul>
+                            <li>每行每列黑白圆数量相等</li>
+                            <li>连续同色圆不能超过2个</li>
+                            <li>每行每列必须唯一</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 网格设置 -->
+            <div class="config-row">
+                <label>Rows (Even):</label>
+                <input type="number" id="rows-in" value="10" min="4" max="16" step="2" class="config-input">
+                <label>Cols (Even):</label>
+                <input type="number" id="cols-in" value="10" min="4" max="16" step="2" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <!-- 动作按钮 -->
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+                <button onclick="clearGridState()" class="btn" style="margin-top: 1rem;">清空非固定项</button>
+            </div>
+            
+            <div id="status-msg">SYSTEM READY...</div>
+        </div>
+
+        <!-- 右侧：游戏网格 -->
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="binairo-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">QUANTUM COMPUTING IN PROGRESS...</div>
+    </div>
+
+    <script src="./js/8_binairo.js"></script>
+</body>
+</html>

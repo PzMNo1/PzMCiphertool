@@ -1,0 +1,116 @@
+/* Spiral Galaxies CSS */
+
+.game-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    user-select: none;
+}
+
+.grid-wrapper {
+    position: relative;
+    /* Dimensions set by JS */
+    background: #1a1a24;
+    border: 2px solid #555;
+}
+
+.cell {
+    position: absolute;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    cursor: pointer;
+    box-shadow: 0 0 5px #fff;
+}
+
+.dot.selected {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 10px var(--neon-cyan);
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Hit targets for placing dots in Edit Mode */
+.hit-target {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 0, 0, 0.0); /* Invisible normally */
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    border-radius: 50%;
+    cursor: crosshair;
+}
+
+.hit-target:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.control-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.control-group input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    color: white;
+    padding: 5px;
+    border-radius: 4px;
+    width: 60px;
+    text-align: center;
+}
+
+.control-group label {
+    color: var(--neon-cyan);
+}
+
+.mode-controls button.active {
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.4) 0%,
+        rgba(179, 136, 255, 0.3) 100%);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(64, 224, 255, 0.3);
+}
+
+.message {
+    color: var(--hologram-purple);
+    min-height: 20px;
+    font-family: monospace;
+    text-align: center;
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.9rem;
+    color: #ccc;
+}

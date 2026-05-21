@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masyu - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/33_masyu.css">
+</head>
+<body>
+    
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">MASYU</div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="instructions">
+                <p>规则说明_</p>
+                <ul>
+                    <li>画一条不交叉的回路，穿过所有圆圈。</li>
+                    <li><strong>白圈</strong>：直线通过，且在前后至少一格内转弯。</li>
+                    <li><strong>黑圈</strong>：必须转弯，且在前后两格必须直行。</li>
+                </ul>
+            </div>
+
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="8" min="4" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="8" min="4" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <div class="mode-switcher">
+                <div id="mode-edit" class="mode-opt active" onclick="setMode('edit')">✏️ 放置圆圈</div>
+                <div id="mode-play" class="mode-opt" onclick="setMode('play')">➰ 绘制回路</div>
+            </div>
+
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button onclick="clearState()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">清空</button>
+                    <button onclick="copyToClipboard()" class="btn" style="flex:1; font-size: 1rem; padding: 1rem;">复制</button>
+                </div>
+            </div>
+            
+            <div id="status-msg">SYSTEM READY...</div>
+        </div>
+
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="masyu-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">CALCULATING...</div>
+    </div>
+
+    <script src="./js/33_masyu.js"></script>
+</body>
+</html>

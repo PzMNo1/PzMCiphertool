@@ -1,0 +1,193 @@
+/* Slitherlink CSS */
+
+#grid-container {
+    display: grid;
+    /* Grid template will be set by JS: 2*C + 1 cols */
+    background: rgba(20, 20, 30, 0.8);
+    padding: 20px;
+    gap: 0;
+    justify-content: center;
+    user-select: none;
+}
+
+/* Elements */
+.dot {
+    width: 6px;
+    height: 6px;
+    background-color: #fff;
+    border-radius: 50%;
+    margin: auto;
+    position: relative;
+    z-index: 2;
+}
+
+.h-edge, .v-edge {
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.h-edge {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.h-edge::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.h-edge:hover::after {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.h-edge.line::after {
+    background: var(--neon-cyan);
+    height: 4px;
+    box-shadow: 0 0 5px var(--neon-cyan);
+}
+
+.h-edge.cross::after {
+    background: transparent;
+    content: '×';
+    color: #ff4444;
+    font-size: 14px;
+    line-height: 0;
+    height: auto;
+    text-align: center;
+}
+
+.v-edge {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v-edge::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.v-edge:hover::after {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.v-edge.line::after {
+    background: var(--neon-cyan);
+    width: 4px;
+    box-shadow: 0 0 5px var(--neon-cyan);
+}
+
+.v-edge.cross::after {
+    background: transparent;
+    content: '×';
+    color: #ff4444;
+    font-size: 14px;
+    line-height: 0;
+    width: auto;
+    text-align: center;
+}
+
+
+.cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--hologram-purple);
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer; /* for editing clues */
+}
+
+.cell.active {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.control-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.control-group input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    color: white;
+    padding: 5px;
+    border-radius: 4px;
+    width: 60px;
+    text-align: center;
+}
+
+.control-group label {
+    color: var(--neon-cyan);
+}
+
+.mode-controls button.active {
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.4) 0%,
+        rgba(179, 136, 255, 0.3) 100%);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(64, 224, 255, 0.3);
+}
+
+.message {
+    color: var(--hologram-purple);
+    min-height: 20px;
+    font-family: monospace;
+    text-align: center;
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

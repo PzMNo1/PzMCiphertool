@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balanceloop - 逻辑谜题</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/6_balanceloop.css">
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../index.html" class="btn back-btn">返回主页</a>
+
+    <!-- 标题区 -->
+    <div class="header">
+        <div class="title" style="font-size: 3.5rem;">BALANCELOOP</div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：控制面板 -->
+        <div class="controls">
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li>设置行列数并重置</li>
+                    <li>点击格子放置线索 (白/黑)</li>
+                    <li>再次点击同色线索可输入数字</li>
+                    <li><strong>线条模式</strong>: 点击改变线条形状</li>
+                    <li>右键清除格子</li>
+                </ul>
+            </div>
+
+            <!-- 网格设置 -->
+            <div class="config-row">
+                <label>Rows:</label>
+                <input type="number" id="rows-in" value="8" min="2" max="15" class="config-input">
+                <label>Cols:</label>
+                <input type="number" id="cols-in" value="8" min="2" max="15" class="config-input">
+                <button onclick="initGrid()" class="btn" style="padding: 0.8rem 1.5rem; font-size: 1rem;">重置网格</button>
+            </div>
+
+            <!-- 模式切换 -->
+            <div class="mode-switcher">
+                <div id="mode-clue_white" class="mode-opt active" onclick="setMode('clue_white')">⚪ 白圆</div>
+                <div id="mode-clue_black" class="mode-opt" onclick="setMode('clue_black')">⚫ 黑圆</div>
+                <div id="mode-line" class="mode-opt" onclick="setMode('line')">✏️ 线条</div>
+                <div id="mode-clear" class="mode-opt" onclick="setMode('clear')">❌ 清除</div>
+            </div>
+
+            <!-- 动作按钮 -->
+            <div class="action-controls">
+                <button onclick="solvePuzzle()" class="btn">启动计算核心</button>
+                <button onclick="clearGridState()" class="btn" style="margin-top: 1rem;">清空线条</button>
+            </div>
+            
+            <div id="status-msg">SYSTEM READY...</div>
+        </div>
+
+        <!-- 右侧：游戏网格 -->
+        <div class="logic-grid-wrapper" style="display: flex; justify-content: center; align-items: start;">
+            <div id="grid-container" class="balanceloop-grid-container">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">QUANTUM COMPUTING IN PROGRESS...</div>
+    </div>
+
+    <script src="./js/6_balanceloop.js"></script>
+</body>
+</html>

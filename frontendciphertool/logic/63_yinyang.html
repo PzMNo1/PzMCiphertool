@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yin Yang 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/63_yinyang.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Yin Yang 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By泡面的面</p>
+    </div>
+
+    <div class="container">
+        <div class="yinyang-container">
+            <div id="grid" class="yinyang-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2>控制面板</h2>
+            <div class="controls-row">
+                <label>Size: <input type="number" id="size" value="6" min="4" max="10" style="width: 50px;"></label>
+                <button class="btn" id="create-btn">创建</button>
+            </div>
+            <div class="controls-row">
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="reset-btn">重置</button>
+            </div>
+            <div id="status" style="text-align:center; margin-top:1rem; color:var(--neon-cyan);"></div>
+            <div style="margin-top:1rem; font-size:0.9rem; color:#aaa;">
+                点击格子设置初始线索（白 -> 黑 -> 空）。<br>
+                规则：<br>
+                1. 所有白色连通。<br>
+                2. 所有黑色连通。<br>
+                3. 没有2x2的同色区域。
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/63_yinyang.js"></script>
+</body>
+</html>

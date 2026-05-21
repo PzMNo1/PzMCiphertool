@@ -1,0 +1,98 @@
+.yajilin-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.yajilin-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.yajilin-cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--neon-cyan);
+    background: rgba(255,255,255,0.05);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+}
+
+.yajilin-cell.shaded {
+    background: #444;
+    border-color: #666;
+}
+
+.clue-cell {
+    background: rgba(64, 224, 255, 0.1);
+    font-weight: bold;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.arrow {
+    font-size: 0.7rem;
+}
+
+.clue-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%; height: 100%;
+    justify-content: center;
+}
+
+.clue-num {
+    width: 100%;
+    background: transparent; border: none;
+    text-align: center; color: inherit;
+    font-size: 0.9rem;
+}
+.clue-dir {
+    width: 100%;
+    background: transparent; border: none;
+    text-align: center; color: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+/* Loop */
+.loop-line {
+    position: absolute;
+    background: #40e0ff;
+    z-index: 5;
+}
+.line-h { height: 4px; top: 18px; }
+.line-v { width: 4px; left: 18px; }
+.line-l { left: 0; width: 20px; }
+.line-r { right: 0; width: 20px; }
+.line-t { top: 0; height: 20px; }
+.line-b { bottom: 0; height: 20px; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

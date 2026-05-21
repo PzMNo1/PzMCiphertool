@@ -1,0 +1,92 @@
+.tents-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tents-grid-wrapper {
+    display: grid;
+    /* template columns/rows set by JS */
+    gap: 2px;
+    padding: 1rem;
+    background: var(--quantum-glass);
+    border-radius: 16px;
+}
+
+.tents-cell {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    background: rgba(255,255,255,0.05);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.tents-cell:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.cell-tree::after {
+    content: '🌲';
+}
+
+.cell-tent::after {
+    content: '⛺';
+}
+
+.cell-grass::after {
+    content: '🟩'; /* Or just a green dot/square */
+    font-size: 0.8rem;
+    opacity: 0.5;
+}
+
+.clue-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: var(--neon-cyan);
+    background: transparent;
+    border: none;
+}
+
+.clue-input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    text-align: center;
+    color: var(--neon-cyan);
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.controls-row {
+    margin-top: 1rem;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

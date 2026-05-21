@@ -1,0 +1,672 @@
+:root {
+    --quantum-blue: rgba(64, 224, 255, 0.8);
+    --hologram-purple: rgba(179, 136, 255, 0.6);
+    --neon-cyan: rgba(0, 255, 231, 0.9);
+    --dark-matter: #0a0c17;
+    --quantum-glass: linear-gradient(145deg, 
+        rgba(255,255,255,0.08) 0%,
+        rgba(255,255,255,0.03) 100%);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background: var(--dark-matter);
+    color: rgba(255,255,255,0.92);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem;
+    perspective: 1000px;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    width: 200vw;
+    height: 200vh;
+    background: 
+        radial-gradient(circle at 70% 20%, 
+            var(--quantum-blue) 0%, 
+            transparent 50%),
+        radial-gradient(circle at 30% 80%, 
+            var(--hologram-purple) 0%, 
+            transparent 60%);
+    opacity: 0.15;
+    filter: blur(100px);
+    z-index: -1;
+    animation: quantumFlow 20s linear infinite;
+}
+
+@keyframes quantumFlow {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(0%, 0%) rotate(360deg); }
+}
+
+.header {
+    margin-bottom: 4rem;
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+.title {
+    font-size: 4.5rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, 
+        var(--neon-cyan),
+        var(--quantum-blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 50px rgba(64,224,255,0.3);
+    position: relative;
+    z-index: 2;
+}
+
+.title::after {
+    content: 'SUDOKU SOLVER';
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: transparent;
+    z-index: -1;
+    filter: blur(20px);
+    opacity: 0.7;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 4rem;
+    width: 100%;
+    max-width: 1600px;
+}
+
+/* 量子玻璃网格 */
+.logic-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 1px;
+    background: var(--quantum-glass);
+    padding: 2rem;
+    border-radius: 24px;
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 
+        0 8px 32px rgba(0,0,0,0.2),
+        0 0 30px var(--quantum-blue) inset;
+    position: relative;
+    transform: translateZ(30px);
+}
+
+/* Aquapelago网格样式 */
+#logic.aquapelago-grid {
+    grid-template-columns: repeat(8, 1fr);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.logic-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(145deg,
+        transparent 65%,
+        var(--neon-cyan) 100%);
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.sudoku-cell {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    font-size: 1.8rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--neon-cyan);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+}
+
+.sudoku-cell:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateZ(10px);
+}
+
+.sudoku-cell:nth-child(3n) {
+    border-right: 2px solid var(--quantum-blue);
+}
+
+.sudoku-cell:nth-child(n+19):nth-child(-n+27),
+.sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+    border-bottom: 2px solid var(--quantum-blue);
+}
+
+.sudoku-cell.fixed {
+    background: rgba(64,224,255,0.1);
+    color: var(--quantum-blue);
+    font-weight: 600;
+    text-shadow: 0 0 15px currentColor;
+}
+
+/* Aquapelago单元格样式 */
+.aquapelago-cell {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--neon-cyan);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    outline: none;
+}
+
+.aquapelago-cell:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateZ(10px);
+}
+
+.aquapelago-cell.shaded {
+    background: rgba(64,64,64,0.8);
+    border-color: rgba(128,128,128,0.5);
+}
+
+.aquapelago-cell.clue {
+    background: rgba(64,224,255,0.2);
+    border-color: rgba(64,224,255,0.5);
+    font-weight: bold;
+    color: white;
+}
+
+.aquapelago-cell.solution-shaded {
+    background: rgba(46, 204, 113, 0.3);
+    border-color: rgba(46, 204, 113, 0.5);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+}
+
+/* 控制面板 - 全息投影 */
+.controls {
+    background: var(--quantum-glass);
+    padding: 3rem;
+    border-radius: 24px;
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 
+        0 8px 32px rgba(0,0,0,0.2),
+        0 0 30px var(--hologram-purple) inset;
+    transform: translateZ(20px);
+}
+
+.controls .instructions {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(64, 224, 255, 0.2);
+}
+
+.controls .instructions p {
+    color: var(--neon-cyan);
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.controls .instructions ul {
+    padding-left: 1.5rem;
+    margin: 0;
+}
+
+.controls .instructions li {
+    margin: 0.3rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.action-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.action-controls .btn {
+    width: 100%;
+    margin: 0;
+}
+
+.btn {
+background: linear-gradient(135deg, 
+    rgba(64, 224, 255, 0.15) 0%,
+    rgba(179, 136, 255, 0.1) 100%);
+backdrop-filter: blur(12px);
+border: 1px solid rgba(255,255,255,0.3);
+border-bottom: 2px solid rgba(255,255,255,0.5);
+border-radius: 16px;
+padding: 1.8rem 3.2rem;
+color: rgba(255,255,255,0.95);
+font-weight: 600;
+letter-spacing: 1px;
+cursor: pointer;
+transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+position: relative;
+overflow: hidden;
+box-shadow:
+    0 8px 32px rgba(0,0,0,0.1),
+    0 0 20px rgba(64,224,255,0.05) inset;
+font-family: 'Orbitron', sans-serif; 
+font-size: 1.4rem;  
+font-weight: 500;
+letter-spacing: 2px; 
+text-shadow: 0 0 8px rgba(64,224,255,0.3);
+margin: 0 0.75rem;
+
+}
+
+.btn::before {
+content: '';
+position: absolute;
+top: -50%;
+left: -50%;
+width: 200%;
+height: 200%;
+background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(64,224,255,0.3) 50%,
+    transparent 55%
+);
+opacity: 0;
+animation: quantumStream 3s linear infinite;
+}
+
+@keyframes textPulse {
+0%, 100% { letter-spacing: 2px; }
+50% { letter-spacing: 3px; }
+}
+
+    /* 悬浮态 - 激活量子场 */
+.btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.25) 0%,
+        rgba(179, 136, 255, 0.2) 100%);
+    box-shadow:
+        0 12px 40px rgba(64,224,255,0.2),
+        0 0 30px rgba(179,136,255,0.15) inset;
+        text-shadow: 
+    0 0 12px rgba(64,224,255,0.5),
+    0 0 24px rgba(179,136,255,0.3);
+    animation: textPulse 1.5s ease-in-out infinite;
+}
+
+.btn:hover::before {
+opacity: 0.6;
+animation-duration: 1.5s;
+}
+
+.btn:active {
+    transform: translateY(0) scale(0.98);
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.3) 0%,
+        rgba(179, 136, 255, 0.25) 100%);
+    box-shadow:
+        0 4px 20px rgba(64,224,255,0.3),
+        0 0 40px rgba(179,136,255,0.2) inset;
+    }
+
+/* 能量光晕 */
+.btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: none;
+    mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    padding: 1px;
+    background: linear-gradient(45deg,
+        rgba(64,224,255,0.4),
+        rgba(179,136,255,0.3));
+}
+
+
+@keyframes hologramScan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 解决方案导航 */
+.solution-nav {
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.solution-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: linear-gradient(145deg,
+        rgba(64,224,255,0.1),
+        rgba(179,136,255,0.05));
+    border: 1px solid var(--quantum-blue);
+    color: var(--neon-cyan);
+    font-size: 2rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 15px rgba(64,224,255,0.1);
+}
+
+.solution-btn:hover {
+    background: linear-gradient(145deg,
+        rgba(64,224,255,0.2),
+        rgba(179,136,255,0.1));
+    transform: scale(1.1);
+    box-shadow: 
+        0 0 25px var(--quantum-blue),
+        inset 0 0 10px rgba(64,224,255,0.1);
+}
+
+.solution-btn:active {
+    transform: scale(0.95);
+}
+
+.solution-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    border: 1px solid rgba(64,224,255,0.3);
+    pointer-events: none;
+}
+
+/* 箭头光轨特效 */
+.solution-btn:hover::before {
+    content: '▶';
+    position: absolute;
+    color: var(--hologram-purple);
+    opacity: 0.3;
+    animation: arrowTrail 0.6s ease-out;
+}
+
+@keyframes arrowTrail {
+    0% { transform: translateX(0); opacity: 0; }
+    50% { transform: translateX(10px); opacity: 0.3; }
+    100% { transform: translateX(20px); opacity: 0; }
+}
+
+.solution-btn:first-child:hover::before {
+    content: '◀';
+    animation-direction: reverse;
+}
+
+.solution-counter {
+    font-size: 1.4rem;
+    font-weight: 300;
+    background: linear-gradient(45deg, 
+        var(--neon-cyan), 
+        var(--quantum-blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* 加载动画 - 量子漩涡 */
+.loading {
+    background: rgba(10,12,23,0.98);
+}
+
+.spinner {
+    width: 120px;
+    height: 120px;
+    border: 3px solid transparent;
+    border-top-color: var(--quantum-blue);
+    border-bottom-color: var(--hologram-purple);
+    border-radius: 50%;
+    position: relative;
+    animation: quantumSpin 1.5s linear infinite;
+}
+
+.spinner::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 3px solid transparent;
+    border-left-color: var(--neon-cyan);
+    border-right-color: var(--neon-cyan);
+    border-radius: 50%;
+    animation: quantumPulse 2s ease-in-out infinite;
+}
+
+.back-btn {
+    /* 定位系统 */
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    z-index: 1000;
+        
+    /* 继承主按钮样式 */
+    padding: 1.2rem 2.4rem;
+    font-size: 1.1rem;
+        
+    /* 专属星际符号设计 */
+    background: linear-gradient(145deg,
+        rgba(64,224,255,0.15) 20%,
+        rgba(179,136,255,0.1) 80%);
+    border: 1px solid rgba(64,224,255,0.3);
+        
+    /* 悬浮特效增强 */
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.back-btn::before {
+    /* 专属量子轨迹 */
+    background: linear-gradient(45deg,
+        transparent 40%,
+        rgba(64,224,255,0.3) 50%,
+        transparent 60%);
+    animation-duration: 2.5s;
+}
+
+.back-btn:hover {
+    /* 悬浮态变形 */
+    transform: translate(-5px, -2px) skewX(-5deg);
+    box-shadow: 
+        0 8px 40px rgba(64,224,255,0.3),
+        0 0 30px rgba(64,224,255,0.2) inset;
+}
+
+.back-btn:active {
+    /* 点击态压缩 */
+    transform: scale(0.95) skewX(0);
+}
+
+/* 符号动画 */
+@keyframes stargate {
+    0% { opacity: 0.8; }
+    100% { opacity: 0.2; transform: rotate(360deg); }
+}
+
+.back-btn::after {
+    content: "◈";
+    position: absolute;
+    right: -1.2em;
+    animation: stargate 3s linear infinite;
+    filter: drop-shadow(0 0 5px #40e0ff);
+}
+
+/* 量子复选框系统 */
+input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* 自定义量子选择器 */
+input[type="checkbox"] + span {
+    position: relative;
+    padding-left: 2.5em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 未选中状态 - 量子泡 */
+input[type="checkbox"] + span::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 1.8em;
+    height: 1.8em;
+    border: 2px solid var(--quantum-blue);
+    border-radius: 6px;
+    background: rgba(64,224,255,0.05);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s;
+    box-shadow: 0 0 10px rgba(64,224,255,0.1);
+}
+
+/* 选中状态 - 量子坍缩 */
+input[type="checkbox"]:checked + span::before {
+    background: linear-gradient(145deg, 
+        rgba(64,224,255,0.3), 
+        rgba(179,136,255,0.2));
+    border-color: var(--neon-cyan);
+}
+
+/* 量子纠缠指示器（对勾） */
+input[type="checkbox"]:checked + span::after {
+    content: '✓';
+    position: absolute;
+    left: 0.4em;
+    color: var(--neon-cyan);
+    font-size: 1.2em;
+    filter: drop-shadow(0 0 5px var(--quantum-blue));
+    animation: quantumCheck 0.4s ease-out;
+}
+
+@keyframes quantumCheck {
+    0% { transform: scale(0) rotate(-90deg); }
+    80% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+
+/* 悬浮态 - 量子激发 */
+input[type="checkbox"]:hover + span::before {
+    box-shadow: 
+        0 0 15px var(--quantum-blue),
+        inset 0 0 10px rgba(64,224,255,0.1);
+    transform: translateZ(5px);
+}
+
+/* 聚焦态 - 量子共振环 */
+input[type="checkbox"]:focus-visible + span::before {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 2px;
+}
+
+@keyframes quantumSpin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes quantumPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.5; }
+}
+
+@keyframes quantumStream {
+0% { transform: translate(-100%, -100%) rotate(45deg); }
+100% { transform: translate(100%, 100%) rotate(45deg); }
+}
+
+/* 加载动画样式 */
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10,12,23,0.9);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.loading .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--neon-cyan);
+    animation: spin 1s ease-in-out infinite;
+}
+
+.loading .loading-text {
+    color: var(--neon-cyan);
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 1440px) {
+    .container {
+        grid-template-columns: 1fr;
+        max-width: 1000px;
+    }
+    
+    .logic-grid {
+        order: 2;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 2rem 1rem;
+    }
+    
+    .title {
+        font-size: 3.5rem;
+    }
+    
+    .sudoku-cell {
+        font-size: 1.4rem;
+        padding: 0.5rem;
+    }
+    
+    .controls {
+        padding: 2rem;
+    }
+
+    .btn {
+    font-size: 1.2rem;  
+    padding: 1.5rem 2.5rem;
+    }
+    
+    .aquapelago-cell {
+        font-size: 1.2rem;
+    }
+}

@@ -1,0 +1,95 @@
+/* Starbattle CSS */
+.game-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    user-select: none;
+}
+
+.grid-wrapper {
+    display: grid;
+    gap: 0;
+    background: #1a1a24;
+    border: 2px solid #555;
+}
+
+.cell {
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
+}
+
+.cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.cell.star::after {
+    content: '★';
+    color: var(--neon-cyan);
+    text-shadow: 0 0 5px var(--neon-cyan);
+}
+
+.cell.cross::after {
+    content: '×';
+    color: #ff4444;
+    font-size: 1.2rem;
+}
+
+/* Region Borders */
+.cell.border-top { border-top: 2px solid #fff; }
+.cell.border-bottom { border-bottom: 2px solid #fff; }
+.cell.border-left { border-left: 2px solid #fff; }
+.cell.border-right { border-right: 2px solid #fff; }
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.control-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.control-group input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(64, 224, 255, 0.3);
+    color: white;
+    padding: 5px;
+    border-radius: 4px;
+    width: 60px;
+    text-align: center;
+}
+
+.control-group label {
+    color: var(--neon-cyan);
+}
+
+.mode-controls button.active {
+    background: linear-gradient(135deg, 
+        rgba(64, 224, 255, 0.4) 0%,
+        rgba(179, 136, 255, 0.3) 100%);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(64, 224, 255, 0.3);
+}
+
+.message {
+    color: var(--hologram-purple);
+    min-height: 20px;
+    font-family: monospace;
+    text-align: center;
+}

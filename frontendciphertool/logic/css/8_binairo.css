@@ -1,0 +1,100 @@
+/* Binairo Specific Styles */
+:root {
+    --bi-cell-size: 45px;
+    --bi-color-0: #ffffff; /* White circle */
+    --bi-color-1: #333333; /* Black circle */
+    --bi-bg-color-0: rgba(255, 255, 255, 0.1);
+    --bi-bg-color-1: rgba(0, 0, 0, 0.3);
+}
+
+.binairo-grid-container {
+    display: inline-grid;
+    gap: 1px;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bi-cell {
+    width: var(--bi-cell-size);
+    height: var(--bi-cell-size);
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.bi-cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Fixed clues */
+.bi-cell.fixed {
+    background: rgba(0, 0, 0, 0.4);
+    cursor: default;
+}
+
+/* Circles */
+.bi-circle {
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bi-circle.val-0 { /* 0 -> White */
+    background: var(--bi-color-0);
+    border: 2px solid #ddd;
+}
+
+.bi-circle.val-1 { /* 1 -> Black */
+    background: var(--bi-color-1);
+    border: 2px solid #555;
+}
+
+/* Animation for placement */
+.bi-circle.new {
+    animation: popIn 0.3s ease-out;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    80% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Error indication */
+.bi-cell.error .bi-circle {
+    box-shadow: 0 0 10px #ff4444;
+    border-color: #ff4444;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

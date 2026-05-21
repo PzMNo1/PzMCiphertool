@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuribou 求解器</title>
+    <link rel="stylesheet" href="./css/logic.css">
+    <link rel="stylesheet" href="./css/42_nuribou.css">
+</head>
+<body>
+    <a href="../index.html" class="btn back-btn">◈ 返回</a>
+    <div class="header">
+        <h1 class="title">Nuribou 求解器</h1>
+        <p style="margin-top: 1rem; opacity: 0.8;">By 泡面的面</p>
+    </div>
+    
+    <div class="container">
+        <div class="grid-wrapper">
+            <div class="logic-grid" id="nuribou-grid"></div>
+        </div>
+
+        <div class="controls">
+            <h2 style="margin-bottom: 1.5rem; color: var(--neon-cyan);">控制面板</h2>
+            
+            <div class="instructions">
+                <p>操作指南_</p>
+                <ul>
+                    <li><strong>输入线索</strong>: 输入数字表示白色区域大小。</li>
+                    <li><strong>标记阴影</strong>: 右键点击或使用模式切换标记黑色区域。</li>
+                    <li><strong>规则</strong>: 黑色区域必须形如宽为1的线条 (Sticks)。</li>
+                </ul>
+            </div>
+
+            <div class="config-row" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <label>Rows:</label>
+                <input type="number" id="grid-rows" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+                <label>Cols:</label>
+                <input type="number" id="grid-cols" value="10" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:0.3rem; text-align:center;">
+            </div>
+
+            <div class="action-controls">
+                <button class="btn" id="create-grid">重置网格</button>
+                <button class="btn" id="solve-btn">求解</button>
+                <button class="btn" id="clear-btn">清空</button>
+            </div>
+
+            <h3 style="margin-top:1rem; margin-bottom:0.5rem; color:rgba(255,255,255,0.7);">输入面板</h3>
+            <div class="numpad">
+                <button class="num-btn">1</button><button class="num-btn">2</button><button class="num-btn">3</button>
+                <button class="num-btn">4</button><button class="num-btn">5</button><button class="num-btn">6</button>
+                <button class="num-btn">7</button><button class="num-btn">8</button><button class="num-btn">9</button>
+                <button class="num-btn" style="grid-column:span 3">Delete</button>
+            </div>
+
+            <div id="result-message" style="margin-top: 1rem; color: var(--hologram-purple);"></div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">COMPUTING...</div>
+    </div>
+
+    <script src="./js/42_nuribou.js"></script>
+</body>
+</html>

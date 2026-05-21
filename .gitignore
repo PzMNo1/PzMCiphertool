@@ -1,0 +1,32 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Sensitive files
+llm.txt
+
+# Build artifacts
+*.exe
+*.class
+target/
+
+# Node
+node_modules/
+
+# Claude/AI
+.claude/
+
+# Gemini
+.gemini/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
