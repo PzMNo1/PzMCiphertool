@@ -745,6 +745,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/38_ncells.js',
         './logic/logicdiv/39_nonogram_ui.js',
         './logic/js/39_nonogram.js',
+        './logic/logicdiv/40_norinori_ui.js',
+        './logic/js/40_norinori.js',
+        './logic/logicdiv/41_numberlink_ui.js',
+        './logic/js/41_numberlink.js',
     ];
 
     const loadVersion = new Date().getTime();

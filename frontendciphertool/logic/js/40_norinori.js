@@ -1,157 +1,92 @@
-// norinori.js
-
-document.addEventListener('DOMContentLoaded', function() {
-    const gridEl = document.getElementById('norinori-grid');
-    const rInput = document.getElementById('grid-rows');
-    const cInput = document.getElementById('grid-cols');
-    const createBtn = document.getElementById('create-grid');
-    const solveBtn = document.getElementById('solve-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const msg = document.getElementById('result-message');
-    const loading = document.getElementById('loading');
-    const toolBtns = document.querySelectorAll('.tool-btn');
-    
-    let rows = 10;
-    let cols = 10;
-    let gridData = []; // { borders: {t,b,l,r}, state: 'shaded'|'unshaded' }
-    let currentMode = 'border'; // 'border' or 'shade'
-
-    initGrid(rows, cols);
-
-    createBtn.addEventListener('click', () => initGrid(parseInt(rInput.value), parseInt(cInput.value)));
-    
-    clearBtn.addEventListener('click', () => {
-        gridData.forEach(row => row.forEach(cell => {
-            cell.state = 'unshaded';
-            cell.borders = {t:false, b:false, l:false, r:false};
-        }));
-        // Reset to default borders
-        for(let i=0; i<rows; i++) {
-            gridData[i][0].borders.l = true;
-            gridData[i][cols-1].borders.r = true;
+/* 40_norinori.js — window.solveNorinori({rows,cols,hBorders,vBorders}) → {solutions,timeout}
+ * solution = bool[R][C] (true=shaded)
+ * Rules: each region has exactly 2 shaded cells; each shaded cell has exactly 1 shaded neighbor (dominoes) */
+window.solveNorinori = function ({ rows: R, cols: C, hBorders: hB, vBorders: vB }) {
+    const TM = 3500, MX = 20, t0 = performance.now(), N = R * C;
+    let out = false;
+    // BFS regions
+    const regOf = new Int16Array(N).fill(-1), regs = [];
+    for (let i = 0; i < N; i++) {
+        if (regOf[i] >= 0) continue;
+        const id = regs.length, q = [i], cells = []; regOf[i] = id;
+        while (q.length) {
+            const p = q.shift(), r = p / C | 0, c = p % C; cells.push(p);
+            const go = n => { if (regOf[n] < 0) { regOf[n] = id; q.push(n); } };
+            if (r > 0 && !hB[r - 1][c]) go(p - C);
+            if (r < R - 1 && !hB[r][c]) go(p + C);
+            if (c > 0 && !vB[r][c - 1]) go(p - 1);
+            if (c < C - 1 && !vB[r][c]) go(p + 1);
         }
-        for(let j=0; j<cols; j++) {
-            gridData[0][j].borders.t = true;
-            gridData[rows-1][j].borders.b = true;
-        }
-        renderAll();
-    });
+        regs.push(cells);
+    }
+    const G = new Uint8Array(N); // 0=unk, 1=shaded, 2=unshaded
+    const regShaded = new Uint8Array(regs.length);
 
-    toolBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            toolBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentMode = btn.dataset.mode;
-        });
-    });
+    function neighbors(p) {
+        const r = p / C | 0, c = p % C, nb = [];
+        if (r > 0) nb.push(p - C); if (r < R - 1) nb.push(p + C);
+        if (c > 0) nb.push(p - 1); if (c < C - 1) nb.push(p + 1);
+        return nb;
+    }
 
-    function initGrid(r, c) {
-        rows = r; cols = c;
-        gridEl.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
-        gridEl.innerHTML = '';
-        
-        gridData = Array(r).fill().map(() => Array(c).fill(null).map(() => ({
-            borders: {t:false, b:false, l:false, r:false},
-            state: 'unshaded'
-        })));
-        
-        // Outer borders
-        for(let i=0; i<r; i++) {
-            gridData[i][0].borders.l = true;
-            gridData[i][c-1].borders.r = true;
-        }
-        for(let j=0; j<c; j++) {
-            gridData[0][j].borders.t = true;
-            gridData[r-1][j].borders.b = true;
-        }
+    function ok(p) {
+        if (G[p] !== 1) return true;
+        // shaded: count shaded neighbors
+        const nb = neighbors(p);
+        let sn = 0, un = 0;
+        for (const np of nb) { if (G[np] === 1) sn++; else if (G[np] === 0) un++; }
+        if (sn > 1) return false; // too many shaded neighbors
+        if (sn + un < 1) return false; // can't get even 1 shaded neighbor
+        return true;
+    }
 
-        for(let i=0; i<r; i++) {
-            for(let j=0; j<c; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'norinori-cell';
-                cell.dataset.r = i;
-                cell.dataset.c = j;
-                
-                // Events
-                cell.addEventListener('click', (e) => handleCellClick(i, j, e, cell));
-                cell.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleShade(i, j); });
-                
-                gridEl.appendChild(cell);
+    const res = [];
+    function solve(idx) {
+        if (out || res.length >= MX) return;
+        if (!(idx & 31) && performance.now() - t0 > TM) { out = true; return; }
+        if (idx === N) {
+            // final: each shaded cell must have exactly 1 shaded neighbor
+            for (let i = 0; i < N; i++) {
+                if (G[i] !== 1) continue;
+                let sn = 0;
+                for (const np of neighbors(i)) if (G[np] === 1) sn++;
+                if (sn !== 1) return;
             }
+            res.push(G.slice());
+            return;
         }
-        renderAll();
-    }
-
-    function handleCellClick(r, c, e, cell) {
-        if (currentMode === 'border') {
-            const rect = cell.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const w = rect.width;
-            const h = rect.height;
-            const threshold = 15; // wider threshold for easier clicking
-
-            if (x < threshold && c > 0) toggleBorder(r, c, 'l');
-            else if (x > w - threshold && c < cols-1) toggleBorder(r, c, 'r');
-            else if (y < threshold && r > 0) toggleBorder(r, c, 't');
-            else if (y > h - threshold && r < rows-1) toggleBorder(r, c, 'b');
-        } else {
-            toggleShade(r, c);
+        const rid = regOf[idx];
+        const regCells = regs[rid];
+        const remaining = regCells.filter(p => p > idx && G[p] === 0).length;
+        // try shaded
+        if (regShaded[rid] < 2) {
+            G[idx] = 1; regShaded[rid]++;
+            if (ok(idx)) {
+                // check neighbors still ok
+                let pass = true;
+                for (const np of neighbors(idx)) if (!ok(np)) { pass = false; break; }
+                if (pass) solve(idx + 1);
+            }
+            regShaded[rid]--; G[idx] = 0;
+            if (out || res.length >= MX) return;
+        }
+        // try unshaded
+        if (regShaded[rid] + remaining >= 2) { // enough room to reach 2
+            G[idx] = 2;
+            // if shaded and now we skip, check neighbors still have room for a partner
+            let pass = true;
+            for (const np of neighbors(idx)) if (!ok(np)) { pass = false; break; }
+            if (pass) solve(idx + 1);
+            G[idx] = 0;
         }
     }
-
-    function toggleBorder(r, c, side) {
-        const d = gridData[r][c];
-        if (side === 'l' && c > 0) {
-            const v = !d.borders.l;
-            d.borders.l = v;
-            gridData[r][c-1].borders.r = v;
-        } else if (side === 'r' && c < cols-1) {
-            const v = !d.borders.r;
-            d.borders.r = v;
-            gridData[r][c+1].borders.l = v;
-        } else if (side === 't' && r > 0) {
-            const v = !d.borders.t;
-            d.borders.t = v;
-            gridData[r-1][c].borders.b = v;
-        } else if (side === 'b' && r < rows-1) {
-            const v = !d.borders.b;
-            d.borders.b = v;
-            gridData[r+1][c].borders.t = v;
-        }
-        renderAll();
-    }
-
-    function toggleShade(r, c) {
-        const s = gridData[r][c].state;
-        gridData[r][c].state = s === 'shaded' ? 'unshaded' : 'shaded';
-        renderCell(r, c);
-    }
-
-    function renderCell(r, c) {
-        const cell = document.querySelector(`.norinori-cell[data-r="${r}"][data-c="${c}"]`);
-        if (!cell) return;
-        const d = gridData[r][c];
-        
-        cell.className = 'norinori-cell';
-        if (d.borders.t) cell.classList.add('border-top');
-        if (d.borders.b) cell.classList.add('border-bottom');
-        if (d.borders.l) cell.classList.add('border-left');
-        if (d.borders.r) cell.classList.add('border-right');
-        if (d.state === 'shaded') cell.classList.add('shaded');
-    }
-
-    function renderAll() {
-        for(let i=0; i<rows; i++) for(let j=0; j<cols; j++) renderCell(i, j);
-    }
-
-    solveBtn.addEventListener('click', () => {
-        loading.style.display = 'flex';
-        msg.textContent = 'Solving...';
-        setTimeout(() => {
-            loading.style.display = 'none';
-            msg.textContent = 'Solution placeholder (Norinori uses region constraints).';
-        }, 500);
-    });
-});
-
+    solve(0);
+    return {
+        solutions: res.map(g => {
+            const s = [];
+            for (let r = 0; r < R; r++) { s.push([]); for (let c = 0; c < C; c++) s[r].push(g[r * C + c] === 1); }
+            return s;
+        }),
+        timeout: out
+    };
+};
