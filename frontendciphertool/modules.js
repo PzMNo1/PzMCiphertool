@@ -749,6 +749,14 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/40_norinori.js',
         './logic/logicdiv/41_numberlink_ui.js',
         './logic/js/41_numberlink.js',
+        './logic/logicdiv/42_nuribou_ui.js',
+        './logic/js/42_nuribou.js',
+        './logic/logicdiv/43_nurikabe_ui.js',
+        './logic/js/43_nurikabe.js',
+        './logic/logicdiv/44_nurimisaki_ui.js',
+        './logic/js/44_nurimisaki.js',
+        './logic/logicdiv/45_onsen_ui.js',
+        './logic/js/45_onsen.js',
     ];
 
     const loadVersion = new Date().getTime();

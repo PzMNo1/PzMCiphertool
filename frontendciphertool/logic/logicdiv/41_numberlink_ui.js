@@ -9,9 +9,13 @@
         window.LogicUI.backButton('numberlink-workspace') +
         window.LogicUI.title('NUMBERLINK', { color: 'var(--neon-cyan)' }) +
         window.LogicUI.sizeInputs('nl-rows', 'nl-cols', { rowVal: 5, colVal: 5, rowMin: 3, colMin: 3, rowMax: 10, colMax: 10 }) +
-        `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
-            <label style="color:#aaa;font-size:.85rem">
-                <input type="checkbox" id="nl-useall" checked style="accent-color:#0ff;margin-right:4px">填满所有格子
+        `<div style="display:flex;align-items:center;gap:10px;margin:8px 0">
+            <label class="nl-toggle-label" for="nl-useall">
+                <div class="nl-toggle-track">
+                    <input type="checkbox" id="nl-useall" checked>
+                    <span class="nl-toggle-knob"></span>
+                </div>
+                <span class="nl-toggle-text">填满所有格子</span>
             </label>
         </div>` +
         window.LogicUI.actionGrid4([
@@ -23,7 +27,10 @@
         window.LogicUI.statsPanel('nl', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('nl', 'showNLSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
-            '左键点击格子: 输入数字(1-9), 相同数字成对',
+            '点击格子选中, 键盘输入数字(1-9), 相同数字成对',
+            'Delete/Backspace: 清除选中格',
+            '方向键: 移动选中格',
+            'Escape: 取消选中',
             '右键: 清除该格',
             '求解后显示连线路径',
             '路径不可交叉, 可勾选"填满所有格子"'
@@ -32,12 +39,21 @@
         `.nl-grid{display:inline-grid;gap:0}
         .nl-cell{width:40px;height:40px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;font-size:1.1rem;color:#fff;user-select:none;position:relative;box-sizing:border-box;transition:background .1s}
         .nl-cell:hover{background:rgba(0,255,231,.08)}
-        .nl-cell.selected{box-shadow:inset 0 0 0 2px #0ff}
+        .nl-cell.selected{box-shadow:inset 0 0 0 2px #0ff;background:rgba(0,255,231,.12)}
         .nl-path{position:absolute;pointer-events:none}
         .nl-path.seg-h{height:6px;top:17px;border-radius:3px}
         .nl-path.seg-v{width:6px;left:17px;border-radius:3px}
         .nl-path.seg-dot{width:14px;height:14px;border-radius:50%;top:13px;left:13px}
-        .nl-clue-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#111;z-index:2}`
+        .nl-clue-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#111;z-index:2}
+        .nl-toggle-label{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+        .nl-toggle-track{position:relative;width:42px;height:22px;background:rgba(255,255,255,.1);border-radius:11px;border:1px solid rgba(255,255,255,.15);transition:all .3s ease;flex-shrink:0}
+        .nl-toggle-track:hover{border-color:rgba(0,255,231,.4)}
+        .nl-toggle-track input{position:absolute;opacity:0;width:0;height:0}
+        .nl-toggle-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#666;transition:all .3s ease;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+        .nl-toggle-track input:checked~.nl-toggle-knob{left:22px;background:#0ff;box-shadow:0 0 8px rgba(0,255,231,.6)}
+        .nl-toggle-track input:checked+.nl-toggle-knob+*,.nl-toggle-track:has(input:checked){background:rgba(0,255,231,.15);border-color:rgba(0,255,231,.4)}
+        .nl-toggle-text{color:#aaa;font-size:.85rem;transition:color .3s ease}
+        .nl-toggle-label:hover .nl-toggle-text{color:#ccc}`
     ));
 
     const $ = id => document.getElementById(id), S = 40;
@@ -119,17 +135,10 @@
             }
             if (!showing) {
                 cell.addEventListener('click', () => {
-                    if (selected && selected.r === r && selected.c === c) {
-                        // cycle number
-                        const cur = clues[k] || 0;
-                        if (cur < 9) clues[k] = cur + 1; else delete clues[k];
-                    } else {
-                        selected = { r, c };
-                        if (!(k in clues)) clues[k] = 1;
-                    }
+                    selected = { r, c };
                     render();
                 });
-                cell.addEventListener('contextmenu', e => { e.preventDefault(); delete clues[k]; render(); });
+                cell.addEventListener('contextmenu', e => { e.preventDefault(); delete clues[k]; if (selected && selected.r === r && selected.c === c) selected = null; render(); });
                 if (selected && selected.r === r && selected.c === c) cell.classList.add('selected');
             }
             g.appendChild(cell);
@@ -137,13 +146,52 @@
         ct.appendChild(g);
     }
 
+    /* ── keyboard handler for number input ── */
+    function handleNLKeydown(e) {
+        if (showing) return;
+        if (!selected) return;
+        const { r, c } = selected;
+        const k = r + ',' + c;
+        // number keys 1-9 (main keyboard & numpad)
+        const num = parseInt(e.key, 10);
+        if (num >= 1 && num <= 9) {
+            e.preventDefault();
+            clues[k] = num;
+            // auto-advance to next cell (right, or wrap to next row)
+            if (c < C - 1) selected = { r, c: c + 1 };
+            else if (r < R - 1) selected = { r: r + 1, c: 0 };
+            render();
+            return;
+        }
+        // delete / backspace – clear cell
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            delete clues[k];
+            render();
+            return;
+        }
+        // arrow keys – move selection
+        if (e.key === 'ArrowUp'    && r > 0)     { e.preventDefault(); selected = { r: r - 1, c }; render(); return; }
+        if (e.key === 'ArrowDown'  && r < R - 1) { e.preventDefault(); selected = { r: r + 1, c }; render(); return; }
+        if (e.key === 'ArrowLeft'  && c > 0)     { e.preventDefault(); selected = { r, c: c - 1 }; render(); return; }
+        if (e.key === 'ArrowRight' && c < C - 1) { e.preventDefault(); selected = { r, c: c + 1 }; render(); return; }
+        // escape – deselect
+        if (e.key === 'Escape') { e.preventDefault(); selected = null; render(); return; }
+        // 0 key – clear cell (treat 0 as erase)
+        if (e.key === '0') { e.preventDefault(); delete clues[k]; render(); return; }
+    }
+    document.addEventListener('keydown', handleNLKeydown);
+
     window.initNLGrid = () => { readSize(); reset(); clues = {}; selected = null; render(); stats('-', '-'); nav(false); };
     window.clearNLGrid = () => { reset(); clues = {}; selected = null; render(); stats('-', '-'); nav(false); };
     window.buildSimpleNLExample = () => {
         R = 5; C = 5; const ri = $('nl-rows'), ci = $('nl-cols'); if (ri) ri.value = 5; if (ci) ci.value = 5;
         reset(); selected = null;
-        // 3 pairs on a 5x5 grid
-        clues = { '0,0': 1, '4,4': 1, '0,4': 2, '4,0': 2, '2,0': 3, '2,4': 3 };
+        // 3 pairs on a 5x5 grid – verified solvable with useAll
+        // Path 1: (0,0)→row0→(0,4)→(1,4)→(2,4)→(3,4)→(4,4)  [9 cells]
+        // Path 2: (1,0)→(1,1)→(1,2)→(1,3)→(2,3)→(3,3)→(4,3)→(4,2)→(4,1)→(4,0)  [10 cells]
+        // Path 3: (2,0)→(2,1)→(2,2)→(3,2)→(3,1)→(3,0)  [6 cells]
+        clues = { '0,0': 1, '4,4': 1, '1,0': 2, '4,0': 2, '2,0': 3, '3,0': 3 };
         render(); stats('-', '-'); nav(false);
     };
 

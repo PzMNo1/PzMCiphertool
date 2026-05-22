@@ -1,198 +1,113 @@
-// onsen.js
+window.solveOnsen = function (puzzle) {
+    const { rows: R, cols: C, clues, rooms } = puzzle;
+    const TL = 3500, MX = 20, t0 = performance.now(), N = R * C;
+    let out = false;
+    const K = Object.keys(clues).length; if (!K) return { solutions: [], timeout: false };
+    const ca = {}, clist = []; let lid = 1;
+    for (const k in clues) { const [r, c] = k.split(',').map(Number); const p = r * C + c; ca[p] = { v: clues[k], id: lid }; clist.push({ p, v: clues[k], id: lid++ }); }
+    const rm = new Uint8Array(N); // room index per cell
+    rooms.forEach((room, i) => room.forEach(p => rm[p] = i));
+    const NR = rooms.length;
+    // Connection bitmask: UP=1 RIGHT=2 DOWN=4 LEFT=8
+    const MASKS = [3, 5, 6, 9, 10, 12]; // valid 2-edge combos
+    const vm = new Array(N);
+    for (let i = 0; i < N; i++) {
+        const r = (i / C) | 0, c = i % C, v = [0];
+        for (const m of MASKS) {
+            if ((m & 1) && r === 0) continue; if ((m & 2) && c === C - 1) continue;
+            if ((m & 4) && r === R - 1) continue; if ((m & 8) && c === 0) continue; v.push(m);
+        } vm[i] = v;
+    }
+    const G = new Int8Array(N).fill(-1), L = new Int8Array(N).fill(0); // mask, loop id
+    const rcnt = Array.from({ length: NR }, () => new Int8Array(K + 1)); // rcnt[room][lid] = count
 
-document.addEventListener('DOMContentLoaded', function() {
-    const gridEl = document.getElementById('onsen-grid');
-    const rInput = document.getElementById('grid-rows');
-    const cInput = document.getElementById('grid-cols');
-    const createBtn = document.getElementById('create-grid');
-    const solveBtn = document.getElementById('solve-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const msg = document.getElementById('result-message');
-    const numBtns = document.querySelectorAll('.num-btn');
-    const toolBtns = document.querySelectorAll('.tool-btn');
-    const loading = document.getElementById('loading');
-    
-    let rows = 10;
-    let cols = 10;
-    let gridData = []; 
-    let currentMode = 'border'; // 'border' or 'number'
-    let selectedCell = null;
-
-    initGrid(rows, cols);
-
-    createBtn.addEventListener('click', () => initGrid(parseInt(rInput.value), parseInt(cInput.value)));
-    
-    clearBtn.addEventListener('click', () => {
-        gridData.forEach(row => row.forEach(cell => {
-            cell.val = null;
-            cell.borders = {t:false, b:false, l:false, r:false};
-        }));
-        // Reset outer borders
-        setOuterBorders();
-        renderAll();
-    });
-
-    toolBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            toolBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentMode = btn.dataset.mode;
-            // Clear selection if switching to border
-            if(currentMode === 'border') {
-                if(document.querySelector('.active-input')) 
-                    document.querySelector('.active-input').classList.remove('active-input');
-                selectedCell = null;
+    function val() {
+        // Each loop must form exactly one closed cycle
+        for (const cl of clist) {
+            let cur = cl.p, prev = -1, steps = 0;
+            do {
+                steps++;
+                const m = G[cur], r = (cur / C) | 0, c = cur % C;
+                const dirs = [[r - 1, c, 1, 4], [r, c + 1, 2, 8], [r + 1, c, 4, 1], [r, c - 1, 8, 2]];
+                let next = -1;
+                for (const [nr, nc, bit, opp] of dirs) {
+                    if (!(m & bit)) continue;
+                    const np = nr * C + nc;
+                    if (np !== prev && L[np] === cl.id) { next = np; break; }
+                }
+                if (next < 0) return false;
+                prev = cur; cur = next;
+            } while (cur !== cl.p);
+            // Count cells in this loop
+            let total = 0; for (let i = 0; i < N; i++) if (L[i] === cl.id) total++;
+            if (steps !== total) return false;
+        }
+        // Every room visited, room counts match
+        for (let ri = 0; ri < NR; ri++) {
+            let hit = false;
+            for (let k = 1; k <= K; k++) {
+                const cnt = rcnt[ri][k];
+                if (cnt > 0) { hit = true; if (cnt !== clist[k - 1].v) return false; }
             }
-        });
-    });
-
-    function initGrid(r, c) {
-        rows = r; cols = c;
-        gridEl.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
-        gridEl.innerHTML = '';
-        
-        gridData = Array(r).fill().map(() => Array(c).fill(null).map(() => ({
-            val: null,
-            borders: {t:false, b:false, l:false, r:false}
-        })));
-        
-        setOuterBorders();
-
-        for(let i=0; i<r; i++) {
-            for(let j=0; j<c; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'onsen-cell';
-                cell.dataset.r = i;
-                cell.dataset.c = j;
-                cell.addEventListener('click', (e) => handleCellClick(i, j, e, cell));
-                gridEl.appendChild(cell);
+            if (!hit) return false;
+        }
+        // No re-entrance: in each room, cells of same loop must be contiguous
+        for (let k = 1; k <= K; k++) {
+            for (let ri = 0; ri < NR; ri++) {
+                if (rcnt[ri][k] === 0) continue;
+                const cells = rooms[ri].filter(p => L[p] === k);
+                // BFS connectivity within room
+                const vis = new Set([cells[0]]); const q = [cells[0]];
+                while (q.length) {
+                    const p = q.pop(), r = (p / C) | 0, c = p % C;
+                    const m = G[p];
+                    for (const [nr, nc, bit] of [[r - 1, c, 1], [r, c + 1, 2], [r + 1, c, 4], [r, c - 1, 8]]) {
+                        if (!(m & bit)) continue;
+                        const np = nr * C + nc;
+                        if (L[np] === k && rm[np] === ri && !vis.has(np)) { vis.add(np); q.push(np); }
+                    }
+                }
+                if (vis.size !== cells.length) return false;
             }
         }
-        selectedCell = null;
-        renderAll();
+        return true;
     }
 
-    function setOuterBorders() {
-        for(let i=0; i<rows; i++) {
-            gridData[i][0].borders.l = true;
-            gridData[i][cols-1].borders.r = true;
-        }
-        for(let j=0; j<cols; j++) {
-            gridData[0][j].borders.t = true;
-            gridData[rows-1][j].borders.b = true;
-        }
-    }
-
-    function handleCellClick(r, c, e, cell) {
-        if (currentMode === 'border') {
-            const rect = cell.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const w = rect.width;
-            const h = rect.height;
-            const threshold = 15;
-
-            if (x < threshold && c > 0) toggleBorder(r, c, 'l');
-            else if (x > w - threshold && c < cols-1) toggleBorder(r, c, 'r');
-            else if (y < threshold && r > 0) toggleBorder(r, c, 't');
-            else if (y > h - threshold && r < rows-1) toggleBorder(r, c, 'b');
-        } else {
-            selectCell(r, c);
-        }
-    }
-
-    function toggleBorder(r, c, side) {
-        const d = gridData[r][c];
-        if (side === 'l' && c > 0) {
-            const v = !d.borders.l;
-            d.borders.l = v;
-            gridData[r][c-1].borders.r = v;
-        } else if (side === 'r' && c < cols-1) {
-            const v = !d.borders.r;
-            d.borders.r = v;
-            gridData[r][c+1].borders.l = v;
-        } else if (side === 't' && r > 0) {
-            const v = !d.borders.t;
-            d.borders.t = v;
-            gridData[r-1][c].borders.b = v;
-        } else if (side === 'b' && r < rows-1) {
-            const v = !d.borders.b;
-            d.borders.b = v;
-            gridData[r+1][c].borders.t = v;
-        }
-        renderAll();
-    }
-
-    function selectCell(r, c) {
-        const prev = document.querySelector('.onsen-cell.active-input');
-        if (prev) prev.classList.remove('active-input');
-        selectedCell = {r, c};
-        const cell = document.querySelector(`.onsen-cell[data-r="${r}"][data-c="${c}"]`);
-        if (cell) cell.classList.add('active-input');
-    }
-
-    function setNumber(num) {
-        if (!selectedCell) return;
-        const {r, c} = selectedCell;
-        gridData[r][c].val = num;
-        renderCell(r, c);
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (!selectedCell) return;
-        if (e.key >= '0' && e.key <= '9') setNumber(parseInt(e.key));
-        else if (e.key === 'Backspace' || e.key === 'Delete') setNumber(null);
-        
-        // Arrows
-        if (e.key.startsWith('Arrow')) {
-            let {r, c} = selectedCell;
-            if (e.key === 'ArrowUp' && r > 0) r--;
-            if (e.key === 'ArrowDown' && r < rows-1) r++;
-            if (e.key === 'ArrowLeft' && c > 0) c--;
-            if (e.key === 'ArrowRight' && c < cols-1) c++;
-            selectCell(r, c);
-        }
-    });
-
-    numBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const txt = btn.textContent;
-            if (txt === 'Delete') setNumber(null);
-            else setNumber(parseInt(txt));
-        });
-    });
-
-    function renderCell(r, c) {
-        const cell = document.querySelector(`.onsen-cell[data-r="${r}"][data-c="${c}"]`);
-        if (!cell) return;
-        const d = gridData[r][c];
-        
-        cell.className = 'onsen-cell';
-        if (d.borders.t) cell.classList.add('border-top');
-        if (d.borders.b) cell.classList.add('border-bottom');
-        if (d.borders.l) cell.classList.add('border-left');
-        if (d.borders.r) cell.classList.add('border-right');
-        if (selectedCell && selectedCell.r === r && selectedCell.c === c) cell.classList.add('active-input');
-        
-        if (d.val !== null) {
-            cell.textContent = d.val;
-            cell.classList.add('clue');
-        } else {
-            cell.textContent = '';
+    const res = [];
+    function dfs(idx) {
+        if (out || res.length >= MX) return;
+        if (!(idx & 15) && performance.now() - t0 > TL) { out = true; return; }
+        while (idx < N && G[idx] !== -1) idx++;
+        if (idx === N) { if (val()) { const s = []; for (let r = 0; r < R; r++) { const row = []; for (let c = 0; c < C; c++) row.push({ m: G[r * C + c], l: L[r * C + c] }); s.push(row); } res.push(s); } return; }
+        const r = (idx / C) | 0, c = idx % C;
+        const ai = r > 0 ? idx - C : -1, li = c > 0 ? idx - 1 : -1;
+        const mU = ai >= 0 && G[ai] > 0 && (G[ai] & 4), nU = ai >= 0 && G[ai] >= 0 && !(G[ai] & 4);
+        const mL = li >= 0 && G[li] > 0 && (G[li] & 2), nL = li >= 0 && G[li] >= 0 && !(G[li] & 2);
+        for (const mask of vm[idx]) {
+            if (mU && !(mask & 1)) continue; if (nU && (mask & 1)) continue;
+            if (mL && !(mask & 8)) continue; if (nL && (mask & 8)) continue;
+            if (mask === 0) {
+                if (mU || mL || ca[idx]) continue;
+                G[idx] = 0; L[idx] = 0; dfs(idx + 1); G[idx] = -1; L[idx] = 0;
+            } else {
+                let id = 0;
+                if ((mask & 1) && ai >= 0 && L[ai] > 0) id = L[ai];
+                if ((mask & 8) && li >= 0 && L[li] > 0) { if (id > 0 && id !== L[li]) continue; id = L[li]; }
+                if (ca[idx]) { if (id > 0 && id !== ca[idx].id) continue; id = ca[idx].id; }
+                const tryIds = id > 0 ? [id] : Array.from({ length: K }, (_, i) => i + 1);
+                for (const tid of tryIds) {
+                    const ri = rm[idx];
+                    if (rcnt[ri][tid] > 0 && rcnt[ri][tid] >= clist[tid - 1].v) continue;
+                    G[idx] = mask; L[idx] = tid; rcnt[ri][tid]++;
+                    dfs(idx + 1);
+                    G[idx] = -1; L[idx] = 0; rcnt[ri][tid]--;
+                    if (out || res.length >= MX) return;
+                }
+            }
         }
     }
-
-    function renderAll() {
-        for(let i=0; i<rows; i++) for(let j=0; j<cols; j++) renderCell(i, j);
-    }
-
-    solveBtn.addEventListener('click', () => {
-        loading.style.display = 'flex';
-        msg.textContent = 'Solving...';
-        setTimeout(() => {
-            loading.style.display = 'none';
-            msg.textContent = 'Solver function placeholder.';
-        }, 500);
-    });
-});
-
+    // Pre-assign clue cells as "must be on loop"
+    for (const cl of clist) G[cl.p] = -1; // ensure not pre-set
+    dfs(0);
+    return { solutions: res, timeout: out };
+};
