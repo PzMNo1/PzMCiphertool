@@ -11,7 +11,7 @@
         })));
     }
 
-    // ===== 第一批（1-45号谜题 + 公共UI + 模块入口）=====
+    // ===== 第一批（1-35号谜题 + 公共UI + 模块入口）=====
     const logicBatch1 = [
         './logic/logicdiv/0_logic_ui.js',
         './logic/logicdiv/1_sudoku_ui.js',
@@ -81,6 +81,10 @@
         './logic/js/34_minesweeper.js',
         './logic/logicdiv/35_moonsun_ui.js',
         './logic/js/35_moonsun.js',
+    ];
+
+    // ===== 第二批（36-63号谜题）=====
+    const logicBatch2 = [
         './logic/logicdiv/36_nagare_ui.js',
         './logic/js/36_nagare.js',
         './logic/logicdiv/37_nanro_ui.js',
@@ -101,10 +105,6 @@
         './logic/js/44_nurimisaki.js',
         './logic/logicdiv/45_onsen_ui.js',
         './logic/js/45_onsen.js',
-    ];
-
-    // ===== 第二批（46-63号谜题）=====
-    const logicBatch2 = [
         './logic/logicdiv/46_rippleeffect_ui.js',
         './logic/js/46_rippleeffect.js',
         './logic/logicdiv/47_shakashaka_ui.js',
@@ -143,11 +143,11 @@
         './logic/js/63_yinyang.js',
     ];
 
-    // Batch1加载完 → 先渲染1-45号谜题，逻辑区立即可用
+    // Batch1加载完 → 先渲染1-35号谜题，逻辑区立即可用
     loadBatch(logicBatch1).then(() => {
         if (typeof initLogicModule === 'function') initLogicModule();
     });
-    // Batch2加载完 → 重新渲染，追加46-63号谜题
+    // Batch2加载完 → 重新渲染，追加36-63号谜题
     loadBatch(logicBatch2).then(() => {
         if (typeof initLogicModule === 'function') initLogicModule();
     });
