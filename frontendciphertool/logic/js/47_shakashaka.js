@@ -1,126 +1,213 @@
-// shakashaka.js
+window.solveShakashaka = function (puzzle) {
+    const R = puzzle.rows;
+    const C = puzzle.cols;
+    const clues = [];
+    const grid = new Int8Array(R * C);
+    grid.fill(-1);
 
-document.addEventListener('DOMContentLoaded', function() {
-    const gridEl = document.getElementById('shakashaka-grid');
-    const rInput = document.getElementById('grid-rows');
-    const cInput = document.getElementById('grid-cols');
-    const createBtn = document.getElementById('create-grid');
-    const solveBtn = document.getElementById('solve-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const msg = document.getElementById('result-message');
-    const toolBtns = document.querySelectorAll('.tool-btn');
-    const numBtns = document.querySelectorAll('.num-btn');
-    const loading = document.getElementById('loading');
-    
-    let rows = 10;
-    let cols = 10;
-    let gridData = []; 
-    let selectedTool = 'black';
-    let selectedNumber = null; // for black cells
-
-    initGrid(rows, cols);
-
-    createBtn.addEventListener('click', () => initGrid(parseInt(rInput.value), parseInt(cInput.value)));
-    
-    clearBtn.addEventListener('click', () => {
-        gridData.forEach(row => row.forEach(cell => {
-            cell.type = 'empty';
-            cell.val = null;
-        }));
-        renderAll();
-    });
-
-    toolBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            toolBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedTool = btn.dataset.tool;
-        });
-    });
-
-    numBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            numBtns.forEach(b => b.classList.remove('active')); // Optional visual feedback
-            btn.classList.add('active');
-            const txt = btn.textContent;
-            selectedNumber = txt === 'None' ? null : parseInt(txt);
-        });
-    });
-
-    function initGrid(r, c) {
-        rows = r; cols = c;
-        gridEl.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
-        gridEl.innerHTML = '';
-        
-        gridData = Array(r).fill().map(() => Array(c).fill(null).map(() => ({
-            type: 'empty', // 'empty', 'black', 'TL', 'TR', 'BL', 'BR'
-            val: null // number for black cells
-        })));
-
-        for(let i=0; i<r; i++) {
-            for(let j=0; j<c; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'shakashaka-cell';
-                cell.dataset.r = i;
-                cell.dataset.c = j;
-                cell.addEventListener('click', () => handleCellClick(i, j, cell));
-                gridEl.appendChild(cell);
-            }
+    for (let i = 0; i < R * C; i++) {
+        if (puzzle.grid[i] !== -1) {
+            grid[i] = 0; // Black
+            clues.push({
+                r: Math.floor(i / C),
+                c: i % C,
+                val: puzzle.grid[i]
+            });
         }
     }
+    function isValid(r, c, val) {
+        // Boundary checks
+        if (val === 2 && (r === R - 1 || c === C - 1)) return false;
+        if (val === 3 && (r === R - 1 || c === 0)) return false;
+        if (val === 4 && (r === 0 || c === C - 1)) return false;
+        if (val === 5 && (r === 0 || c === 0)) return false;
 
-    function handleCellClick(r, c, cell) {
-        const d = gridData[r][c];
-        
-        if (selectedTool === 'black') {
-            if (d.type === 'black' && d.val === selectedNumber) {
-                // Toggle off or change number
-                if (selectedNumber !== d.val) d.val = selectedNumber;
-                else d.type = 'empty';
+        // TL Rules
+        if (c >= 1 && grid[r * C + c - 1] === 2) {
+            if (!((r >= 1 && grid[(r - 1) * C + c] === 2 && val === 1) || val === 3)) return false;
+        }
+        if (r === 0 && c >= 1 && grid[c - 1] === 2) {
+            if (val !== 3) return false;
+        }
+        if (r >= 1 && grid[(r - 1) * C + c] === 2) {
+            if (!((c >= 1 && grid[r * C + c - 1] === 2 && val === 1) || val === 4)) return false;
+        }
+        if (r >= 1 && c === 0 && grid[(r - 1) * C] === 2) {
+            if (val !== 4) return false;
+        }
+
+        // TR Rules
+        if (val === 3) {
+            if (r >= 1 && c >= 1) {
+                if (!((grid[(r - 1) * C + c - 1] === 3 && grid[r * C + c - 1] === 1) || grid[r * C + c - 1] === 2)) return false;
+            }
+            if (r === 0 && c >= 1) {
+                if (grid[c - 1] !== 2) return false;
+            }
+        }
+        if (r >= 1 && grid[(r - 1) * C + c] === 3) {
+            if (c < C - 1) {
+                if (!(val === 1 || val === 5)) return false;
             } else {
-                d.type = 'black';
-                d.val = selectedNumber;
+                if (val !== 5) return false;
             }
-        } else if (selectedTool === 'empty') {
-            d.type = 'empty';
-            d.val = null;
-        } else {
-            // Triangles
-            if (d.type === selectedTool) d.type = 'empty';
-            else d.type = selectedTool;
-            d.val = null; // Triangles don't have numbers
         }
-        renderCell(r, c);
+
+        // BL Rules
+        if (r >= 1 && c >= 1 && grid[(r - 1) * C + c - 1] === 4 && grid[(r - 1) * C + c] === 1) {
+            if (val !== 4) return false;
+        }
+        if (r === R - 1 && c >= 1 && grid[r * C + c - 1] === 4) {
+            if (val !== 5) return false;
+        }
+        if (val === 4) {
+            if (r >= 1 && c >= 1) {
+                if (!((grid[(r - 1) * C + c - 1] === 4 && grid[(r - 1) * C + c] === 1) || grid[(r - 1) * C + c] === 2)) return false;
+            }
+            if (r >= 1 && c === 0) {
+                if (grid[(r - 1) * C] !== 2) return false;
+            }
+        }
+
+        // BR Rules
+        if (r >= 1 && c < C - 1 && grid[(r - 1) * C + c + 1] === 5 && grid[(r - 1) * C + c] === 1) {
+            if (val !== 5) return false;
+        }
+        if (r === R - 1 && val === 5 && c >= 1) {
+            if (grid[r * C + c - 1] !== 4) return false;
+        }
+        if (val === 5) {
+            if (r >= 1 && c < C - 1) {
+                if (!((grid[(r - 1) * C + c + 1] === 5 && grid[(r - 1) * C + c] === 1) || grid[(r - 1) * C + c] === 3)) return false;
+            }
+            if (r >= 1 && c === C - 1) {
+                if (grid[(r - 1) * C + C - 1] !== 3) return false;
+            }
+        }
+
+        // Diagonal Rectangle 2x2 Rules
+        if (r >= 1 && c >= 1 && grid[(r - 1) * C + c - 1] === 1 && val === 1) {
+            let eq1 = (grid[(r - 1) * C + c] === 1 || grid[(r - 1) * C + c] === 4);
+            let eq2 = (grid[r * C + c - 1] === 1 || grid[r * C + c - 1] === 3);
+            if (eq1 !== eq2) return false;
+        }
+        if (r >= 1 && c >= 1 && grid[(r - 1) * C + c] === 1 && grid[r * C + c - 1] === 1) {
+            let eq1 = (grid[(r - 1) * C + c - 1] === 1 || grid[(r - 1) * C + c - 1] === 5);
+            let eq2 = (val === 1 || val === 2);
+            if (eq1 !== eq2) return false;
+        }
+
+        // Grid-aligned Rectangles
+        if (r >= 1 && c >= 1 && grid[r * C + c - 1] === 1 && grid[(r - 1) * C + c - 1] === 1 && val === 1) {
+            if (!(grid[(r - 1) * C + c] === 1 || grid[(r - 1) * C + c] === 3)) return false;
+        }
+        if (r >= 1 && c >= 1 && val === 1 && grid[(r - 1) * C + c] === 1 && grid[r * C + c - 1] === 1) {
+            if (!(grid[(r - 1) * C + c - 1] === 1 || grid[(r - 1) * C + c - 1] === 2)) return false;
+        }
+        if (r >= 1 && c >= 1 && grid[(r - 1) * C + c - 1] === 1 && grid[r * C + c - 1] === 1 && grid[(r - 1) * C + c] === 1) {
+            if (!(val === 1 || val === 5)) return false;
+        }
+        if (r >= 1 && c >= 1 && grid[(r - 1) * C + c] === 1 && val === 1 && grid[(r - 1) * C + c - 1] === 1) {
+            if (!(grid[r * C + c - 1] === 1 || grid[r * C + c - 1] === 4)) return false;
+        }
+
+        // Clue checking
+        for (let ci = 0; ci < clues.length; ci++) {
+            let cl = clues[ci];
+            if (cl.val === 5) continue;
+
+            // only check clues that are adjacent to (r,c) to save time?
+            // Actually checking all is fast, but let's optimize
+            if (Math.abs(cl.r - r) + Math.abs(cl.c - c) !== 1) {
+                // Not adjacent, but maybe we still need to check if we are the LAST neighbor?
+                // Actually, if we just check ALL clues, we prune early.
+            }
+
+            let assigned = 0;
+            let triangles = 0;
+            let possible = 0;
+
+            if (cl.r > 0) {
+                possible++;
+                let n = grid[(cl.r - 1) * C + cl.c];
+                if (n !== -1) {
+                    assigned++;
+                    if (n >= 2 && n <= 5) triangles++;
+                }
+            }
+            if (cl.r < R - 1) {
+                possible++;
+                let n = grid[(cl.r + 1) * C + cl.c];
+                if (n !== -1) {
+                    assigned++;
+                    if (n >= 2 && n <= 5) triangles++;
+                }
+            }
+            if (cl.c > 0) {
+                possible++;
+                let n = grid[cl.r * C + cl.c - 1];
+                if (n !== -1) {
+                    assigned++;
+                    if (n >= 2 && n <= 5) triangles++;
+                }
+            }
+            if (cl.c < C - 1) {
+                possible++;
+                let n = grid[cl.r * C + cl.c + 1];
+                if (n !== -1) {
+                    assigned++;
+                    if (n >= 2 && n <= 5) triangles++;
+                }
+            }
+
+            if (triangles > cl.val) return false;
+            if (triangles + (possible - assigned) < cl.val) return false;
+        }
+
+        return true;
     }
 
-    function renderCell(r, c) {
-        const cell = document.querySelector(`.shakashaka-cell[data-r="${r}"][data-c="${c}"]`);
-        if (!cell) return;
-        const d = gridData[r][c];
-        
-        cell.className = 'shakashaka-cell';
-        if (d.type === 'black') {
-            cell.classList.add('black');
-            cell.textContent = d.val !== null ? d.val : '';
-        } else if (d.type !== 'empty') {
-            cell.classList.add(d.type);
-            cell.textContent = '';
-        } else {
-            cell.textContent = '';
+    const solutions = [];
+    const startTime = performance.now();
+    let timeout = false;
+
+    // We can precompute the indices to assign (skip fixed black cells)
+    const indicesToAssign = [];
+    for (let i = 0; i < R * C; i++) {
+        if (grid[i] === -1) {
+            indicesToAssign.push(i);
         }
     }
 
-    function renderAll() {
-        for(let i=0; i<rows; i++) for(let j=0; j<cols; j++) renderCell(i, j);
+    function solve(idx) {
+        if (solutions.length >= 2 || timeout) return;
+        if (performance.now() - startTime > 3000) {
+            timeout = true;
+            return;
+        }
+
+        if (idx === indicesToAssign.length) {
+            solutions.push(Array.from(grid));
+            return;
+        }
+
+        let i = indicesToAssign[idx];
+        let r = Math.floor(i / C);
+        let c = i % C;
+
+        for (let v = 1; v <= 5; v++) {
+            grid[i] = v;
+            if (isValid(r, c, v)) {
+                solve(idx + 1);
+            }
+            grid[i] = -1; // backtrack
+        }
     }
 
-    solveBtn.addEventListener('click', () => {
-        loading.style.display = 'flex';
-        msg.textContent = 'Solving...';
-        setTimeout(() => {
-            loading.style.display = 'none';
-            msg.textContent = 'Solver pending.';
-        }, 500);
-    });
-});
+    solve(0);
 
+    return {
+        solutions: solutions,
+        timeout: timeout
+    };
+};
