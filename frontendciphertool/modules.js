@@ -650,7 +650,7 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    // ========== 核心脚本（页面初始化立即加载）==========
+    // ===== 核心脚本（页面初始化立即加载，保证首屏可用）=====
     const coreScripts = [
         './electronic/electronic_lab.js',
         './cipher/1_cipherlab.js',
@@ -672,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         './sendfeedback/sendfeedback.js',
     ];
 
-    // ========== 逻辑区脚本（懒加载：用户点击逻辑区时才加载）==========
+    // ===== 逻辑区脚本（核心加载完后静默预加载）=====
     const logicScripts = [
         './logic/logicdiv/0_logic_ui.js',
         './logic/logicdiv/1_sudoku_ui.js',
@@ -766,10 +766,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/46_rippleeffect.js',
         './logic/logicdiv/51_slitherlink_ui.js',
         './logic/js/51_slitherlink.js',
-        './logic/logicdiv/48_shikaku_ui.js',
-        './logic/js/48_shikaku.js',
         './logic/logicdiv/47_shakashaka_ui.js',
         './logic/js/47_shakashaka.js',
+        './logic/logicdiv/48_shikaku_ui.js',
+        './logic/js/48_shikaku.js',
         './logic/logicdiv/49_shimaguni_ui.js',
         './logic/js/49_shimaguni.js',
         './logic/logicdiv/59_tll_ui.js',
@@ -800,72 +800,77 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/54_statuepark.js',
     ];
 
-    // 使用固定版本号以利用浏览器缓存，部署更新时修改此值
-    const loadVersion = '20260524a';
+    // 使用固定版本号，浏览器可缓存已下载的脚本（部署更新时修改此值）
+    const DEPLOY_VERSION = '20260524a';
 
-    // 通用脚本加载函数
-    function loadScriptBatch(scriptList) {
-        return Promise.all(scriptList.map(src => new Promise(resolve => {
-            const script = document.createElement('script');
-            script.src = src + '?v=' + loadVersion;
-            script.onload = resolve;
-            script.onerror = resolve;
-            document.body.appendChild(script);
+    // 通用脚本加载
+    function loadScripts(list) {
+        return Promise.all(list.map(src => new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = src + '?v=' + DEPLOY_VERSION;
+            s.onload = s.onerror = resolve;
+            document.body.appendChild(s);
         })));
     }
 
-    // ========== 逻辑区懒加载控制 ==========
-    let _logicLoaded = false;
-    let _logicLoadingPromise = null;
-    window._loadLogicScripts = function () {
-        if (_logicLoaded) return Promise.resolve();
-        if (_logicLoadingPromise) return _logicLoadingPromise;
-        // 显示加载提示
-        const container = document.getElementById('luojimiti');
-        if (container && !container.querySelector('.logic-loading-hint')) {
-            container.innerHTML = '<div class="logic-loading-hint" style="display:flex;align-items:center;justify-content:center;min-height:200px;color:#0ff;font-size:1.1rem;gap:10px;"><span class="fas fa-spinner fa-spin" style="animation:spin 1s linear infinite;"></span>正在加载逻辑谜题模块...</div>';
-        }
-        _logicLoadingPromise = loadScriptBatch(logicScripts).then(() => {
-            _logicLoaded = true;
+    // ===== 逻辑区预加载状态 =====
+    let _logicReady = false;
+    let _logicPromise = null;
+    function ensureLogicLoaded() {
+        if (_logicReady) return Promise.resolve();
+        if (_logicPromise) return _logicPromise;
+        _logicPromise = loadScripts(logicScripts).then(() => {
+            _logicReady = true;
             if (typeof initLogicModule === 'function') initLogicModule();
         });
-        return _logicLoadingPromise;
-    };
+        return _logicPromise;
+    }
+    // 暴露给外部（搜索跳转等场景）
+    window._ensureLogicLoaded = ensureLogicLoaded;
 
-    // ========== 加载核心脚本 ==========
-    loadScriptBatch(coreScripts).then(() => {
+    // ===== 第一阶段：加载核心脚本 =====
+    loadScripts(coreScripts).then(() => {
         if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
         if (typeof initSendFeedback === 'function') initSendFeedback();
 
         // 初始化大模型功能
-        if (typeof initChatFunctions === 'function') {
-            initChatFunctions();
-        }
-
+        if (typeof initChatFunctions === 'function') initChatFunctions();
         // 初始化工作流
         initWorkflowCoze();
         // 初始化电子实验室
         if (typeof initElectronicLab === 'function') initElectronicLab();
-
         // 初始化作者页面功能 (图片预览)
         if (typeof initAuthorPage === 'function') initAuthorPage();
 
-        // 监听逻辑区tab切换，触发懒加载（点击、滑动、键盘箭头均生效）
+        // ===== 第二阶段：后台静默预加载逻辑区脚本 =====
+        // 核心脚本加载完、页面已可用后，立刻开始后台加载逻辑脚本
+        // 用户点逻辑区时大概率已经加载完毕
+        setTimeout(() => ensureLogicLoaded(), 100);
+
+        // 监听逻辑区tab点击：如果预加载尚未完成则显示提示
         document.querySelectorAll('.submodule-btn').forEach(btn => {
             if (btn.getAttribute('data-target') === 'luojimiti') {
-                btn.addEventListener('click', () => window._loadLogicScripts());
+                btn.addEventListener('click', () => {
+                    if (!_logicReady) {
+                        const c = document.getElementById('luojimiti');
+                        if (c && !c.querySelector('.logic-loading-hint')) {
+                            c.innerHTML = '<div class="logic-loading-hint" style="display:flex;align-items:center;justify-content:center;min-height:200px;color:#0ff;font-size:1.1rem;">正在加载逻辑谜题模块...</div>';
+                        }
+                        ensureLogicLoaded();
+                    }
+                });
             }
         });
-        // 拦截CipherSwiper切换：当滑动或键盘切换到逻辑区时也触发懒加载
+
+        // 拦截CipherSwiper：滑动/键盘切换到逻辑区时也触发
         if (window.cipherSwipers) {
             window.cipherSwipers.forEach(swiper => {
                 if (swiper.contextId === 'jiamishiyanshi-content') {
-                    const origSetPos = swiper.setPositionByIndex.bind(swiper);
-                    swiper.setPositionByIndex = function (enableTransition) {
-                        origSetPos(enableTransition);
-                        // luojimiti 是第3个tab（index=2）
-                        if (swiper.currentIndex === 2) window._loadLogicScripts();
+                    const origFn = swiper.setPositionByIndex.bind(swiper);
+                    swiper.setPositionByIndex = function (t) {
+                        origFn(t);
+                        if (swiper.currentIndex === 2) ensureLogicLoaded();
                     };
                 }
             });
