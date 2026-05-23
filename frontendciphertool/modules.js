@@ -700,10 +700,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/11_chocobanana.js',
         './logic/logicdiv/12_chocona_ui.js',
         './logic/js/12_chocona.js',
-        './logic/logicdiv/14_doppelblock_ui.js',
-        './logic/js/14_doppelblock.js',
         './logic/logicdiv/13_countryroad_ui.js',
         './logic/js/13_countryroad.js',
+        './logic/logicdiv/14_doppelblock_ui.js',
+        './logic/js/14_doppelblock.js',
         './logic/logicdiv/15_easyas_ui.js',
         './logic/js/15_easyas.js',
         './logic/logicdiv/16_fillomino_ui.js',
@@ -804,12 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/63_yinyang.js',
     ];
 
-    // 固定版本号，利用浏览器缓存（部署更新时修改此值）
-    const V = '20260524b';
+    const loadVersion = new Date().getTime();
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
-            s.src = src + '?v=' + V;
+            s.src = src + '?v=' + loadVersion;
             s.onload = s.onerror = resolve;
             document.body.appendChild(s);
         })));
@@ -827,8 +826,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initAuthorPage === 'function') initAuthorPage();
     });
 
-    // 逻辑区Batch1(1-45) 和 Batch2(46-63) 同时加载，全部完成后初始化逻辑模块
-    const logicReady = Promise.all([loadBatch(logicBatch1), loadBatch(logicBatch2)]).then(() => {
+    // 逻辑区Batch1(1-45)加载完 → 先渲染1-45号谜题，页面立即可用
+    // Batch2(46-63)加载完 → 重新渲染，追加46-63号谜题
+    const batch1Ready = loadBatch(logicBatch1).then(() => {
+        if (typeof initLogicModule === 'function') initLogicModule();
+    });
+    const batch2Ready = loadBatch(logicBatch2).then(() => {
         if (typeof initLogicModule === 'function') initLogicModule();
     });
 
