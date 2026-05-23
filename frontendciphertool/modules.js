@@ -650,7 +650,8 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    const scripts = [
+    // ===== 核心脚本（页面框架、密码、工作流等）=====
+    const coreScripts = [
         './electronic/electronic_lab.js',
         './cipher/1_cipherlab.js',
         './cipher/2_ADFGXCipher.js',
@@ -669,6 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
         './sendfeedback/sendfeedback.js',
+    ];
+
+    // ===== 逻辑区第一批（1-45号谜题 + 公共UI + 模块入口）=====
+    const logicBatch1 = [
         './logic/logicdiv/0_logic_ui.js',
         './logic/logicdiv/1_sudoku_ui.js',
         './logic/logicdiv/2_akari_ui.js',
@@ -757,6 +762,10 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/44_nurimisaki.js',
         './logic/logicdiv/45_onsen_ui.js',
         './logic/js/45_onsen.js',
+    ];
+
+    // ===== 逻辑区第二批（46-63号谜题）=====
+    const logicBatch2 = [
         './logic/logicdiv/46_rippleeffect_ui.js',
         './logic/js/46_rippleeffect.js',
         './logic/logicdiv/47_shakashaka_ui.js',
@@ -795,31 +804,32 @@ document.addEventListener('DOMContentLoaded', () => {
         './logic/js/63_yinyang.js',
     ];
 
-    const loadVersion = new Date().getTime();
-    Promise.all(scripts.map(src => new Promise(resolve => {
-        const script = document.createElement('script');
-        script.src = src + '?v=' + loadVersion;
-        script.onload = resolve;
-        //异步加载，提高并行度
-        document.body.appendChild(script);
-    }))).then(() => {
+    // 固定版本号，利用浏览器缓存（部署更新时修改此值）
+    const V = '20260524b';
+    function loadBatch(list) {
+        return Promise.all(list.map(src => new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = src + '?v=' + V;
+            s.onload = s.onerror = resolve;
+            document.body.appendChild(s);
+        })));
+    }
+
+    // ===== 三路并行加载，互不阻塞 =====
+    // 核心区：加载完立即初始化页面
+    const coreReady = loadBatch(coreScripts).then(() => {
         if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
         if (typeof initSendFeedback === 'function') initSendFeedback();
-        if (typeof initLogicModule === 'function') initLogicModule();
-
-        // 初始化大模型功能
-        if (typeof initChatFunctions === 'function') {
-            initChatFunctions();
-        }
-
-        // 初始化工作流
+        if (typeof initChatFunctions === 'function') initChatFunctions();
         initWorkflowCoze();
-        // 初始化电子实验室
         if (typeof initElectronicLab === 'function') initElectronicLab();
-
-        // 初始化作者页面功能 (图片预览)
         if (typeof initAuthorPage === 'function') initAuthorPage();
+    });
+
+    // 逻辑区Batch1(1-45) 和 Batch2(46-63) 同时加载，全部完成后初始化逻辑模块
+    const logicReady = Promise.all([loadBatch(logicBatch1), loadBatch(logicBatch2)]).then(() => {
+        if (typeof initLogicModule === 'function') initLogicModule();
     });
 
     if (!MODULES) return console.error('模块内容未定义');
