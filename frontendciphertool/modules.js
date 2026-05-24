@@ -12,7 +12,7 @@ const MODULES = {
         <button class="btn back-btn submodule-btn" data-target="xiandaiqu">现代区</button>
         <button class="btn back-btn submodule-btn" data-target="luojimiti">逻辑区</button>
         <button class="btn back-btn submodule-btn" data-target="cihuiqu">词汇区</button>
-        <button class="btn back-btn submodule-btn" data-target="yuliu">预留区</button>
+        <button class="btn back-btn submodule-btn" data-target="yuliu">空间类</button>
     </div>
 
     <div class="cipher-swiper-container">
@@ -380,13 +380,9 @@ const MODULES = {
         <!-- 内容将由 wordsearch.js 动态加载 -->
     </div>
 
-        <!-- 预留区 -->
+        <!-- 空间类 -->
     <div id="yuliu" class="submodule">
-        <div class="container">
-            <div class="card">
-                <div class="result">词汇爆破内容...</div>
-            </div>
-        </div>
+        <div id="spacepuzzle"></div>
     </div>
 
         </div>
@@ -432,34 +428,47 @@ const MODULES = {
                 <div class="wf-toolbar-search"><input type="text" id="wf-search" placeholder="搜索算法..."></div>
                 <div class="wf-toolbar-list">
                     <div class="wf-toolbar-category">
-                        <div class="wf-toolbar-category-title">基础节点</div>
-                        <div class="wf-toolbar-item" data-type="input"><span class="wf-item-icon" style="background:#3498db;box-shadow:0 0 6px #3498db"></span>📝 输入节点</div>
-                        <div class="wf-toolbar-item" data-type="output"><span class="wf-item-icon" style="background:#9b59b6;box-shadow:0 0 6px #9b59b6"></span>📤 输出节点</div>
-                    </div>
-                    <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">经典密码</div>
                         <div class="wf-toolbar-item" data-algo="Caesar凯撒">🔐 Caesar 凯撒</div>
                         <div class="wf-toolbar-item" data-algo="Vigenere维吉尼亚">🔐 Vigenere 维吉尼亚</div>
                         <div class="wf-toolbar-item" data-algo="RailFence栅栏">🔐 RailFence 栅栏</div>
                         <div class="wf-toolbar-item" data-algo="Bifid双歧">🔐 Bifid 双歧</div>
                         <div class="wf-toolbar-item" data-algo="AtBash埃特巴什">🔐 AtBash 埃特巴什</div>
+                        <div class="wf-toolbar-item" data-algo="BaseConverter进制">🔐 进制转换</div>
                         <div class="wf-toolbar-item" data-algo="Morse摩尔斯">🔐 Morse 摩尔斯</div>
                         <div class="wf-toolbar-item" data-algo="Bacon培根">🔐 Bacon 培根</div>
                         <div class="wf-toolbar-item" data-algo="QWE键盘">🔐 QWE 键盘</div>
                         <div class="wf-toolbar-item" data-algo="PhoneKey九键">🔐 手机九键</div>
+                        <div class="wf-toolbar-item" data-algo="Beale比尔">🔐 Beale 比尔</div>
+                        <div class="wf-toolbar-item" data-algo="Fanqie反切">🔐 反切码</div>
                         <div class="wf-toolbar-item" data-algo="VKeyboard">🔐 V字键盘</div>
                         <div class="wf-toolbar-item" data-algo="Cipher01248">🔐 01248密码</div>
                         <div class="wf-toolbar-item" data-algo="Vowel元音">🔐 元音密码</div>
                         <div class="wf-toolbar-item" data-algo="DNA_mRNA">🔐 DNA/mRNA</div>
                         <div class="wf-toolbar-item" data-algo="ColRail柱栅栏">🔐 柱状栅栏</div>
                         <div class="wf-toolbar-item" data-algo="WRail-W栅栏">🔐 W型栅栏</div>
+                        <div class="wf-toolbar-item" data-algo="Polybius方阵">🔐 Polybius 方阵</div>
+                        <div class="wf-toolbar-item" data-algo="ADFGX/ADFVGX">🔐 ADFGX/ADFVGX</div>
+                        <div class="wf-toolbar-item" data-algo="Affine仿射">🔐 Affine 仿射</div>
+                        <div class="wf-toolbar-item" data-algo="TapCode敲击码">🔐 敲击码</div>
+                        <div class="wf-toolbar-item" data-algo="SemaphoreBraille旗语盲文">🔐 旗语/盲文</div>
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">编码 & 哈希</div>
+                        <div class="wf-toolbar-item" data-algo="ASCII">🔐 ASCII</div>
                         <div class="wf-toolbar-item" data-algo="Base编码">🔐 Base 编码</div>
                         <div class="wf-toolbar-item" data-algo="ROT旋转">🔐 ROT 旋转</div>
                         <div class="wf-toolbar-item" data-algo="CCC中文电码">🔐 中文电码</div>
+                        <div class="wf-toolbar-item" data-algo="FourCCC四角号码">🔐 四角号码</div>
                         <div class="wf-toolbar-item" data-algo="MD5">🔐 MD5</div>
+                        <div class="wf-toolbar-item" data-algo="SHA-1">🔐 SHA-1</div>
+                        <div class="wf-toolbar-item" data-algo="SHA-256">🔐 SHA-256</div>
+                        <div class="wf-toolbar-item" data-algo="SHA-384">🔐 SHA-384</div>
+                        <div class="wf-toolbar-item" data-algo="SHA-512">🔐 SHA-512</div>
+                    </div>
+                    <div class="wf-toolbar-category">
+                        <div class="wf-toolbar-category-title">现代密码</div>
+                        <div class="wf-toolbar-item" data-algo="Enigma恩尼格玛">🔐 Enigma 恩尼格玛</div>
                     </div>
                 </div>
                 <div class="wf-toolbar-actions">
@@ -664,11 +673,14 @@ document.addEventListener('DOMContentLoaded', () => {
         './model/ToolRegistry.js',
         './model/ChatUI.js',
         './model/HistoryManager.js',
+        './model/AgentRuntime.js',
         './model/main.js',
         './workflow/workflow.js',
         './zhishitupu/graphData.js',
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
+        './spacepuzzle/rubikscube/nubikscube.js',
+        './spacepuzzle/spacepuzzle.js',
         './sendfeedback/sendfeedback.js',
     ];
 
@@ -687,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBatch(coreScripts).then(() => {
         if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
+        if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
         if (typeof initSendFeedback === 'function') initSendFeedback();
         if (typeof initChatFunctions === 'function') initChatFunctions();
         initWorkflowCoze();

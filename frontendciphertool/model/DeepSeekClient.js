@@ -5,15 +5,11 @@
 
 class DeepSeekClient {
     constructor(options = {}) {
-        // 自动检测环境：生产环境使用同源 API，本地开发使用 localhost:8080
-        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        const defaultBaseUrl = isProduction
-            ? `${window.location.origin}/api/chat`  // 生产环境：https://waiw.ozqmp.com/api/chat
-            : 'http://localhost:8080/api/chat';      // 本地开发
-
-        this.baseUrl = options.baseUrl || defaultBaseUrl;
-        this.defaultModel = options.defaultModel || 'deepseek-chat';
-        this.reasonerModel = 'deepseek-reasoner';
+        const config = resolveDeepSeekConfig();
+        this.baseUrl = options.baseUrl || config.baseUrl || 'https://api.deepseek.com/v1';
+        this.apiKey = options.apiKey || config.apiKey || '';
+        this.defaultModel = normalizeDeepSeekModel(options.defaultModel || config.defaultModel || config.model);
+        this.reasonerModel = normalizeDeepSeekModel(options.reasonerModel || config.reasonerModel || config.model);
         this.abortController = null;
     }
 
@@ -36,6 +32,10 @@ class DeepSeekClient {
 
         const model = enableThinking ? this.reasonerModel : this.defaultModel;
 
+        if (!this.apiKey) {
+            throw new Error('DeepSeek API Key 未配置，请检查 window.DEEPSEEK_CONFIG.apiKey 或 agentmaster.local.js');
+        }
+
         const payload = {
             model,
             messages,
@@ -51,11 +51,11 @@ class DeepSeekClient {
         this.abortController = signal ? { signal } : new AbortController();
         const currentSignal = signal || this.abortController.signal;
 
-        const response = await fetch(`${this.baseUrl}/completions`, {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
-                // 后端代理处理认证，不需要 Authorization
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
             },
             body: JSON.stringify(payload),
             signal: currentSignal
@@ -89,13 +89,15 @@ class DeepSeekClient {
         let tool_calls = [];
         let finish_reason = null;
         let currentToolCall = null;
+        let buffer = '';
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
@@ -187,6 +189,8 @@ class DeepSeekClient {
             onContent = () => { },
             onToolCall = () => { },
             onToolResult = () => { },
+            onIterationStart = () => { },
+            onIterationComplete = () => { },
             executeToolFn,
             signal = null
         } = options;
@@ -197,6 +201,7 @@ class DeepSeekClient {
 
         while (iteration < maxIterations) {
             iteration++;
+            onIterationStart(iteration);
 
             // 调用 API
             const response = await this.chat({
@@ -204,6 +209,7 @@ class DeepSeekClient {
                 tools,
                 enableThinking,
                 stream: true,
+                onContent: iteration === 1 ? onContent : () => { },
                 onReasoning: iteration === 1 ? onReasoning : () => { }, // 只在第一次迭代显示思维链
                 onContent,
                 onToolCall,
@@ -211,6 +217,7 @@ class DeepSeekClient {
             });
 
             lastResponse = response;
+            onIterationComplete(iteration, response);
 
             // 打印调试信息，便于追踪深度搜索进度
             console.log(`[Deep Research Loop] Iteration ${iteration}/${maxIterations}`);
@@ -288,6 +295,24 @@ class DeepSeekClient {
     reset() {
         this.abortController = null;
     }
+}
+
+function resolveDeepSeekConfig() {
+    const config = window.DEEPSEEK_CONFIG || window.AGENTMASTER_CONFIG || {};
+    return {
+        apiKey: config.apiKey || localStorage.getItem('DEEPSEEK_API_KEY') || localStorage.getItem('AGENTMASTER_API_KEY') || '',
+        baseUrl: config.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1',
+        model: normalizeDeepSeekModel(config.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
+        defaultModel: normalizeDeepSeekModel(config.defaultModel || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
+        reasonerModel: normalizeDeepSeekModel(config.reasonerModel || localStorage.getItem('DEEPSEEK_REASONER_MODEL') || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'))
+    };
+}
+
+function normalizeDeepSeekModel(model) {
+    const normalized = String(model || '').trim();
+    if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
+    if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-pro';
+    return normalized || 'deepseek-v4-pro';
 }
 
 // 系统提示词

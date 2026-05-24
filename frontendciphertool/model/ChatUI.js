@@ -196,6 +196,85 @@ class ChatUI {
         }
     }
 
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    createAgentRunPanel(container, plan) {
+        const panel = document.createElement('details');
+        panel.className = 'agent-run-panel';
+        panel.open = true;
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-run-summary';
+        summary.innerHTML = `
+            <span class="agent-run-title">AGENT RUN</span>
+            <span class="agent-run-mode">${this.escapeHtml(plan.mode)}</span>
+            <span class="agent-run-count">${plan.selectedTools.length} tools</span>
+        `;
+
+        const body = document.createElement('div');
+        body.className = 'agent-run-body';
+
+        const stages = document.createElement('div');
+        stages.className = 'agent-stage-strip';
+        plan.stages.forEach(stage => {
+            const item = document.createElement('div');
+            item.className = 'agent-stage pending';
+            item.dataset.stage = stage.id;
+            item.innerHTML = `
+                <span class="agent-stage-dot"></span>
+                <span class="agent-stage-label">${this.escapeHtml(stage.label)}</span>
+                <span class="agent-stage-note"></span>
+            `;
+            stages.appendChild(item);
+        });
+
+        const toolDeck = document.createElement('div');
+        toolDeck.className = 'agent-tool-deck';
+
+        const trace = document.createElement('div');
+        trace.className = 'agent-trace-log';
+
+        body.appendChild(stages);
+        body.appendChild(toolDeck);
+        body.appendChild(trace);
+        panel.appendChild(summary);
+        panel.appendChild(body);
+
+        container.agentRunPanel = panel;
+        container.agentStages = stages;
+        container.toolDeck = toolDeck;
+        container.agentTrace = trace;
+        container.element.insertBefore(panel, container.contentDiv);
+        return panel;
+    }
+
+    setAgentStage(container, stageId, state, note = '') {
+        const stage = container.agentStages?.querySelector(`[data-stage="${stageId}"]`);
+        if (!stage) return;
+        stage.classList.remove('pending', 'active', 'done', 'error');
+        stage.classList.add(state);
+        const noteEl = stage.querySelector('.agent-stage-note');
+        if (noteEl) noteEl.textContent = note;
+    }
+
+    addAgentTrace(container, stage, message) {
+        if (!container.agentTrace) return;
+        const row = document.createElement('div');
+        row.className = 'agent-trace-row';
+        row.innerHTML = `
+            <span class="agent-trace-stage">${this.escapeHtml(stage)}</span>
+            <span class="agent-trace-message">${this.escapeHtml(message)}</span>
+        `;
+        container.agentTrace.appendChild(row);
+    }
+
     /**
      * 显示工具调用卡片
      * @param {Object} container
@@ -217,16 +296,20 @@ class ChatUI {
         toolCard.innerHTML = `
             <div class="tool-call-header">
                 <span class="tool-icon">🔧</span>
-                <span class="tool-name">${toolCall.function.name}</span>
+                <span class="tool-name">${this.escapeHtml(toolCall.function.name)}</span>
                 <span class="tool-status">执行中...</span>
             </div>
             <div class="tool-call-args">
-                <pre>${args}</pre>
+                <pre>${this.escapeHtml(args)}</pre>
             </div>
             <div class="tool-call-result"></div>
         `;
 
-        container.element.insertBefore(toolCard, container.contentDiv);
+        if (container.toolDeck) {
+            container.toolDeck.appendChild(toolCard);
+        } else {
+            container.element.insertBefore(toolCard, container.contentDiv);
+        }
         return toolCard;
     }
 
@@ -247,7 +330,7 @@ class ChatUI {
         statusEl.textContent = success ? '已完成' : '失败';
 
         const resultEl = toolCard.querySelector('.tool-call-result');
-        resultEl.innerHTML = `<pre>${result}</pre>`;
+        resultEl.innerHTML = `<pre>${this.escapeHtml(result)}</pre>`;
     }
 
     /**

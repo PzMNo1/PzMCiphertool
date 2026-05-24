@@ -8,6 +8,8 @@ Thumbs.db
 .DS_Store
 
 # Sensitive files
+.env
+frontendciphertool/agentmaster/agentmaster.local.js
 llm.txt
 
 # Build artifacts

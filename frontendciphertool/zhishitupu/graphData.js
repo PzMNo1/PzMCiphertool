@@ -11,7 +11,17 @@ function buildGraphData(roots, THEME, prefix) {
         const group = raw.group || inheritGroup || 'classic';
         const color = raw.color != null ? raw.color : (inheritColor != null ? inheritColor : (THEME[group] ?? 0xffffff));
         const id = pfx + _graphAutoId++;
-        nodes.push({ id, name: raw.name, val: raw.val, color, group });
+        nodes.push({
+            id,
+            name: raw.name,
+            val: raw.val,
+            color,
+            group,
+            path: raw.path,
+            kind: raw.kind,
+            ext: raw.ext,
+            mime: raw.mime
+        });
         if (parentId) links.push({ source: parentId, target: id });
         const nextGroup = raw.childGroup || group;
         const nextColor = raw.childColor != null ? raw.childColor : color;

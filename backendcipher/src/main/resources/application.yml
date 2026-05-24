@@ -2,6 +2,10 @@ server:
   port: 8080
 
 spring:
+  config:
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
   profiles:
     active: dev
   data:
@@ -45,6 +49,12 @@ auth:
     send-interval-seconds: 60
     max-send-per-hour: 5
 
+# OpenAI-compatible LLM Config
+llm:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  model: ${OPENAI_MODEL:gpt-4.1-mini}
+
 # CORS Config
 cors:
   allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36,http://www.ozqmp.com}
@@ -56,5 +66,4 @@ logging:
   level:
     com.ciphertool: DEBUG
     root: INFO
-
 

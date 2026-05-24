@@ -1,0 +1,482 @@
+/* 空间类：标准三维魔方 */
+#spacepuzzle {
+  width: 100%;
+}
+
+.space-control-panel {
+  flex: 1;
+  min-width: 320px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.space-back-btn {
+  align-self: flex-start;
+  width: auto;
+  padding: 4px 15px;
+  font-size: 0.85rem;
+  margin: 0 0 1.25rem;
+  min-height: 32px;
+}
+
+.space-title {
+  margin-bottom: 0.4rem;
+  font-size: 1.8rem;
+  white-space: nowrap;
+}
+
+.space-subtitle {
+  color: rgba(64, 224, 255, 0.72);
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  margin-bottom: 1.2rem;
+}
+
+.space-formula-input {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  margin-bottom: 1.2rem;
+}
+
+.space-action-grid {
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.space-stats,
+.space-solution-card,
+.space-instructions {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-left: 3px solid var(--neon-cyan);
+  border-radius: 4px;
+}
+
+.space-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.space-stats span {
+  color: var(--neon-cyan);
+  font-weight: 700;
+  text-shadow: 0 0 5px var(--neon-cyan);
+}
+
+.space-solution-card {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.space-solution-card .result {
+  min-height: 46px;
+  max-height: 92px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cube-step-panel {
+  display: none;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(64, 224, 255, 0.22);
+  background: rgba(0, 0, 0, 0.28);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cube-step-reader {
+  display: grid;
+  grid-template-columns: minmax(68px, 0.75fr) minmax(118px, 1.5fr) minmax(68px, 0.75fr);
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.cube-step-reader .cyber-button {
+  min-width: 0;
+  padding: 0.5rem 0.35rem;
+  width: 100%;
+}
+
+.cube-step-current {
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  background: rgba(64, 224, 255, 0.05);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+#cube-step-counter {
+  color: var(--neon-cyan);
+  font-weight: 800;
+  text-shadow: 0 0 6px var(--neon-cyan);
+}
+
+#cube-step-move {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cube-step-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.cube-step-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--neon-cyan), #ffffff);
+  box-shadow: 0 0 12px var(--neon-cyan);
+  transition: width 0.22s ease;
+}
+
+.space-instructions {
+  opacity: 0.9;
+  font-size: 0.85em;
+}
+
+.space-instructions h3 {
+  margin-bottom: 0.8rem;
+  color: var(--neon-cyan);
+}
+
+.space-instructions p {
+  margin-bottom: 0.35rem;
+}
+
+.space-cube-panel {
+  flex: 2;
+  min-width: 400px;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.space-cube-hud {
+  width: min(520px, 100%);
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.8rem;
+  border: 1px solid rgba(64, 224, 255, 0.25);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.08);
+}
+
+.cube-scene {
+  width: 270px;
+  height: 270px;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+  margin: 0 auto 2rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cube-scene.dragging {
+  cursor: grabbing;
+}
+
+.cube-3d {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--cube-rot-x, -28deg)) rotateY(var(--cube-rot-y, -38deg));
+  transition: transform 0.08s linear;
+}
+
+.cube-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  padding: 7px;
+  background: rgba(2, 12, 18, 0.86);
+  border: 1px solid rgba(64, 224, 255, 0.26);
+  box-shadow:
+    inset 0 0 18px rgba(64, 224, 255, 0.12),
+    0 0 24px rgba(64, 224, 255, 0.08);
+}
+
+.cube-face b {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+.cube-face-f {
+  transform: translateZ(94px);
+}
+
+.cube-face-b {
+  transform: rotateY(180deg) translateZ(94px);
+}
+
+.cube-face-r {
+  transform: rotateY(90deg) translateZ(94px);
+}
+
+.cube-face-l {
+  transform: rotateY(-90deg) translateZ(94px);
+}
+
+.cube-face-u {
+  transform: rotateX(90deg) translateZ(94px);
+}
+
+.cube-face-d {
+  transform: rotateX(-90deg) translateZ(94px);
+}
+
+.cube-sticker {
+  display: block;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.72), transparent 22%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.24), transparent 42%),
+    var(--sticker-color);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.24),
+    0 0 12px rgba(64, 224, 255, 0.16);
+}
+
+.cube-move-grid {
+  display: none;
+}
+
+.cube-drag-hint {
+  margin: -0.8rem 0 1.2rem;
+  color: rgba(64, 224, 255, 0.62);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+}
+
+.cube-move-btn {
+  min-width: 0;
+  padding: 0.55rem 0.25rem;
+}
+
+.cube-control-title {
+  width: min(620px, 100%);
+  margin-bottom: 0.8rem;
+  color: rgba(255, 255, 255, 0.78);
+  text-align: center;
+  font-size: 0.86rem;
+  letter-spacing: 2px;
+}
+
+.cube-move-spatial {
+  width: min(620px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    ". top top ."
+    "left front right back"
+    ". bottom bottom .";
+  gap: 0.7rem;
+  align-items: stretch;
+}
+
+.cube-face-control {
+  min-height: 96px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  border-top-color: var(--face-color);
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(0, 0, 0, 0.28);
+  box-shadow:
+    inset 0 0 18px rgba(64, 224, 255, 0.08),
+    0 0 18px rgba(0, 0, 0, 0.18);
+}
+
+.cube-face-control-top {
+  grid-area: top;
+}
+
+.cube-face-control-left {
+  grid-area: left;
+}
+
+.cube-face-control-front {
+  grid-area: front;
+}
+
+.cube-face-control-right {
+  grid-area: right;
+}
+
+.cube-face-control-back {
+  grid-area: back;
+}
+
+.cube-face-control-bottom {
+  grid-area: bottom;
+}
+
+.cube-face-control-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cube-face-control-label span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: #061016;
+  background: var(--face-color);
+  border-radius: 4px;
+  font-weight: 900;
+  box-shadow: 0 0 14px rgba(64, 224, 255, 0.24);
+}
+
+.cube-face-control-label small {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.cube-face-control-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.cube-move-chip {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(0, 0, 0, 0.32);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.cube-move-chip:hover {
+  transform: translateY(-2px);
+  border-color: var(--face-color);
+  background: rgba(64, 224, 255, 0.12);
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.24);
+}
+
+@media (max-width: 760px) {
+  .space-control-panel,
+  .space-cube-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .space-title {
+    font-size: 1.25rem;
+    white-space: normal;
+  }
+
+  .space-action-grid,
+  .space-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .cube-step-reader {
+    grid-template-columns: 1fr;
+  }
+
+  .cube-scene {
+    width: 210px;
+    height: 210px;
+    margin-bottom: 1.4rem;
+  }
+
+  .cube-3d {
+    width: 138px;
+    height: 138px;
+  }
+
+  .cube-face {
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .cube-face-f {
+    transform: translateZ(72px);
+  }
+
+  .cube-face-b {
+    transform: rotateY(180deg) translateZ(72px);
+  }
+
+  .cube-face-r {
+    transform: rotateY(90deg) translateZ(72px);
+  }
+
+  .cube-face-l {
+    transform: rotateY(-90deg) translateZ(72px);
+  }
+
+  .cube-face-u {
+    transform: rotateX(90deg) translateZ(72px);
+  }
+
+  .cube-face-d {
+    transform: rotateX(-90deg) translateZ(72px);
+  }
+
+  .cube-move-spatial {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "top top"
+      "left front"
+      "right back"
+      "bottom bottom";
+  }
+
+  .cube-face-control {
+    min-height: 86px;
+    padding: 0.6rem;
+  }
+
+  .cube-face-control-actions {
+    gap: 0.35rem;
+  }
+}

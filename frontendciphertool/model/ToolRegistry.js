@@ -774,9 +774,11 @@ class ToolRegistry {
      * 获取工具定义列表（用于 API 调用）
      * @returns {Array}
      */
-    getToolDefinitions() {
+    getToolDefinitions(selectedNames = null) {
+        const selected = Array.isArray(selectedNames) ? new Set(selectedNames) : null;
         const definitions = [];
         this.tools.forEach((tool, name) => {
+            if (selected && !selected.has(name)) return;
             definitions.push({
                 type: 'function',
                 function: {

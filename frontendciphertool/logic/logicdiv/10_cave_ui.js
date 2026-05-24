@@ -24,10 +24,10 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('cave-workspace', 'cave-layout
     `<div id="cave-grid-container"></div>`,
 
     // ── Style ──
-    `#cave-grid-container{--cave-cell-size:50px;display:grid;gap:2px;background:var(--neon-purple);padding:4px;border-radius:8px;width:fit-content;margin:0 auto;border:2px solid var(--neon-purple);box-shadow:0 0 20px rgba(204,0,255,0.4)}
-    .cave-cell{width:var(--cave-cell-size);height:var(--cave-cell-size);background:rgba(20,10,30,0.95);border-radius:4px;}
-    .cave-cell:hover{background:rgba(204,0,255,0.15);box-shadow:inset 0 0 10px rgba(204,0,255,0.3)}
-    .cave-cell.cave-wall{background:rgba(60,30,80,0.9);box-shadow:inset 0 0 12px rgba(0,0,0,0.8);border:1px solid rgba(100,50,130,0.5)}
+    `#cave-grid-container{--cave-cell-size:50px;display:grid;gap:3px;background:rgba(255,255,255,0.06);padding:8px;border-radius:14px;width:fit-content;margin:0 auto;border:1px solid rgba(255,255,255,0.22);backdrop-filter:blur(18px) saturate(1.25);-webkit-backdrop-filter:blur(18px) saturate(1.25);box-shadow:0 18px 60px rgba(0,0,0,0.28),inset 0 1px 0 rgba(255,255,255,0.18),inset 0 0 28px rgba(255,255,255,0.04)}
+    .cave-cell{width:var(--cave-cell-size);height:var(--cave-cell-size);background:linear-gradient(145deg,rgba(255,255,255,0.10),rgba(255,255,255,0.035));border:1px solid rgba(255,255,255,0.16);border-radius:10px;backdrop-filter:blur(12px) saturate(1.18);-webkit-backdrop-filter:blur(12px) saturate(1.18);box-shadow:inset 0 1px 0 rgba(255,255,255,0.16),inset 0 -10px 20px rgba(0,0,0,0.12)}
+    .cave-cell:hover{background:linear-gradient(145deg,rgba(255,255,255,0.18),rgba(210,245,255,0.08));border-color:rgba(255,255,255,0.34);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28),0 0 18px rgba(190,230,255,0.12)}
+    .cave-cell.cave-wall{background:linear-gradient(145deg,rgba(255,255,255,0.34),rgba(255,255,255,0.12));box-shadow:inset 0 1px 0 rgba(255,255,255,0.42),inset 0 -16px 26px rgba(0,0,0,0.18),0 10px 24px rgba(0,0,0,0.16);border:1px solid rgba(255,255,255,0.38)}
     .cave-cell.cave-open{background:rgba(0,200,255,0.1);box-shadow:inset 0 0 8px rgba(0,200,255,0.15)}
     .cave-clue-num{font-family:'Orbitron',monospace;font-weight:bold;font-size:1.1rem;color:#00e5ff;text-shadow:0 0 8px rgba(0,229,255,0.8);z-index:10}
     .cave-cell.cave-wall .cave-clue-num{color:#ff4466;text-shadow:0 0 8px rgba(255,68,102,0.8)}`

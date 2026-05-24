@@ -4,6 +4,7 @@
  */
 
 (function () {
+    let agentRuntime = null;
     // 客户端实例（使用后端代理，无需 API 密钥）
     let client = null;
 
@@ -17,7 +18,7 @@
      * @returns {Object|null} 用户信息或 null
      */
     function checkLogin() {
-        return window.CipherAuth && window.CipherAuth.getUser();
+        return true;
     }
 
     /**
@@ -77,6 +78,13 @@
         if (!client) {
             // 使用后端代理，API 密钥由后端管理
             client = new DeepSeekClient();
+        }
+        if (!agentRuntime && window.AgentRuntime) {
+            agentRuntime = new AgentRuntime({
+                client,
+                registry: window.toolRegistry,
+                ui: window.chatUI
+            });
         }
         return client;
     }
@@ -150,7 +158,19 @@
         let collectedToolCalls = []; // 收集工具调用信息
 
         try {
-            if (isToolEnabled) {
+            if (agentRuntime) {
+                const response = await agentRuntime.run({
+                    messages,
+                    userMessage: message,
+                    enableThinking: isDeepThinkEnabled,
+                    toolEnabled: isToolEnabled,
+                    container
+                });
+
+                finalContent = response?.content || finalContent;
+                finalReasoning = response?.reasoning_content || finalReasoning;
+                collectedToolCalls = response?.agent_tool_calls || response?.tool_calls || collectedToolCalls;
+            } else if (isToolEnabled) {
                 // 带工具调用的对话
                 const tools = window.toolRegistry.getToolDefinitions();
 
@@ -493,8 +513,7 @@
         });
 
         window.addEventListener('cipher-logout-success', () => {
-            showLoginOverlay(true);
-            window.chatUI.clearMessages();
+            showLoginOverlay(false);
         });
     }
 

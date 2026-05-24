@@ -231,22 +231,45 @@
 /* --- 节点卡片（玻璃拟态） --- */
 .wf-node {
     position: absolute;
-    min-width: 200px;
-    max-width: 280px;
-    border-radius: 14px;
-    border: 1px solid rgba(64, 224, 255, 0.15);
-    background: rgba(12, 20, 40, 0.35);
-    backdrop-filter: blur(20px) saturate(1.3);
-    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    min-width: 170px;
+    min-height: 140px;
+    max-width: none;
+    border-radius: 18px;
+    border: 1px solid rgba(125, 241, 255, 0.24);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035) 36%, rgba(10, 24, 44, 0.24) 100%),
+        radial-gradient(circle at 18% 0%, rgba(64, 224, 255, 0.16), transparent 34%),
+        radial-gradient(circle at 100% 100%, rgba(46, 204, 113, 0.12), transparent 38%);
+    backdrop-filter: blur(24px) saturate(1.45);
+    -webkit-backdrop-filter: blur(24px) saturate(1.45);
     box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        inset 0 0 30px rgba(64, 224, 255, 0.03);
-    transition: box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+        0 18px 46px rgba(0, 0, 0, 0.34),
+        0 0 26px rgba(64, 224, 255, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -1px 0 rgba(64, 224, 255, 0.08),
+        inset 0 0 34px rgba(64, 224, 255, 0.035);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease, filter 0.25s ease;
     cursor: move;
     user-select: none;
     z-index: 3;
     animation: wf-node-appear 0.3s ease-out;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+}
+
+.wf-node::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(125, 241, 255, 0.55), rgba(255, 255, 255, 0.08) 38%, rgba(46, 204, 113, 0.42));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.45;
 }
 
 @keyframes wf-node-appear {
@@ -262,23 +285,22 @@
 }
 
 .wf-node:hover {
-    border-color: rgba(64, 224, 255, 0.4);
-    background: rgba(15, 25, 50, 0.45);
+    border-color: rgba(125, 241, 255, 0.42);
     box-shadow:
-        0 12px 40px rgba(0, 0, 0, 0.35),
-        0 0 25px rgba(64, 224, 255, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        inset 0 0 30px rgba(64, 224, 255, 0.05);
+        0 22px 58px rgba(0, 0, 0, 0.4),
+        0 0 34px rgba(64, 224, 255, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        inset 0 0 36px rgba(64, 224, 255, 0.06);
+    filter: brightness(1.04);
 }
 
 .wf-node.selected {
-    border-color: rgba(64, 224, 255, 0.6);
-    background: rgba(15, 25, 50, 0.5);
+    border-color: rgba(125, 241, 255, 0.62);
     box-shadow:
-        0 0 30px rgba(64, 224, 255, 0.15),
-        0 12px 40px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        inset 0 0 30px rgba(64, 224, 255, 0.06);
+        0 0 38px rgba(64, 224, 255, 0.2),
+        0 18px 52px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        inset 0 0 38px rgba(46, 204, 113, 0.07);
 }
 
 .wf-node.dragging {
@@ -289,6 +311,11 @@
         0 0 30px rgba(64, 224, 255, 0.15);
 }
 
+.wf-node.resizing {
+    z-index: 100;
+    transition: none;
+}
+
 /* 节点头部 */
 .wf-node-header {
     display: flex;
@@ -296,8 +323,9 @@
     justify-content: space-between;
     padding: 0.6rem 0.8rem;
     border-bottom: 1px solid rgba(64, 224, 255, 0.08);
-    border-radius: 14px 14px 0 0;
+    border-radius: 18px 18px 0 0;
     position: relative;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015));
 }
 
 .wf-node-header .wf-node-title {
@@ -360,7 +388,10 @@
 
 /* 节点内容区 */
 .wf-node-body {
-    padding: 0.7rem 0.8rem;
+    padding: 0.55rem 0.65rem;
+    overflow: hidden;
+    flex: 0 0 auto;
+    background: rgba(2, 8, 18, 0.06);
 }
 
 /* 节点内表单元素：继承全局样式，仅覆盖尺寸 */
@@ -368,12 +399,31 @@
 .wf-node-body input,
 .wf-node-body select {
     font-size: 0.78rem;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.32rem;
+    padding: 0.45rem 0.55rem;
 }
 
 .wf-node-body textarea {
-    min-height: 50px;
+    min-height: 30px;
     resize: vertical;
+}
+
+.wf-node-input-field {
+    width: 100%;
+    max-width: none;
+}
+
+.wf-node-input {
+    height: 30px;
+    min-height: 30px;
+    max-height: none;
+    resize: none;
+    overflow-y: hidden;
+    line-height: 1.35;
+}
+
+.wf-node-input::-webkit-scrollbar {
+    display: none;
 }
 
 .wf-node-body label {
@@ -385,29 +435,114 @@
     letter-spacing: 0.5px;
 }
 
+.wf-node-field {
+    margin-bottom: 0.32rem;
+}
+
 .wf-node-row {
     display: flex;
     gap: 0.4rem;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.32rem;
 }
 
 .wf-node-row>* {
     flex: 1;
 }
 
+.wf-hmac-panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.2rem;
+}
+
+.wf-hmac-panel input {
+    margin-bottom: 0;
+}
+
+.wf-check-row {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0 !important;
+    white-space: nowrap;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+
+.wf-check-row input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+
 /* 结果显示区 */
 .wf-node-result {
-    padding: 0.5rem 0.8rem;
+    padding: 0.45rem 0.65rem;
     border-top: 1px solid rgba(64, 224, 255, 0.06);
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 54px;
+    display: flex;
 }
 
 /* 节点结果：继承全局 .result 样式，仅覆盖尺寸 */
 .wf-node-result .result {
     font-size: 0.72rem;
-    min-height: auto;
-    padding: 0.5rem;
-    max-height: 60px;
+    min-height: 100%;
+    padding: 0.42rem;
+    max-height: none;
+    width: 100%;
+    flex: 1 1 auto;
     overflow-y: auto;
+}
+
+.wf-resize-handle {
+    position: absolute;
+    z-index: 9;
+    opacity: 0;
+}
+
+.wf-node:hover .wf-resize-handle,
+.wf-node.selected .wf-resize-handle,
+.wf-node.resizing .wf-resize-handle {
+    opacity: 1;
+}
+
+.wf-resize-right {
+    top: 12px;
+    right: -3px;
+    width: 8px;
+    bottom: 16px;
+    cursor: ew-resize;
+}
+
+.wf-resize-bottom {
+    left: 12px;
+    right: 16px;
+    bottom: -3px;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.wf-resize-corner {
+    right: 2px;
+    bottom: 2px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+}
+
+.wf-resize-corner::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 8px;
+    height: 8px;
+    border-right: 1px solid rgba(64, 224, 255, 0.45);
+    border-bottom: 1px solid rgba(64, 224, 255, 0.45);
 }
 
 .wf-node-result .result.error {
@@ -467,6 +602,21 @@
     right: -6px;
     top: 50%;
     transform: translateY(-50%);
+}
+
+.wf-port.port-out-input {
+    top: 38%;
+    border-color: rgba(52, 152, 219, 0.75);
+}
+
+.wf-port.port-out-input.connected {
+    background: #3498db;
+    border-color: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.55);
+}
+
+.wf-port.port-out-result {
+    top: 62%;
 }
 
 .wf-port.port-in:hover,

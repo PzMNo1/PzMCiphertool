@@ -60,6 +60,15 @@ async function initKnowledgeGraph() {
 
 
 function renderGraph(container) {
+    const CODE_EXTS = new Set([
+        'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'json', 'java', 'py', 'rb', 'go', 'rs', 'c', 'h', 'cpp', 'hpp',
+        'cs', 'php', 'swift', 'kt', 'kts', 'sql', 'sh', 'bat', 'ps1', 'xml', 'yml', 'yaml', 'toml', 'ini', 'env'
+    ]);
+    const DOC_EXTS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'md', 'rtf', 'csv', 'log']);
+    const importedFiles = new Map();
+    let graphInspectMode = 'code';
+    let activePreviewUrl = null;
+
     const THEME = {
         root: 0xFFD700,
         eleroot: 0x00ffff,
@@ -86,6 +95,8 @@ function renderGraph(container) {
         return texture;
     }
     const glowTexture = createGlowTexture();
+
+    const inspector = ensureGraphInspector();
 
     // 数据结构（由 graphData.js 中的树形结构自动生成）
     const gData = buildGraphData(getGraphTree(THEME), THEME);
@@ -197,6 +208,7 @@ function renderGraph(container) {
                 node,
                 2000
             );
+            handleGraphNodeClick(node);
         });
 
     // 5. 场景增强 (星空背景)
@@ -289,6 +301,194 @@ function renderGraph(container) {
     // 初始调用
     resetPanel();
 
+    function ensureGraphInspector() {
+        const root = document.getElementById('zhishitupu-content');
+        const importLayer = document.getElementById('zstp-import-layer');
+
+        if (importLayer && !document.getElementById('zstp-mode-switch')) {
+            const switcher = document.createElement('div');
+            switcher.id = 'zstp-mode-switch';
+            switcher.className = 'zstp-mode-switch';
+            switcher.dataset.mode = 'code';
+            switcher.innerHTML = `
+                <button class="zstp-mode-btn active" data-mode="code">阅览代码</button>
+                <button class="zstp-mode-btn" data-mode="doc">阅览文档</button>
+                <button class="zstp-mode-btn" data-mode="explain">模型解释</button>
+            `;
+            importLayer.prepend(switcher);
+            switcher.querySelectorAll('.zstp-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    graphInspectMode = btn.dataset.mode;
+                    switcher.dataset.mode = graphInspectMode;
+                    switcher.querySelectorAll('.zstp-mode-btn').forEach(item => item.classList.toggle('active', item === btn));
+                });
+            });
+        }
+
+        let panel = document.getElementById('zstp-preview-panel');
+        if (root && !panel) {
+            panel = document.createElement('section');
+            panel.id = 'zstp-preview-panel';
+            panel.className = 'zstp-preview-panel';
+            panel.innerHTML = `
+                <div class="zstp-preview-header">
+                    <div>
+                        <div class="zstp-preview-kicker">GRAPH INSPECTOR</div>
+                        <h3 id="zstp-preview-title">节点阅览</h3>
+                    </div>
+                    <button id="zstp-preview-close" class="zstp-preview-close">×</button>
+                </div>
+                <div id="zstp-preview-meta" class="zstp-preview-meta"></div>
+                <div id="zstp-preview-body" class="zstp-preview-body"></div>
+            `;
+            root.appendChild(panel);
+            panel.querySelector('#zstp-preview-close').addEventListener('click', () => {
+                panel.classList.remove('active');
+                revokeActivePreviewUrl();
+            });
+        }
+
+        return panel;
+    }
+
+    function handleGraphNodeClick(node) {
+        if (graphInspectMode === 'explain') {
+            openNodeExplanation(node);
+            return;
+        }
+        if (graphInspectMode === 'doc') {
+            inspectDocumentNode(node);
+            return;
+        }
+        inspectCodeNode(node);
+    }
+
+    function inspectCodeNode(node) {
+        const file = getNodeFile(node);
+        if (!file) {
+            showPreview(node.name, node.path || '默认知识图谱节点', `<p>这个节点没有关联到导入文件。请先导入项目目录，再点击具体代码文件节点。</p>`);
+            return;
+        }
+        if (!CODE_EXTS.has(node.ext)) {
+            showPreview(node.name, node.path, `<p>当前文件不是常见代码类型。</p><p>扩展名: <code>${escapeHtml(node.ext || '无')}</code></p>`);
+            return;
+        }
+        readFileText(file).then(text => {
+            showPreview(node.name, formatFileMeta(file, node), `<pre><code>${escapeHtml(limitPreviewText(text))}</code></pre>`);
+        }).catch(err => {
+            showPreview(node.name, node.path, `<p>读取代码失败: ${escapeHtml(err.message)}</p>`);
+        });
+    }
+
+    function inspectDocumentNode(node) {
+        const file = getNodeFile(node);
+        if (!file) {
+            showPreview(node.name, node.path || '默认知识图谱节点', `<p>这个节点没有关联到导入文档。请先导入包含文档的目录，再点击文档文件节点。</p>`);
+            return;
+        }
+        if (!DOC_EXTS.has(node.ext)) {
+            showPreview(node.name, node.path, `<p>当前文件不是常见文档类型。</p><p>支持: pdf, word, ppt, txt, md, rtf, csv, log。</p>`);
+            return;
+        }
+
+        if (['txt', 'md', 'rtf', 'csv', 'log'].includes(node.ext)) {
+            readFileText(file).then(text => {
+                showPreview(node.name, formatFileMeta(file, node), `<pre><code>${escapeHtml(limitPreviewText(text))}</code></pre>`);
+            }).catch(err => {
+                showPreview(node.name, node.path, `<p>读取文档失败: ${escapeHtml(err.message)}</p>`);
+            });
+            return;
+        }
+
+        revokeActivePreviewUrl();
+        activePreviewUrl = URL.createObjectURL(file);
+        if (node.ext === 'pdf') {
+            showPreview(node.name, formatFileMeta(file, node), `<iframe class="zstp-doc-frame" src="${activePreviewUrl}"></iframe>`);
+            return;
+        }
+
+        showPreview(
+            node.name,
+            formatFileMeta(file, node),
+            `<p>浏览器通常不能直接内嵌预览 Word/PPT 文件。可以用下面的链接在新窗口打开或下载。</p>
+             <a class="zstp-preview-link" href="${activePreviewUrl}" target="_blank" rel="noopener">打开文档</a>`
+        );
+    }
+
+    function openNodeExplanation(node) {
+        const prompt = `请解释知识图谱节点「${node.name}」是什么意思。${node.path ? `它来自文件路径：${node.path}。` : ''}请用中文说明它的用途、可能的上下文，以及我应该如何理解它。`;
+        if (typeof window.openAgentMasterWithPrompt === 'function') {
+            window.openAgentMasterWithPrompt(prompt);
+        } else {
+            const chatWindow = document.getElementById('agent-chat-window');
+            const textarea = document.getElementById('agent-textarea');
+            const submitBtn = document.getElementById('agent-submit-btn');
+            if (chatWindow && textarea && submitBtn) {
+                chatWindow.classList.add('active');
+                textarea.value = prompt;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                submitBtn.click();
+            }
+        }
+    }
+
+    function getNodeFile(node) {
+        if (!node || node.kind !== 'file' || !node.path) return null;
+        return importedFiles.get(node.path) || null;
+    }
+
+    function readFileText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+            reader.readAsText(file);
+        });
+    }
+
+    function showPreview(title, meta, bodyHTML) {
+        const panel = ensureGraphInspector();
+        if (!panel) return;
+        const titleEl = panel.querySelector('#zstp-preview-title');
+        const metaEl = panel.querySelector('#zstp-preview-meta');
+        const bodyEl = panel.querySelector('#zstp-preview-body');
+        if (titleEl) titleEl.textContent = title || '节点阅览';
+        if (metaEl) metaEl.textContent = meta || '';
+        if (bodyEl) bodyEl.innerHTML = bodyHTML || '';
+        panel.classList.add('active');
+    }
+
+    function formatFileMeta(file, node) {
+        return `${node.path || file.name} · ${formatFileSize(file.size)} · ${file.type || node.ext || 'unknown'}`;
+    }
+
+    function limitPreviewText(text) {
+        const max = 120000;
+        return text.length > max ? text.slice(0, max) + '\n\n... 内容过长，已截断预览 ...' : text;
+    }
+
+    function formatFileSize(size) {
+        if (size < 1024) return `${size} B`;
+        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+        return `${(size / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function revokeActivePreviewUrl() {
+        if (activePreviewUrl) {
+            URL.revokeObjectURL(activePreviewUrl);
+            activePreviewUrl = null;
+        }
+    }
+
     // --- 项目导入功能 ---
     const importBtn = document.getElementById('zstp-import-btn');
     const folderInput = document.getElementById('zstp-folder-input');
@@ -302,31 +502,25 @@ function renderGraph(container) {
         0xffaa33,  // 5层 - 橙
         0xffdd44,  // 6层+ - 黄
     ];
-    // 保存原始图谱快照（用于清除旧导入）
-    const originalData = JSON.parse(JSON.stringify(gData));
-
     if (importBtn && folderInput) {
         importBtn.addEventListener('click', () => folderInput.click());
         folderInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (!files.length) return;
+            importedFiles.clear();
+            files.forEach(file => importedFiles.set(file.webkitRelativePath, file));
             const tree = buildFolderTree(files);
-            // 给树节点按深度上色
+
             assignDepthColors(tree, 0);
+            _graphAutoId = 0;
             const newData = buildGraphData([tree], THEME, '_imp');
-            // 先恢复到原始数据（清除旧导入），再追加新导入
-            const base = JSON.parse(JSON.stringify(originalData));
-            const rootId = base.nodes[0]?.id;
-            const importRootId = newData.nodes[0]?.id;
-            if (rootId && importRootId) {
-                newData.links.push({ source: rootId, target: importRootId });
+
+            Graph.graphData(newData);
+            if (typeof Graph.zoomToFit === 'function') {
+                setTimeout(() => Graph.zoomToFit(800, 80), 80);
             }
-            // 重置导入 ID 计数器
-            _graphAutoId = base.nodes.length;
-            Graph.graphData({
-                nodes: [...base.nodes, ...newData.nodes],
-                links: [...base.links, ...newData.links]
-            });
+
+            importBtn.textContent = `已导入: ${tree.name || '项目目录'}`;
             folderInput.value = '';
         });
     }
@@ -341,18 +535,25 @@ function renderGraph(container) {
 
     function buildFolderTree(files) {
         const SKIP = ['.git', 'node_modules', '.svn', '.hg', '__pycache__', '.DS_Store'];
-        const root = { name: '', children: {} };
+        const root = { name: '', kind: 'directory', path: '', children: {} };
         files.forEach(f => {
             const parts = f.webkitRelativePath.split('/');
-            if (!root.name) root.name = parts[0];
+            if (!root.name) {
+                root.name = parts[0];
+                root.path = parts[0];
+            }
             if (parts.some(p => SKIP.includes(p) || (p.startsWith('.') && p !== '.'))) return;
             let cur = root;
             for (let i = 1; i < parts.length; i++) {
                 const p = parts[i];
+                const path = parts.slice(0, i + 1).join('/');
                 if (i === parts.length - 1) {
-                    if (!cur.children[p]) cur.children[p] = { name: p };
+                    if (!cur.children[p]) {
+                        const ext = getFileExtension(p);
+                        cur.children[p] = { name: p, kind: 'file', path, ext, mime: f.type || '' };
+                    }
                 } else {
-                    if (!cur.children[p]) cur.children[p] = { name: p, children: {} };
+                    if (!cur.children[p]) cur.children[p] = { name: p, kind: 'directory', path, children: {} };
                     cur = cur.children[p];
                 }
             }
@@ -363,6 +564,11 @@ function renderGraph(container) {
             return node;
         }
         return toArray(root);
+    }
+
+    function getFileExtension(name) {
+        const idx = String(name).lastIndexOf('.');
+        return idx >= 0 ? String(name).slice(idx + 1).toLowerCase() : '';
     }
 
 

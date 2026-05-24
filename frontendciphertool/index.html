@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="./loginsystem/auth.css">
     <link rel="stylesheet" href="./electronic/electionic_lab.css">
     <link rel="stylesheet" href="./agentmaster/agentmaster.css">
+    <link rel="stylesheet" href="./spacepuzzle/rubikscube/rubikscube.css">
 
 </head>
 
@@ -93,14 +94,12 @@
 
         <div class="agent-input-container">
             <textarea id="agent-textarea" placeholder="Reply..." rows="1"></textarea>
-            <button id="agent-submit-btn" class="agent-submit-btn">
+            <button id="agent-submit-btn" class="agent-submit-btn" aria-label="收纳助手">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
-                    <line x1="19" y1="10" x2="19" y2="12"></line>
-                    <path d="M19 12a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M8 13h8"></path>
+                    <path d="M10 10l2 3 2-3"></path>
                 </svg>
             </button>
         </div>
@@ -109,6 +108,7 @@
     <script src="./loginsystem/tanchuangshengming.js"></script>
     <script src="./loginsystem/auth.js"></script>
     <script src="./modules.js"></script>
+    <script src="./agentmaster/agentmaster.local.js"></script>
     <script src="./agentmaster/agentmaster.js"></script>
 </body>
 

@@ -6,6 +6,7 @@
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
             s.src = src + '?v=' + loadVersion;
+            s.async = false;
             s.onload = s.onerror = resolve;
             document.body.appendChild(s);
         })));
@@ -143,11 +144,11 @@
         './logic/js/63_yinyang.js',
     ];
 
-    // Batch1加载完 → 先渲染1-35号谜题，逻辑区立即可用
+    // Batch1 先渲染1-35号谜题
     loadBatch(logicBatch1).then(() => {
         if (typeof initLogicModule === 'function') initLogicModule();
     });
-    // Batch2加载完 → 重新渲染，追加36-63号谜题
+    // Batch2 再追加36-63号谜题
     loadBatch(logicBatch2).then(() => {
         if (typeof initLogicModule === 'function') initLogicModule();
     });

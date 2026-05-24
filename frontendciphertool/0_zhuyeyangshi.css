@@ -821,17 +821,26 @@ body::after {
 
 
 /* 逻辑谜题区样式 */
-#luojimiti .container {
+#luojimiti .container,
+#yuliu .container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
   gap: 1.5rem !important;
-  padding: 6rem 1rem 4rem !important;
+  padding: 6rem 1rem 18rem !important;
   perspective: 1000px;
   counter-reset: logic-counter;
 }
 
+#logic-workspace-container,
+#cihuiqu .container,
+#spacepuzzle .container,
+#space-workspace-container {
+  padding-bottom: 18rem !important;
+}
+
 /* 逻辑按钮 */
-#luojimiti .logic-btn {
+#luojimiti .logic-btn,
+#yuliu .logic-btn {
   position: relative;
   background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
   border: 1px solid rgba(64, 224, 255, 0.15);
@@ -858,7 +867,8 @@ body::after {
 }
 
 /* 自动编号 (NO.01, NO.02...) */
-#luojimiti .logic-btn::after {
+#luojimiti .logic-btn::after,
+#yuliu .logic-btn::after {
   counter-increment: logic-counter;
   content: "NO." counter(logic-counter, decimal-leading-zero);
   position: absolute;
@@ -871,7 +881,8 @@ body::after {
   transition: all 0.3s ease;
 }
 
-#luojimiti .logic-btn::before {
+#luojimiti .logic-btn::before,
+#yuliu .logic-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -885,7 +896,8 @@ body::after {
 }
 
 /* 悬停交互效果 */
-#luojimiti .logic-btn:hover {
+#luojimiti .logic-btn:hover,
+#yuliu .logic-btn:hover {
   transform: translateY(-5px) scale(1.02);
   background: rgba(64, 224, 255, 0.1);
   border-color: rgba(64, 224, 255, 0.6);
@@ -897,7 +909,8 @@ body::after {
 }
 
 /* 悬停时角标变化 */
-#luojimiti .logic-btn:hover::before {
+#luojimiti .logic-btn:hover::before,
+#yuliu .logic-btn:hover::before {
   width: 100%;
   height: 95%;
   border-color: #fff;
@@ -907,13 +920,15 @@ body::after {
 
 
 /* 点击效果 */
-#luojimiti .logic-btn:active {
+#luojimiti .logic-btn:active,
+#yuliu .logic-btn:active {
   transform: scale(0.98);
   border-color: var(--primary);
 }
 
 /* 搜索定位高亮样式 (保持黄色以示区别) */
-#luojimiti .logic-btn.logic-highlight {
+#luojimiti .logic-btn.logic-highlight,
+#yuliu .logic-btn.logic-highlight {
   border-color: #ffd700;
   background: rgba(255, 215, 0, 0.15);
   color: #ffd700;
@@ -923,10 +938,15 @@ body::after {
 
 }
 
-
-/* --- 瀑布流布局优化 (经典区 & 现代区 & 关于作者) --- */
+/* --- 卡片布局优化 (经典区 & 现代区 & 关于作者) --- */
 #mimaqu .container,
-#xiandaiqu .container,
+#xiandaiqu .container {
+  display: block;
+  column-count: 3;
+  column-gap: 1.5rem;
+  padding-bottom: 18rem;
+}
+
 #guanyuzuozhe .container {
   display: block;
   column-count: 3;
@@ -958,6 +978,13 @@ body::after {
 #guanyuzuozhe .author-image-link {
   break-inside: avoid;
   margin-bottom: 1.5rem;
+  display: inline-block;
+  width: 100%;
+}
+
+#mimaqu .card:not(.main-input),
+#xiandaiqu .card:not(.main-input) {
+  break-inside: avoid;
   display: inline-block;
   width: 100%;
 }
@@ -1103,25 +1130,29 @@ body::after {
     margin-bottom: 2rem;
   }
 
-  #luojimiti .container {
+  #luojimiti .container,
+  #yuliu .container {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.8rem !important;
-    padding: 6rem 0.5rem 4rem !important;
+    padding: 6rem 0.5rem 18rem !important;
   }
 
-  #luojimiti .logic-btn {
+  #luojimiti .logic-btn,
+  #yuliu .logic-btn {
     height: 45px !important;
     min-height: auto !important;
     padding: 0.3rem !important;
     font-size: 0.85rem !important;
   }
 
-  #luojimiti .logic-btn::before {
+  #luojimiti .logic-btn::before,
+  #yuliu .logic-btn::before {
     width: 10px;
     height: 10px;
   }
 
-  #luojimiti .logic-btn::after {
+  #luojimiti .logic-btn::after,
+  #yuliu .logic-btn::after {
     font-size: 0.35rem;
     bottom: 1px;
     right: 10px;
@@ -1227,3 +1258,4 @@ body::after {
     0 0 40px rgba(255, 255, 255, 0.3),
     inset 0 0 30px rgba(255, 255, 255, 0.2);
 }
+

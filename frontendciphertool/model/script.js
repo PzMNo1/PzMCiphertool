@@ -275,6 +275,13 @@ function displayMessage(role, message) {
 
 let chatAbortController = null;
 
+function normalizeDeepSeekModel(model) {
+    const normalized = String(model || '').trim();
+    if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
+    if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-pro';
+    return normalized || 'deepseek-v4-pro';
+}
+
 async function sendMessage() {
     const sendButton = document.getElementById('send-message');
 
@@ -321,7 +328,11 @@ async function sendMessage() {
     messagesContainer.appendChild(messageElement);
     messageElement.scrollIntoView({ behavior: 'smooth' });
 
-    const apiKey = 'sk-96cffcb36512437093ff1cac917de7e9'; 
+    const aiConfig = window.DEEPSEEK_CONFIG || window.AGENTMASTER_CONFIG || {};
+    const apiKey = aiConfig.apiKey || localStorage.getItem('DEEPSEEK_API_KEY') || localStorage.getItem('AGENTMASTER_API_KEY') || '';
+    const apiBaseUrl = aiConfig.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1';
+    const apiModel = normalizeDeepSeekModel(aiConfig.defaultModel || aiConfig.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'));
+    if (!apiKey) throw new Error('DeepSeek API Key 未配置');
     
     const deepThinkToggle = document.getElementById('deep-think-toggle');
     const isDeepThink = deepThinkToggle && deepThinkToggle.classList.contains('active');
@@ -329,9 +340,9 @@ async function sendMessage() {
     let endpoint, payload;
 
     if (isDeepThink) {
-        endpoint = 'https://api.deepseek.com/chat/completions';
+        endpoint = `${apiBaseUrl}/chat/completions`;
         payload = {
-            model: "deepseek-reasoner",
+            model: apiModel,
             messages: [
                 { role: "system", content: PZM_SYSTEM_PROMPT },
                 { role: "user", content: message }
@@ -339,9 +350,9 @@ async function sendMessage() {
             stream: true
         };
     } else {
-        endpoint = 'https://api.deepseek.com/chat/completions';
+        endpoint = `${apiBaseUrl}/chat/completions`;
         payload = {
-            model: "deepseek-chat",
+            model: apiModel,
             messages: [
                 { role: "system", content: PZM_SYSTEM_PROMPT },
                 { role: "user", content: message }

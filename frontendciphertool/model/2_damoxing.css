@@ -959,6 +959,186 @@
   border-radius: 2px;
 }
 
+.agent-run-panel {
+  margin: 10px 0 14px;
+  border: 1px solid rgba(120, 220, 255, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(12, 24, 36, 0.72), rgba(22, 30, 44, 0.42)),
+    rgba(255, 255, 255, 0.035);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(140%);
+  overflow: hidden;
+}
+
+.agent-run-summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  color: rgba(224, 247, 255, 0.9);
+  list-style: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-run-summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-run-title {
+  font-family: 'Orbitron', 'Consolas', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: #8ee7ff;
+}
+
+.agent-run-mode,
+.agent-run-count {
+  padding: 3px 8px;
+  border: 1px solid rgba(142, 231, 255, 0.2);
+  border-radius: 999px;
+  color: rgba(230, 250, 255, 0.78);
+  background: rgba(142, 231, 255, 0.06);
+  font-size: 0.68rem;
+}
+
+.agent-run-body {
+  padding: 12px 14px 14px;
+}
+
+.agent-stage-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.agent-stage {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 7px;
+  align-content: center;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.agent-stage-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: rgba(170, 190, 205, 0.55);
+}
+
+.agent-stage-label {
+  min-width: 0;
+  color: rgba(235, 250, 255, 0.86);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-stage-note {
+  grid-column: 2;
+  min-width: 0;
+  color: rgba(196, 220, 230, 0.56);
+  font-size: 0.62rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-stage.active {
+  border-color: rgba(142, 231, 255, 0.42);
+  box-shadow: 0 0 18px rgba(64, 224, 255, 0.12);
+}
+
+.agent-stage.active .agent-stage-dot {
+  background: #8ee7ff;
+  box-shadow: 0 0 12px rgba(142, 231, 255, 0.72);
+}
+
+.agent-stage.done .agent-stage-dot {
+  background: #6ee7b7;
+  box-shadow: 0 0 10px rgba(110, 231, 183, 0.55);
+}
+
+.agent-stage.error .agent-stage-dot {
+  background: #ff5c8a;
+  box-shadow: 0 0 10px rgba(255, 92, 138, 0.6);
+}
+
+.agent-tool-deck {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-tool-deck:empty {
+  display: none;
+}
+
+.agent-run-panel .tool-call-card {
+  margin: 0;
+  border-color: rgba(142, 231, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-run-panel .tool-call-header {
+  padding: 8px 10px;
+  background: rgba(142, 231, 255, 0.07);
+  border-bottom-color: rgba(142, 231, 255, 0.1);
+}
+
+.agent-run-panel .tool-icon {
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #8ee7ff;
+  background: rgba(142, 231, 255, 0.09);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.agent-run-panel .tool-name {
+  color: rgba(234, 250, 255, 0.9);
+}
+
+.agent-run-panel .tool-call-args,
+.agent-run-panel .tool-call-result {
+  padding: 8px 10px;
+}
+
+.agent-run-panel .tool-call-args pre,
+.agent-run-panel .tool-call-result pre {
+  max-height: 96px;
+}
+
+.agent-trace-log {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.agent-trace-row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 8px;
+  color: rgba(210, 230, 240, 0.62);
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.68rem;
+}
+
+.agent-trace-stage {
+  color: rgba(142, 231, 255, 0.72);
+  text-transform: uppercase;
+}
+
 /* 输入操作区域调整 */
 .input-actions {
   display: flex;
@@ -978,5 +1158,14 @@
   #deep-think-toggle {
     min-width: 60px;
     font-size: 0.65rem;
+  }
+
+  .agent-stage-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agent-trace-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
