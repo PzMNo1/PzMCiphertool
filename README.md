@@ -8,6 +8,38 @@
 一般是http://127.0.0.1:5500/08_Ciphertool/frontendciphertool/index.html。
 这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
 
+### 💡 如何配置大模型 (LLM) 与 Agent 的 API Key
+
+本项目使用 DeepSeek API 驱动大模型与智能 Agent 助手。由于安全防泄露设计，API Key 配置文件（`agentmaster.local.js`）默认已被 `.gitignore` 忽略，不会上传至公开仓库。
+
+#### 1. 本地开发配置方式（本地永久生效）：
+在前端目录 `frontendciphertool/agentmaster/` 下，手动新建一个名为 **`agentmaster.local.js`** 的文件，并写入以下代码：
+```javascript
+window.AGENTMASTER_CONFIG = {
+    apiKey: "你的_DEEPSEEK_API_KEY",
+    baseUrl: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-flash",
+    useNativeTools: false
+};
+
+window.DEEPSEEK_CONFIG = {
+    apiKey: window.AGENTMASTER_CONFIG.apiKey,
+    baseUrl: window.AGENTMASTER_CONFIG.baseUrl,
+    defaultModel: window.AGENTMASTER_CONFIG.model,
+    reasonerModel: window.AGENTMASTER_CONFIG.model
+};
+```
+
+#### 2. 在线部署/演示环境配置方式（如 GitHub Pages，快捷免代码）：
+如果您直接访问线上部署的演示网页，无需修改代码，只需在浏览器中一键配置 LocalStorage 即可（数据仅安全地保存在您本人的浏览器里，不经过任何服务器）：
+1. 用浏览器打开部署后的网页（例如您的 GitHub Pages 链接）。
+2. 按 **F12**（或右键网页空白处选择 **“检查”**），切换到 **Console (控制台)** 标签页。
+3. 复制并在光标处粘贴执行以下两行代码（请将 `'你的_DEEPSEEK_API_KEY'` 替换为您真实的 DeepSeek Key）：
+   ```javascript
+   localStorage.setItem('DEEPSEEK_API_KEY', '你的_DEEPSEEK_API_KEY');
+   localStorage.setItem('AGENTMASTER_API_KEY', '你的_DEEPSEEK_API_KEY');
+   ```
+4. 执行完毕后**刷新页面**，即可完美解锁并使用大模型和智能 Agent 助手！
 
 
 
