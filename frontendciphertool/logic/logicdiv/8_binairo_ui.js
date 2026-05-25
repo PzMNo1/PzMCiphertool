@@ -27,7 +27,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('binairo-workspace', 'binairo-
     `<div id="binairo-grid-container"></div>`,
 
     // ── Style ──
-    `#binairo-grid-container{--bi-cell-size:55px;display:grid;gap:2px;background:var(--neon-purple);padding:4px;border-radius:8px;width:fit-content;margin:0 auto;border:2px solid var(--neon-purple);box-shadow:0 0 20px rgba(204,0,255,0.4)}
+    `#binairo-grid-container{--bi-cell-size:55px;display:grid;gap:2px;background:var(--neon-cyan);padding:4px;border-radius:8px;width:fit-content;margin:0 auto;border:2px solid var(--neon-cyan);box-shadow:0 0 20px rgba(0,229,255,0.4)}
     .bi-cell{width:var(--bi-cell-size);height:var(--bi-cell-size);background:rgba(20,10,30,0.95);border-radius:4px;}
     .bi-cell.fixed{background:rgba(255,255,255,0.1);box-shadow:inset 0 0 5px rgba(255,255,255,0.2)}
     .bi-cell:hover{background:rgba(204,0,255,0.2);box-shadow:inset 0 0 10px rgba(204,0,255,0.4)}

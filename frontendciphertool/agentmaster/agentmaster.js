@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDocked = false;
     let wasChatActiveBeforeDock = false;
     let didDragOrb = false;
+    let dockTimer = null;
     const orb = createAgentOrb();
     let messages = [
         {
@@ -156,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     submitBtn.addEventListener('click', dockAgent);
 
-    collapseBtn.addEventListener('click', dockAgent);
+    collapseBtn.addEventListener('click', closeChatWindow);
     textarea.addEventListener('focus', () => {
         if (!isChatActive && messages.length > 1) {
             chatWindow.classList.add('active');
@@ -438,6 +439,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'mainInput': '#mainInput',
             '主输入框': '#mainInput'
         };
+        aliases.Agent = 'damoxing';
+        aliases.agent = 'damoxing';
         return aliases[target] || target;
     }
 
@@ -574,17 +577,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function dockAgent() {
-        if (isDocked) return;
+        if (isDocked || dockTimer) return;
         wasChatActiveBeforeDock = isChatActive;
-        isDocked = true;
         chatWindow.classList.remove('active');
         suggestions?.classList.add('hidden');
         isChatActive = false;
-        applyOrbPosition();
-        orb.parentElement.classList.add('agent-docked');
+        orb.parentElement.classList.add('agent-docking');
+        dockTimer = setTimeout(() => {
+            dockTimer = null;
+            isDocked = true;
+            applyOrbPosition();
+            orb.parentElement.classList.remove('agent-docking');
+            orb.parentElement.classList.add('agent-docked');
+        }, 240);
+    }
+
+    function closeChatWindow() {
+        chatWindow.classList.remove('active');
+        suggestions?.classList.add('hidden');
+        isChatActive = false;
+        wasChatActiveBeforeDock = false;
     }
 
     function restoreAgent() {
+        if (dockTimer) {
+            clearTimeout(dockTimer);
+            dockTimer = null;
+            orb.parentElement.classList.remove('agent-docking');
+        }
         if (!isDocked) return;
         isDocked = false;
         orb.parentElement.classList.remove('agent-docked', 'agent-dragging');

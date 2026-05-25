@@ -155,6 +155,50 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             return getWeatherFallback(city);
         }
     }
+
+    @Override
+    public String getFinanceQuote(String symbol) {
+        try {
+            String normalized = symbol.trim().toLowerCase(Locale.ROOT);
+            if (!normalized.contains(".")) {
+                normalized = normalized + ".us";
+            }
+            String url = "https://stooq.com/q/l/?s=" + URLEncoder.encode(normalized, StandardCharsets.UTF_8) + "&f=sd2t2ohlcv&h&e=csv";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", USER_AGENT)
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                return "Finance query failed: HTTP " + response.statusCode();
+            }
+            String[] lines = response.body().trim().split("\\R");
+            if (lines.length < 2) {
+                return "Finance query returned no data for " + symbol;
+            }
+            String[] values = lines[1].split(",", -1);
+            if (values.length < 8 || "N/D".equalsIgnoreCase(values[3])) {
+                return "No quote data found for " + symbol + ". Try a Stooq symbol such as aapl.us.";
+            }
+            JSONObject result = new JSONObject();
+            result.put("symbol", values[0]);
+            result.put("date", values[1]);
+            result.put("time", values[2]);
+            result.put("open", values[3]);
+            result.put("high", values[4]);
+            result.put("low", values[5]);
+            result.put("close", values[6]);
+            result.put("volume", values[7]);
+            return JSON.toJSONString(result);
+        } catch (Exception e) {
+            log.error("Finance quote failed: {}", e.getMessage());
+            return "Finance query failed: " + e.getMessage();
+        }
+    }
     
     // 移除 parseWeatherJson 方法，因为不再使用
     

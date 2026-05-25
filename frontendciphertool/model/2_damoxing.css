@@ -827,6 +827,10 @@
   transition: all 0.3s ease;
 }
 
+.assistant-message>.tool-call-card {
+  display: none !important;
+}
+
 .tool-call-card.tool-executing {
   border-color: rgba(255, 193, 7, 0.6);
   box-shadow: 0 0 15px rgba(255, 193, 7, 0.15);

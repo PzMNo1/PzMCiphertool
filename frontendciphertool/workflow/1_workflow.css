@@ -496,6 +496,9 @@
     width: 100%;
     flex: 1 1 auto;
     overflow-y: auto;
+    cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .wf-resize-handle {

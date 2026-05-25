@@ -118,4 +118,16 @@ public class WebCrawlerController {
         String result = webCrawlerService.getWeather(city, detailed);
         return Map.of("success", true, "data", result);
     }
+
+    @PostMapping("/finance")
+    public Map<String, Object> getFinanceQuote(@RequestBody Map<String, Object> request) {
+        String symbol = (String) request.getOrDefault("symbol", "");
+
+        if (symbol.isEmpty()) {
+            return Map.of("success", false, "message", "symbol cannot be empty");
+        }
+
+        String result = webCrawlerService.getFinanceQuote(symbol);
+        return Map.of("success", true, "data", result);
+    }
 }

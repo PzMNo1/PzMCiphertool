@@ -201,13 +201,7 @@ function renderGraph(container) {
         
         // --- 交互 ---
         .onNodeClick(node => {
-            const distance = 100;
-            const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
-            Graph.cameraPosition(
-                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-                node,
-                2000
-            );
+            focusGraphNode(node);
             handleGraphNodeClick(node);
         });
 
@@ -300,6 +294,48 @@ function renderGraph(container) {
 
     // 初始调用
     resetPanel();
+
+    function focusGraphNode(node) {
+        if (!node) return false;
+        const x = Number.isFinite(node.x) ? node.x : 0;
+        const y = Number.isFinite(node.y) ? node.y : 0;
+        const z = Number.isFinite(node.z) ? node.z : 0;
+        const distance = 100;
+        const length = Math.hypot(x, y, z) || 1;
+        const distRatio = 1 + distance / length;
+        Graph.cameraPosition(
+            { x: x * distRatio, y: y * distRatio, z: z * distRatio },
+            node,
+            2000
+        );
+        return true;
+    }
+
+    function normalizeGraphSearchText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/[^\w\u4e00-\u9fa5]+/g, '');
+    }
+
+    function findGraphNode(query) {
+        const normalizedQuery = normalizeGraphSearchText(query);
+        if (!normalizedQuery) return null;
+        const nodes = (Graph.graphData()?.nodes || []);
+        return nodes.find(node => normalizeGraphSearchText(node.name) === normalizedQuery)
+            || nodes.find(node => normalizeGraphSearchText(node.name).includes(normalizedQuery))
+            || nodes.find(node => normalizeGraphSearchText(node.path).includes(normalizedQuery));
+    }
+
+    function focusNodeByQuery(query) {
+        const node = findGraphNode(query);
+        if (!node) {
+            showPreview('未找到节点', `搜索词: ${query}`, '<p>知识图谱里没有匹配的节点。可以尝试输入更短的中文名、英文名或文件名。</p>');
+            return false;
+        }
+        focusGraphNode(node);
+        handleGraphNodeClick(node);
+        return true;
+    }
 
     function ensureGraphInspector() {
         const root = document.getElementById('zhishitupu-content');
@@ -574,6 +610,7 @@ function renderGraph(container) {
 
 
     window.ZSTP = {
+        focusNode: focusNodeByQuery,
         pause: () => {
             if (!window.isZSTPActive) return;
             window.isZSTPActive = false;

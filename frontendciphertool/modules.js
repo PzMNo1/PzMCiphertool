@@ -1,4 +1,4 @@
-// 模块内容作为JavaScript变量
+﻿// 模块内容作为JavaScript变量
 const MODULES = {
     // 加密实验室模块
     jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
@@ -395,7 +395,7 @@ const MODULES = {
     <div id="electroniclab-content" class="content-section">
         <div class="module-header">
             <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
-            <div class="source-selector-container"">
+            <div class="source-selector-container">
                 <select id="circuit-source-select" class="circuit-source-select">
                     <option value="./electronic/war/circuitjs.html">线路1: 本地源 (Local)</option>
                 </select>
@@ -590,7 +590,6 @@ const MODULES = {
         </div>
     </div>
 </div>`,
-
     // 意见反馈模块
     yijianfankui:
         `<div id="yijianfankui-content" class="content-section">
@@ -760,11 +759,13 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
 
-        // 大模型特殊处理
-        if (typeof initChatFunctions === 'function') {
-            initChatFunctions();
-        } else if (typeof bindChatEvents === 'function') {
-            bindChatEvents();
+        // 大模型特殊处理：仅在切换到大模型页面时初始化
+        if (id === 'damoxing') {
+            if (typeof initChatFunctions === 'function') {
+                initChatFunctions();
+            } else if (typeof bindChatEvents === 'function') {
+                bindChatEvents();
+            }
         }
     }
 

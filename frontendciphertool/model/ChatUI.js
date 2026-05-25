@@ -8,6 +8,7 @@ class ChatUI {
         this.messagesContainer = null;
         this.mathJaxRendering = false;
         this.lastMathJaxRenderTime = 0;
+        this.toolCallNames = new Map();
     }
 
     /**
@@ -114,7 +115,7 @@ class ChatUI {
         reasoningDetails.open = true;
 
         const reasoningSummary = document.createElement('summary');
-        reasoningSummary.innerHTML = `<span>SYSTEM ANALYSIS</span> <span class="status-dot"></span>`;
+        reasoningSummary.innerHTML = `<span>正在分析问题</span> <span class="status-dot"></span>`;
 
         const reasoningContent = document.createElement('div');
         reasoningContent.className = 'reasoning-content';
@@ -158,13 +159,24 @@ class ChatUI {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
 
+    setReasoningStatus(container, status) {
+        if (!container?.reasoningSummary) return;
+        container.reasoningSummary.innerHTML = `<span>${this.escapeHtml(status)}</span> <span class="status-dot"></span>`;
+    }
+
+    appendReasoningEvent(container, message) {
+        if (!container?.reasoningContent) return;
+        const prefix = container.reasoningContent.textContent.trim() ? '\n' : '';
+        this.appendReasoningContent(container, `${prefix}${message}`);
+    }
+
     /**
      * 完成思维链阶段
      * @param {Object} container
      */
     finishReasoning(container) {
         container.reasoningDetails.classList.remove('thinking-state');
-        container.reasoningSummary.innerHTML = `<span>ANALYSIS COMPLETE</span> <span class="status-dot"></span>`;
+        this.setReasoningStatus(container, '正在整理回答');
         if (container.cursorSpan.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
@@ -206,6 +218,9 @@ class ChatUI {
     }
 
     createAgentRunPanel(container, plan) {
+        this.setReasoningStatus(container, this.getPlanStatus(plan));
+        this.appendReasoningEvent(container, `已规划 ${plan.mode} 模式，准备使用 ${plan.selectedTools.length} 个候选工具。`);
+
         const panel = document.createElement('details');
         panel.className = 'agent-run-panel';
         panel.open = true;
@@ -255,7 +270,72 @@ class ChatUI {
         return panel;
     }
 
+    restoreAgentRunPanel(messageElement, contentDiv, snapshot) {
+        if (!snapshot) return null;
+
+        const panel = document.createElement('details');
+        panel.className = 'agent-run-panel';
+        panel.open = false;
+
+        const selectedTools = Array.isArray(snapshot.selectedTools) ? snapshot.selectedTools : [];
+        const summary = document.createElement('summary');
+        summary.className = 'agent-run-summary';
+        summary.innerHTML = `
+            <span class="agent-run-title">AGENT RUN</span>
+            <span class="agent-run-mode">${this.escapeHtml(snapshot.mode || 'agent')}</span>
+            <span class="agent-run-count">${selectedTools.length} tools</span>
+        `;
+
+        const body = document.createElement('div');
+        body.className = 'agent-run-body';
+
+        const stages = document.createElement('div');
+        stages.className = 'agent-stage-strip';
+        const stageList = Array.isArray(snapshot.stages) && snapshot.stages.length
+            ? snapshot.stages
+            : ['plan', 'route', 'act', 'observe', 'synthesize'].map(id => ({ id, label: id, state: 'done', note: '' }));
+
+        stageList.forEach(stage => {
+            const item = document.createElement('div');
+            item.className = `agent-stage ${stage.state || 'done'}`;
+            item.dataset.stage = stage.id || '';
+            item.innerHTML = `
+                <span class="agent-stage-dot"></span>
+                <span class="agent-stage-label">${this.escapeHtml(stage.label || stage.id || '')}</span>
+                <span class="agent-stage-note">${this.escapeHtml(stage.note || '')}</span>
+            `;
+            stages.appendChild(item);
+        });
+
+        const trace = document.createElement('div');
+        trace.className = 'agent-trace-log';
+        (Array.isArray(snapshot.traces) ? snapshot.traces : []).forEach(row => {
+            const traceRow = document.createElement('div');
+            traceRow.className = 'agent-trace-row';
+            traceRow.innerHTML = `
+                <span class="agent-trace-stage">${this.escapeHtml(row.stage || '')}</span>
+                <span class="agent-trace-message">${this.escapeHtml(row.message || '')}</span>
+            `;
+            trace.appendChild(traceRow);
+        });
+
+        body.appendChild(stages);
+        body.appendChild(trace);
+        panel.appendChild(summary);
+        panel.appendChild(body);
+        // Safety: only use insertBefore if contentDiv is already a child of messageElement
+        if (contentDiv.parentNode === messageElement) {
+            messageElement.insertBefore(panel, contentDiv);
+        } else {
+            messageElement.appendChild(panel);
+        }
+        return panel;
+    }
+
     setAgentStage(container, stageId, state, note = '') {
+        if (state === 'active') {
+            this.setReasoningStatus(container, this.getStageStatus(stageId, note));
+        }
         const stage = container.agentStages?.querySelector(`[data-stage="${stageId}"]`);
         if (!stage) return;
         stage.classList.remove('pending', 'active', 'done', 'error');
@@ -265,6 +345,9 @@ class ChatUI {
     }
 
     addAgentTrace(container, stage, message) {
+        if (stage === 'route' || stage === 'act' || stage === 'observe') {
+            this.appendReasoningEvent(container, this.formatTraceForReasoning(stage, message));
+        }
         if (!container.agentTrace) return;
         const row = document.createElement('div');
         row.className = 'agent-trace-row';
@@ -282,6 +365,8 @@ class ChatUI {
      * @returns {HTMLElement} 工具卡片元素
      */
     displayToolCall(container, toolCall) {
+        this.toolCallNames.set(toolCall.id, toolCall.function.name);
+        this.setReasoningStatus(container, `正在调用 ${toolCall.function.name}`);
         const toolCard = document.createElement('div');
         toolCard.className = 'tool-call-card tool-executing';
         toolCard.id = `tool-${toolCall.id}`;
@@ -292,6 +377,7 @@ class ChatUI {
         } catch (e) {
             args = toolCall.function.arguments;
         }
+        this.appendReasoningEvent(container, `调用工具：${toolCall.function.name} ${this.truncateForLog(String(args).replace(/\s+/g, ' '), 220)}`);
 
         toolCard.innerHTML = `
             <div class="tool-call-header">
@@ -304,11 +390,12 @@ class ChatUI {
             </div>
             <div class="tool-call-result"></div>
         `;
+        toolCard.hidden = true;
 
         if (container.toolDeck) {
             container.toolDeck.appendChild(toolCard);
         } else {
-            container.element.insertBefore(toolCard, container.contentDiv);
+            container.element.appendChild(toolCard);
         }
         return toolCard;
     }
@@ -322,6 +409,7 @@ class ChatUI {
     updateToolResult(toolCallId, result, success = true) {
         const toolCard = document.getElementById(`tool-${toolCallId}`);
         if (!toolCard) return;
+        this.appendToolResultEvent(toolCard, toolCallId, result, success);
 
         toolCard.classList.remove('tool-executing');
         toolCard.classList.add(success ? 'tool-success' : 'tool-error');
@@ -333,13 +421,64 @@ class ChatUI {
         resultEl.innerHTML = `<pre>${this.escapeHtml(result)}</pre>`;
     }
 
+    appendToolResultEvent(toolCard, toolCallId, result, success) {
+        const messageElement = toolCard.closest('.assistant-message');
+        const summary = messageElement?.querySelector('.reasoning-details summary');
+        const reasoningContent = messageElement?.querySelector('.reasoning-content');
+        const cursorSpan = reasoningContent?.querySelector('.cursor-blink');
+        if (summary) {
+            summary.innerHTML = `<span>${success ? '正在读取工具结果' : '工具调用失败，正在调整'}</span> <span class="status-dot"></span>`;
+        }
+        if (!reasoningContent) return;
+        const toolName = this.toolCallNames.get(toolCallId) || '工具';
+        const preview = this.truncateForLog(String(result ?? '').replace(/\s+/g, ' ').trim(), 260);
+        const prefix = reasoningContent.textContent.trim() ? '\n' : '';
+        const line = `${prefix}${success ? '工具完成' : '工具失败'}：${toolName}${preview ? `，结果摘要：${preview}` : ''}`;
+        reasoningContent.insertBefore(document.createTextNode(line), cursorSpan || null);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    getPlanStatus(plan) {
+        if (plan.mode === 'research') return '正在检索资料';
+        if (plan.mode === 'agent') return '正在分析并选择工具';
+        return '正在分析问题';
+    }
+
+    getStageStatus(stageId, note = '') {
+        const usefulNote = note && !/^Iteration\s+\d+$/i.test(note) ? `：${note}` : '';
+        const map = {
+            plan: '正在分析问题',
+            route: '正在选择可用工具',
+            act: `正在调用工具${usefulNote}`,
+            observe: '正在读取工具结果',
+            synthesize: '正在整理回答'
+        };
+        return map[stageId] || '正在思考';
+    }
+
+    formatTraceForReasoning(stage, message) {
+        if (stage === 'route' && message.startsWith('Routed tools:')) {
+            const tools = message.replace('Routed tools:', '').split(',').map(v => v.trim()).filter(Boolean);
+            return `已选择工具：${tools.slice(0, 8).join(', ')}${tools.length > 8 ? ` 等 ${tools.length} 个` : ''}`;
+        }
+        if (stage === 'act' || stage === 'observe') {
+            return message.replace(/^Iteration \d+:\s*/i, '');
+        }
+        return message;
+    }
+
+    truncateForLog(value, max) {
+        const text = String(value ?? '');
+        return text.length <= max ? text : `${text.slice(0, max)}...`;
+    }
+
     /**
      * 完成消息（保存状态）
      * @param {Object} container
      */
     finalizeMessage(container) {
         container.reasoningDetails.classList.remove('thinking-state');
-        container.reasoningSummary.innerHTML = `<span>ANALYSIS LOG [SAVED]</span> <span class="status-dot"></span>`;
+        this.setReasoningStatus(container, '已完成思考');
         if (container.cursorSpan.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
@@ -386,7 +525,7 @@ class ChatUI {
             reasoningDetails.open = false;
 
             const reasoningSummary = document.createElement('summary');
-            reasoningSummary.innerHTML = `<span>ANALYSIS LOG [SAVED]</span> <span class="status-dot"></span>`;
+            reasoningSummary.innerHTML = `<span>已完成思考</span> <span class="status-dot"></span>`;
 
             const reasoningContentDiv = document.createElement('div');
             reasoningContentDiv.className = 'reasoning-content';
@@ -428,7 +567,12 @@ class ChatUI {
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content message-text';
         messageContent.innerHTML = msg.role === 'user' ? msg.content : this.formatMessage(msg.content);
+        // 必须先将 messageContent 添加到 messageElement，
+        // 然后再调用 restoreAgentRunPanel（它内部使用 insertBefore 需要 contentDiv 已经是子节点）
         messageElement.appendChild(messageContent);
+        if (msg.role !== 'user' && msg.agent_run) {
+            this.restoreAgentRunPanel(messageElement, messageContent, msg.agent_run);
+        }
 
         this.messagesContainer.appendChild(messageElement);
 

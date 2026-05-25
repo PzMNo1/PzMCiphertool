@@ -39,6 +39,8 @@ public interface WebCrawlerService {
      * @return 天气信息
      */
     String getWeather(String city, boolean detailed);
+
+    String getFinanceQuote(String symbol);
     /**
      * 多步搜索：获取搜索结果URL列表（搜索第一步）
      * @param query 搜索关键词

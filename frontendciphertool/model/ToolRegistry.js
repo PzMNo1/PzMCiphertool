@@ -14,6 +14,12 @@ class ToolRegistry {
                 : 'http://localhost:8080/api/crawler';
         };
 
+        this.getProjectApiBase = () => {
+            return window.location.hostname === 'waiw.ozqmp.com'
+                ? 'https://waiw.ozqmp.com/api/project'
+                : 'http://localhost:8080/api/project';
+        };
+
         this.registerBuiltinTools();
     }
 
@@ -758,6 +764,353 @@ class ToolRegistry {
                 } catch (e) {
                     return `请求失败: ${e.message}`;
                 }
+            }
+        });
+
+        this.register({
+            name: 'search_query',
+            description: 'Search the web for current information and return result URLs, titles, and snippets.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: 'Search query' }
+                },
+                required: ['query']
+            },
+            execute: async ({ query }) => {
+                const response = await fetch(`${this.getApiBase()}/search_urls`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Search failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'open_url',
+            description: 'Open a URL and return readable page content as markdown-like text.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url: { type: 'string', description: 'URL to open' },
+                    focus_keyword: { type: 'string', description: 'Optional keyword to focus returned passages' },
+                    chunk_index: { type: 'integer', description: 'Optional chunk index for long pages' }
+                },
+                required: ['url']
+            },
+            execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
+                const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, focus_keyword, chunk_index })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Open URL failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'find_in_page',
+            description: 'Find passages in a URL that match a keyword or phrase.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url: { type: 'string', description: 'URL to search within' },
+                    pattern: { type: 'string', description: 'Keyword or phrase to find' }
+                },
+                required: ['url', 'pattern']
+            },
+            execute: async ({ url, pattern }) => {
+                const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, focus_keyword: pattern, chunk_index: 0 })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Find failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'open',
+            description: 'Codex-style alias for open_url. Open a URL and return readable content.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url: { type: 'string', description: 'URL to open' },
+                    focus_keyword: { type: 'string', description: 'Optional keyword to focus returned passages' },
+                    chunk_index: { type: 'integer', description: 'Optional chunk index for long pages' }
+                },
+                required: ['url']
+            },
+            execute: async (args) => this.execute('open_url', args)
+        });
+
+        this.register({
+            name: 'find',
+            description: 'Codex-style alias for find_in_page. Find matching passages in a URL.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    url: { type: 'string', description: 'URL to search within' },
+                    pattern: { type: 'string', description: 'Keyword or phrase to find' }
+                },
+                required: ['url', 'pattern']
+            },
+            execute: async (args) => this.execute('find_in_page', args)
+        });
+
+        this.register({
+            name: 'get_time',
+            description: 'Get the current time for a UTC offset such as +08:00 or -05:00.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    utc_offset: { type: 'string', description: 'UTC offset, for example +08:00' }
+                },
+                required: ['utc_offset']
+            },
+            execute: ({ utc_offset }) => {
+                const match = String(utc_offset || '').match(/^([+-])(\d{2}):?(\d{2})$/);
+                if (!match) return 'Invalid utc_offset. Use +08:00 format.';
+                const sign = match[1] === '+' ? 1 : -1;
+                const minutes = sign * (Number(match[2]) * 60 + Number(match[3]));
+                const date = new Date(Date.now() + minutes * 60 * 1000);
+                return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ` UTC${utc_offset}`);
+            }
+        });
+
+        this.register({
+            name: 'time',
+            description: 'Codex-style alias for get_time.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    utc_offset: { type: 'string', description: 'UTC offset, for example +08:00' }
+                },
+                required: ['utc_offset']
+            },
+            execute: async (args) => this.execute('get_time', args)
+        });
+
+        this.register({
+            name: 'weather',
+            description: 'Codex-style alias for get_weather.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    city: { type: 'string', description: 'City name' },
+                    detailed: { type: 'boolean', description: 'Whether to return detailed forecast' }
+                },
+                required: ['city']
+            },
+            execute: async (args) => this.execute('get_weather', args)
+        });
+
+        this.register({
+            name: 'list_files',
+            description: 'List files and directories inside the project workspace.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    path: { type: 'string', description: 'Project-relative directory path' },
+                    depth: { type: 'integer', description: 'Directory depth, max 6' }
+                }
+            },
+            execute: async ({ path = '.', depth = 2 }) => {
+                const response = await fetch(`${this.getProjectApiBase()}/list_files`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, depth })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `List files failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'read_file',
+            description: 'Read a UTF-8 text file from the project workspace.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    path: { type: 'string', description: 'Project-relative file path' }
+                },
+                required: ['path']
+            },
+            execute: async ({ path }) => {
+                const response = await fetch(`${this.getProjectApiBase()}/read_file`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Read file failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'search_files',
+            description: 'Search project text files for a keyword and return matching file paths and line numbers.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: 'Text to search for' },
+                    path: { type: 'string', description: 'Project-relative directory path' }
+                },
+                required: ['query']
+            },
+            execute: async ({ query, path = '.' }) => {
+                const response = await fetch(`${this.getProjectApiBase()}/search_files`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, path })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Search files failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'file_info',
+            description: 'Get metadata for a project file or directory.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    path: { type: 'string', description: 'Project-relative path' }
+                },
+                required: ['path']
+            },
+            execute: async ({ path }) => {
+                const response = await fetch(`${this.getProjectApiBase()}/file_info`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `File info failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'update_plan',
+            description: 'Create or update a concise visible task plan for a multi-step agent run.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    steps: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                step: { type: 'string' },
+                                status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] }
+                            },
+                            required: ['step', 'status']
+                        }
+                    }
+                },
+                required: ['steps']
+            },
+            execute: ({ steps }) => {
+                return JSON.stringify({ plan: steps }, null, 2);
+            }
+        });
+
+        this.register({
+            name: 'news_query',
+            description: 'Search recent news by keyword and optional category.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    keyword: { type: 'string', description: 'News keyword' },
+                    category: { type: 'string', description: 'Optional category such as tech, finance, politics' }
+                }
+            },
+            execute: async ({ keyword = '', category = '' }) => {
+                const response = await fetch(`${this.getApiBase()}/news`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword, category })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `News query failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'finance_query',
+            description: 'Get a current market quote for a symbol. US stocks may be provided as AAPL or aapl.us.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    symbol: { type: 'string', description: 'Ticker symbol' }
+                },
+                required: ['symbol']
+            },
+            execute: async ({ symbol }) => {
+                const response = await fetch(`${this.getApiBase()}/finance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Finance query failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'run_tests',
+            description: 'Run the backend Maven test command from a fixed whitelist.',
+            parameters: { type: 'object', properties: {} },
+            execute: async () => {
+                const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: 'backend_test' })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Run tests failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'run_build',
+            description: 'Run the backend Maven package command from a fixed whitelist.',
+            parameters: { type: 'object', properties: {} },
+            execute: async () => {
+                const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: 'backend_build' })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Run build failed: ${result.message}`;
+            }
+        });
+
+        this.register({
+            name: 'propose_patch',
+            description: 'Return a patch proposal for review. This tool does not modify files.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    path: { type: 'string', description: 'Target project-relative path' },
+                    summary: { type: 'string', description: 'Change summary' },
+                    patch: { type: 'string', description: 'Unified diff or clear edit proposal' }
+                },
+                required: ['path', 'patch']
+            },
+            execute: async ({ path, summary = '', patch }) => {
+                const response = await fetch(`${this.getProjectApiBase()}/propose_patch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, summary, patch })
+                });
+                const result = await response.json();
+                return result.success ? result.data : `Patch proposal failed: ${result.message}`;
             }
         });
     }

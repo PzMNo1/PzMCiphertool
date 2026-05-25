@@ -208,19 +208,52 @@ function initSearchFunction() {
         cardSearch.addEventListener('keydown', e => {
             if (e.key !== 'Enter') return
             e.preventDefault()
+            const query = e.target.value.trim()
+            if (isKnowledgeGraphVisible()) {
+                focusKnowledgeGraphNode(query)
+                return
+            }
             let target
             $$('.card, .logic-btn').forEach(el => {
                 const text = el.classList.contains('card') 
                     ? el.querySelector('.badge')?.textContent 
                     : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
-                if (text?.toLowerCase().includes(e.target.value.toLowerCase()
-                    .trim())) target ??= el
+                if (text?.toLowerCase().includes(query.toLowerCase())) target ??= el
             })
             if (target) highlightAndScroll(target);
         })
     }
     initQuickNav('mimaqu');
     initQuickNav('xiandaiqu');
+}
+
+
+// 侧边栏搜索框与知识图谱联动：在知识图谱页面回车后定位节点
+function isKnowledgeGraphVisible() {
+    const container = document.getElementById('zhishitupu-container');
+    const content = document.getElementById('zhishitupu-content');
+    return Boolean(
+        (container && container.style.display !== 'none') ||
+        (content && content.offsetParent !== null)
+    );
+}
+
+function focusKnowledgeGraphNode(query) {
+    if (!query) return;
+    const runSearch = () => {
+        if (window.ZSTP && typeof window.ZSTP.focusNode === 'function') {
+            return window.ZSTP.focusNode(query);
+        }
+        return false;
+    };
+
+    if (runSearch()) return;
+
+    if (typeof initKnowledgeGraph === 'function') {
+        Promise.resolve(initKnowledgeGraph()).then(() => {
+            setTimeout(runSearch, 100);
+        });
+    }
 }
 
 
@@ -407,7 +440,6 @@ function initAuthorPage() {
         });
     }
 }
-
 
 
 

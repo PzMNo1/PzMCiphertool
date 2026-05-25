@@ -194,3 +194,131 @@ async function updateAll() {
 2.  **新增 JS**: 如果你添加了新的 JS 文件（例如 `cipher/5_NewCipher.js`），**必须**在 `modules.js`底部的加载列表中注册它，否则网页不会加载这个文件。
 3.  **异步问题**: 现代加密（SHA/MD5）使用了浏览器原生 Crypto API，是异步的。在 `updateAll` 中调用它们时记得使用 `await`，否则用户会看到 `[object Promise]`。
 
+---
+
+## 7. 项目布局总览
+
+这个项目整体是 **原生前端静态站 + Spring Boot 后端** 的结构。
+
+```text
+PzMCiphertool-
+├─ README.md                         根说明文档
+├─ .env                              环境变量
+├─ .github/                          GitHub workflow
+├─ .vscode/                          VS Code 配置
+├─ .claude/                          Claude/agent 相关配置
+├─ backendcipher/                    Java Spring Boot 后端
+└─ frontendciphertool/               原生 HTML/CSS/JS 前端
+```
+
+### 前端：`frontendciphertool/`
+
+这是主要用户界面。目录里没有 `package.json`，所以它不是 React/Vue/Vite 这类框架项目，而是原生静态网页。
+
+```text
+frontendciphertool/
+├─ index.html                        前端入口页面
+├─ modules.js                        模块 HTML 内容仓库 + 动态脚本加载器
+├─ 0_zhuyeyangshi.css                全局样式
+├─ 0_sidebar_funtion.js              侧边栏/页面切换逻辑
+├─ favicon.svg
+├─ cipher/                           加密/解密实验室
+├─ electronic/                       电子电路实验室，内含 CircuitJS 资源
+├─ workflow/                         工作流模块
+├─ zhishitupu/                       知识图谱模块
+├─ model/                            大模型聊天/Agent 前端逻辑
+├─ loginsystem/                      登录认证前端
+├─ sendfeedback/                     联系/反馈模块
+├─ logic/                            逻辑谜题模块
+├─ wordsearch/                       单词搜索模块
+├─ spacepuzzle/                      空间谜题，如魔方
+└─ agentmaster/                      全局悬浮助手
+```
+
+前端运行方式大致是：
+
+1. `index.html` 定义侧边栏和各模块容器。
+2. `modules.js` 里有 `MODULES` 对象，存放各模块 HTML 字符串。
+3. 页面加载后，`modules.js` 把 `jiamishiyanshi`、`electroniclab`、`workflow`、`zhishitupu`、`damoxing`、`yijianfankui` 等模块注入对应容器。
+4. 再动态加载各模块 JS，例如 `cipher/1_cipherlab.js`、`workflow/workflow.js`、`zhishitupu/zhishitupu.js` 等。
+
+### 核心前端模块
+
+```text
+cipher/
+├─ 1_cipherlab.js                    主加密实验室逻辑，包含 updateAll()
+├─ 2_ADFGXCipher.js                  ADFGX/ADFGVX
+├─ 3_Enigma.js                       Enigma 模拟
+├─ 4_MD5.js                          MD5
+├─ 6_semaphore.js                    旗语/可视化
+├─ 888_chinese_code_table.js         中文电码数据表
+├─ 888_CornerMap.js                  四角号码数据
+└─ 999_funtion.js                    通用工具函数
+```
+
+```text
+model/
+├─ main.js
+├─ script.js
+├─ AgentRuntime.js
+├─ ChatUI.js
+├─ DeepSeekClient.js
+├─ HistoryManager.js
+├─ ToolRegistry.js
+└─ 2_damoxing.css
+```
+
+`model/` 是大模型聊天/Agent 相关前端逻辑，可能会调用后端 `/api/chat`、历史记录和工具接口。
+
+### 后端：`backendcipher/`
+
+后端是 Maven + Spring Boot 3.2.0 + Java 17。
+
+```text
+backendcipher/
+├─ pom.xml                           Maven 配置
+├─ README.md
+├─ start.bat                         Windows 启动脚本
+├─ start.sh                          Linux/macOS 启动脚本
+├─ Aliyunsmsmd/                      阿里云短信相关文档
+├─ modelchathistory/                 聊天历史 JSON 存储
+└─ src/main/
+   ├─ java/com/ciphertool/
+   │  ├─ CipherToolApplication.java  Spring Boot 入口
+   │  ├─ config/                     CORS、Redis、阿里云短信配置
+   │  ├─ controller/                 API 控制器
+   │  ├─ dto/                        请求/响应 DTO
+   │  ├─ exception/                  全局异常处理
+   │  └─ service/                    业务服务与实现
+   └─ resources/
+      ├─ application.yml
+      └─ application-dev.yml
+```
+
+后端主要接口分组：
+
+```text
+/api/auth
+├─ POST /send-code                   发送验证码
+├─ POST /login                       登录
+└─ GET  /health                      健康检查
+
+/api/chat
+├─ POST /completions                 聊天补全，SSE 流式输出
+├─ GET  /history                     获取聊天历史
+└─ POST /history                     保存聊天历史
+
+/api/crawler
+├─ POST /search
+├─ POST /webpage
+├─ POST /search_urls
+├─ POST /read_webpage
+├─ POST /news
+└─ POST /weather
+```
+
+### 项目性质总结
+
+这是一个“泡面的 Agent 工具箱 / Puzzlehunt / CTF / 电子实验室 / 大模型助手”综合工具站。前端承担大量 UI 和本地算法逻辑，尤其是密码学工具；后端主要负责需要服务端能力的部分：短信登录、Redis、聊天代理、聊天历史、网页搜索/爬取等。
+
+一个关键维护点：前端很多 UI 不在 `index.html`，而是在 `frontendciphertool/modules.js` 的字符串模板里；新增前端功能时通常要同时改 `modules.js`、对应模块 JS/CSS，并确认脚本加载列表里注册了新文件。

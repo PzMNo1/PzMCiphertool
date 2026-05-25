@@ -155,6 +155,7 @@
 
         let finalReasoning = '';
         let finalContent = '';
+        let agentRunSnapshot = null;
         let collectedToolCalls = []; // 收集工具调用信息
 
         try {
@@ -170,6 +171,7 @@
                 finalContent = response?.content || finalContent;
                 finalReasoning = response?.reasoning_content || finalReasoning;
                 collectedToolCalls = response?.agent_tool_calls || response?.tool_calls || collectedToolCalls;
+                agentRunSnapshot = response?.agent_run || null;
             } else if (isToolEnabled) {
                 // 带工具调用的对话
                 const tools = window.toolRegistry.getToolDefinitions();
@@ -243,7 +245,8 @@
                 role: 'assistant',
                 content: finalContent,
                 reasoning_content: finalReasoning || null,
-                tool_calls: collectedToolCalls.length > 0 ? collectedToolCalls : null
+                tool_calls: collectedToolCalls.length > 0 ? collectedToolCalls : null,
+                agent_run: agentRunSnapshot
             });
 
         } catch (error) {
@@ -287,7 +290,11 @@
                 container.innerHTML = '';
                 messages.forEach(msg => {
                     if (msg.role !== 'tool' && msg.role !== 'system') {
-                        window.chatUI.displayMessageFromHistory(msg);
+                        try {
+                            window.chatUI.displayMessageFromHistory(msg);
+                        } catch (e) {
+                            console.warn('Failed to render history message:', e, msg);
+                        }
                     }
                 });
             }

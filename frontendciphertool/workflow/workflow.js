@@ -398,7 +398,7 @@ function initWorkflowCoze() {
 
         // Node drag
         el.addEventListener('mousedown', e => {
-            if (e.target.closest('.wf-port') || e.target.closest('.wf-resize-handle') || e.target.closest('textarea') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.wf-node-delete')) return;
+            if (e.target.closest('.wf-port') || e.target.closest('.wf-resize-handle') || e.target.closest('textarea') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.wf-node-delete') || e.target.closest('.wf-node-result .result')) return;
             e.stopPropagation();
             draggingNode = n.id;
             const cp = screenToCanvas(e.clientX, e.clientY);
