@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('doppelblock-workspace', 'dopp
         { label: '清空填涂', onclick: 'window.clearDoppelblockGrid && window.clearDoppelblockGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleDoppelblockExample && window.buildSimpleDoppelblockExample()' }
     ]) +
-    LogicUI.statsPanel('doppelblock', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+    LogicUI.statsPanel('doppelblock', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
     LogicUI.solutionNav('doppelblock', 'showDoppelblockSolution', { accent: 'var(--neon-cyan)' }) +
     LogicUI.instructions([
         '• <strong>网格规则</strong>：每行每列必须恰好包含 <strong>2 个黑色方块</strong>。',
@@ -216,7 +216,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('doppelblock-workspace', 'dopp
         const solutions = window.solveDoppelblock(puzzle);
         const elapsed = performance.now() - startTime;
         
-        document.getElementById('doppelblock-timeElapsed').textContent = elapsed.toFixed(1) + 'ms';
+        document.getElementById('doppelblock-timeElapsed').textContent = LogicUI.formatElapsed(elapsed);
         document.getElementById('doppelblock-solutionsCount').textContent = solutions.length;
         
         if (solutions.length > 0) {

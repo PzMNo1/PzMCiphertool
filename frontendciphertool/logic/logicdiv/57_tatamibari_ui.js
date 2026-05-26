@@ -11,7 +11,7 @@
             { label: '简单示例', onclick: 'window.buildSimpleTatamibariExample && window.buildSimpleTatamibariExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="ttb-symbol-btn" onclick="window.cycleTtbSymbol && window.cycleTtbSymbol()"><span class="cyber-button__tag">当前符号: +</span></button></div>` +
-        window.LogicUI.statsPanel('ttb', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('ttb', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('ttb', 'showTatamibariSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子放置/清除当前符号（+/-/|）',
@@ -79,7 +79,7 @@
         if (!window.solveTatamibari) return st('模块未加载', '-');
         if (!Object.keys(clues).length) return st('请先放置符号', '-');
         const t0 = performance.now(), res = window.solveTatamibari({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         st(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { show = true; si = 0; nv(true); window.showTatamibariSolution(0); }

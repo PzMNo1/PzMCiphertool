@@ -88,7 +88,7 @@ class ChatUI {
      * 显示用户消息
      * @param {string} content
      */
-    displayUserMessage(content) {
+    displayUserMessage(content, attachments = []) {
         const messageElement = document.createElement('div');
         messageElement.className = 'message user-message';
 
@@ -97,6 +97,7 @@ class ChatUI {
         messageContent.textContent = content;
 
         messageElement.appendChild(messageContent);
+        this.appendAttachmentSummary(messageElement, attachments);
         this.messagesContainer.appendChild(messageElement);
         messageElement.scrollIntoView({ behavior: 'smooth' });
     }
@@ -193,6 +194,17 @@ class ChatUI {
         this.debouncedMathJax(container.contentDiv);
     }
 
+    displayGeneratedImages(container, images = [], caption = '') {
+        const safeCaption = caption ? `<p>${this.escapeHtml(caption)}</p>` : '';
+        container.contentDiv.innerHTML = `
+            ${safeCaption}
+            <div class="generated-image-grid"></div>
+        `;
+        const grid = container.contentDiv.querySelector('.generated-image-grid');
+        this.appendGeneratedImages(grid, images);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
     /**
      * 防抖的 MathJax 渲染
      * @param {HTMLElement} element
@@ -215,6 +227,57 @@ class ChatUI {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    appendAttachmentSummary(messageElement, attachments = []) {
+        if (!Array.isArray(attachments) || attachments.length === 0) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'message-attachments';
+        attachments.forEach(file => {
+            const chip = document.createElement('span');
+            chip.className = 'message-attachment-chip';
+            const size = this.formatBytes(file.size || 0);
+            const kind = file.kind ? `${file.kind} · ` : '';
+            chip.title = file.path || file.name || '';
+            chip.textContent = `${kind}${file.name || file.path || 'attachment'} · ${size}`;
+            wrap.appendChild(chip);
+        });
+        messageElement.appendChild(wrap);
+    }
+
+    appendGeneratedImages(parent, images = []) {
+        if (!parent || !Array.isArray(images) || images.length === 0) return;
+
+        images.forEach((image, index) => {
+            const frame = document.createElement('figure');
+            frame.className = 'generated-image-frame';
+
+            const img = document.createElement('img');
+            img.src = image.url;
+            img.alt = image.revisedPrompt || `生成图片 ${index + 1}`;
+            img.loading = 'lazy';
+
+            const actions = document.createElement('figcaption');
+            actions.className = 'generated-image-actions';
+
+            const open = document.createElement('a');
+            open.href = image.url;
+            open.target = '_blank';
+            open.rel = 'noopener';
+            open.textContent = '打开图片';
+
+            actions.appendChild(open);
+            frame.append(img, actions);
+            parent.appendChild(frame);
+        });
+    }
+
+    formatBytes(bytes) {
+        const value = Number(bytes) || 0;
+        if (value < 1024) return `${value} B`;
+        if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+        return `${(value / 1024 / 1024).toFixed(1)} MB`;
     }
 
     createAgentRunPanel(container, plan) {
@@ -566,12 +629,25 @@ class ChatUI {
         // 显示内容
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content message-text';
-        messageContent.innerHTML = msg.role === 'user' ? msg.content : this.formatMessage(msg.content);
+        if (msg.role === 'user') {
+            messageContent.textContent = msg.content || '';
+        } else {
+            messageContent.innerHTML = this.formatMessage(msg.content);
+        }
         // 必须先将 messageContent 添加到 messageElement，
         // 然后再调用 restoreAgentRunPanel（它内部使用 insertBefore 需要 contentDiv 已经是子节点）
         messageElement.appendChild(messageContent);
+        if (msg.role === 'user') {
+            this.appendAttachmentSummary(messageElement, msg.attachments || []);
+        }
         if (msg.role !== 'user' && msg.agent_run) {
             this.restoreAgentRunPanel(messageElement, messageContent, msg.agent_run);
+        }
+        if (msg.role !== 'user' && Array.isArray(msg.images) && msg.images.length) {
+            const grid = document.createElement('div');
+            grid.className = 'generated-image-grid';
+            this.appendGeneratedImages(grid, msg.images);
+            messageElement.appendChild(grid);
         }
 
         this.messagesContainer.appendChild(messageElement);
@@ -601,7 +677,7 @@ class ChatUI {
      * @param {string} currentChatId - 当前聊天ID
      * @param {Function} onSelect - 选择回调
      */
-    updateHistoryList(sortedHistory, currentChatId, onSelect) {
+    updateHistoryList(sortedHistory, currentChatId, onSelect, selectedChatIds = new Set(), onSelectionChange = null) {
         const historyList = document.getElementById('chat-history-list');
         if (!historyList) return;
 
@@ -619,6 +695,17 @@ class ChatUI {
                 <div class="history-time">${window.historyManager.formatDate(chat.timestamp)}</div>
                 <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
             `;
+
+            const checkbox = chatItem.querySelector('.history-checkbox');
+            if (checkbox) {
+                checkbox.checked = selectedChatIds.has(chat.id);
+                checkbox.addEventListener('click', e => e.stopPropagation());
+                checkbox.addEventListener('change', () => {
+                    if (typeof onSelectionChange === 'function') {
+                        onSelectionChange(chat.id, checkbox.checked);
+                    }
+                });
+            }
 
             chatItem.addEventListener('click', (e) => {
                 if (e.target.classList.contains('history-checkbox')) return;

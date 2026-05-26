@@ -11,7 +11,7 @@
             { label: '简单示例', onclick: 'window.buildSimpleStostoneExample && window.buildSimpleStostoneExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="sto-mode-btn" onclick="window.toggleStostoneMode && window.toggleStostoneMode()"><span class="cyber-button__tag">模式: 调整边界</span></button></div>` +
-        window.LogicUI.statsPanel('sto', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('sto', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('sto', 'showStostoneSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '边界模式: 点击/拖拽网格线绘制房间边界',
@@ -134,7 +134,7 @@
         const rooms = buildRooms();
         if (!rooms.length) return stats('请先绘制房间', '-');
         const cm = {}; for (const k in clues) { const [r, c] = k.split(',').map(Number); cm[r * C + c] = clues[k]; }
-        const t0 = performance.now(), res = window.solveStostone({ rows: R, cols: C, rooms, clues: cm }), ms = Math.round(performance.now() - t0) + 'ms';
+        const t0 = performance.now(), res = window.solveStostone({ rows: R, cols: C, rooms, clues: cm }), ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         stats(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { showing = true; si = 0; nav(true); window.showStostoneSolution(0); }

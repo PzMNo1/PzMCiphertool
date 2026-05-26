@@ -374,3 +374,108 @@ function countBits(n) {
 	}
 	return count;
 }
+// Pigpen / 跳舞的小人点击面板
+function getSymbolCipherConfig() {
+	const type = document.getElementById('symbolCipherType')?.value || 'pigpen';
+	if (type === 'dancingMen') {
+		return {
+			cipher: typeof DancingMenCipher !== 'undefined' ? DancingMenCipher : null,
+			symbolSize: '1.05rem'
+		};
+	}
+	return {
+		cipher: typeof PigpenCipher !== 'undefined' ? PigpenCipher : null,
+		symbolSize: '1.45rem'
+	};
+}
+
+function renderSymbolCipherResult() {
+	const input = document.getElementById('symbolCipherInput');
+	const result = document.getElementById('symbolCipherResult');
+	const config = getSymbolCipherConfig();
+	if (!input || !result || !config.cipher) return;
+	const text = input.value || '';
+	result.textContent = text ? `编码: ${config.cipher.e(text)}\n解码: ${config.cipher.d(text)}` : '';
+}
+
+function buildSymbolCipherPanel() {
+	const input = document.getElementById('symbolCipherInput');
+	const panel = document.getElementById('symbolCipherPanel');
+	const config = getSymbolCipherConfig();
+	if (!input || !panel || !config.cipher) return;
+
+	const appendChar = char => {
+		input.value += char;
+		renderSymbolCipherResult();
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+	};
+
+	panel.innerHTML = '';
+	panel.style.display = 'flex';
+	panel.style.flexWrap = 'wrap';
+	panel.style.gap = '8px';
+	panel.style.justifyContent = 'center';
+
+	[...config.cipher.letters].forEach((letter, index) => {
+		const tile = document.createElement('button');
+		tile.type = 'button';
+		tile.title = letter;
+		tile.style.cssText = 'width:68px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid rgba(64,224,255,.45);border-radius:8px;background:rgba(15,27,51,.72);color:#fff;box-shadow:0 0 8px rgba(64,224,255,.16);cursor:pointer;transition:transform .15s ease,border-color .15s ease;';
+		const symbol = document.createElement('span');
+		symbol.textContent = config.cipher.symbols[index];
+		symbol.style.cssText = `font-size:${config.symbolSize};line-height:1;white-space:nowrap;`;
+		const label = document.createElement('span');
+		label.textContent = letter;
+		label.style.cssText = 'font-size:.72rem;line-height:1;color:#40e0ff;';
+		tile.appendChild(symbol);
+		tile.appendChild(label);
+		tile.addEventListener('mouseenter', () => { tile.style.transform = 'translateY(-2px)'; tile.style.borderColor = '#2ecc71'; });
+		tile.addEventListener('mouseleave', () => { tile.style.transform = 'translateY(0)'; tile.style.borderColor = 'rgba(64,224,255,.45)'; });
+		tile.addEventListener('click', () => appendChar(letter));
+		panel.appendChild(tile);
+	});
+
+	const spaceTile = document.createElement('button');
+	spaceTile.type = 'button';
+	spaceTile.textContent = '空格 /';
+	spaceTile.style.cssText = 'width:68px;height:64px;border:1px solid rgba(46,204,113,.55);border-radius:8px;background:rgba(15,27,51,.72);color:#fff;box-shadow:0 0 8px rgba(46,204,113,.16);cursor:pointer;';
+	spaceTile.addEventListener('click', () => appendChar(' '));
+	panel.appendChild(spaceTile);
+}
+
+function initClickSymbolCiphers() {
+	const input = document.getElementById('symbolCipherInput');
+	const panel = document.getElementById('symbolCipherPanel');
+	const type = document.getElementById('symbolCipherType');
+	const refresh = document.getElementById('symbolCipherRefresh');
+	const backspace = document.getElementById('symbolCipherBackspace');
+	const result = document.getElementById('symbolCipherResult');
+	if (!input || !panel || !type || !refresh || !backspace || !result) return;
+	if (!getSymbolCipherConfig().cipher) return;
+
+	panel.style.display = 'none';
+	if (panel.dataset.bound === '1') {
+		renderSymbolCipherResult();
+		return;
+	}
+	panel.dataset.bound = '1';
+
+	refresh.addEventListener('click', () => {
+		buildSymbolCipherPanel();
+		renderSymbolCipherResult();
+	});
+	backspace.addEventListener('click', () => {
+		input.value = input.value.slice(0, -1);
+		renderSymbolCipherResult();
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+	});
+	input.addEventListener('input', renderSymbolCipherResult);
+	type.addEventListener('change', () => {
+		panel.innerHTML = '';
+		panel.style.display = 'none';
+		renderSymbolCipherResult();
+	});
+	renderSymbolCipherResult();
+}
+
+initClickSymbolCiphers();

@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('chocona-workspace', 'chocona-
         { label: '清空填涂', onclick: 'window.clearChoconaGrid && window.clearChoconaGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleChoconaExample && window.buildSimpleChoconaExample()' }
     ]) +
-    LogicUI.statsPanel('chocona', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+    LogicUI.statsPanel('chocona', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
     LogicUI.solutionNav('chocona', 'showChoconaSolution', { accent: 'var(--neon-cyan)' }) +
     LogicUI.instructions([
         '• <strong>左键点击格子</strong>：直接输入区域提示数字线索。',
@@ -290,7 +290,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('chocona-workspace', 'chocona-
             try { res = window.solveChocona(puzzleCtx); } catch (e) {
                 updateChoconaStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0);
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateChoconaStats(res.error, elapsed); return; }
 

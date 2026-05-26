@@ -11,7 +11,7 @@
             { label: '简单示例', onclick: 'window.buildSimpleShimaguniExample&&window.buildSimpleShimaguniExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="smg-mode-btn" onclick="window.toggleShimaguniMode&&window.toggleShimaguniMode()"><span class="cyber-button__tag">模式: 编辑边界</span></button></div>` +
-        window.LogicUI.statsPanel('smg', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('smg', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('smg', 'showShimaguniSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '边界模式: 拖拽网格线绘制区域',
@@ -130,7 +130,7 @@
         const rooms = buildRooms();
         if (!rooms.length) return stat('请先绘制区域','-');
         const t0 = performance.now(), r = window.solveShimaguni({ rows:R, cols:C, rooms, clues });
-        const ms = Math.round(performance.now()-t0)+'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = r.solutions||[];
         stat(r.timeout ? sols.length+'+ (超时)' : (sols.length||'未找到解'), ms);
         if (sols.length) { showing=true; si=0; nav(true); window.showShimaguniSolution(0); }

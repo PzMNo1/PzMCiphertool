@@ -19,7 +19,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('battleship-workspace', 'battl
         <button id="bs-tool-r" class="cyber-button tool-btn" onclick="window.setBattleshipTool && window.setBattleshipTool('r')" style="flex:1; min-width:40px; padding:4px;" title="快捷键: 6"><span class="cyber-button__tag">6:→</span></button>
         <button id="bs-tool-m" class="cyber-button tool-btn" onclick="window.setBattleshipTool && window.setBattleshipTool('m')" style="flex:1; min-width:40px; padding:4px;" title="快捷键: 7"><span class="cyber-button__tag">7:■</span></button>
     </div>` +
-    LogicUI.statsPanel('bs', { countLabel: '部署预案数', timeLabel: '算力耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('bs', { countLabel: '部署预案数', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('bs', 'showBattleshipSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>舰队配置</strong>: 1艘战列舰(4), 2艘巡洋舰(3), 3艘驱逐舰(2), 4艘潜艇(1)',
@@ -223,7 +223,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('battleship-workspace', 'battl
             try { res = window.solveBattleship(puzzleCtx); } catch (e) {
                 updateStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0) + 'ms';
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateStats(res.error, elapsed); return; }
 

@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('akari-workspace', 'akari-layo
         { label: '清空填涂', onclick: 'window.clearAkariGrid && window.clearAkariGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAkariExample && window.buildSimpleAkariExample()' }
     ]) +
-    LogicUI.statsPanel('akari', { countLabel: '找到解决方案', timeLabel: '核心验证耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('akari', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('akari', 'showAkariSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>左键点击</strong>: 切换对空白/数字进行填列',
@@ -159,7 +159,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('akari-workspace', 'akari-layo
             try { res = window.solveAkari(puzzle); } catch (e) {
                 updateStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0) + 'ms';
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateStats(res.error, elapsed); return; }
 

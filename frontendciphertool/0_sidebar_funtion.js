@@ -14,6 +14,17 @@ document.querySelectorAll('.menu-item').forEach(menuItem => {
 hideAllSections();
 showSection('jiamishiyanshi'); 
 
+const sidebar = document.getElementById('sidebar');
+const sidebarPinBtn = document.getElementById('sidebar-pin-btn');
+if (sidebar && sidebarPinBtn) {
+    sidebarPinBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const pinned = sidebar.classList.toggle('sidebar-pinned');
+        sidebarPinBtn.setAttribute('aria-pressed', String(pinned));
+    });
+}
+
 
 
 
@@ -440,6 +451,5 @@ function initAuthorPage() {
         });
     }
 }
-
 
 

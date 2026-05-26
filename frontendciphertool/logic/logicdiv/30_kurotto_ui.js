@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearKurottoGrid && window.clearKurottoGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleKurottoExample && window.buildSimpleKurottoExample()' }
         ]) +
-        window.LogicUI.statsPanel('kurotto', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('kurotto', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('kurotto', 'showKurottoSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '左键点击格子: 放置/编辑线索圆圈 (输入数字)',
@@ -147,7 +147,7 @@
         if (!Object.keys(clues).length) return stats('需要至少1个线索', '-');
         const t0 = performance.now();
         const res = window.solveKurotto({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showKurottoSolution(0); }

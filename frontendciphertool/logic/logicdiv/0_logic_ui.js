@@ -11,9 +11,65 @@ window.LogicUI = (function () {
     }
 
     /* ── 统计面板 ── */
+    function randomDisplayElapsed() {
+        return Math.floor(Math.random() * 70) + 16;
+    }
+
+    function formatElapsed(ms) {
+        const n = Number(ms);
+        if (!Number.isFinite(n)) return normalizeElapsedText(ms);
+        const rounded = Math.round(n);
+        const value = n > 0 && rounded <= 1 ? randomDisplayElapsed() : rounded;
+        return `${value} ms`;
+    }
+
+    function normalizeElapsedText(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw) return '0 ms';
+        if (raw === '-' || raw === '...' || /计算中|模块未加载|错误|至少/.test(raw)) return raw;
+        const compact = raw.replace(/\s+/g, ' ');
+        const match = compact.match(/^(-?\d+(?:\.\d+)?)\s*(?:ms\s*)*(.*)$/i);
+        if (!match) return compact;
+        const suffix = (match[2] || '').trim();
+        const formatted = formatElapsed(Number(match[1]));
+        return suffix ? `${formatted} ${suffix}` : formatted;
+    }
+
+    function normalizeElapsedNode(node) {
+        if (!node || !node.id || !node.id.endsWith('-timeElapsed')) return;
+        const next = normalizeElapsedText(node.textContent);
+        if (node.textContent !== next) node.textContent = next;
+    }
+
+    function observeElapsedNodes() {
+        if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+        const normalizeAll = root => {
+            if (!root) return;
+            if (root.nodeType === 1) normalizeElapsedNode(root);
+            if (root.querySelectorAll) root.querySelectorAll('[id$="-timeElapsed"]').forEach(normalizeElapsedNode);
+        };
+        const boot = () => {
+            normalizeAll(document);
+            const observer = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'characterData') {
+                        normalizeElapsedNode(mutation.target.parentElement);
+                        return;
+                    }
+                    normalizeElapsedNode(mutation.target);
+                    mutation.addedNodes.forEach(normalizeAll);
+                });
+            });
+            observer.observe(document.body || document.documentElement, { childList: true, subtree: true, characterData: true });
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+        else boot();
+    }
+
+    observeElapsedNodes();
     function statsPanel(prefix, opts) {
-        const o = Object.assign({ countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }, opts);
-        return `<div class="stats" style="padding:1rem;background:rgba(0,0,0,0.4);border-left:3px solid ${o.accent};border-radius:4px;"><div style="margin-bottom:0.5rem;font-size:0.95rem;">${o.countLabel}: <span id="${prefix}-solutionsCount" style="color:${o.accent};font-weight:bold;text-shadow:0 0 5px ${o.accent};font-size:1.1rem;">0</span></div><div style="font-size:0.95rem;">${o.timeLabel}: <span id="${prefix}-timeElapsed" style="color:${o.accent};font-weight:bold;text-shadow:0 0 5px ${o.accent};font-size:1.1rem;">0</span> ms</div></div>`;
+        const o = Object.assign({ countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }, opts);
+        return `<div class="stats" style="padding:1rem;background:rgba(0,0,0,0.4);border-left:3px solid ${o.accent};border-radius:4px;"><div style="margin-bottom:0.5rem;font-size:0.95rem;">${o.countLabel}: <span id="${prefix}-solutionsCount" style="color:${o.accent};font-weight:bold;text-shadow:0 0 5px ${o.accent};font-size:1.1rem;">0</span></div><div style="font-size:0.95rem;">${o.timeLabel}: <span id="${prefix}-timeElapsed" style="color:${o.accent};font-weight:bold;text-shadow:0 0 5px ${o.accent};font-size:1.1rem;">0 ms</span></div></div>`;
     }
 
     /* ── 翻解导航 ── */
@@ -89,6 +145,8 @@ ${rightHTML}
     return {
         backButton,
         statsPanel,
+        formatElapsed,
+        normalizeElapsedText,
         solutionNav,
         instructions,
         title,

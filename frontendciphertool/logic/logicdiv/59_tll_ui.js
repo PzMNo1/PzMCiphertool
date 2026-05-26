@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearTllGrid && window.clearTllGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTllExample && window.buildSimpleTllExample()' }
         ]) +
-        window.LogicUI.statsPanel('tll', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('tll', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('tll', 'showTllSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子输入 Tapa 线索（多数字空格分隔，如 "1 3"）',
@@ -110,7 +110,7 @@
     window.solveTllPuzzleUI = () => {
         if (!window.solveTLL) return stats('模块未加载', '-');
         const t0 = performance.now(), res = window.solveTLL({ size: N, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showTllSolution(0); }

@@ -1,0 +1,231 @@
+/* 空间类：金字塔魔方 */
+.space-pyraminx-panel {
+  flex: 2;
+  min-width: 420px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(255, 218, 89, 0.08), rgba(64, 224, 255, 0.04)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.pyraminx-scene {
+  width: min(520px, 100%);
+  height: 360px;
+  display: grid;
+  place-items: center;
+  perspective: 980px;
+  margin: 0 auto 1.4rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.pyraminx-scene.dragging {
+  cursor: grabbing;
+}
+
+.pyraminx-solid {
+  width: 220px;
+  height: 190px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--pyraminx-rot-x, -22deg)) rotateY(var(--pyraminx-rot-y, -34deg));
+  transition: transform 0.08s linear;
+}
+
+.pyraminx-3d-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 190px;
+  margin-left: -110px;
+  margin-top: -95px;
+  display: grid;
+  place-items: center;
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.14), transparent 45%),
+    rgba(2, 12, 18, 0.62);
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  box-shadow:
+    inset 0 0 18px rgba(255, 255, 255, 0.08),
+    0 0 18px rgba(0, 0, 0, 0.24);
+}
+
+.pyraminx-3d-face-u {
+  transform: rotateX(64deg) translateZ(82px);
+}
+
+.pyraminx-3d-face-l {
+  transform: rotateY(-122deg) rotateX(-18deg) translateZ(82px);
+}
+
+.pyraminx-3d-face-r {
+  transform: rotateY(122deg) rotateX(-18deg) translateZ(82px);
+}
+
+.pyraminx-3d-face-b {
+  transform: rotateY(180deg) rotateX(-64deg) translateZ(82px);
+}
+
+.pyraminx-face-svg {
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  display: block;
+  overflow: visible;
+}
+
+.pyraminx-sticker {
+  fill: var(--sticker-color);
+  stroke: rgba(6, 16, 22, 0.82);
+  stroke-width: 3;
+  filter:
+    drop-shadow(0 0 6px rgba(64, 224, 255, 0.14))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.18));
+}
+
+.pyraminx-3d-face b {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  pointer-events: none;
+  text-shadow: 0 0 8px var(--face-tint);
+}
+
+.pyraminx-move-grid {
+  width: min(660px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pyraminx-move-group {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  border-top-color: var(--face-color);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.pyraminx-move-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  color: var(--face-color);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 900;
+}
+
+.pyraminx-move-title small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pyraminx-move-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.pyraminx-move-chip {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(0, 0, 0, 0.32);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.pyraminx-move-chip:hover {
+  transform: translateY(-2px);
+  border-color: var(--face-color);
+  background: rgba(64, 224, 255, 0.12);
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.22);
+}
+
+#pyraminx-step-counter {
+  color: #ffda59;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(255, 218, 89, 0.86);
+}
+
+#pyraminx-step-move {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.pyraminx-step-panel .cyber-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+}
+
+.pyraminx-step-panel .cyber-button:disabled:hover {
+  transform: none;
+}
+
+@media (max-width: 760px) {
+  .space-pyraminx-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .pyraminx-scene {
+    height: 280px;
+  }
+
+  .pyraminx-solid {
+    width: 170px;
+    height: 148px;
+  }
+
+  .pyraminx-3d-face {
+    width: 170px;
+    height: 148px;
+    margin-left: -85px;
+    margin-top: -74px;
+  }
+
+  .pyraminx-3d-face-u {
+    transform: rotateX(64deg) translateZ(64px);
+  }
+
+  .pyraminx-3d-face-l {
+    transform: rotateY(-122deg) rotateX(-18deg) translateZ(64px);
+  }
+
+  .pyraminx-3d-face-r {
+    transform: rotateY(122deg) rotateX(-18deg) translateZ(64px);
+  }
+
+  .pyraminx-3d-face-b {
+    transform: rotateY(180deg) rotateX(-64deg) translateZ(64px);
+  }
+
+  .pyraminx-move-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

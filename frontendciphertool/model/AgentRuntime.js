@@ -11,11 +11,23 @@ class AgentRuntime {
     }
 
     createPlan(userMessage, options = {}) {
-        const text = String(userMessage || '').toLowerCase();
-        const wantsFreshInfo = /(最新|今天|现在|新闻|搜索|查找|网页|网址|资料|来源|引用|天气|current|latest|today|search|web|url|weather)/i.test(userMessage);
+        const rawMessage = String(userMessage || '');
+        const text = rawMessage.toLowerCase();
+        const hasAttachments = Boolean(options.hasAttachments);
+        const recentText = Array.isArray(options.messages)
+            ? options.messages.slice(-8).map(msg => String(msg?.content || '')).join('\n').toLowerCase()
+            : '';
+        const directFreshInfo = /(最新|今天|现在|昨天|今年|新闻|搜索|查找|联网|网上|网页|网址|资料|来源|引用|链接|官网|文档|价格|政策|法规|版本|更新|发布|趋势|社区|前沿|现状|进展|进度|到了什么|最佳实践|推荐|对比|排名|论文|研究|评测|天气|current|latest|today|news|search|web|url|source|citation|weather|price|release|version|docs|documentation|paper|benchmark|recommend|compare|trend|state of the art|frontier|progress)/i.test(rawMessage);
+        const wantsCommunityScan = /(前沿社区|技术社区|开发者社区|社区|hacker news|github trending|product hunt|v2ex|reddit|lobsters)/i.test(rawMessage);
+        const directAcademicResearch = !wantsCommunityScan && /(学术|论文|研究|研究进展|研究到了|前沿|前沿研究|综述|光学|光子|量子|物理|材料|生物|医学|化学|arxiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|review|benchmark|state of the art)/i.test(rawMessage);
+        const terseResearchFollowUp = /^(继续|继续吧|获取|获取吧|总结|总结吧|告诉我|说吧|再查|再查一下|查吧|拉出来|展开|深挖|继续获取|开始)$/i.test(rawMessage.trim());
+        const hasRecentResearchContext = /(web_research|read_webpage|search_urls|agent run 状态|mode:\s*research|论文|研究|学术|来源|引用|检索|前沿|github trending|hacker news|product hunt|nature photonics|arxiv|doi|source ids?)/i.test(recentText);
+        const hasRecentAcademicContext = /(论文|学术|研究进展|前沿研究|arxiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|journal|conference|nature photonics)/i.test(recentText);
+        const wantsAcademicResearch = directAcademicResearch || (terseResearchFollowUp && hasRecentAcademicContext);
+        const wantsFreshInfo = wantsAcademicResearch || directFreshInfo || (terseResearchFollowUp && hasRecentResearchContext);
         const wantsCrypto = /(base64|凯撒|caesar|morse|摩斯|rot13|hex|哈希|hash|维吉尼亚|vigenere|频率|二进制|binary|url编码|解码|加密|解密|cipher)/i.test(userMessage);
         const wantsMath = /(计算|换算|单位|随机|calculate|convert|math|sqrt|sin|cos|\d+\s*[+\-*/%]\s*\d+)/i.test(userMessage);
-        const wantsProject = /(代码|项目|文件|目录|读取|搜索文件|构建|测试|补丁|修改|java|javascript|css|html|read file|search files|build|test|patch|code|project|workspace)/i.test(userMessage);
+        const wantsProject = !hasAttachments && /(代码|项目|文件|目录|读取|搜索文件|构建|测试|补丁|修改|java|javascript|css|html|read file|search files|build|test|patch|code|project|workspace)/i.test(userMessage);
         const wantsMarket = /(股票|行情|股价|币价|金融|财经|stock|quote|price|finance|crypto|ticker)/i.test(userMessage);
         const wantsTools = Boolean(options.toolEnabled || wantsFreshInfo || wantsCrypto || wantsMath || wantsProject || wantsMarket);
         const mode = wantsFreshInfo ? 'research' : wantsTools ? 'agent' : 'chat';
@@ -27,14 +39,17 @@ class AgentRuntime {
             wantsMath,
             wantsProject,
             wantsMarket,
-            wantsTools
+            wantsTools,
+            hasAttachments,
+            wantsAcademicResearch
         });
 
         return {
             runId: `run-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
             mode,
+            researchProfile: wantsAcademicResearch ? 'academic' : wantsFreshInfo ? 'general' : 'none',
             selectedTools,
-            maxIterations: mode === 'research' ? 6 : mode === 'agent' ? 4 : 1,
+            maxIterations: mode === 'research' ? (wantsAcademicResearch ? 12 : 14) : mode === 'agent' ? 4 : 1,
             stages: [
                 { id: 'plan', label: 'Plan' },
                 { id: 'route', label: 'Route' },
@@ -67,7 +82,8 @@ class AgentRuntime {
             'hash_text',
             'frequency_analysis'
         ];
-        const research = ['search_urls', 'read_webpage', 'click_link', 'get_weather'];
+        const research = ['community_snapshot', 'web_research', 'search_urls', 'read_webpage', 'news_query', 'get_weather'];
+        const academicResearch = ['web_research', 'search_urls', 'read_webpage'];
         const codexWeb = ['search_query', 'open_url', 'find_in_page', 'open', 'find', 'get_time', 'time', 'weather', 'news_query'];
         const project = ['list_files', 'read_file', 'search_files', 'file_info', 'update_plan'];
         const codeOps = ['propose_patch', 'run_tests', 'run_build'];
@@ -76,11 +92,11 @@ class AgentRuntime {
 
         const selected = new Set(core);
         if (intent.wantsCrypto) crypto.forEach(name => selected.add(name));
-        if (intent.wantsFreshInfo) [...research, ...codexWeb].forEach(name => selected.add(name));
+        if (intent.wantsFreshInfo) (intent.wantsAcademicResearch ? academicResearch : research).forEach(name => selected.add(name));
         if (intent.wantsMath) utility.forEach(name => selected.add(name));
         if (intent.wantsProject) [...project, ...codeOps].forEach(name => selected.add(name));
         if (intent.wantsMarket) [...market, 'news_query'].forEach(name => selected.add(name));
-        if (!intent.wantsCrypto && !intent.wantsFreshInfo && !intent.wantsMath && !intent.wantsProject && !intent.wantsMarket) {
+        if (!intent.wantsCrypto && !intent.wantsFreshInfo && !intent.wantsMath && !intent.wantsProject && !intent.wantsMarket && !intent.hasAttachments) {
             [...crypto, ...research, ...codexWeb, ...project, ...utility].forEach(name => selected.add(name));
         }
 
@@ -88,19 +104,37 @@ class AgentRuntime {
     }
 
     buildAgentSystemPrompt(plan) {
+        const researchPolicy = plan.researchProfile === 'academic'
+            ? [
+                '- Academic research mode: prefer primary sources over broad search. Go directly to arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journal/conference pages, or known project papers when the target source is obvious.',
+                '- For academic questions, use web_research depth="fast" at most once as a map. If broad results are noisy, immediately pivot to site-targeted search_urls queries such as site:arxiv.org, site:nature.com, site:science.org, site:opg.optica.org, site:ieeexplore.ieee.org, then read_webpage on the best primary sources.',
+                '- Do not spend repeated iterations on generic search once useful primary-source candidates exist.'
+            ]
+            : [
+                '- For broad community scans, call community_snapshot first. It has dedicated routes for Hacker News, GitHub Trending, V2EX, Reddit, Lobsters, and Product Hunt and should be preferred over generic page reads for those sites.',
+                '- For news, communities, products, and current events, use web_research depth="fast" only when source discovery is unclear; use depth="deep" or read_webpage for evidence that affects the final answer.',
+                '- For broad community scans, preserve breadth before synthesis: cover several distinct communities when relevant, such as Hacker News, GitHub Trending, Product Hunt, V2EX, Reddit/Lobsters, official blogs, or security/news sources. Do not collapse the answer into a shallow daily digest if the user asked for research.',
+                '- The final answer should include structured findings, cross-source patterns, source notes, and uncertainty. Do not append a forced one-sentence summary unless the user explicitly asks for one.'
+            ];
+
         return [
             'Agent runtime policy:',
             '- Treat the conversation as a bounded run with these phases: plan, route, act, observe, synthesize.',
-            '- Use tools only when they materially improve correctness or freshness.',
-            '- Prefer a small number of high-signal tool calls over broad exploration.',
+            '- For current, external, fast-changing, recommended, price/policy/version/news, or citation-sensitive claims, do not answer from memory.',
+            ...researchPolicy,
+            '- Use one canonical tool for each action: community_snapshot for community dashboards, web_research for broad maps, search_urls for narrow targeted queries, read_webpage for opening URLs. Avoid duplicate alias tools and avoid looping over equivalent searches.',
+            '- Prefer 2-5 high-signal source checks before final synthesis when the answer depends on external facts.',
+            '- For broad landscape questions, 2-5 sources is a floor, not a cap; gather enough distinct source families to support the scope.',
+            '- Cite source ids such as [1], [2] when tool results provide them.',
             '- After observing tool results, synthesize a direct final answer instead of narrating internal tool mechanics.',
             '- If a tool fails, adapt once if useful, then explain the useful residual result.',
+            `- Research profile: ${plan.researchProfile}.`,
             `- Current run mode: ${plan.mode}. Max tool iterations: ${plan.maxIterations}.`
         ].join('\n');
     }
 
-    async run({ messages, userMessage, enableThinking, toolEnabled, container }) {
-        const plan = this.createPlan(userMessage, { toolEnabled });
+    async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container }) {
+        const plan = this.createPlan(userMessage, { toolEnabled, hasAttachments, messages });
         this.ui.createAgentRunPanel(container, plan);
         this.ui.setAgentStage(container, 'plan', 'active', '解析任务目标');
         this.ui.addAgentTrace(container, 'plan', `Run ${plan.runId} initialized in ${plan.mode} mode.`);

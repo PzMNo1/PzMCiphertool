@@ -195,7 +195,8 @@ textarea {
   backdrop-filter: blur(4px);
 }
 
-.sidebar:hover {
+.sidebar:hover,
+.sidebar.sidebar-pinned {
   top: 0px;
   left: 0px;
   width: 220px;
@@ -207,20 +208,65 @@ textarea {
   z-index: 1001;
 }
 
-.sidebar:hover .menu-text {
+.sidebar:hover .menu-text,
+.sidebar.sidebar-pinned .menu-text {
   opacity: 1;
   max-width: 200px;
 }
 
-.sidebar:hover h1 {
+.sidebar:hover h1,
+.sidebar.sidebar-pinned h1 {
   filter: blur(26px);
   z-index: 1;
 }
 
 @media (min-width: 769px) {
-  .sidebar:hover+.container1 {
+  .sidebar:hover+.container1,
+  .sidebar.sidebar-pinned+.container1 {
     padding-left: 110px;
   }
+}
+
+.sidebar-pin-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  z-index: 1002;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-family: 'Segoe UI Symbol', 'Segoe UI', system-ui, sans-serif;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  filter: grayscale(1);
+  backdrop-filter: blur(4px);
+  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar:hover .sidebar-pin-btn,
+.sidebar.sidebar-pinned .sidebar-pin-btn {
+  opacity: 0.72;
+  pointer-events: auto;
+}
+
+.sidebar-pin-btn:hover,
+.sidebar-pin-btn:focus-visible,
+.sidebar.sidebar-pinned .sidebar-pin-btn {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.sidebar.sidebar-pinned .sidebar-pin-btn {
+  transform: rotate(-35deg);
 }
 
 .menu-item {
@@ -286,7 +332,8 @@ textarea {
   display: none;
 }
 
-.sidebar:hover .menu-icon::after {
+.sidebar:hover .menu-icon::after,
+.sidebar.sidebar-pinned .menu-icon::after {
   width: 8px;
   height: 8px;
   background: var(--secondary);
@@ -321,7 +368,8 @@ textarea {
 }
 
 
-.sidebar:hover .sidebar-title h2 {
+.sidebar:hover .sidebar-title h2,
+.sidebar.sidebar-pinned .sidebar-title h2 {
   font-size: 1.6rem;
   background: transparent;
   -webkit-background-clip: text;
@@ -355,7 +403,8 @@ textarea {
   top: -15px;
 }
 
-.sidebar:hover .sidebar-search {
+.sidebar:hover .sidebar-search,
+.sidebar.sidebar-pinned .sidebar-search {
   opacity: 1;
   max-height: 50px;
 }

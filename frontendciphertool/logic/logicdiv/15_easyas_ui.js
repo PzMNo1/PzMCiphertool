@@ -16,7 +16,7 @@ window.logicWorkspaceHTMLs.push(window.LogicUI.workspace('easyas-workspace', 'ea
         { label: '清空填涂', onclick: 'window.clearEasyasGrid && window.clearEasyasGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleEasyasExample && window.buildSimpleEasyasExample()' }
     ]) +
-    window.LogicUI.statsPanel('easyas', { countLabel: '解记录数', timeLabel: '算力耗时', accent: 'var(--neon-green)' }) +
+    window.LogicUI.statsPanel('easyas', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: 'var(--neon-green)' }) +
     window.LogicUI.solutionNav('easyas', 'window.showEasyasSolution', { accent: 'var(--neon-green)' }) +
     window.LogicUI.instructions([
         '在网格中填入字母，每行每列中的每个规定字母必须出现且仅出现一次',
@@ -296,7 +296,7 @@ window.solveEasyasPuzzleUI = function () {
             if (cEl) cEl.textContent = '错误: ' + e.message;
             return;
         }
-        const elapsed = Math.round(performance.now() - t0);
+        const elapsed = LogicUI.formatElapsed(performance.now() - t0);
         if (tEl) tEl.textContent = elapsed;
 
         if (res && res.error) { if (cEl) cEl.textContent = res.error; return; }

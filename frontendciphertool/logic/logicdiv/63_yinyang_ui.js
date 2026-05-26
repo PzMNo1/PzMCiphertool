@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearYinyangGrid&&window.clearYinyangGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleYinyangExample&&window.buildSimpleYinyangExample()' }
         ]) +
-        window.LogicUI.statsPanel('yy', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('yy', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('yy', 'showYinyangSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions(['点击格子切换: 空→阳→阴→空', '阳/阴各自必须四连通', '不得出现2×2同色方块'], { accent: 'var(--neon-cyan)', title: '系统法则' }),
         `<div id="yy-grid-container"></div>`,
@@ -52,7 +52,7 @@
     window.solveYinyangPuzzleUI = () => {
         if (!window.solveYinYang) return st('模块未加载', '-');
         const i = $('yy-size'); if (i) { N = Math.max(4, Math.min(10, +i.value || 6)); i.value = N; }
-        const t0 = performance.now(), r = window.solveYinYang({ size: N, grid: g.map(r => [...r]) }), ms = Math.round(performance.now() - t0) + 'ms';
+        const t0 = performance.now(), r = window.solveYinYang({ size: N, grid: g.map(r => [...r]) }), ms = LogicUI.formatElapsed(performance.now() - t0);
         s = r.solutions || []; st(r.timeout ? s.length + '+ (超时)' : (s.length || '未找到解'), ms);
         if (s.length) { sh = true; si = 0; nv(true); window.showYinyangSolution(0); }
     };

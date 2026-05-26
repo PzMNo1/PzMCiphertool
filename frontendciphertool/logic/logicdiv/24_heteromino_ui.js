@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHeterominoGrid && window.clearHeterominoGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHeterominoExample && window.buildSimpleHeterominoExample()' }
         ]) +
-        window.LogicUI.statsPanel('heteromino', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('heteromino', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('heteromino', 'showHeterominoSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击方格可将其涂黑，黑色方格表示不参与分割的区域。',
@@ -145,7 +145,7 @@
 
         const startTime = performance.now();
         const res = window.solveHeteromino(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHeterominoStats(res.error, elapsed); return; }
 
