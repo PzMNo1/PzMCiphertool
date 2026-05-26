@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHeyawakeGrid && window.clearHeyawakeGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHeyawakeExample && window.buildSimpleHeyawakeExample()' }
         ]) +
-        window.LogicUI.statsPanel('heyawake', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('heyawake', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('heyawake', 'showHeyawakeSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击方格输入数字，右键点击可标记黑/白色进行推理预览。在网格间拖动以绘制粗线划分区域（房间）。',
@@ -324,7 +324,7 @@
 
         const startTime = performance.now();
         const res = window.solveHeyawake(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHeyawakeStats(res.error, elapsed); return; }
 

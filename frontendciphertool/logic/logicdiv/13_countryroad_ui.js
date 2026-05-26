@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('countryroad-workspace', 'coun
         { label: '清空填涂', onclick: 'window.clearCountryroadGrid && window.clearCountryroadGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleCountryroadExample && window.buildSimpleCountryroadExample()' }
     ]) +
-    LogicUI.statsPanel('countryroad', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+    LogicUI.statsPanel('countryroad', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
     LogicUI.solutionNav('countryroad', 'showCountryroadSolution', { accent: 'var(--neon-cyan)' }) +
     LogicUI.instructions([
         '• <strong>左键点击格子</strong>：输入区域内循环路径必经格数线索。',
@@ -281,7 +281,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('countryroad-workspace', 'coun
             try { res = window.solveCountryroad(puzzleCtx); } catch (e) {
                 updateCRStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0);
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateCRStats(res.error, elapsed); return; }
 

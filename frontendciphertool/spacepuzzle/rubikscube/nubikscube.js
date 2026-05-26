@@ -414,6 +414,10 @@
         scene.addEventListener('pointerleave', stopDragging);
     }
 
+    function getRegisteredSpacePuzzleModules() {
+        return Array.isArray(window.spacePuzzleModules) ? window.spacePuzzleModules : [];
+    }
+
     function getSpacePuzzleHTML() {
         const faceGroups = [
             { face: 'U', label: '上层', pos: 'top' },
@@ -434,9 +438,18 @@
         })
             .join('');
 
+        const extraModules = getRegisteredSpacePuzzleModules();
+        const extraButtons = extraModules
+            .map(module => typeof module.getListButton === 'function' ? module.getListButton() : '')
+            .join('');
+        const extraWorkspaces = extraModules
+            .map(module => typeof module.getWorkspaceHTML === 'function' ? module.getWorkspaceHTML() : '')
+            .join('');
+
         return `
             <div class="container" id="space-list-container">
                 <button class="logic-btn" type="button" onclick="window.openSpacePuzzle('standard-cube')">标准三维魔方</button>
+                ${extraButtons}
             </div>
 
             <div id="space-workspace-container" style="display:none;padding-top:4rem;margin-top:2rem;">
@@ -499,6 +512,7 @@
                         <div class="cube-move-spatial">${moveButtons}</div>
                     </div>
                 </div>
+                ${extraWorkspaces}
             </div>`;
     }
 
@@ -507,6 +521,9 @@
         if (!container) return;
         container.innerHTML = getSpacePuzzleHTML();
         window.resetStandardCube();
+        getRegisteredSpacePuzzleModules().forEach(module => {
+            if (typeof module.init === 'function') module.init();
+        });
         bindCubeDrag();
     };
 
@@ -519,11 +536,15 @@
             renderCube();
             bindCubeDrag();
         }
+        const extraModule = getRegisteredSpacePuzzleModules().find(module => module.id === id);
+        if (extraModule && typeof extraModule.open === 'function') {
+            extraModule.open();
+        }
     };
 
     window.backSpacePuzzle = function () {
         document.getElementById('space-workspace-container').style.display = 'none';
-        document.getElementById('standard-cube-workspace').style.display = 'none';
+        document.querySelectorAll('#space-workspace-container > div').forEach(el => el.style.display = 'none');
         document.getElementById('space-list-container').style.display = '';
     };
 
@@ -610,4 +631,5 @@
         updateSolutionPanel([], 0);
         renderCube();
     };
+
 })();

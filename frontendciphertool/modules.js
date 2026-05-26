@@ -1,4 +1,4 @@
-﻿// 模块内容作为JavaScript变量
+// 模块内容作为JavaScript变量
 const MODULES = {
     // 加密实验室模块
     jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
@@ -41,20 +41,44 @@ const MODULES = {
         <div class="card">
             <div class="badge">凯撒 Caesar</div>
             <input type="number" id="caesarShift" placeholder="偏移量" value="3" min="-26" max="26">
+            <button type="button" id="caesarBruteBtn" class="cyber-button" onclick="window.toggleCaesarBruteforce && window.toggleCaesarBruteforce()">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">一键枚举 25 位</span>
+            </button>
             <div class="result" id="caesarResult"></div>
         </div>
 
         <!-- 维吉尼亚密码 -->
         <div class="card">
             <div class="badge">维吉尼亚 Vigenère</div>
-            <input type="text" id="vigenereKey" placeholder="输入密钥">
+            <div class="grid-2">
+                <input type="text" id="vigenereKey" placeholder="输入密钥">
+                <select id="vigenereVariant">
+                    <option value="vigenere">Vigenère</option>
+                    <option value="beaufort">Beaufort</option>
+                    <option value="variantBeaufort">Variant Beaufort</option>
+                    <option value="autokey">Autokey</option>
+                    <option value="gronsfeld">Gronsfeld</option>
+                    <option value="porta">Porta</option>
+                </select>
+            </div>
             <div class="result" id="vigenereResult"></div>
         </div>
 
         <!-- 栅栏密码 -->
         <div class="card">
             <div class="badge">栅栏 Rail Fence</div>
-            <input type="number" id="railCount" placeholder="层数" value="3">
+            <div class="grid-3">
+                <input type="number" id="railCount" placeholder="层数/列数" value="3">
+                <input type="text" id="railKey" placeholder="换位密钥" value="BALLOON">
+                <select id="railVariant">
+                    <option value="railFence">Rail Fence</option>
+                    <option value="route">Route Transposition</option>
+                    <option value="scytale">Scytale</option>
+                    <option value="amsco">AMSCO</option>
+                    <option value="myszkowski">Myszkowski</option>
+                </select>
+            </div>
             <div class="result" id="railResult"></div>
         </div>
 
@@ -74,9 +98,27 @@ const MODULES = {
             <div class="result" id="baseResult"></div>
         </div>
 
+        <!-- A1Z26 字母序号 -->
+        <div class="card">
+            <div class="badge">A1Z26 字母序号</div>
+            <div class="grid-full">
+                <select id="a1z26Mode">
+                    <option value="a1">A=1, Z=26</option>
+                    <option value="a0">A=0, Z=25</option>
+                </select>
+            </div>
+            <div class="result" id="a1z26Result"></div>
+        </div>
         <!-- 摩尔斯电码 -->
         <div class="card">
             <div class="badge">摩尔斯 Morse</div>
+            <div class="grid-2">
+                <select id="morseVariant">
+                    <option value="morse">Morse</option>
+                    <option value="fractionated">Fractionated Morse</option>
+                </select>
+                <input type="text" id="morseKey" placeholder="Fractionated Morse 密钥" value="KEYWORD">
+            </div>
             <div class="result" id="morseResult"></div>
         </div>
 
@@ -123,6 +165,29 @@ const MODULES = {
             <div class="result" id="baconResult"></div>
         </div>
 
+        <!-- Pigpen / 跳舞的小人密码 -->
+        <div class="card">
+            <div class="badge">Pigpen / 跳舞的小人 符号密码</div>
+            <div class="grid-2">
+                <select id="symbolCipherType">
+                    <option value="pigpen">Pigpen 共济会密码</option>
+                    <option value="dancingMen">跳舞的小人 Dancing Men</option>
+                </select>
+                <input type="text" id="symbolCipherInput" placeholder="点击刷新展开符号面板，或直接输入字母" value="">
+            </div>
+            <div class="grid-2">
+                <button type="button" id="symbolCipherBackspace" class="cyber-button">
+                    <span class="cyber-button__glitch"></span>
+                    <span class="cyber-button__tag">退格</span>
+                </button>
+                <button type="button" id="symbolCipherRefresh" class="cyber-button">
+                    <span class="cyber-button__glitch"></span>
+                    <span class="cyber-button__tag">刷新</span>
+                </button>
+            </div>
+            <div id="symbolCipherPanel" class="input-group" style="display:none;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;"></div>
+            <div class="result" id="symbolCipherResult"></div>
+        </div>
         <!-- 柱状栅栏密码 -->
         <div class="card">
             <div class="badge">柱状栅栏 Columnar Rail Fence</div>
@@ -200,15 +265,35 @@ const MODULES = {
         <!-- Polybius 方阵 -->
         <div class="card">
             <div class="badge">Polybius Square 波利比乌斯方阵</div>
+            <div class="grid-full">
+                <select id="polybiusVariant">
+                    <option value="polybius">Polybius</option>
+                    <option value="trifid">Trifid</option>
+                    <option value="fourSquare">Four-square</option>
+                    <option value="twoSquare">Two-square</option>
+                    <option value="nihilist">Nihilist</option>
+                </select>
+            </div>
             <div class="grid-full"> 
                 <input type="text" id="psAlpha" placeholder="字母" value="abcdefghiklmnopqrstuvwxyz"></div>
-            <div class="grid-2"> 
+            <div class="grid-3"> 
                 <input type="number" id="psRows" placeholder="行" value="12345">
                 <input type="number" id="psColumns" placeholder="列" value="12345">
+                <input type="number" id="polybiusPeriod" placeholder="Trifid周期" value="5">
+            </div>
+            <div class="grid-2">
+                <input type="text" id="polybiusKeyA" placeholder="密钥1" value="keyword">
+                <input type="text" id="polybiusKeyB" placeholder="密钥2/数字密钥" value="cipher">
             </div>
             <div class="result" id="PolybiusResult"></div>
         </div>
 
+        <!-- Playfair 双字母密码 -->
+        <div class="card">
+            <div class="badge">Playfair 双字母密码</div>
+            <input type="text" id="playfairKey" placeholder="输入密钥" value="keyword">
+            <div class="result" id="playfairResult"></div>
+        </div>
         <!-- ADFGX/ADFVGX -->
         <div class="card">
             <div class="badge">ADFGX/ADFVGX 密码</div>
@@ -320,6 +405,32 @@ const MODULES = {
             </div>
             </div>
 
+            <!-- Substitution 替换分析助手 -->
+            <div class="card">
+                <div class="badge">Substitution 替换分析助手</div>
+                <div class="grid-2">
+                    <input type="text" id="substPlainAlphabet" placeholder="明文字母表" value="abcdefghijklmnopqrstuvwxyz">
+                    <input type="text" id="substCipherAlphabet" placeholder="密文字母表" value="qwertyuiopasdfghjklzxcvbnm">
+                </div>
+                <input type="text" id="substManualMap" placeholder="手动映射: A=E B=T 或 ABC=ETA">
+                <div class="grid-2">
+                    <input type="text" id="substCribCipher" placeholder="crib 密文片段">
+                    <input type="text" id="substCribPlain" placeholder="crib 明文片段">
+                </div>
+                <div class="result" id="substitutionResult"></div>
+            </div>
+            <!-- Hill Cipher -->
+            <div class="card">
+                <div class="badge">Hill Cipher 希尔密码</div>
+                <div class="grid-2">
+                    <select id="hillSize">
+                        <option value="2">2x2</option>
+                        <option value="3">3x3</option>
+                    </select>
+                    <input type="text" id="hillKey" placeholder="矩阵密钥" value="3 3 2 5">
+                </div>
+                <div class="result" id="hillResult"></div>
+            </div>
             <!-- MD5 -->
             <div class="card">
                 <div class="badge">MD5</div>
@@ -431,7 +542,16 @@ const MODULES = {
                         <div class="wf-toolbar-category-title">经典密码</div>
                         <div class="wf-toolbar-item" data-algo="Caesar凯撒">🔐 Caesar 凯撒</div>
                         <div class="wf-toolbar-item" data-algo="Vigenere维吉尼亚">🔐 Vigenere 维吉尼亚</div>
+                        <div class="wf-toolbar-item" data-algo="Beaufort">🔐 Beaufort</div>
+                        <div class="wf-toolbar-item" data-algo="Variant Beaufort">🔐 Variant Beaufort</div>
+                        <div class="wf-toolbar-item" data-algo="Autokey Vigenere">🔐 Autokey Vigenere</div>
+                        <div class="wf-toolbar-item" data-algo="Gronsfeld">🔐 Gronsfeld</div>
+                        <div class="wf-toolbar-item" data-algo="Porta">🔐 Porta</div>
                         <div class="wf-toolbar-item" data-algo="RailFence栅栏">🔐 RailFence 栅栏</div>
+                        <div class="wf-toolbar-item" data-algo="Route Transposition">🔐 Route Transposition</div>
+                        <div class="wf-toolbar-item" data-algo="Scytale">🔐 Scytale</div>
+                        <div class="wf-toolbar-item" data-algo="AMSCO">🔐 AMSCO</div>
+                        <div class="wf-toolbar-item" data-algo="Myszkowski">🔐 Myszkowski</div>
                         <div class="wf-toolbar-item" data-algo="Bifid双歧">🔐 Bifid 双歧</div>
                         <div class="wf-toolbar-item" data-algo="AtBash埃特巴什">🔐 AtBash 埃特巴什</div>
                         <div class="wf-toolbar-item" data-algo="BaseConverter进制">🔐 进制转换</div>
@@ -448,6 +568,7 @@ const MODULES = {
                         <div class="wf-toolbar-item" data-algo="ColRail柱栅栏">🔐 柱状栅栏</div>
                         <div class="wf-toolbar-item" data-algo="WRail-W栅栏">🔐 W型栅栏</div>
                         <div class="wf-toolbar-item" data-algo="Polybius方阵">🔐 Polybius 方阵</div>
+                        <div class="wf-toolbar-item" data-algo="Playfair">🔐 Playfair</div>
                         <div class="wf-toolbar-item" data-algo="ADFGX/ADFVGX">🔐 ADFGX/ADFVGX</div>
                         <div class="wf-toolbar-item" data-algo="Affine仿射">🔐 Affine 仿射</div>
                         <div class="wf-toolbar-item" data-algo="TapCode敲击码">🔐 敲击码</div>
@@ -455,6 +576,7 @@ const MODULES = {
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">编码 & 哈希</div>
+                        <div class="wf-toolbar-item" data-algo="A1Z26">🔐 A1Z26</div>
                         <div class="wf-toolbar-item" data-algo="ASCII">🔐 ASCII</div>
                         <div class="wf-toolbar-item" data-algo="Base编码">🔐 Base 编码</div>
                         <div class="wf-toolbar-item" data-algo="ROT旋转">🔐 ROT 旋转</div>
@@ -468,6 +590,8 @@ const MODULES = {
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">现代密码</div>
+                        <div class="wf-toolbar-item" data-algo="Substitution Analysis">🔐 Substitution Analysis</div>
+                        <div class="wf-toolbar-item" data-algo="Hill Cipher">🔐 Hill Cipher</div>
                         <div class="wf-toolbar-item" data-algo="Enigma恩尼格玛">🔐 Enigma 恩尼格玛</div>
                     </div>
                 </div>
@@ -500,7 +624,10 @@ const MODULES = {
         <div id="zstp-vignette"></div>
 
         <div id="zstp-import-layer">
-            <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
+            <div class="zstp-action-stack">
+                <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
+                <button id="zstp-guide-btn" class="zstp-import-btn" data-guide-id="zhishitupu">使用说明</button>
+            </div>
             <input type="file" id="zstp-folder-input" webkitdirectory multiple style="display:none">
         </div>
 
@@ -529,6 +656,11 @@ const MODULES = {
     </div>`,
 
     // 大模型模块
+    apizhongzhuanzhan: `
+    <div id="apizhongzhuanzhan-content" class="content-section">
+        <div id="apizz-root"></div>
+    </div>`,
+
     damoxing: `
     <div id="damoxing-content" class="content-section">
     <div id="damoxing-container">
@@ -551,7 +683,25 @@ const MODULES = {
                 </div>
                 
                 <div class="input-container">
-                    <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    <div class="attachment-controls">
+                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
+                            <span class="cyber-button__tag">作图模式</span>
+                        </button>
+                        <button id="attachment-add-btn" class="attachment-add-btn" title="导入文件或目录" aria-label="导入文件或目录" type="button">+</button>
+                        <div id="attachment-menu" class="attachment-menu" aria-hidden="true">
+                            <button id="attachment-file-btn" type="button">导入文件</button>
+                            <button id="attachment-folder-btn" type="button">导入目录</button>
+                            <button id="import-chat-history-btn" type="button">导入聊天</button>
+                        </div>
+                        <input id="attachment-file-input" type="file" multiple hidden>
+                        <input id="attachment-folder-input" type="file" webkitdirectory multiple hidden>
+                        <input id="import-chat-history-input" type="file" accept=".txt,text/plain" multiple hidden>
+                    </div>
+                    <div class="input-main">
+                        <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
+                        <div id="attachment-status" class="attachment-status" aria-live="polite"></div>
+                        <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    </div>
                     <div class="input-actions">
                         <button id="tool-toggle" class="cyber-button" title="启用工具">
                             <span class="cyber-button__tag">🔧 工具</span>
@@ -571,6 +721,12 @@ const MODULES = {
                 <div class="sidebar-header">
                     <button id="new-chat" class="cyber-button">
                         <span class="cyber-button__tag">新对话</span>
+                    </button>
+                    <button id="select-all-history" class="cyber-button">
+                        <span class="cyber-button__tag">全选</span>
+                    </button>
+                    <button id="export-chat-history" class="cyber-button">
+                        <span class="cyber-button__tag">导出聊天</span>
                     </button>
                 </div>
                 <div class="search-container">
@@ -661,12 +817,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== 核心脚本（页面框架、密码、工作流等）=====
     const coreScripts = [
         './electronic/electronic_lab.js',
+        './apizhongzhuanzhan/apizhongzhuanzhan.js',
         './cipher/1_cipherlab.js',
         './cipher/2_ADFGXCipher.js',
         './cipher/3_Enigma.js',
         './cipher/4_MD5.js',
         './cipher/6_semaphore.js',
         './0_sidebar_funtion.js',
+        './cipher/shiyongshuoming/shiyongshuoming.js',
         './cipher/999_funtion.js',
         './model/DeepSeekClient.js',
         './model/ToolRegistry.js',
@@ -679,7 +837,13 @@ document.addEventListener('DOMContentLoaded', () => {
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
         './spacepuzzle/rubikscube/nubikscube.js',
-        './spacepuzzle/spacepuzzle.js',
+        './spacepuzzle/huarongdao/huarongdao.js',
+        './spacepuzzle/qiqiaoban/qiqiaoban.js',
+        './spacepuzzle/jinzitamofang/jinzitamofang.js',
+        './spacepuzzle/rubiksclock/rubiksclock.js',
+        './spacepuzzle/skewbmofang/skewbmofang.js',
+        './spacepuzzle/squreonemofang/squreonemofang.js',
+        './spacepuzzle/Pentomino/Pentomino.js',
         './sendfeedback/sendfeedback.js',
     ];
 
@@ -696,8 +860,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== 并行加载：核心区 + 逻辑区（互不阻塞）=====
     // 核心区：加载完立即初始化页面
     loadBatch(coreScripts).then(() => {
+        if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
         if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
+        if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
         if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
         if (typeof initSendFeedback === 'function') initSendFeedback();
         if (typeof initChatFunctions === 'function') initChatFunctions();
@@ -710,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBatch(['./logic/logicbatch.js']);
 
     if (!MODULES) return console.error('模块内容未定义');
-    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id =>
+    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'apizhongzhuanzhan', 'yijianfankui'].forEach(id =>
         document.getElementById(id + '-container').innerHTML = MODULES[id]
     );
 
@@ -766,6 +932,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (typeof bindChatEvents === 'function') {
                 bindChatEvents();
             }
+        }
+
+        if (id === 'apizhongzhuanzhan' && typeof initApiZhongZhuanZhan === 'function') {
+            initApiZhongZhuanZhan();
         }
     }
 

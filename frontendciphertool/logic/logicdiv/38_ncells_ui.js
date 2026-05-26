@@ -15,7 +15,7 @@
             { label: '清空线索', onclick: 'window.clearNCGrid && window.clearNCGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNCExample && window.buildSimpleNCExample()' }
         ]) +
-        window.LogicUI.statsPanel('nc', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('nc', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('nc', 'showNCSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '左键点击格子: 循环线索 0→1→2→3→4→无',
@@ -97,7 +97,7 @@
         readSize();
         const t0 = performance.now();
         const res = window.solveNcells({ rows: R, cols: C, regionSize: RS, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showNCSolution(0); }

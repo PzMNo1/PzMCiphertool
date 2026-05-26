@@ -1,15 +1,28 @@
 // 这是经典区-现代区的作用函数
 async function updateAll(){
     let t = inputClassic.value;
-    if(!t){document.querySelectorAll('.result').forEach(el=>el.textContent=""); return;}
+    const symbolCipherText = document.getElementById('symbolCipherInput')?.value || '';
+    const symbolCipherType = document.getElementById('symbolCipherType')?.value || 'pigpen';
+    const symbolCipher = symbolCipherType === 'dancingMen' ? DancingMenCipher : PigpenCipher;
+    if(!t && !symbolCipherText){document.querySelectorAll('.result').forEach(el=>el.textContent=""); return;}
+    if(!t){
+        document.querySelectorAll('.result').forEach(el=>el.textContent="");
+        if (symbolCipherText) document.getElementById('symbolCipherResult').textContent = `编码: ${symbolCipher.e(symbolCipherText)}\n解码: ${symbolCipher.d(symbolCipherText)}`;
+        return;
+    }
     
     // 凯撒 维吉尼亚 栅栏 Atbash码
     let s = parseInt(document.getElementById('caesarShift').value);
     let k = document.getElementById('vigenereKey').value||"KEY";
+    let vigenereVariant = document.getElementById('vigenereVariant')?.value || "vigenere";
     let r = parseInt(document.getElementById('railCount').value);
-    document.getElementById('caesarResult').textContent = `加密: ${Caesar.e(t,s)}\n解密: ${Caesar.d(t,s)}`;
-    document.getElementById('vigenereResult').textContent = `加密: ${Vigenere.e(t,k)}\n解密: ${Vigenere.d(t,k)}`;
-    document.getElementById('railResult').textContent = `加密: ${RailFence.e(t,r)}\n解密: ${RailFence.d(t,r)}`;
+    let railKey = document.getElementById('railKey')?.value || "BALLOON";
+    let railVariant = document.getElementById('railVariant')?.value || "railFence";
+    let caesarText = `加密: ${Caesar.e(t,s)}\n解密: ${Caesar.d(t,s)}`;
+    if (window.caesarShowAll) caesarText += `\n\n一键枚举:\n${Caesar.brute(t)}`;
+    document.getElementById('caesarResult').textContent = caesarText;
+    document.getElementById('vigenereResult').textContent = Vigenere.process(t,k,vigenereVariant);
+    document.getElementById('railResult').textContent = TranspositionVariants.process(t, r, railKey, railVariant);
     document.getElementById('atbashResult').textContent = `解密: ${AtBash.e(t)}`;
   
     // 进制转换 摩尔斯电码 手机九键 比尔密码 反切码 mRNA V字键盘 QWE键盘 培根密码
@@ -24,8 +37,13 @@ async function updateAll(){
     const cccText = document.getElementById('mainInput').value; 
     const fourcccText = document.getElementById('mainInput').value; 
     const rotOutputType = document.getElementById('rotOutputType').value
+    const a1z26Mode = document.getElementById('a1z26Mode')?.value || 'a1';
+    const morseVariant = document.getElementById('morseVariant')?.value || 'morse';
+    const morseKey = document.getElementById('morseKey')?.value || 'KEYWORD';
+    const symbolCipherSource = symbolCipherText || t;
     document.getElementById('baseResult').textContent = `结果: ${BaseConverter.convert(t, fromBase, toBase)}\n` + `字符隔开结果: ${BaseConverter.convertByChar(t, fromBase, toBase)}`;
-    document.getElementById('morseResult').textContent = `加密: ${MorseCode.e(t)}\n解密: ${MorseCode.d(t)}`;
+    document.getElementById('a1z26Result').textContent = `编码: ${A1Z26Cipher.e(t, a1z26Mode)}\n解码: ${A1Z26Cipher.d(t, a1z26Mode)}`;
+    document.getElementById('morseResult').textContent = MorseVariants.process(t, morseVariant, morseKey);
     document.getElementById('phoneResult').textContent = `加密: ${PhoneKeyCipher.e(t)}\n解密: ${PhoneKeyCipher.d(t)}`;
     document.getElementById('bealeResult').textContent = `解密: ${BealeCipher.e(t, bealeKey)}`;
     document.getElementById('fanqieResult').textContent = `解密: ${FanqieCipher.e(t)}\n加密: ${FanqieCipher.d(t)}`;
@@ -33,6 +51,7 @@ async function updateAll(){
     document.getElementById('vKeyboardResult').textContent =`解密: ${VKeyboardCipher.e(t)}\n加密: ${VKeyboardCipher.d(t)}`;
     document.getElementById('qweResult').textContent = `解密: ${QweCipher.e(t)}\n加密: ${QweCipher.d(t)}`;
     document.getElementById('baconResult').textContent = `加密: ${BaconCipher.e(t)}\n解密: ${BaconCipher.d(t)}`; 
+    document.getElementById('symbolCipherResult').textContent = `编码: ${symbolCipher.e(symbolCipherSource)}\n解码: ${symbolCipher.d(symbolCipherSource)}`;
     document.getElementById('columnarRailResult').textContent = `加密: ${ColumnarRailCipher.e(t, columnarRails)}\n解密: ${ColumnarRailCipher.d(t, columnarRails)}`;
     document.getElementById('wRailResult').textContent = `加密: ${WShapeRailFenceCipher.e(t, wRails)}\n解密: ${WShapeRailFenceCipher.d(t, wRails)}`;
     document.getElementById('cipher01248Result').textContent =`加密: ${Cipher01248.e(t)}\n解密: ${Cipher01248.d(t)}`;
@@ -46,21 +65,37 @@ async function updateAll(){
     const psAlpha = document.getElementById('psAlpha').value;
     const psRows = document.getElementById('psRows').value;
     const psColumns = document.getElementById('psColumns').value;
+    const polybiusVariant = document.getElementById('polybiusVariant')?.value || 'polybius';
+    const polybiusKeyA = document.getElementById('polybiusKeyA')?.value || 'keyword';
+    const polybiusKeyB = document.getElementById('polybiusKeyB')?.value || 'cipher';
+    const polybiusPeriod = parseInt(document.getElementById('polybiusPeriod')?.value) || 5;
     const alp = document.getElementById('ADFAlpha').value;
     const afK = document.getElementById('ADFTranspositionKeyword').value;
     const aCi = document.getElementById('adfCipherType').value;
+    const playfairKey = document.getElementById('playfairKey')?.value || 'keyword';
     let alpha = document.getElementById('AffineAlpha').value;
     let a = parseInt(document.getElementById('Affineslope').value);
     let b = parseInt(document.getElementById('AffineIntercept').value);
     let tm = document.getElementById('tapMark').value || '.';
     let gm = document.getElementById('groupMark').value || ' ';
     let lm = document.getElementById('letterMark').value || '  ';
-    document.getElementById('PolybiusResult').textContent = `加密: ${PolybiusCipher.e(t, psAlpha, psRows, psColumns)} \n解密: ${PolybiusCipher.d(t, psAlpha, psRows, psColumns)}`;
+    document.getElementById('PolybiusResult').textContent = PolybiusVariants.process(t, polybiusVariant, psAlpha, psRows, psColumns, polybiusKeyA, polybiusKeyB, polybiusPeriod);
+    document.getElementById('playfairResult').textContent = `加密: ${PlayfairCipher.e(t, playfairKey)}\n解密: ${PlayfairCipher.d(t, playfairKey)}`;
     document.getElementById('ADFGXResult').textContent = `加密: ${ADFGXCipher.ect(t, alp, afK, aCi)}\n解密: ${ADFGXCipher.dpt(t, alp, afK, aCi)}`;
     document.getElementById('AffineResult').textContent = `加密: ${Affine.e(t,alpha,a,b)}\n解密: ${Affine.d(t,alpha,a,b)}`;
     document.getElementById('tapCodeResult').textContent = `加密: ${TapCode.e(t,tm,gm,lm)}\n解密: ${TapCode.d(t,tm,gm,lm)}`; 
     let bk = document.getElementById('BifidCipherkey').value || '';
     document.getElementById('BifidCipherResult').textContent = `加密: ${Bifid.e(t, bk)}\n解密: ${Bifid.d(t, bk)}`;
+
+    const substPlainAlphabet = document.getElementById('substPlainAlphabet')?.value || 'abcdefghijklmnopqrstuvwxyz';
+    const substCipherAlphabet = document.getElementById('substCipherAlphabet')?.value || 'qwertyuiopasdfghjklzxcvbnm';
+    const substManualMap = document.getElementById('substManualMap')?.value || '';
+    const substCribCipher = document.getElementById('substCribCipher')?.value || '';
+    const substCribPlain = document.getElementById('substCribPlain')?.value || '';
+    document.getElementById('substitutionResult').textContent = SubstitutionTools.analyze(t, substPlainAlphabet, substCipherAlphabet, substManualMap, substCribCipher, substCribPlain);
+    const hillSize = document.getElementById('hillSize')?.value || '2';
+    const hillKey = document.getElementById('hillKey')?.value || '3 3 2 5';
+    document.getElementById('hillResult').textContent = HillCipher.process(t, hillKey, hillSize);
 
     // MD5码 SHA-1 SHA-256 SHA-384 SHA-512
     let md5k = document.getElementById('MD5Key').value;
@@ -97,6 +132,14 @@ async function syncInputs(e) {
 inputClassic.addEventListener('input', syncInputs);
 inputModern.addEventListener('input', syncInputs);
 inputCoze.addEventListener('input', syncInputs);
+
+window.caesarShowAll = false;
+window.toggleCaesarBruteforce = function () {
+    window.caesarShowAll = !window.caesarShowAll;
+    const btn = document.getElementById('caesarBruteBtn');
+    if (btn) btn.classList.toggle('active', window.caesarShowAll);
+    updateAll();
+};
 
 updateAll();
 

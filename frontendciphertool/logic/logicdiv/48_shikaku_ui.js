@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearShikakuGrid && window.clearShikakuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleShikakuExample && window.buildSimpleShikakuExample()' }
         ]) +
-        window.LogicUI.statsPanel('shk', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('shk', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('shk', 'showShikakuSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子输入数字（矩形面积线索）',
@@ -99,7 +99,7 @@
         if (!window.solveShikaku) return stats('模块未加载', '-');
         if (!Object.keys(clues).length) return stats('请先输入线索', '-');
         const t0 = performance.now(), res = window.solveShikaku({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showShikakuSolution(0); }

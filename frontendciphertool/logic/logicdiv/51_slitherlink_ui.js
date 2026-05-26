@@ -10,7 +10,7 @@
             {label:'清空填涂',onclick:'window.clearSlitherlinkGrid&&window.clearSlitherlinkGrid()'},
             {label:'简单示例',onclick:'window.buildSimpleSlitherlinkExample&&window.buildSimpleSlitherlinkExample()'}
         ])+
-        window.LogicUI.statsPanel('sll',{countLabel:'解记录数',timeLabel:'算力耗时',accent:'#00e5ff'})+
+        window.LogicUI.statsPanel('sll',{countLabel:'解记录数',timeLabel:'AI thinking耗时',accent:'#00e5ff'})+
         window.LogicUI.solutionNav('sll','showSlitherlinkSolution',{accent:'var(--neon-cyan)'})+
         window.LogicUI.instructions(['点击格子循环线索(空→0→1→2→3→空)','点击/拖拽边线绘制(空→线→叉→空)','线段须构成单一闭合回路'],{accent:'var(--neon-cyan)',title:'系统法则'}),
         '<div id="sll-grid-container"></div>',
@@ -70,7 +70,7 @@
     window.buildSimpleSlitherlinkExample=()=>{R=3;C=3;const a=$('sll-rows'),b=$('sll-cols');if(a)a.value=3;if(b)b.value=3;rs();cl={'0,0':2,'0,2':2,'1,1':0,'2,0':2,'2,2':2};mkE();render();st('-','-');nv(false);};
     window.solveSlitherlinkUI=()=>{
         if(!window.solveSlitherlink)return st('模块未加载','-');if(!Object.keys(cl).length)return st('请先输入线索','-');
-        const t0=performance.now(),res=window.solveSlitherlink({rows:R,cols:C,clues:cl}),ms=Math.round(performance.now()-t0)+'ms';
+        const t0=performance.now(),res=window.solveSlitherlink({rows:R,cols:C,clues:cl}),ms=LogicUI.formatElapsed(performance.now() - t0);
         sols=res.solutions||[];st(res.timeout?sols.length+'+ (超时)':(sols.length||'未找到解'),ms);
         if(sols.length){sw=true;si=0;nv(true);window.showSlitherlinkSolution(0);}else{sw=false;nv(false);render();}
     };

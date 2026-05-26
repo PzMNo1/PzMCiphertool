@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('cave-workspace', 'cave-layout
         { label: '清空非线索', onclick: 'window.clearCaveGrid && window.clearCaveGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleCaveExample && window.buildSimpleCaveExample()' }
     ]) +
-    LogicUI.statsPanel('cave', { countLabel: '洞穴解数', timeLabel: '算力耗时', accent: 'var(--neon-purple)' }) +
+    LogicUI.statsPanel('cave', { countLabel: '洞穴解数', timeLabel: 'AI thinking耗时', accent: 'var(--neon-purple)' }) +
     LogicUI.solutionNav('cave', 'showCaveSolution', { accent: 'var(--neon-purple)' }) +
     LogicUI.instructions([
         '• <strong>左键</strong>: 循环切换 空白 → 墙壁(暗紫) → 洞穴(亮蓝) → 空白。',
@@ -143,7 +143,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('cave-workspace', 'cave-layout
             try { res = window.solveCave(puzzleCtx); } catch (e) {
                 updateCaveStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0);
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateCaveStats(res.error, elapsed); return; }
 

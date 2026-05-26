@@ -1,0 +1,251 @@
+/* 空间类：Skewb 魔方 */
+.skewb-control-panel {
+  min-width: 360px;
+}
+
+.skewb-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.skewb-panel {
+  flex: 2;
+  min-width: 460px;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 22% 16%, rgba(255, 218, 89, 0.1), transparent 30%),
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 77, 94, 0.06)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.skewb-scene {
+  width: 300px;
+  height: 300px;
+  display: grid;
+  place-items: center;
+  perspective: 920px;
+  margin: 0 auto 2rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.skewb-scene.dragging {
+  cursor: grabbing;
+}
+
+.skewb-3d {
+  width: 190px;
+  height: 190px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--skewb-rot-x, -28deg)) rotateY(var(--skewb-rot-y, -36deg));
+  transition: transform 0.08s linear;
+}
+
+.skewb-cube-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 5px;
+  padding: 9px;
+  background:
+    linear-gradient(135deg, rgba(2, 12, 18, 0.94), rgba(9, 27, 35, 0.86)),
+    rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(64, 224, 255, 0.28);
+  box-shadow:
+    inset 0 0 18px rgba(64, 224, 255, 0.12),
+    0 0 24px rgba(64, 224, 255, 0.08);
+}
+
+.skewb-cube-face-f {
+  transform: translateZ(98px);
+}
+
+.skewb-cube-face-b {
+  transform: rotateY(180deg) translateZ(98px);
+}
+
+.skewb-cube-face-r {
+  transform: rotateY(90deg) translateZ(98px);
+}
+
+.skewb-cube-face-l {
+  transform: rotateY(-90deg) translateZ(98px);
+}
+
+.skewb-cube-face-u {
+  transform: rotateX(90deg) translateZ(98px);
+}
+
+.skewb-cube-face-d {
+  transform: rotateX(-90deg) translateZ(98px);
+}
+
+.skewb-cube-face-label {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+.skewb-face-grid {
+  display: contents;
+}
+
+.skewb-cell {
+  min-width: 0;
+  min-height: 0;
+}
+
+.skewb-cell.empty {
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(64, 224, 255, 0.16) 48%, rgba(64, 224, 255, 0.16) 52%, transparent 55%),
+    rgba(255, 255, 255, 0.025);
+  opacity: 0.6;
+}
+
+.skewb-cell.active {
+  position: relative;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.42), transparent 27%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 45%),
+    var(--skewb-color);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  box-shadow:
+    inset 0 0 12px rgba(255, 255, 255, 0.16),
+    0 0 12px rgba(64, 224, 255, 0.14);
+}
+
+.skewb-cell-0.active {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.skewb-cell-2.active {
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.skewb-cell-6.active {
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.skewb-cell-8.active {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.skewb-cell-4.active {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  border-color: rgba(255, 218, 89, 0.78);
+  box-shadow:
+    inset 0 0 12px rgba(255, 255, 255, 0.16),
+    0 0 15px rgba(255, 218, 89, 0.22);
+}
+
+.skewb-move-spatial {
+  grid-template-areas:
+    ". top top ."
+    "left left right right"
+    ". back back .";
+}
+
+.skewb-face-control {
+  min-height: 88px;
+}
+
+.skewb-face-control .cube-face-control-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#skewb-step-counter {
+  color: #ffda59;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(255, 218, 89, 0.86);
+}
+
+#skewb-step-move {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 980px) {
+  .skewb-panel {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .skewb-move-spatial {
+    width: min(560px, 100%);
+  }
+}
+
+@media (max-width: 760px) {
+  .skewb-control-panel,
+  .skewb-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .skewb-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skewb-scene {
+    width: 250px;
+    height: 250px;
+    margin-bottom: 1.6rem;
+  }
+
+  .skewb-3d {
+    width: 156px;
+    height: 156px;
+  }
+
+  .skewb-cube-face {
+    gap: 4px;
+    padding: 7px;
+  }
+
+  .skewb-cube-face-f {
+    transform: translateZ(81px);
+  }
+
+  .skewb-cube-face-b {
+    transform: rotateY(180deg) translateZ(81px);
+  }
+
+  .skewb-cube-face-r {
+    transform: rotateY(90deg) translateZ(81px);
+  }
+
+  .skewb-cube-face-l {
+    transform: rotateY(-90deg) translateZ(81px);
+  }
+
+  .skewb-cube-face-u {
+    transform: rotateX(90deg) translateZ(81px);
+  }
+
+  .skewb-cube-face-d {
+    transform: rotateX(-90deg) translateZ(81px);
+  }
+
+  .skewb-move-spatial {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "top top"
+      "left right"
+      "back back";
+  }
+}

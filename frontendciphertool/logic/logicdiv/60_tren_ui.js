@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearTrenGrid && window.clearTrenGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTrenExample && window.buildSimpleTrenExample()' }
         ]) +
-        window.LogicUI.statsPanel('trn', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('trn', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('trn', 'showTrenSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子输入数字线索（留空 = 空白格）',
@@ -78,7 +78,7 @@
         if (!window.solveTren) return stat('模块未加载', '-');
         if (!Object.keys(clues).length) return stat('请先输入线索', '-');
         const t0 = performance.now(), res = window.solveTren({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         stat(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { showing = true; si = 0; snav(true); window.showTrenSolution(0); }

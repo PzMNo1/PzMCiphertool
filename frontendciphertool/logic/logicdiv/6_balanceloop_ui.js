@@ -16,7 +16,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('balanceloop-workspace', 'bala
         <button id="bl-mode-line" class="cyber-button" style="padding:2px 8px;flex:1;min-width:80px;" onclick="window.setBalanceloopMode && window.setBalanceloopMode('line')"><span class="cyber-button__tag">✏️ 线条</span></button>
         <button id="bl-mode-clear" class="cyber-button" style="padding:2px 8px;flex:1;min-width:80px;" onclick="window.setBalanceloopMode && window.setBalanceloopMode('clear')"><span class="cyber-button__tag">❌ 橡皮</span></button>
     </div>` +
-    LogicUI.statsPanel('bl', { countLabel: '找到解决方案', timeLabel: '耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('bl', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('bl', 'showBalanceloopSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>点击格子</strong>: 放置线索圆圈 (白/黑)，放置后直接按键盘数字设值',
@@ -283,7 +283,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('balanceloop-workspace', 'bala
             try { res = window.solveBalanceloop(puzzleCtx); } catch (e) {
                 updateStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0) + 'ms';
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateStats(res.error, elapsed); return; }
 

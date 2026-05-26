@@ -43,7 +43,14 @@
     animation: agentOrbEnter .32s cubic-bezier(.16,1,.3,1) both;
 }
 #agent-orb:active { cursor: grabbing; }
-#agent-orb svg { width: 34px; height: 34px; }
+#agent-orb .agent-orb-label {
+    color: #ffb02e;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    line-height: 1;
+    text-shadow: 0 0 6px rgba(255,176,46,.55), 0 0 14px rgba(255,125,32,.3);
+}
 @keyframes agentOrbEnter {
     0% { opacity: 0; transform: translateY(10px) scale(.55) rotate(-12deg); }
     65% { opacity: 1; transform: translateY(-2px) scale(1.08) rotate(2deg); }

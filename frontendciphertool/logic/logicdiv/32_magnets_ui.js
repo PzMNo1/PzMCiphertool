@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearMagnetsGrid && window.clearMagnetsGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMagnetsExample && window.buildSimpleMagnetsExample()' }
         ]) +
-        window.LogicUI.statsPanel('magnets', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('magnets', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('magnets', 'showMagnetsSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击或拖动边缘: 划分骨牌边界',
@@ -150,7 +150,7 @@
         if (!window.solveMagnets) return stats('模块未加载', '-');
         const t0 = performance.now();
         const res = window.solveMagnets({ rows: R, cols: C, hBorders: hB, vBorders: vB, topClues: tC, leftClues: lC, bottomClues: bC, rightClues: rC });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showMagnetsSolution(0); }

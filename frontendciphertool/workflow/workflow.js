@@ -104,6 +104,78 @@ function initWorkflowCoze() {
         }
     };
 
+    const VigenereBeaufortWorkflow = {
+        e: (t, p) => Vigenere.beaufort(t, p),
+        d: (t, p) => Vigenere.beaufort(t, p)
+    };
+
+    const VigenereVariantBeaufortWorkflow = {
+        e: (t, p) => Vigenere.variantBeaufortE(t, p),
+        d: (t, p) => Vigenere.variantBeaufortD(t, p)
+    };
+
+    const VigenereAutokeyWorkflow = {
+        e: (t, p) => Vigenere.autokeyE(t, p),
+        d: (t, p) => Vigenere.autokeyD(t, p)
+    };
+
+    const GronsfeldWorkflow = {
+        e: (t, p) => Vigenere.gronsfeldE(t, p),
+        d: (t, p) => Vigenere.gronsfeldD(t, p)
+    };
+
+    const PortaWorkflow = {
+        e: (t, p) => Vigenere.porta(t, p),
+        d: (t, p) => Vigenere.porta(t, p)
+    };
+
+    const RouteTranspositionWorkflow = {
+        e: (t, p) => TranspositionVariants.routeE(t, p),
+        d: (t, p) => TranspositionVariants.routeD(t, p)
+    };
+
+    const ScytaleWorkflow = {
+        e: (t, p) => TranspositionVariants.scytaleE(t, p),
+        d: (t, p) => TranspositionVariants.scytaleD(t, p)
+    };
+
+    const AMSCOWorkflow = {
+        e: (t, p) => {
+            const [key, cols] = splitParam(p, ['3142', '3']);
+            return TranspositionVariants.amscoE(t, key, parseInt(cols, 10) || 3);
+        },
+        d: (t, p) => {
+            const [key, cols] = splitParam(p, ['3142', '3']);
+            return TranspositionVariants.amscoD(t, key, parseInt(cols, 10) || 3);
+        }
+    };
+
+    const MyszkowskiWorkflow = {
+        e: (t, p) => TranspositionVariants.myszkowskiE(t, p),
+        d: (t, p) => TranspositionVariants.myszkowskiD(t, p)
+    };
+
+    const SubstitutionWorkflow = {
+        run: (t, p) => {
+            const [plainAlphabet, cipherAlphabet, manual, cribCipher, cribPlain] = splitParam(
+                p,
+                ['abcdefghijklmnopqrstuvwxyz', 'qwertyuiopasdfghjklzxcvbnm', '', '', '']
+            );
+            return SubstitutionTools.analyze(t, plainAlphabet, cipherAlphabet, manual, cribCipher, cribPlain);
+        }
+    };
+
+    const HillWorkflow = {
+        e: (t, p) => {
+            const [key, size] = splitParam(p, ['3 3 2 5', '2']);
+            return HillCipher.run(t, key, size, false);
+        },
+        d: (t, p) => {
+            const [key, size] = splitParam(p, ['3 3 2 5', '2']);
+            return HillCipher.run(t, key, size, true);
+        }
+    };
+
     const EnigmaWorkflow = {
         e: (t, p) => EnigmaWorkflow.run(t, p),
         d: (t, p) => EnigmaWorkflow.run(t, p),
@@ -160,6 +232,19 @@ function initWorkflowCoze() {
         'Affine仿射': { obj: AffineWorkflow, paramId: 'alphaAB', def: 'abcdefghijklmnopqrstuvwxyz|5|8', pType: 'text' },
         'TapCode敲击码': { obj: TapCodeWorkflow, paramId: 'marks', def: '.|a|b', pType: 'text' },
         'SemaphoreBraille旗语盲文': { obj: QiyuWorkflow, paramId: 'type', def: 'semaphore', pType: 'text' },
+        'A1Z26': { obj: A1Z26Cipher, paramId: 'mode', def: 'a1', pType: 'text' },
+        'Beaufort': { obj: VigenereBeaufortWorkflow, paramId: 'key', def: 'KEY', pType: 'text' },
+        'Variant Beaufort': { obj: VigenereVariantBeaufortWorkflow, paramId: 'key', def: 'KEY', pType: 'text' },
+        'Autokey Vigenere': { obj: VigenereAutokeyWorkflow, paramId: 'key', def: 'KEY', pType: 'text' },
+        'Gronsfeld': { obj: GronsfeldWorkflow, paramId: 'digits', def: '31415', pType: 'text' },
+        'Porta': { obj: PortaWorkflow, paramId: 'key', def: 'KEY', pType: 'text' },
+        'Route Transposition': { obj: RouteTranspositionWorkflow, paramId: 'cols', def: 3, pType: 'number' },
+        'Scytale': { obj: ScytaleWorkflow, paramId: 'cols', def: 3, pType: 'number' },
+        'AMSCO': { obj: AMSCOWorkflow, paramId: 'keyCols', def: '3142|3', pType: 'text' },
+        'Myszkowski': { obj: MyszkowskiWorkflow, paramId: 'key', def: 'BALLOON', pType: 'text' },
+        'Playfair': { obj: PlayfairCipher, paramId: 'key', def: 'keyword', pType: 'text' },
+        'Substitution Analysis': { run: (input, node) => SubstitutionWorkflow.run(input, node.param), pType: 'text', def: 'abcdefghijklmnopqrstuvwxyz|qwertyuiopasdfghjklzxcvbnm|||', noMode: true },
+        'Hill Cipher': { obj: HillWorkflow, paramId: 'keySize', def: '3 3 2 5|2', pType: 'text' },
         'MD5': { run: (input, node) => hashResult(MD5Cipher, input, node), obj: { e: MD5Cipher.e, d: irreversible }, pType: 'none', hmac: true, hmacDef: '12 3a bc' },
         'SHA-1': { run: (input, node) => hashResult(SHA1Cipher, input, node), obj: { e: SHA1Cipher.e, d: irreversible }, pType: 'none', hmac: true, hmacDef: '12 3a bc' },
         'SHA-256': { run: (input, node) => hashResult(SHA256Cipher, input, node), obj: { e: SHA256Cipher.e, d: irreversible }, pType: 'none', hmac: true, hmacDef: '12 3a bc' },
@@ -356,7 +441,7 @@ function initWorkflowCoze() {
                     <input type="text" value="${escapeHTML(n.hmacKey ?? cfg.hmacDef ?? '')}" class="wf-hmac-key" placeholder="HMAC密钥">
                 </div>`
                 : '';
-            const modeHTML = cfg.hmac
+            const modeHTML = cfg.hmac || cfg.noMode
                 ? ''
                 : `<div class="wf-node-row"><select class="wf-cipher-mode"><option value="e"${n.mode === 'e' ? ' selected' : ''}>加密</option><option value="d"${n.mode === 'd' ? ' selected' : ''}>解密</option></select></div>`;
             bodyHTML = `<div class="wf-node-body">

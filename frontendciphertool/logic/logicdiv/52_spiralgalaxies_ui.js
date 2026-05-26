@@ -11,7 +11,7 @@
             { label: '简单示例', onclick: 'window.buildSimpleSGExample && window.buildSimpleSGExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="sg-mode-btn" onclick="window.toggleSGMode && window.toggleSGMode()"><span class="cyber-button__tag">模式: 放置星系中心</span></button></div>` +
-        window.LogicUI.statsPanel('sg', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('sg', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('sg', 'showSGSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '编辑模式: 点击网格放置/删除星系中心',
@@ -97,7 +97,7 @@
         if (!window.solveSpiralGalaxies) return st('模块未加载', '-');
         if (!dots.length) return st('请先放置星系中心', '-');
         const t0 = performance.now(), res = window.solveSpiralGalaxies({ rows: R, cols: C, dots });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         st(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nv(true); window.showSGSolution(0); }

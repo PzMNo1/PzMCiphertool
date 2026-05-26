@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquapelago-workspace', 'aquap
         { label: '重置清理', onclick: 'window.clearAquapelagoGrid && window.clearAquapelagoGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAquapelagoExample && window.buildSimpleAquapelagoExample()' }
     ]) +
-    LogicUI.statsPanel('aquapelago', { countLabel: '找到解决方案', timeLabel: '耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('aquapelago', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('aquapelago', 'showAquapelagoSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>点击网格</strong>即可使用键盘输入数字',
@@ -249,7 +249,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquapelago-workspace', 'aquap
                     }
                 }
                 if (document.getElementById('aquapelago-timeElapsed')) {
-                    document.getElementById('aquapelago-timeElapsed').textContent = Math.round(performance.now() - start);
+                    document.getElementById('aquapelago-timeElapsed').textContent = LogicUI.formatElapsed(performance.now() - start);
                 }
             } catch (e) {
                 console.error(e);

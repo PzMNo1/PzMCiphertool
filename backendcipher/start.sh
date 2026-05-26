@@ -4,12 +4,25 @@ echo "  CipherTool Backend - One Click Start"
 echo "========================================"
 echo ""
 
-# ============ Environment Configuration ============
-# Adjust these paths for your Linux environment
-export JAVA_HOME="/home/ubuntu/10_Leochad/jdk-17.0.12"
-export MAVEN_HOME="/home/ubuntu/10_Leochad/apache-maven-3.9.5"
-export REDIS_HOME="/home/ubuntu/10_Leochad/redis-7.2.3"
-export PATH="$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH"
+# ============ Portable Environment Configuration ============
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOCAL_TOOLS="$SCRIPT_DIR/.tools"
+
+# Optional project-local tools. Put them here if this machine has no global install:
+#   backendcipher/.tools/jdk/bin/java
+#   backendcipher/.tools/maven/bin/mvn
+#   backendcipher/.tools/redis/src/redis-server or backendcipher/.tools/redis/redis-server
+if [ -x "$LOCAL_TOOLS/jdk/bin/java" ]; then
+    export JAVA_HOME="$LOCAL_TOOLS/jdk"
+    export PATH="$JAVA_HOME/bin:$PATH"
+fi
+if [ -x "$LOCAL_TOOLS/maven/bin/mvn" ]; then
+    export MAVEN_HOME="$LOCAL_TOOLS/maven"
+    export PATH="$MAVEN_HOME/bin:$PATH"
+fi
+if [ -z "$REDIS_HOME" ] && { [ -x "$LOCAL_TOOLS/redis/src/redis-server" ] || [ -x "$LOCAL_TOOLS/redis/redis-server" ]; }; then
+    export REDIS_HOME="$LOCAL_TOOLS/redis"
+fi
 
 # ============ Aliyun SMS Configuration ============
 # Set these environment variables before running, or export them in your shell profile
@@ -20,7 +33,7 @@ export PATH="$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH"
 
 echo "[1/5] Checking Java..."
 if ! java -version >/dev/null 2>&1; then
-    echo "[ERROR] Java not found at $JAVA_HOME"
+    echo "[ERROR] Java not found. Install JDK 17, add it to PATH, or place it at backendcipher/.tools/jdk"
     exit 1
 fi
 echo "      Java OK"
@@ -42,11 +55,19 @@ else
         $REDIS_HOME/src/redis-server --daemonize yes >/dev/null 2>&1
         sleep 2
         echo "      Redis started"
+    elif [ -f "$REDIS_HOME/redis-server" ]; then
+        $REDIS_HOME/redis-server --daemonize yes >/dev/null 2>&1
+        sleep 2
+        echo "      Redis started"
     else
-        echo "      [ERROR] redis-server not found at $REDIS_HOME/src/"
+        echo "      Redis not found in backendcipher/.tools/redis or REDIS_HOME; skipping auto-start"
     fi
 fi
 echo "[4/5] Building project..."
+if ! command -v mvn >/dev/null 2>&1; then
+    echo "[ERROR] Maven not found. Install Maven, add it to PATH, or place it at backendcipher/.tools/maven"
+    exit 1
+fi
 if ! mvn clean package -DskipTests -q; then
     echo "[ERROR] Build failed!"
     exit 1
@@ -63,4 +84,3 @@ echo "========================================"
 echo ""
 
 java -jar target/ciphertool-backend-1.0.0.jar
-

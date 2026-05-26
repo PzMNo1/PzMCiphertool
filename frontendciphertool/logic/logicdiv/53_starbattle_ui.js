@@ -12,7 +12,7 @@
             { label: '简单示例', onclick: 'window.buildSBExample && window.buildSBExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="sb-mode-btn" onclick="window.toggleSBMode && window.toggleSBMode()"><span class="cyber-button__tag">模式: 编辑区域</span></button></div>` +
-        window.LogicUI.statsPanel('sb', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('sb', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('sb', 'showSBSol', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '区域模式: 点击/拖拽网格线绘制区域边界',
@@ -102,7 +102,7 @@
         if (!window.solveStarbattle) return stat('模块未加载', '-');
         rdSz(); const rg = regions(); if (!rg.length) return stat('请先绘制区域', '-');
         const t0 = performance.now(), res = window.solveStarbattle({ rows: R, cols: C, stars: S, regions: rg });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         stat(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { showing = true; si = 0; nav(true); window.showSBSol(0); }

@@ -181,6 +181,14 @@
     gap: 12px;
 }
 
+.zstp-action-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    min-width: 140px;
+}
+
 .zstp-mode-switch {
     position: relative;
     display: grid;

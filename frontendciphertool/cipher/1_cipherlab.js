@@ -1,28 +1,88 @@
 // 凯撒密码
 const Caesar = {
-  e: (t, s) => t.replace(/[a-z]/gi,
-    c => String.fromCharCode((
-      c.charCodeAt(0) - (c < 'a' ? 65 : 97) + s + 26) % 26 + (c < 'a' ? 65 : 97))),
-  d: (t, s) => Caesar.e(t, -s)
+  shift: (t, s) => {
+    s = Number(s) || 0;
+    return t.replace(/[a-z]/gi, c => {
+      const b = c < 'a' ? 65 : 97;
+      return String.fromCharCode((c.charCodeAt(0) - b + s + 2600) % 26 + b);
+    });
+  },
+  e: (t, s) => Caesar.shift(t, s),
+  d: (t, s) => Caesar.shift(t, -s),
+  brute: t => Array.from({ length: 25 }, (_, i) => {
+    const s = i + 1;
+    return `偏移 ${String(s).padStart(2, '0')}: ${Caesar.d(t, s)}`;
+  }).join('\n')
 }
 
 // 维吉尼亚密码
 const Vigenere = {
-  e: (t, k, mode = 1) => {
-    t = t.replace(/\s/g, "");
-    let r = "", ki = 0, K = (k || "KEY")
-      .toUpperCase();
-    for (let c of t) {
+  keyLetters: (k, fallback = 'KEY') => ((k || fallback).toString().toUpperCase().match(/[A-Z]/g) || fallback.split('')),
+  keyDigits: k => ((k || '').toString().match(/\d/g) || '31415'.split('')).map(Number),
+  val: c => c.toUpperCase().charCodeAt(0) - 65,
+  fromVal: (c, v) => String.fromCharCode(((v % 26) + 26) % 26 + (c < 'a' ? 65 : 97)),
+  runLetters: (t, keys, fn) => {
+    t = (t || '').replace(/\s/g, '');
+    let r = '', ki = 0;
+    for (const c of t) {
       if (/[a-z]/i.test(c)) {
-        let b = c < 'a' ? 65 : 97,
-          sh = K[ki % K.length].charCodeAt(0) - 65;
-        r += String.fromCharCode(
-          (c.charCodeAt(0) - b + (mode === 1 ? sh : -sh) + 26) % 26 + b);
+        const k = keys[ki % keys.length];
+        r += Vigenere.fromVal(c, fn(Vigenere.val(c), k));
         ki++;
       } else r += c;
-    } return r;
+    }
+    return r;
   },
-  d: (t, k) => Vigenere.e(t, k, -1)
+  e: (t, k, mode = 1) => Vigenere.runLetters(t, Vigenere.keyLetters(k).map(Vigenere.val), (v, sh) => v + (mode === 1 ? sh : -sh)),
+  d: (t, k) => Vigenere.e(t, k, -1),
+  beaufort: (t, k) => Vigenere.runLetters(t, Vigenere.keyLetters(k).map(Vigenere.val), (v, sh) => sh - v),
+  variantBeaufortE: (t, k) => Vigenere.d(t, k),
+  variantBeaufortD: (t, k) => Vigenere.e(t, k),
+  gronsfeldE: (t, k) => Vigenere.runLetters(t, Vigenere.keyDigits(k), (v, sh) => v + sh),
+  gronsfeldD: (t, k) => Vigenere.runLetters(t, Vigenere.keyDigits(k), (v, sh) => v - sh),
+  autokeyE: (t, k) => {
+    t = (t || '').replace(/\s/g, '');
+    const baseKey = Vigenere.keyLetters(k).join('');
+    const plain = t.replace(/[^a-z]/gi, '').toUpperCase();
+    let r = '', li = 0;
+    for (const c of t) {
+      if (/[a-z]/i.test(c)) {
+        const keyChar = li < baseKey.length ? baseKey[li] : plain[li - baseKey.length];
+        r += Vigenere.fromVal(c, Vigenere.val(c) + Vigenere.val(keyChar || 'A'));
+        li++;
+      } else r += c;
+    }
+    return r;
+  },
+  autokeyD: (t, k) => {
+    t = (t || '').replace(/\s/g, '');
+    const baseKey = Vigenere.keyLetters(k).join('');
+    let r = '', recovered = '', li = 0;
+    for (const c of t) {
+      if (/[a-z]/i.test(c)) {
+        const keyChar = li < baseKey.length ? baseKey[li] : recovered[li - baseKey.length];
+        const p = Vigenere.fromVal(c, Vigenere.val(c) - Vigenere.val(keyChar || 'A'));
+        recovered += p.toUpperCase();
+        r += p;
+        li++;
+      } else r += c;
+    }
+    return r;
+  },
+  porta: (t, k) => Vigenere.runLetters(t, Vigenere.keyLetters(k).map(c => Math.floor(Vigenere.val(c) / 2)), (v, pair) => {
+    if (v < 13) return 13 + ((v + pair) % 13);
+    return (v - 13 - pair + 13) % 13;
+  }),
+  process: (t, k, variant = 'vigenere') => {
+    switch (variant) {
+      case 'beaufort': return `加密/解密: ${Vigenere.beaufort(t, k)}`;
+      case 'variantBeaufort': return `加密: ${Vigenere.variantBeaufortE(t, k)}\n解密: ${Vigenere.variantBeaufortD(t, k)}`;
+      case 'autokey': return `加密: ${Vigenere.autokeyE(t, k)}\n解密: ${Vigenere.autokeyD(t, k)}`;
+      case 'gronsfeld': return `加密: ${Vigenere.gronsfeldE(t, k)}\n解密: ${Vigenere.gronsfeldD(t, k)}`;
+      case 'porta': return `加密/解密: ${Vigenere.porta(t, k)}`;
+      default: return `加密: ${Vigenere.e(t, k)}\n解密: ${Vigenere.d(t, k)}`;
+    }
+  }
 }
 
 // 栅栏密码
@@ -42,6 +102,117 @@ const RailFence = {
       m = [...Array(n)].map((_, i) => String.fromCharCode(33 + i)).join(''),
       p = RailFence.e(m, r).split('').map(x => m.indexOf(x));
     return Array(n).fill().map((_, i) => t[p.indexOf(i)]).join('');
+  }
+}
+
+// 换位类变体
+const TranspositionVariants = {
+  clean: t => (t || '').replace(/\s+/g, ''),
+  keyOrder: (key, count) => {
+    const raw = (key || '').toString().trim();
+    let tokens;
+    if (/^\d+(?:[\s,]+\d+)*$/.test(raw) && /[\s,]/.test(raw)) tokens = raw.split(/[\s,]+/).map(Number);
+    else if (/^\d{2,}$/.test(raw)) tokens = [...raw].map(Number);
+    else tokens = [...(raw || 'KEY')].map(c => c.toUpperCase().charCodeAt(0));
+    if (count && tokens.length !== count) tokens = tokens.slice(0, count);
+    return tokens.map((v, i) => ({ v, i })).sort((a, b) => a.v === b.v ? a.i - b.i : a.v > b.v ? 1 : -1).map(x => x.i);
+  },
+  keyLength: (key, fallback) => {
+    const raw = (key || '').toString().trim();
+    if (/^\d+(?:[\s,]+\d+)*$/.test(raw) && /[\s,]/.test(raw)) return Math.max(2, raw.split(/[\s,]+/).length);
+    if (/^\d{2,}$/.test(raw)) return Math.max(2, raw.length);
+    return Math.max(2, raw.length || fallback || 3);
+  },
+  routeE: (t, cols = 3) => {
+    t = TranspositionVariants.clean(t); cols = Math.max(2, cols | 0);
+    const rows = Math.ceil(t.length / cols), grid = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => t[r * cols + c] || 'X'));
+    let top = 0, bottom = rows - 1, left = 0, right = cols - 1, out = '';
+    while (top <= bottom && left <= right) {
+      for (let c = left; c <= right; c++) out += grid[top][c]; top++;
+      for (let r = top; r <= bottom; r++) out += grid[r][right]; right--;
+      if (top <= bottom) { for (let c = right; c >= left; c--) out += grid[bottom][c]; bottom--; }
+      if (left <= right) { for (let r = bottom; r >= top; r--) out += grid[r][left]; left++; }
+    }
+    return out;
+  },
+  routeD: (t, cols = 3) => {
+    t = TranspositionVariants.clean(t); cols = Math.max(2, cols | 0);
+    const rows = Math.ceil(t.length / cols), grid = Array.from({ length: rows }, () => Array(cols).fill(''));
+    let top = 0, bottom = rows - 1, left = 0, right = cols - 1, idx = 0;
+    while (top <= bottom && left <= right) {
+      for (let c = left; c <= right; c++) grid[top][c] = t[idx++] || ''; top++;
+      for (let r = top; r <= bottom; r++) grid[r][right] = t[idx++] || ''; right--;
+      if (top <= bottom) { for (let c = right; c >= left; c--) grid[bottom][c] = t[idx++] || ''; bottom--; }
+      if (left <= right) { for (let r = bottom; r >= top; r--) grid[r][left] = t[idx++] || ''; left++; }
+    }
+    return grid.flat().join('').replace(/X+$/g, '');
+  },
+  scytaleE: (t, cols = 3) => ColumnarRailCipher.e(t, cols),
+  scytaleD: (t, cols = 3) => ColumnarRailCipher.d(t, cols),
+  amscoLayout: (len, cols) => {
+    const layout = [];
+    let used = 0, size = 1;
+    while (used < len) {
+      const row = [];
+      for (let c = 0; c < cols && used < len; c++) {
+        const n = Math.min(size, len - used);
+        row.push(n); used += n; size = size === 1 ? 2 : 1;
+      }
+      while (row.length < cols) row.push(0);
+      layout.push(row);
+    }
+    return layout;
+  },
+  amscoE: (t, key = '3142', fallback = 3) => {
+    t = TranspositionVariants.clean(t); const cols = TranspositionVariants.keyLength(key, fallback), layout = TranspositionVariants.amscoLayout(t.length, cols);
+    let idx = 0; const grid = layout.map(row => row.map(n => { const part = t.slice(idx, idx + n); idx += n; return part; }));
+    return TranspositionVariants.keyOrder(key, cols).map(c => grid.map(row => row[c] || '').join('')).join('');
+  },
+  amscoD: (t, key = '3142', fallback = 3) => {
+    t = TranspositionVariants.clean(t); const cols = TranspositionVariants.keyLength(key, fallback), layout = TranspositionVariants.amscoLayout(t.length, cols);
+    const grid = layout.map(row => row.map(() => '')); let idx = 0;
+    for (const c of TranspositionVariants.keyOrder(key, cols)) {
+      const need = layout.reduce((sum, row) => sum + row[c], 0);
+      const chunk = t.slice(idx, idx + need); idx += need; let p = 0;
+      for (let r = 0; r < layout.length; r++) { const n = layout[r][c]; grid[r][c] = chunk.slice(p, p + n); p += n; }
+    }
+    return grid.map(row => row.join('')).join('');
+  },
+  myszkowskiGroups: key => {
+    const chars = [...((key || 'BALLOON').toString().toUpperCase())];
+    const values = [...new Set(chars)].sort();
+    return values.map(v => chars.map((c, i) => c === v ? i : -1).filter(i => i >= 0));
+  },
+  myszkowskiE: (t, key = 'BALLOON') => {
+    t = TranspositionVariants.clean(t); const cols = Math.max(2, (key || 'BALLOON').length), rows = Math.ceil(t.length / cols);
+    const grid = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => t[r * cols + c] || ''));
+    let out = '';
+    for (const group of TranspositionVariants.myszkowskiGroups(key)) {
+      if (group.length === 1) for (let r = 0; r < rows; r++) out += grid[r][group[0]] || '';
+      else for (let r = 0; r < rows; r++) for (const c of group) out += grid[r][c] || '';
+    }
+    return out;
+  },
+  myszkowskiD: (t, key = 'BALLOON') => {
+    t = TranspositionVariants.clean(t); const cols = Math.max(2, (key || 'BALLOON').length), rows = Math.ceil(t.length / cols);
+    const grid = Array.from({ length: rows }, () => Array(cols).fill('')); let idx = 0;
+    for (const group of TranspositionVariants.myszkowskiGroups(key)) {
+      const positions = [];
+      if (group.length === 1) for (let r = 0; r < rows; r++) { const p = r * cols + group[0]; if (p < t.length) positions.push([r, group[0]]); }
+      else for (let r = 0; r < rows; r++) for (const c of group) { const p = r * cols + c; if (p < t.length) positions.push([r, c]); }
+      for (const [r, c] of positions) grid[r][c] = t[idx++] || '';
+    }
+    return grid.flat().join('');
+  },
+  process: (t, count, key, variant = 'railFence') => {
+    const c = Math.max(2, parseInt(count, 10) || 3);
+    switch (variant) {
+      case 'route': return `加密: ${TranspositionVariants.routeE(t, c)}\n解密: ${TranspositionVariants.routeD(t, c)}`;
+      case 'scytale': return `加密: ${TranspositionVariants.scytaleE(t, c)}\n解密: ${TranspositionVariants.scytaleD(t, c)}`;
+      case 'amsco': return `加密: ${TranspositionVariants.amscoE(t, key, c)}\n解密: ${TranspositionVariants.amscoD(t, key, c)}`;
+      case 'myszkowski': return `加密: ${TranspositionVariants.myszkowskiE(t, key)}\n解密: ${TranspositionVariants.myszkowskiD(t, key)}`;
+      default: return `加密: ${RailFence.e(t, c)}\n解密: ${RailFence.d(t, c)}`;
+    }
   }
 }
 
@@ -109,6 +280,39 @@ const MorseCode = {
     .map(c => Object.keys(MorseCode.dict)
       .find(k => MorseCode.dict[k] === c) || c)
     .join('')
+}
+
+// 摩尔斯变体
+const MorseVariants = {
+  trigrams: (() => {
+    const marks = ['.', '-', 'x'], out = [];
+    for (const a of marks) for (const b of marks) for (const c of marks) out.push(a + b + c);
+    return out.filter(g => g !== 'xxx');
+  })(),
+  keyedAlphabet: key => {
+    const seen = new Set(), raw = ((key || '') + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ').toUpperCase().replace(/[^A-Z]/g, '');
+    return [...raw].filter(c => !seen.has(c) && seen.add(c)).join('').slice(0, 26);
+  },
+  reverseDict: () => Object.fromEntries(Object.entries(MorseCode.dict).map(([k, v]) => [v, k])),
+  fractionatedE: (t, key) => {
+    const alpha = MorseVariants.keyedAlphabet(key);
+    const table = Object.fromEntries(MorseVariants.trigrams.map((g, i) => [g, alpha[i]]));
+    const words = (t || '').toUpperCase().split(/\s+/).map(w => [...w].map(c => /^[A-Z]$/.test(c) ? MorseCode.dict[c] : '').filter(Boolean).join('x')).filter(Boolean);
+    let stream = words.join('xx');
+    if (!stream) return '';
+    stream = stream.padEnd(Math.ceil(stream.length / 3) * 3, 'x');
+    return (stream.match(/.{3}/g) || []).map(g => table[g] || '?').join('');
+  },
+  fractionatedD: (t, key) => {
+    const alpha = MorseVariants.keyedAlphabet(key);
+    const reverseTri = Object.fromEntries([...alpha].map((c, i) => [c, MorseVariants.trigrams[i]]));
+    const reverseMorse = MorseVariants.reverseDict();
+    const stream = [...(t || '').toUpperCase()].map(c => reverseTri[c] || '').join('').replace(/x+$/g, '');
+    return stream.split('xx').map(word => word.split('x').map(code => reverseMorse[code] || '').join('')).join(' ');
+  },
+  process: (t, variant = 'morse', key = 'KEYWORD') => variant === 'fractionated'
+    ? `加密: ${MorseVariants.fractionatedE(t, key)}\n解密: ${MorseVariants.fractionatedD(t, key)}`
+    : `加密: ${MorseCode.e(t)}\n解密: ${MorseCode.d(t)}`
 }
 
 // 手机九键
@@ -473,6 +677,106 @@ class PolybiusCipher {
   }
 }
 
+// Polybius 类变体
+const PolybiusVariants = {
+  square5: key => {
+    const seen = new Set(), raw = ((key || '') + 'ABCDEFGHIKLMNOPQRSTUVWXYZ').toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, '');
+    return [...raw].filter(c => !seen.has(c) && seen.add(c)).join('').slice(0, 25);
+  },
+  clean5: t => (t || '').toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, ''),
+  pairs: t => {
+    const s = PolybiusVariants.clean5(t), out = [];
+    for (let i = 0; i < s.length; i += 2) out.push([s[i], s[i + 1] || 'X']);
+    return out;
+  },
+  pos5: (sq, c) => { const i = sq.indexOf(c); return [Math.floor(i / 5), i % 5]; },
+  trifidAlpha: key => {
+    const seen = new Set(), raw = ((key || '') + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ.').toUpperCase().replace(/[^A-Z.]/g, '');
+    return [...raw].filter(c => !seen.has(c) && seen.add(c)).join('').slice(0, 27);
+  },
+  trifidCoord: (alpha, c) => {
+    const i = Math.max(0, alpha.indexOf(c));
+    return [Math.floor(i / 9) + 1, Math.floor((i % 9) / 3) + 1, i % 3 + 1];
+  },
+  trifidChar: (alpha, a, b, c) => alpha[(a - 1) * 9 + (b - 1) * 3 + c - 1] || '',
+  trifidE: (t, key, period = 5) => {
+    const alpha = PolybiusVariants.trifidAlpha(key), s = (t || '').toUpperCase().replace(/[^A-Z.]/g, '');
+    period = Math.max(1, parseInt(period, 10) || 5); let out = '';
+    for (let i = 0; i < s.length; i += period) {
+      const block = [...s.slice(i, i + period)], coords = block.map(c => PolybiusVariants.trifidCoord(alpha, c));
+      const seq = coords.map(x => x[0]).concat(coords.map(x => x[1]), coords.map(x => x[2]));
+      for (let j = 0; j < seq.length; j += 3) out += PolybiusVariants.trifidChar(alpha, seq[j], seq[j + 1], seq[j + 2]);
+    }
+    return out;
+  },
+  trifidD: (t, key, period = 5) => {
+    const alpha = PolybiusVariants.trifidAlpha(key), s = (t || '').toUpperCase().replace(/[^A-Z.]/g, '');
+    period = Math.max(1, parseInt(period, 10) || 5); let out = '';
+    for (let i = 0; i < s.length; i += period) {
+      const block = [...s.slice(i, i + period)], seq = block.flatMap(c => PolybiusVariants.trifidCoord(alpha, c));
+      const n = block.length, a = seq.slice(0, n), b = seq.slice(n, 2 * n), c = seq.slice(2 * n);
+      for (let j = 0; j < n; j++) out += PolybiusVariants.trifidChar(alpha, a[j], b[j], c[j]);
+    }
+    return out;
+  },
+  fourSquareE: (t, keyA, keyB) => {
+    const normal = 'ABCDEFGHIKLMNOPQRSTUVWXYZ', sqA = PolybiusVariants.square5(keyA), sqB = PolybiusVariants.square5(keyB);
+    return PolybiusVariants.pairs(t).map(([a, b]) => {
+      const [r1, c1] = PolybiusVariants.pos5(normal, a), [r2, c2] = PolybiusVariants.pos5(normal, b);
+      return sqA[r1 * 5 + c2] + sqB[r2 * 5 + c1];
+    }).join('');
+  },
+  fourSquareD: (t, keyA, keyB) => {
+    const normal = 'ABCDEFGHIKLMNOPQRSTUVWXYZ', sqA = PolybiusVariants.square5(keyA), sqB = PolybiusVariants.square5(keyB), s = PolybiusVariants.clean5(t);
+    let out = '';
+    for (let i = 0; i < s.length; i += 2) {
+      const [r1, c2] = PolybiusVariants.pos5(sqA, s[i]), [r2, c1] = PolybiusVariants.pos5(sqB, s[i + 1] || 'X');
+      out += normal[r1 * 5 + c1] + normal[r2 * 5 + c2];
+    }
+    return out;
+  },
+  twoSquareE: (t, keyA, keyB) => {
+    const sqA = PolybiusVariants.square5(keyA), sqB = PolybiusVariants.square5(keyB);
+    return PolybiusVariants.pairs(t).map(([a, b]) => {
+      const [r1, c1] = PolybiusVariants.pos5(sqA, a), [r2, c2] = PolybiusVariants.pos5(sqB, b);
+      return sqA[r1 * 5 + c2] + sqB[r2 * 5 + c1];
+    }).join('');
+  },
+  twoSquareD: (t, keyA, keyB) => {
+    const sqA = PolybiusVariants.square5(keyA), sqB = PolybiusVariants.square5(keyB), s = PolybiusVariants.clean5(t);
+    let out = '';
+    for (let i = 0; i < s.length; i += 2) {
+      const [r1, c2] = PolybiusVariants.pos5(sqA, s[i]), [r2, c1] = PolybiusVariants.pos5(sqB, s[i + 1] || 'X');
+      out += sqA[r1 * 5 + c1] + sqB[r2 * 5 + c2];
+    }
+    return out;
+  },
+  nihilistMap: key => {
+    const sq = PolybiusVariants.square5(key), map = {}, rev = {};
+    [...sq].forEach((c, i) => { const n = (Math.floor(i / 5) + 1) * 10 + i % 5 + 1; map[c] = n; rev[n] = c; });
+    return { map, rev };
+  },
+  nihilistE: (t, keyA, keyB) => {
+    const { map } = PolybiusVariants.nihilistMap(keyA), s = PolybiusVariants.clean5(t), keyNums = PolybiusVariants.clean5(keyB || 'KEY').split('').map(c => map[c]).filter(Boolean);
+    if (!keyNums.length) return '密钥无效';
+    return [...s].map((c, i) => map[c] + keyNums[i % keyNums.length]).join(' ');
+  },
+  nihilistD: (t, keyA, keyB) => {
+    const { map, rev } = PolybiusVariants.nihilistMap(keyA), keyNums = PolybiusVariants.clean5(keyB || 'KEY').split('').map(c => map[c]).filter(Boolean);
+    if (!keyNums.length) return '密钥无效';
+    return ((t || '').match(/\d+/g) || []).map((n, i) => rev[parseInt(n, 10) - keyNums[i % keyNums.length]] || '?').join('');
+  },
+  process: (t, variant, abc, rows, cols, keyA, keyB, period) => {
+    switch (variant) {
+      case 'trifid': return `加密: ${PolybiusVariants.trifidE(t, keyA, period)}\n解密: ${PolybiusVariants.trifidD(t, keyA, period)}`;
+      case 'fourSquare': return `加密: ${PolybiusVariants.fourSquareE(t, keyA, keyB)}\n解密: ${PolybiusVariants.fourSquareD(t, keyA, keyB)}`;
+      case 'twoSquare': return `加密: ${PolybiusVariants.twoSquareE(t, keyA, keyB)}\n解密: ${PolybiusVariants.twoSquareD(t, keyA, keyB)}`;
+      case 'nihilist': return `加密: ${PolybiusVariants.nihilistE(t, keyA, keyB)}\n解密: ${PolybiusVariants.nihilistD(t, keyA, keyB)}`;
+      default: return `加密: ${PolybiusCipher.e(t, abc, rows, cols)} \n解密: ${PolybiusCipher.d(t, abc, rows, cols)}`;
+    }
+  }
+}
+
 // 仿射
 const Affine = {
   modInv: (a, m) => {
@@ -698,6 +1002,219 @@ const baseCipher = {
     } catch (e) { return `无效字符`; }
   }
 };
+
+// A1Z26 字母序号
+const A1Z26Cipher = {
+  offset: mode => mode === 'a0' ? 0 : 1,
+  e: (t, mode = 'a1') => {
+    const off = A1Z26Cipher.offset(mode);
+    return [...(t || '')].map(c => {
+      if (/[a-z]/i.test(c)) return String(c.toUpperCase().charCodeAt(0) - 65 + off);
+      if (/\s/.test(c)) return '/';
+      return c;
+    }).join(' ').replace(/\s+\/\s+/g, ' / ').replace(/\s+/g, ' ').trim();
+  },
+  d: (t, mode = 'a1') => {
+    const off = A1Z26Cipher.offset(mode), min = off, max = off + 25;
+    return (t || '').replace(/\d+/g, n => {
+      const v = parseInt(n, 10);
+      return v >= min && v <= max ? String.fromCharCode(v - off + 65) : n;
+    }).replace(/\s*\/\s*/g, ' ');
+  }
+}
+
+// Playfair 双字母密码
+const PlayfairCipher = {
+  alphabet: 'ABCDEFGHIKLMNOPQRSTUVWXYZ',
+  square: key => {
+    const seen = new Set(), letters = ((key || '') + PlayfairCipher.alphabet).toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, '');
+    return [...letters].filter(c => !seen.has(c) && seen.add(c));
+  },
+  pairs: t => {
+    const letters = (t || '').toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, '');
+    const pairs = [];
+    for (let i = 0; i < letters.length; i++) {
+      const a = letters[i], b = letters[i + 1] || 'X';
+      if (a === b) pairs.push([a, 'X']);
+      else { pairs.push([a, b]); i++; }
+    }
+    return pairs;
+  },
+  pos: (sq, c) => {
+    const i = sq.indexOf(c);
+    return { r: Math.floor(i / 5), c: i % 5 };
+  },
+  runPair: (sq, a, b, dir) => {
+    const pa = PlayfairCipher.pos(sq, a), pb = PlayfairCipher.pos(sq, b);
+    if (pa.r === pb.r) return sq[pa.r * 5 + (pa.c + dir + 5) % 5] + sq[pb.r * 5 + (pb.c + dir + 5) % 5];
+    if (pa.c === pb.c) return sq[((pa.r + dir + 5) % 5) * 5 + pa.c] + sq[((pb.r + dir + 5) % 5) * 5 + pb.c];
+    return sq[pa.r * 5 + pb.c] + sq[pb.r * 5 + pa.c];
+  },
+  e: (t, key) => {
+    const sq = PlayfairCipher.square(key);
+    return PlayfairCipher.pairs(t).map(([a, b]) => PlayfairCipher.runPair(sq, a, b, 1)).join('');
+  },
+  d: (t, key) => {
+    const sq = PlayfairCipher.square(key), letters = (t || '').toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, '');
+    let r = '';
+    for (let i = 0; i < letters.length; i += 2) r += PlayfairCipher.runPair(sq, letters[i], letters[i + 1] || 'X', -1);
+    return r;
+  }
+}
+
+// Pigpen 共济会密码
+const PigpenCipher = {
+  letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  symbols: ['⌜','⊓','⌝','⊏','□','⊐','⌞','⊔','⌟','⌜·','⊓·','⌝·','⊏·','□·','⊐·','⌞·','⊔·','⌟·','◇⌜','◇⊓','◇⌝','◇⊏','◇⌞','◇⊔','◇⌟','◇□'],
+  e: t => [...(t || '').toUpperCase()].map(c => {
+    const i = PigpenCipher.letters.indexOf(c);
+    if (i >= 0) return PigpenCipher.symbols[i];
+    if (/\s/.test(c)) return '/';
+    return c;
+  }).join(' '),
+  d: t => {
+    const reverse = Object.fromEntries(PigpenCipher.symbols.map((s, i) => [s, PigpenCipher.letters[i]]));
+    return (t || '').split(/\s+/).map(token => token === '/' ? ' ' : (reverse[token] || token)).join('');
+  }
+}
+
+// Substitution 替换分析助手
+const SubstitutionTools = {
+  unique: s => [...(s || '')].filter((c, i, a) => c && a.indexOf(c) === i).join(''),
+  mapAlphabet: (from, to) => {
+    from = SubstitutionTools.unique(from); to = SubstitutionTools.unique(to);
+    const map = {};
+    for (let i = 0; i < Math.min(from.length, to.length); i++) {
+      map[from[i]] = to[i];
+      if (/[a-z]/i.test(from[i]) && /[a-z]/i.test(to[i])) {
+        map[from[i].toUpperCase()] = to[i].toUpperCase();
+        map[from[i].toLowerCase()] = to[i].toLowerCase();
+      }
+    }
+    return map;
+  },
+  applyMap: (t, map, unknown = null) => [...(t || '')].map(c => {
+    const mapped = map[c] || map[c.toUpperCase?.()];
+    if (!mapped) return unknown === null || !/[a-z]/i.test(c) ? c : unknown;
+    return c === c.toLowerCase() ? mapped.toLowerCase() : mapped.toUpperCase();
+  }).join(''),
+  applyAlphabet: (t, from, to) => SubstitutionTools.applyMap(t, SubstitutionTools.mapAlphabet(from, to)),
+  frequency: t => {
+    const counts = {}, letters = ((t || '').toUpperCase().match(/[A-Z]/g) || []);
+    letters.forEach(c => counts[c] = (counts[c] || 0) + 1);
+    const total = letters.length || 1;
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return rows.length ? rows.map(([c, n]) => `${c}:${n}(${Math.round(n * 100 / total)}%)`).join(' ') : '无字母';
+  },
+  parseManual: m => {
+    const map = {};
+    (m || '').split(/[\s,;]+/).filter(Boolean).forEach(part => {
+      const pair = part.split(/[:=\-＞>]/).filter(Boolean);
+      if (pair.length < 2) return;
+      const left = pair[0].toUpperCase().replace(/[^A-Z]/g, ''), right = pair[1].toUpperCase().replace(/[^A-Z]/g, '');
+      for (let i = 0; i < Math.min(left.length, right.length); i++) map[left[i]] = right[i];
+    });
+    return map;
+  },
+  cribMap: (cipher, plain) => {
+    const map = {}, conflicts = [];
+    cipher = (cipher || '').toUpperCase(); plain = (plain || '').toUpperCase();
+    for (let i = 0; i < Math.min(cipher.length, plain.length); i++) {
+      const c = cipher[i], p = plain[i];
+      if (!/[A-Z]/.test(c) || !/[A-Z]/.test(p)) continue;
+      if (map[c] && map[c] !== p) conflicts.push(`${c}:${map[c]}/${p}`);
+      map[c] = p;
+    }
+    return { map, conflicts };
+  },
+  replaceCrib: (t, cipher, plain) => {
+    if (!cipher || !plain) return '未设置';
+    const esc = cipher.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (t || '').replace(new RegExp(esc, 'gi'), m => m === m.toUpperCase() ? plain.toUpperCase() : plain.toLowerCase());
+  },
+  analyze: (t, plainAlphabet, cipherAlphabet, manual, cribCipher, cribPlain) => {
+    const manualMap = SubstitutionTools.parseManual(manual);
+    const crib = SubstitutionTools.cribMap(cribCipher, cribPlain);
+    const merged = { ...manualMap, ...crib.map };
+    const manualResult = Object.keys(merged).length ? SubstitutionTools.applyMap(t, merged, '.') : '未设置';
+    const conflicts = crib.conflicts.length ? `\nCrib冲突: ${crib.conflicts.join(' ')}` : '';
+    return `任意字母表加密: ${SubstitutionTools.applyAlphabet(t, plainAlphabet, cipherAlphabet)}\n` +
+      `任意字母表解密: ${SubstitutionTools.applyAlphabet(t, cipherAlphabet, plainAlphabet)}\n` +
+      `频率分析: ${SubstitutionTools.frequency(t)}\n` +
+      `手动映射/Crib映射: ${manualResult}\n` +
+      `Crib替换: ${SubstitutionTools.replaceCrib(t, cribCipher, cribPlain)}${conflicts}`;
+  }
+}
+// 跳舞的小人密码
+const DancingMenCipher = {
+  letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  symbols: ['○╱│╲','╲○│╱','○─│╲','╱○│─','○╱│─','─○│╲','○─│╱','╲○│─','○╱╲','╲○╱','○┌│','┐○│','○│┘','└│○','○┬│','┴○│','○╱┘','└○╲','○─┘','└─○','○╲┐','┌╱○','○┤╱','╲├○','○┬╲','╱┴○'],
+  e: t => [...(t || '').toUpperCase()].map(c => {
+    const i = DancingMenCipher.letters.indexOf(c);
+    if (i >= 0) return DancingMenCipher.symbols[i];
+    if (/\s/.test(c)) return '/';
+    return c;
+  }).join(' '),
+  d: t => {
+    const rev = Object.fromEntries(DancingMenCipher.symbols.map((s, i) => [s, DancingMenCipher.letters[i]]));
+    return (t || '').split(/\s+/).map(token => token === '/' ? ' ' : rev[token] || token).join('');
+  }
+}
+
+// Hill Cipher
+const HillCipher = {
+  mod: n => ((n % 26) + 26) % 26,
+  invMod: n => {
+    n = HillCipher.mod(n);
+    for (let i = 1; i < 26; i++) if ((n * i) % 26 === 1) return i;
+    return null;
+  },
+  parseKey: (key, size) => {
+    const need = size * size;
+    let vals = ((key || '').match(/-?\d+/g) || []).map(Number);
+    if (vals.length < need) vals = (((key || '').toUpperCase().match(/[A-Z]/g) || []).map(c => c.charCodeAt(0) - 65));
+    if (vals.length < need) return null;
+    vals = vals.slice(0, need).map(HillCipher.mod);
+    return Array.from({ length: size }, (_, r) => vals.slice(r * size, r * size + size));
+  },
+  det: m => m.length === 2
+    ? m[0][0] * m[1][1] - m[0][1] * m[1][0]
+    : m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]),
+  inverse: m => {
+    const size = m.length, invDet = HillCipher.invMod(HillCipher.det(m));
+    if (invDet == null) return null;
+    if (size === 2) return [
+      [HillCipher.mod(m[1][1] * invDet), HillCipher.mod(-m[0][1] * invDet)],
+      [HillCipher.mod(-m[1][0] * invDet), HillCipher.mod(m[0][0] * invDet)]
+    ];
+    const cof = Array.from({ length: 3 }, () => Array(3).fill(0));
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      const sub = [0, 1, 2].filter(i => i !== r).map(i => [0, 1, 2].filter(j => j !== c).map(j => m[i][j]));
+      cof[r][c] = ((r + c) % 2 ? -1 : 1) * (sub[0][0] * sub[1][1] - sub[0][1] * sub[1][0]);
+    }
+    return Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, c) => HillCipher.mod(cof[c][r] * invDet)));
+  },
+  multiply: (m, vec) => m.map(row => HillCipher.mod(row.reduce((sum, v, i) => sum + v * vec[i], 0))),
+  run: (t, key, size, decrypt = false) => {
+    size = parseInt(size, 10) === 3 ? 3 : 2;
+    let matrix = HillCipher.parseKey(key, size);
+    if (!matrix) return '密钥长度不足';
+    if (decrypt) {
+      matrix = HillCipher.inverse(matrix);
+      if (!matrix) return '密钥矩阵不可逆';
+    }
+    let s = (t || '').toUpperCase().replace(/[^A-Z]/g, '');
+    if (!s) return '';
+    while (s.length % size) s += 'X';
+    let out = '';
+    for (let i = 0; i < s.length; i += size) {
+      const vec = [...s.slice(i, i + size)].map(c => c.charCodeAt(0) - 65);
+      out += HillCipher.multiply(matrix, vec).map(n => String.fromCharCode(n + 65)).join('');
+    }
+    return out;
+  },
+  process: (t, key, size) => `加密: ${HillCipher.run(t, key, size, false)}\n解密: ${HillCipher.run(t, key, size, true)}`
+}
 
 // SHA-1 SHA-256 SHA-384 SHA-512
 function createHashCipher(algorithm) {

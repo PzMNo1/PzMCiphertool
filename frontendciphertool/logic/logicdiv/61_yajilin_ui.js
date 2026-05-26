@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearYajilinGrid && window.clearYajilinGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleYajilinExample && window.buildSimpleYajilinExample()' }
         ]) +
-        window.LogicUI.statsPanel('yaj', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('yaj', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('yaj', 'showYajilinSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子输入线索：格式 "数字方向"，如 2r = 右方向2个涂黑格',
@@ -84,7 +84,7 @@
     window.solveYajilinPuzzleUI = () => {
         if (!window.solveYajilin) return stat('模块未加载', '-');
         const t0 = performance.now(), res = window.solveYajilin({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         stat(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { show = true; si = 0; nav(true); window.showYajilinSolution(0); }

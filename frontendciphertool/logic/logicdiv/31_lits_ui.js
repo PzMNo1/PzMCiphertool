@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearLITSGrid && window.clearLITSGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleLITSExample && window.buildSimpleLITSExample()' }
         ]) +
-        window.LogicUI.statsPanel('lits', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('lits', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('lits', 'showLITSSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击或拖动格子边缘: 添加/移除区域分割线',
@@ -98,7 +98,7 @@
     };
     window.solveLITSPuzzleUI = () => {
         if (!window.solveLITS) return stats('模块未加载', '-');
-        const t0 = performance.now(), res = window.solveLITS({ rows: R, cols: C, hBorders: hB, vBorders: vB }), ms = Math.round(performance.now() - t0) + 'ms';
+        const t0 = performance.now(), res = window.solveLITS({ rows: R, cols: C, hBorders: hB, vBorders: vB }), ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showLITSSolution(0); }

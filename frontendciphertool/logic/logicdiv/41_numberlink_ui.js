@@ -24,7 +24,7 @@
             { label: '清空线索', onclick: 'window.clearNLGrid && window.clearNLGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNLExample && window.buildSimpleNLExample()' }
         ]) +
-        window.LogicUI.statsPanel('nl', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('nl', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('nl', 'showNLSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子选中, 键盘输入数字(1-9), 相同数字成对',
@@ -200,7 +200,7 @@
         const ua = $('nl-useall'); const useAll = ua ? ua.checked : true;
         const t0 = performance.now();
         const res = window.solveNumberlink({ rows: R, cols: C, clues, useAll });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showNLSolution(0); }
