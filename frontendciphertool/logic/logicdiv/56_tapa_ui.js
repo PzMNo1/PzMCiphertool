@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearTapaGrid && window.clearTapaGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTapaExample && window.buildSimpleTapaExample()' }
         ]) +
-        window.LogicUI.statsPanel('tapa', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('tapa', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('tapa', 'showTapaSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子输入线索 (空格分隔, 如 "1 3")',
@@ -90,7 +90,7 @@
         const pc = {}; for (const k in clues) pc[k] = clues[k].slice();
         if (!Object.keys(pc).length) return st('请先输入线索', '-');
         const t0 = performance.now(), res = window.solveTapa({ rows: N, cols: N, clues: pc });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         st(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { showing = true; si = 0; nv(true); window.showTapaSolution(0); } else render();

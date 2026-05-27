@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHaisuGrid && window.clearHaisuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHaisuExample && window.buildSimpleHaisuExample()' }
         ]) +
-        window.LogicUI.statsPanel('haisu', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('haisu', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('haisu', 'showHaisuSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '通过格子画一条从S(起点)到G(终点)的连续路径。',
@@ -307,7 +307,7 @@
 
         const startTime = performance.now();
         const res = window.solveHaisu(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHaisuStats(res.error, elapsed); return; }
 

@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearKakuroGrid && window.clearKakuroGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleKakuroExample && window.buildSimpleKakuroExample()' }
         ]) +
-        window.LogicUI.statsPanel('kakuro', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('kakuro', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('kakuro', 'showKakuroSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '右键点击任意格: 切换 黑格 ↔ 白格',
@@ -162,7 +162,7 @@
         if (!whites) return stats('需要至少1个白格', '-');
         const t0 = performance.now();
         const res = window.solveKakuro({ rows: R, cols: C, grid });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showKakuroSolution(0); }

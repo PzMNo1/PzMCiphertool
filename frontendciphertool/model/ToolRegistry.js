@@ -638,10 +638,117 @@ class ToolRegistry {
 
         // ========== 网络爬虫与深度研究工具 ==========
 
+        this.register({
+            name: 'community_snapshot',
+            description: 'Dedicated community dashboard fetcher for Hacker News, GitHub Trending, V2EX, Reddit r/programming, Lobsters, and Product Hunt. Use this FIRST for broad community scans because it avoids GitHub JS-rendering issues and common Reddit/WAF failures better than generic read_webpage/open_url.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    sources: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Optional sources: hackernews, github, v2ex, reddit, lobsters, producthunt. Omit for all.'
+                    },
+                    limit: {
+                        type: 'integer',
+                        description: 'Items per source, usually 10-15.'
+                    }
+                }
+            },
+            execute: async ({ sources = [], limit = 12 }) => {
+                try {
+                    const response = await fetch(`${this.getApiBase()}/community_snapshot`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sources, limit })
+                    });
+                    const text = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(text);
+                    } catch (parseError) {
+                        return `社区快照失败: HTTP ${response.status} ${response.statusText} - ${text.slice(0, 300)}`;
+                    }
+                    if (!response.ok) {
+                        return `社区快照失败: HTTP ${response.status} ${response.statusText} - ${result.message || text.slice(0, 300)}`;
+                    }
+                    return result.success ? result.data : `社区快照失败: ${result.message || '后端未返回错误详情'}`;
+                } catch (e) {
+                    return `社区快照请求失败: ${e.message}`;
+                }
+            }
+        });
+
+        this.register({
+            name: 'web_research',
+            description: 'Grok/Gemini-style web research. Use depth="fast" for a quick source map when the source landscape is unclear, and depth="deep" when the final answer needs evidence passages from top pages. For academic/paper questions, do not loop on broad web search: prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'Main user question or search intent'
+                    },
+                    queries: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Optional 2-6 query variants covering official docs, news, community discussions, academic/paper sources, region-specific terms, or site-targeted primary-source searches'
+                    },
+                    mode: {
+                        type: 'string',
+                        enum: ['auto', 'news', 'technical', 'academic', 'community', 'market'],
+                        description: 'Research mode. Use auto unless a narrower mode clearly fits.'
+                    },
+                    depth: {
+                        type: 'string',
+                        enum: ['fast', 'deep'],
+                        description: 'fast returns deduplicated source candidates only; deep also reads top sources in parallel for evidence passages. Use fast for maps, deep for evidence.'
+                    },
+                    max_results: {
+                        type: 'integer',
+                        description: 'Maximum deduplicated sources to return, usually 8-12'
+                    },
+                    read_top: {
+                        type: 'boolean',
+                        description: 'Whether to deep-read the top sources and return evidence passages. Default true.'
+                    },
+                    focus_keyword: {
+                        type: 'string',
+                        description: 'Keywords to focus deep reading on. Use important entities, dates, product names, or claims.'
+                    }
+                },
+                required: ['query']
+            },
+            execute: async ({ query, queries = [], mode = 'auto', depth = 'fast', max_results = 10, read_top, focus_keyword = '' }) => {
+                try {
+                    const normalizedDepth = depth === 'deep' ? 'deep' : 'fast';
+                    const effectiveReadTop = typeof read_top === 'boolean' ? read_top : normalizedDepth === 'deep';
+                    const endpoint = effectiveReadTop ? '/research/deep' : '/research/fast';
+                    const response = await fetch(`${this.getApiBase()}${endpoint}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query,
+                            queries,
+                            mode,
+                            max_results,
+                            read_top: effectiveReadTop,
+                            depth: effectiveReadTop ? 'deep' : 'fast',
+                            focus_keyword: focus_keyword || query
+                        })
+                    });
+                    const result = await response.json();
+                    return result.success ? result.data : `聚合检索失败: ${result.message}`;
+                } catch (e) {
+                    return `聚合检索请求失败: ${e.message}`;
+                }
+            }
+        });
+
         // 搜索引擎搜索 (多步搜索第一步)
         this.register({
             name: 'search_urls',
-            description: '使用搜索引擎获取相关网页链接。用于意图拆解与多路召回，通过将复杂问题拆分为多个子查询，获取高质量信息源。',
+            description: '使用搜索引擎获取相关网页链接。用于补充 web_research 的第二轮精确查询，或执行 site:arxiv.org / site:nature.com / site:opg.optica.org 等权威源定向检索。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -670,7 +777,7 @@ class ToolRegistry {
         // 深度读取网页全文 (多步搜索第二步)
         this.register({
             name: 'read_webpage',
-            description: '深度抓取指定网页并返回结构化的 Markdown 格式全文。当遇到长文章时支持切片与语义过滤。',
+            description: '深度抓取指定网页并返回结构化的 Markdown 格式全文。可直接打开已知权威源 URL，例如 arXiv、Nature、Science、Optica、IEEE、ACM、PubMed、官方文档或论文页面；长文章支持切片与语义过滤。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -1021,7 +1128,7 @@ class ToolRegistry {
 
         this.register({
             name: 'news_query',
-            description: 'Search recent news by keyword and optional category.',
+            description: 'Search recent news by keyword and optional category. Returns ranked candidate links, not fully verified article text; for high-quality briefings, read_webpage the top authoritative links before final synthesis.',
             parameters: {
                 type: 'object',
                 properties: {

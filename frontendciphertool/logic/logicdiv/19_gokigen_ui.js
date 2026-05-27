@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearGokigenGrid && window.clearGokigenGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleGokigenExample && window.buildSimpleGokigenExample()' }
         ]) +
-        window.LogicUI.statsPanel('gokigen', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('gokigen', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('gokigen', 'showGokigenSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '在每个方格中画一条对角线（斜杠或反斜杠）。',
@@ -221,14 +221,14 @@
 
         const startTime = performance.now();
         const res = window.solveGokigen(puzzle);
-        const elapsed = Math.round(performance.now() - startTime);
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         solutions = res.solutions || [];
 
         if (res.timeout) {
-            updateGokigenStats(solutions.length + (solutions.length >= 5 ? '+' : '') + " (超时中断)", elapsed + 'ms');
+            updateGokigenStats(solutions.length + (solutions.length >= 5 ? '+' : '') + " (超时中断)", elapsed);
         } else {
-            updateGokigenStats(solutions.length, elapsed + 'ms');
+            updateGokigenStats(solutions.length, elapsed);
         }
         
         if (solutions.length > 0) {
@@ -239,7 +239,7 @@
             
             window.showGokigenSolution(0);
         } else {
-            updateGokigenStats("未找到解", elapsed + 'ms');
+            updateGokigenStats("未找到解", elapsed);
         }
     };
 

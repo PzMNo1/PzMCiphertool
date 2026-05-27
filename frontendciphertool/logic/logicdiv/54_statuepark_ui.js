@@ -16,7 +16,7 @@
             { label: '清空填涂', onclick: 'window.clearStatueparkGrid && window.clearStatueparkGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleStatueparkExample && window.buildSimpleStatueparkExample()' }
         ]) +
-        window.LogicUI.statsPanel('sp', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('sp', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('sp', 'showStatueparkSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子切换：空 → ● 黑圆 → ○ 白圆 → 空',
@@ -73,7 +73,7 @@
         const btn=$('sp-solve-btn'); if(btn) btn.disabled=true; stats('正在求解...','-');
         setTimeout(() => {
             const t0=performance.now(), res=window.solveStatuePark({rows:R,cols:C,grid:gridData,shapeSet:($('sp-shape-set')||{}).value||'Pentominoes'});
-            const ms=Math.round(performance.now()-t0)+'ms'; solutions=res.solutions||[];
+            const ms=LogicUI.formatElapsed(performance.now() - t0); solutions=res.solutions||[];
             stats(res.timeout?solutions.length+'+ (超时)':(solutions.length||'未找到解'), ms);
             if(solutions.length){showing=true;solIdx=0;nav(true);window.showStatueparkSolution(0)} else{showing=false;nav(false)}
             if(btn)btn.disabled=false;

@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearSkyscrapersGrid && window.clearSkyscrapersGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleSkyscrapersExample && window.buildSimpleSkyscrapersExample()' }
         ]) +
-        window.LogicUI.statsPanel('sky', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('sky', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('sky', 'showSkyscrapersSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '在 N×N 网格中填入 1~N，每行每列不重复',
@@ -72,6 +72,7 @@
     }
 
     function kbHandler(e) {
+        if (window.LogicUI?.shouldIgnoreGlobalKeydown?.(e, 'skyscrapers-workspace')) return;
         if (!sel) return;
         if (e.key >= '1' && e.key <= '9') { if (+e.key <= N) setNum(+e.key); }
         else if ('Backspace Delete 0'.split(' ').includes(e.key) || e.key.toLowerCase() === 'c') setNum(null);
@@ -108,7 +109,7 @@
         for (let j = 1; j <= N; j++) { clues.top.push(cells[0][j].val); clues.bottom.push(cells[N + 1][j].val); }
         for (let i = 1; i <= N; i++) { clues.left.push(cells[i][0].val); clues.right.push(cells[i][N + 1].val); }
         for (let r = 1; r <= N; r++) for (let c = 1; c <= N; c++) if (cells[r][c].val != null) fixed[(r-1)+','+(c-1)] = cells[r][c].val;
-        const t0 = performance.now(), res = window.solveSkyscrapers({ n: N, clues, fixed }), ms = Math.round(performance.now() - t0) + 'ms';
+        const t0 = performance.now(), res = window.solveSkyscrapers({ n: N, clues, fixed }), ms = LogicUI.formatElapsed(performance.now() - t0);
         sols = res.solutions || [];
         st(res.timeout ? sols.length + '+ (超时)' : (sols.length || '未找到解'), ms);
         if (sols.length) { showing = true; idx = 0; nv(true); window.showSkyscrapersSolution(0); }

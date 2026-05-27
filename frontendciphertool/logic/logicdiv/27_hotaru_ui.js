@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHotaruGrid && window.clearHotaruGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHotaruExample && window.buildSimpleHotaruExample()' }
         ]) +
-        window.LogicUI.statsPanel('hotaru', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('hotaru', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('hotaru', 'showHotaruSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '左键点击格子: 添加/切换圆点方向 (上→右→下→左→无)',
@@ -143,7 +143,7 @@
 
         const t0 = performance.now();
         const res = window.solveHotaru({ rows:R, cols:C, grid });
-        const elapsed = Math.round(performance.now()-t0) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
         solutions = res.solutions || [];
         if (res.timeout) updateStats(solutions.length + '+ (超时中断)', elapsed);

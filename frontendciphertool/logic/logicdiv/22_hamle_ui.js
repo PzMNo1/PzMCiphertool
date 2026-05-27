@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHamleGrid && window.clearHamleGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHamleExample && window.buildSimpleHamleExample()' }
         ]) +
-        window.LogicUI.statsPanel('hamle', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('hamle', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('hamle', 'showHamleSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '每个带有数字的方格都按照其数字指示的步数进行直线移动，然后停留，并使所在的格子变为黑色。',
@@ -162,7 +162,7 @@
 
         const startTime = performance.now();
         const res = window.solveHamle(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHamleStats(res.error, elapsed); return; }
 

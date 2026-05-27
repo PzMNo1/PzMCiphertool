@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHitoriGrid && window.clearHitoriGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHitoriExample && window.buildSimpleHitoriExample()' }
         ]) +
-        window.LogicUI.statsPanel('hitori', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('hitori', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('hitori', 'showHitoriSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击或编辑方格输入数字，右键点击格子可标记为黑色或白色圈进行推理预览。',
@@ -207,7 +207,7 @@
 
         const startTime = performance.now();
         const res = window.solveHitori(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHitoriStats(res.error, elapsed); return; }
 

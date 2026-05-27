@@ -11,7 +11,7 @@
             { label: '简单示例', onclick: 'window.buildSimpleRippleExample && window.buildSimpleRippleExample()' }
         ]) +
         `<div style="margin-bottom:1.5rem;display:flex;gap:10px"><button class="cyber-button" style="flex:1" id="rip-mode-btn" onclick="window.toggleRippleMode && window.toggleRippleMode()"><span class="cyber-button__tag">模式: 调整边界</span></button></div>` +
-        window.LogicUI.statsPanel('rip', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('rip', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('rip', 'showRippleSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '边界模式: 点击/拖拽网格线绘制房间边界',
@@ -148,7 +148,7 @@
         const rooms = buildRooms();
         if (!rooms.length) return stats('请先绘制房间', '-');
         const t0 = performance.now(), res = window.solveRippleEffect({ rows: R, cols: C, rooms, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showRippleSolution(0); }

@@ -3,6 +3,7 @@ package com.ciphertool.controller;
 import com.ciphertool.service.WebCrawlerService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -31,6 +32,21 @@ public class WebCrawlerController {
         
         String result = webCrawlerService.search(query, engine, timeLimit);
         return Map.of("success", true, "data", result);
+    }
+
+    @PostMapping("/community_snapshot")
+    public Map<String, Object> communitySnapshot(@RequestBody Map<String, Object> request) {
+        try {
+            Map<String, Object> safeRequest = request == null ? Map.of() : request;
+            List<String> sources = safeRequest.get("sources") instanceof List<?> list
+                    ? list.stream().map(String::valueOf).toList()
+                    : List.of();
+            Integer limit = safeRequest.get("limit") instanceof Number number ? number.intValue() : 12;
+            String result = webCrawlerService.communitySnapshot(sources, limit);
+            return Map.of("success", true, "data", result);
+        } catch (Exception e) {
+            return Map.of("success", false, "message", "community_snapshot内部错误: " + e.getMessage());
+        }
     }
 
     /**
@@ -64,6 +80,45 @@ public class WebCrawlerController {
             return Map.of("success", false, "message", "搜索关键词不能为空");
         }
         String result = webCrawlerService.searchUrls(query);
+        return Map.of("success", true, "data", result);
+    }
+
+    /**
+     * Grok/Gemini-style聚合检索：多查询、多来源、可选深读。
+     */
+    @PostMapping("/research")
+    public Map<String, Object> research(@RequestBody Map<String, Object> request) {
+        return runResearch(request, null);
+    }
+
+    @PostMapping("/research/fast")
+    public Map<String, Object> fastResearch(@RequestBody Map<String, Object> request) {
+        return runResearch(request, Boolean.FALSE);
+    }
+
+    @PostMapping("/research/deep")
+    public Map<String, Object> deepResearch(@RequestBody Map<String, Object> request) {
+        return runResearch(request, Boolean.TRUE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> runResearch(Map<String, Object> request, Boolean readTopOverride) {
+        String query = (String) request.getOrDefault("query", "");
+        List<String> queries = request.get("queries") instanceof List<?> list
+                ? list.stream().map(String::valueOf).toList()
+                : List.of();
+        String mode = (String) request.getOrDefault("mode", "auto");
+        Integer maxResults = request.get("max_results") instanceof Number number ? number.intValue() : 10;
+        Boolean readTop = readTopOverride != null
+                ? readTopOverride
+                : request.get("read_top") instanceof Boolean value ? value : Boolean.TRUE;
+        String focusKeyword = (String) request.getOrDefault("focus_keyword", query);
+
+        if (query.isEmpty() && queries.isEmpty()) {
+            return Map.of("success", false, "message", "query或queries不能为空");
+        }
+
+        String result = webCrawlerService.webResearch(query, queries, mode, maxResults, readTop, focusKeyword);
         return Map.of("success", true, "data", result);
     }
 
@@ -130,4 +185,5 @@ public class WebCrawlerController {
         String result = webCrawlerService.getFinanceQuote(symbol);
         return Map.of("success", true, "data", result);
     }
+
 }

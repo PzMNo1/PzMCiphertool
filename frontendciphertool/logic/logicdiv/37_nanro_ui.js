@@ -10,7 +10,7 @@
             { label: '清空标记', onclick: 'window.clearNRGrid && window.clearNRGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNRExample && window.buildSimpleNRExample()' }
         ]) +
-        window.LogicUI.statsPanel('nr', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('nr', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('nr', 'showNRSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '拖拽/点击边缘细条: 划分区域边界',
@@ -126,7 +126,7 @@
         if (!window.solveNanro) return stats('模块未加载', '-');
         const t0 = performance.now();
         const res = window.solveNanro({ rows: R, cols: C, hBorders: hB, vBorders: vB, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showNRSolution(0); }

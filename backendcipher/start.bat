@@ -5,11 +5,25 @@ echo   CipherTool Backend - One Click Start
 echo ========================================
 echo.
 
-REM ============ Environment Configuration ============
-set JAVA_HOME=D:\10_Leochad\jdk-17.0.12
-set MAVEN_HOME=D:\10_Leochad\apache-maven-3.9.5
-set REDIS_HOME=D:\10_Leochad\redis
-set PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%
+REM ============ Portable Environment Configuration ============
+set SCRIPT_DIR=%~dp0
+set LOCAL_TOOLS=%SCRIPT_DIR%.tools
+
+REM Optional project-local tools. Put them here if this machine has no global install:
+REM   backendcipher\.tools\jdk\bin\java.exe
+REM   backendcipher\.tools\maven\bin\mvn.cmd
+REM   backendcipher\.tools\redis\redis-server.exe
+if exist "%LOCAL_TOOLS%\jdk\bin\java.exe" (
+    set JAVA_HOME=%LOCAL_TOOLS%\jdk
+    set PATH=%JAVA_HOME%\bin;%PATH%
+)
+if exist "%LOCAL_TOOLS%\maven\bin\mvn.cmd" (
+    set MAVEN_HOME=%LOCAL_TOOLS%\maven
+    set PATH=%MAVEN_HOME%\bin;%PATH%
+)
+if not defined REDIS_HOME if exist "%LOCAL_TOOLS%\redis\redis-server.exe" (
+    set REDIS_HOME=%LOCAL_TOOLS%\redis
+)
 
 REM ============ Aliyun SMS Configuration ============
 REM Set these environment variables before running
@@ -21,7 +35,7 @@ REM set ALIYUN_SMS_TEMPLATE_CODE=your_template_code
 echo [1/5] Checking Java...
 java -version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Java not found at %JAVA_HOME%
+    echo [ERROR] Java not found. Install JDK 17, add it to PATH, or place it at backendcipher\.tools\jdk
     pause
     exit /b 1
 )
@@ -36,16 +50,26 @@ timeout /t 1 /nobreak >nul
 echo       Done
 
 echo [3/5] Starting Redis...
-tasklist /FI "IMAGENAME eq redis-server.exe" 2>NUL | find /I "redis-server.exe" >NUL
-if %ERRORLEVEL% equ 0 (
-    echo       Redis already running
+if defined REDIS_HOME if exist "%REDIS_HOME%\redis-server.exe" (
+    tasklist /FI "IMAGENAME eq redis-server.exe" 2>NUL | find /I "redis-server.exe" >NUL
+    if errorlevel 1 (
+        start /MIN "" "%REDIS_HOME%\redis-server.exe"
+        timeout /t 2 /nobreak >nul
+        echo       Redis started
+    ) else (
+        echo       Redis already running
+    )
 ) else (
-    start /MIN "" "%REDIS_HOME%\redis-server.exe"
-    timeout /t 2 /nobreak >nul
-    echo       Redis started
+    echo       Redis not found in backendcipher\.tools\redis or REDIS_HOME; skipping auto-start
 )
 
 echo [4/5] Building project...
+where mvn >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Maven not found. Install Maven, add it to PATH, or place it at backendcipher\.tools\maven
+    pause
+    exit /b 1
+)
 call mvn clean package -DskipTests -q
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Build failed!

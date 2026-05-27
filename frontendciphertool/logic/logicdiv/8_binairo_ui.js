@@ -13,7 +13,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('binairo-workspace', 'binairo-
         { label: '清空非固定', onclick: 'window.clearBinairoGrid && window.clearBinairoGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleBinairoExample && window.buildSimpleBinairoExample()' }
     ]) +
-    LogicUI.statsPanel('bi', { countLabel: '平衡可能矩阵', timeLabel: '算力耗时', accent: 'var(--neon-purple)' }) +
+    LogicUI.statsPanel('bi', { countLabel: '平衡可能矩阵', timeLabel: 'AI thinking耗时', accent: 'var(--neon-purple)' }) +
     LogicUI.solutionNav('bi', 'showBinairoSolution', { accent: 'var(--neon-purple)' }) +
     LogicUI.instructions([
         '• <strong>左键</strong>: 切换 白圆 / 黑圆 / 空白。',
@@ -147,7 +147,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('binairo-workspace', 'binairo-
             try { res = window.solveBinairo(puzzleCtx); } catch (e) {
                 updateBinairoStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0);
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateBinairoStats(res.error, elapsed); return; }
 

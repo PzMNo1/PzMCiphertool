@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!chatWindow || !collapseBtn || !history || !textarea || !submitBtn) return;
 
+    const windowAgent = createBrowserWorkspaceAgent();
     let isChatActive = false;
     let isDocked = false;
     let wasChatActiveBeforeDock = false;
@@ -28,10 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 'You are PzM assistant, a page-control agent embedded in this toolkit UI.',
                 'You can answer questions normally, and when the user asks you to operate the page, call the ui_action tool.',
                 'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, and highlighting.',
-                'If native tool calls are not available, emit one or more exact UI operation blocks in this format: <ui_action>{"action":"navigate_section","target":"jiamishiyanshi"}</ui_action>.',
-                'Do not wrap ui_action blocks in Markdown code fences.',
+                'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
+                'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
+                'If native tool calls are not available, emit exact operation blocks such as <ui_action>{"action":"navigate_section","target":"jiamishiyanshi"}</ui_action> or <browser_action>{"action":"list_windows"}</browser_action>.',
+                'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
-                'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, yijianfankui.',
+                'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
+                'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, apizhongzhuanzhan, yijianfankui.',
                 'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu.'
             ].join('\n')
         }
@@ -55,7 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             'search',
                             'clear_search',
                             'highlight',
-                            'scroll_to'
+                            'scroll_to',
+                            'focus',
+                            'select_option',
+                            'press_key',
+                            'snapshot',
+                            'batch'
                         ],
                         description: 'The UI operation to execute.'
                     },
@@ -70,6 +79,66 @@ document.addEventListener('DOMContentLoaded', () => {
                     append: {
                         type: 'boolean',
                         description: 'Append value instead of replacing it when action is set_value.'
+                    },
+                    key: {
+                        type: 'string',
+                        description: 'Keyboard key for press_key, for example Enter, Escape, Tab.'
+                    },
+                    steps: {
+                        type: 'array',
+                        description: 'Batch of ui_action argument objects executed in order.',
+                        items: { type: 'object' }
+                    },
+                    reason: {
+                        type: 'string',
+                        description: 'Short natural-language reason shown in the tool status.'
+                    }
+                },
+                required: ['action']
+            }
+        }
+    };
+
+    const browserActionTool = {
+        type: 'function',
+        function: {
+            name: 'browser_action',
+            description: 'Fast browser/project-window operations for this same-origin toolkit workspace.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    action: {
+                        type: 'string',
+                        enum: [
+                            'list_windows',
+                            'new_window',
+                            'switch_window',
+                            'focus_current',
+                            'close_window',
+                            'reload_window',
+                            'back',
+                            'forward',
+                            'dispatch_ui_action',
+                            'broadcast_ui_action',
+                            'set_window_label'
+                        ],
+                        description: 'The browser/window operation to execute.'
+                    },
+                    target: {
+                        type: 'string',
+                        description: 'Window id/label/title/url fragment, or project section target.'
+                    },
+                    url: {
+                        type: 'string',
+                        description: 'URL or hash to open for new_window.'
+                    },
+                    label: {
+                        type: 'string',
+                        description: 'Human readable label for the current project window.'
+                    },
+                    ui_action: {
+                        type: 'object',
+                        description: 'ui_action argument object to dispatch to one or more project windows.'
                     },
                     reason: {
                         type: 'string',
@@ -209,6 +278,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addMsg('user', text);
         messages.push({ role: 'user', content: text });
+
+        const fastResult = await tryRunFastCommand(text);
+        if (fastResult) {
+            if (fastResult.tool) addToolMsg(fastResult.tool);
+            if (fastResult.reply) addMsg('ai', fastResult.reply);
+            messages.push({ role: 'assistant', content: fastResult.reply || fastResult.tool || 'Fast action completed.' });
+            return;
+        }
+
         const loader = showLoading();
 
         try {
@@ -219,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             if (AGENT_USE_NATIVE_TOOLS) {
-                payload.tools = [uiActionTool];
+                payload.tools = [uiActionTool, browserActionTool];
             }
 
             if (!AGENT_API_KEY) {
@@ -254,8 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (toolCalls.length > 0 || inlineActions.length > 0) {
                 const executed = [
-                    ...executeToolCalls(toolCalls),
-                    ...executeInlineActions(inlineActions)
+                    ...await executeToolCalls(toolCalls),
+                    ...await executeInlineActions(inlineActions)
                 ];
                 if (!reply) {
                     messages.push({ role: 'assistant', content: executed.join('\n') || 'UI action completed.' });
@@ -311,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const parsed = extractInlineUiActions(reply);
+        const parsed = extractInlineActions(reply);
         msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : '<p>正在操作页面...</p>';
         window.MathJax?.typesetPromise?.([msgDiv]);
         return {
@@ -344,17 +422,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
     }
 
-    function executeToolCalls(toolCalls) {
+    async function executeToolCalls(toolCalls) {
         const results = [];
         for (const call of toolCalls) {
-            if (call.name !== 'ui_action') continue;
             try {
                 const args = JSON.parse(call.arguments || '{}');
-                const result = executeUiAction(args);
+                const result = await executeAgentAction(call.name, args);
                 results.push(result.message);
                 addToolMsg(result.message);
             } catch (err) {
-                const message = `UI action failed: ${err.message}`;
+                const message = `${call.name || 'tool'} failed: ${err.message}`;
                 results.push(message);
                 addToolMsg(message);
             }
@@ -362,15 +439,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return results;
     }
 
-    function executeInlineActions(actions) {
+    async function executeInlineActions(actions) {
         const results = [];
-        for (const args of actions) {
+        for (const action of actions) {
             try {
-                const result = executeUiAction(args);
+                const result = await executeAgentAction(action.name, action.arguments);
                 results.push(result.message);
                 addToolMsg(result.message);
             } catch (err) {
-                const message = `UI action failed: ${err.message}`;
+                const message = `${action.name || 'inline action'} failed: ${err.message}`;
                 results.push(message);
                 addToolMsg(message);
             }
@@ -378,19 +455,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return results;
     }
 
-    function extractInlineUiActions(text) {
+    function extractInlineActions(text) {
         const actions = [];
-        const cleaned = String(text || '').replace(/<ui_action>([\s\S]*?)<\/ui_action>/g, (_, raw) => {
+        const cleaned = String(text || '').replace(/<(ui_action|browser_action)>([\s\S]*?)<\/\1>/g, (match, name, raw) => {
             try {
                 const parsed = JSON.parse(raw.trim());
-                actions.push(parsed);
+                actions.push({ name, arguments: parsed });
             } catch {
                 // Leave malformed action blocks visible for debugging.
-                return _;
+                return match;
             }
             return '';
         }).trim();
         return { text: cleaned, actions };
+    }
+
+    async function executeAgentAction(name, args) {
+        if (name === 'ui_action') return executeUiAction(args);
+        if (name === 'browser_action') return executeBrowserAction(args);
+        throw new Error(`unknown tool "${name}"`);
     }
 
     function executeUiAction(args) {
@@ -415,6 +498,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return highlightElement(target, args.reason);
             case 'scroll_to':
                 return scrollToElement(target, args.reason);
+            case 'focus':
+                return focusElement(target, args.reason);
+            case 'select_option':
+                return selectOption(target, value, args.reason);
+            case 'press_key':
+                return pressKey(target, args.key || value, args.reason);
+            case 'snapshot':
+                return snapshotPage(args.reason);
+            case 'batch':
+                return executeUiBatch(args.steps, args.reason);
             default:
                 throw new Error(`unknown action "${action}"`);
         }
@@ -439,8 +532,39 @@ document.addEventListener('DOMContentLoaded', () => {
             'mainInput': '#mainInput',
             '主输入框': '#mainInput'
         };
+        Object.assign(aliases, {
+            '加密实验室': 'jiamishiyanshi',
+            '密码': 'jiamishiyanshi',
+            '电子实验室': 'electroniclab',
+            '电路': 'electroniclab',
+            '工作流': 'workflow',
+            '知识图谱': 'zhishitupu',
+            '大模型': 'damoxing',
+            '模型': 'damoxing',
+            '反馈': 'yijianfankui',
+            '联系我们': 'yijianfankui',
+            '经典区': 'mimaqu',
+            '经典': 'mimaqu',
+            '现代区': 'xiandaiqu',
+            '现代': 'xiandaiqu',
+            '逻辑谜题': 'luojimiti',
+            '逻辑区': 'luojimiti',
+            '词汇区': 'cihuiqu',
+            '词汇': 'cihuiqu',
+            '空间类': 'yuliu',
+            '空间区': 'yuliu',
+            '主输入框': '#mainInput',
+            '输入框': '#mainInput',
+            'search': '#cardSearch',
+            '搜索框': '#cardSearch'
+        });
         aliases.Agent = 'damoxing';
         aliases.agent = 'damoxing';
+        aliases['API中转站'] = 'apizhongzhuanzhan';
+        aliases['api中转站'] = 'apizhongzhuanzhan';
+        aliases['中转站'] = 'apizhongzhuanzhan';
+        aliases['API Router'] = 'apizhongzhuanzhan';
+        aliases['api router'] = 'apizhongzhuanzhan';
         return aliases[target] || target;
     }
 
@@ -516,12 +640,102 @@ document.addEventListener('DOMContentLoaded', () => {
         return ok(`已滚动到 ${describeElement(el)}`, reason);
     }
 
-    function findElement(target) {
-        if (!target) return null;
-        if (target.startsWith('#') || target.startsWith('.') || target.startsWith('[')) {
-            return document.querySelector(target);
+    function focusElement(target, reason) {
+        const el = findElement(target || getActiveEditableSelector());
+        if (!el) throw new Error(`element not found: ${target}`);
+        el.focus?.({ preventScroll: false });
+        el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+        return ok(`Focused ${describeElement(el)}`, reason);
+    }
+
+    function selectOption(target, value, reason) {
+        const el = findElement(target);
+        if (!el) throw new Error(`element not found: ${target}`);
+        if (el.tagName !== 'SELECT') throw new Error(`element is not a select: ${target}`);
+
+        const wanted = normalizeText(value);
+        const option = Array.from(el.options).find(opt => {
+            const text = normalizeText(opt.textContent);
+            return normalizeText(opt.value) === wanted || text === wanted || text.includes(wanted);
+        });
+        if (!option) throw new Error(`option not found: ${value}`);
+
+        el.value = option.value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return ok(`Selected ${option.textContent.trim() || option.value} in ${describeElement(el)}`, reason);
+    }
+
+    function pressKey(target, key, reason) {
+        const el = findElement(target) || document.activeElement || document.body;
+        const normalizedKey = String(key || '').trim();
+        if (!normalizedKey) throw new Error('missing key');
+
+        if (normalizedKey.toLowerCase() === 'tab') {
+            focusNextElement(el, false);
+            return ok('Pressed Tab', reason);
         }
-        return document.getElementById(target) || document.querySelector(target);
+        if (normalizedKey.toLowerCase() === 'shift+tab') {
+            focusNextElement(el, true);
+            return ok('Pressed Shift+Tab', reason);
+        }
+
+        el.focus?.();
+        const eventInit = { key: normalizedKey, code: normalizedKey, bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent('keydown', eventInit));
+        el.dispatchEvent(new KeyboardEvent('keyup', eventInit));
+
+        if (normalizedKey.toLowerCase() === 'enter' && typeof el.click === 'function' && isClickable(el)) {
+            el.click();
+        }
+        return ok(`Pressed ${normalizedKey} on ${describeElement(el)}`, reason);
+    }
+
+    function snapshotPage(reason) {
+        const activeSection = getActiveSectionElement() || document.querySelector('.container1') || document.body;
+        const candidates = getInteractiveCandidates(activeSection)
+            .slice(0, 28)
+            .map((el, index) => `${index + 1}. ${describeElement(el)} ${summarizeElement(el)}`.trim());
+        const message = [
+            `Page snapshot: section=${getCurrentSection()}, url=${location.href}`,
+            candidates.length ? 'Interactive targets:' : 'No visible interactive targets found.',
+            ...candidates
+        ].join('\n');
+        return ok(message, reason);
+    }
+
+    function executeUiBatch(steps, reason) {
+        if (!Array.isArray(steps) || steps.length === 0) throw new Error('batch requires non-empty steps');
+        const results = [];
+        for (const step of steps.slice(0, 12)) {
+            results.push(executeUiAction(step).message);
+        }
+        return ok(`Batch completed:\n${results.join('\n')}`, reason);
+    }
+
+    function findElement(target) {
+        const raw = String(target || '').trim();
+        if (!raw) return null;
+        if (raw === 'active' || raw === ':focus') return document.activeElement;
+
+        if (raw.startsWith('#') || raw.startsWith('.') || raw.startsWith('[') || /^[a-z][\w-]*(?:[.#\[]|$)/i.test(raw)) {
+            try {
+                const direct = document.querySelector(raw);
+                if (direct) return direct;
+            } catch {
+                // Continue with semantic lookup.
+            }
+        }
+
+        const byId = document.getElementById(raw);
+        if (byId) return byId;
+
+        const normalized = normalizeText(raw);
+        const candidates = getInteractiveCandidates(document);
+        const exact = candidates.find(el => candidateTexts(el).some(text => normalizeText(text) === normalized));
+        if (exact) return exact;
+
+        return candidates.find(el => candidateTexts(el).some(text => normalizeText(text).includes(normalized))) || null;
     }
 
     function ok(message, reason) {
@@ -533,6 +747,106 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = el.textContent?.trim();
         if (label) return label.slice(0, 24);
         return el.tagName.toLowerCase();
+    }
+
+    function summarizeElement(el) {
+        const bits = [];
+        const dataTarget = el.getAttribute?.('data-target');
+        const aria = el.getAttribute?.('aria-label');
+        const placeholder = el.getAttribute?.('placeholder');
+        const text = visibleText(el);
+        if (dataTarget) bits.push(`target=${dataTarget}`);
+        if (aria) bits.push(`aria=${aria}`);
+        if (placeholder) bits.push(`placeholder=${placeholder}`);
+        if ('value' in el && el.value) bits.push(`value=${String(el.value).slice(0, 32)}`);
+        if (text) bits.push(`text=${text.slice(0, 48)}`);
+        return bits.length ? `(${bits.join(', ')})` : '';
+    }
+
+    function visibleText(el) {
+        return String(el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function candidateTexts(el) {
+        return [
+            el.id,
+            el.name,
+            el.getAttribute?.('data-target'),
+            el.getAttribute?.('aria-label'),
+            el.getAttribute?.('title'),
+            el.getAttribute?.('placeholder'),
+            el.value,
+            visibleText(el)
+        ].filter(Boolean);
+    }
+
+    function getInteractiveCandidates(root) {
+        const selector = [
+            'button',
+            'a[href]',
+            'input',
+            'textarea',
+            'select',
+            '[role="button"]',
+            '[role="tab"]',
+            '[contenteditable="true"]',
+            '.card',
+            '.menu-item',
+            '.submodule-btn',
+            '.quick-nav-input'
+        ].join(',');
+        return Array.from((root || document).querySelectorAll(selector)).filter(isVisible);
+    }
+
+    function getActiveEditableSelector() {
+        const active = document.activeElement;
+        if (active && (isEditable(active) || active.isContentEditable)) return 'active';
+        return '#mainInput';
+    }
+
+    function getActiveSectionElement() {
+        return Array.from(document.querySelectorAll('.content-section')).find(section => {
+            const style = getComputedStyle(section);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+        }) || null;
+    }
+
+    function getCurrentSection() {
+        const active = getActiveSectionElement();
+        if (active?.id?.endsWith('-content')) return active.id.replace(/-content$/, '');
+        return location.hash.replace('#', '') || 'unknown';
+    }
+
+    function isEditable(el) {
+        return el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+    }
+
+    function isClickable(el) {
+        return el && (el.tagName === 'BUTTON' || el.tagName === 'A' || el.getAttribute?.('role') === 'button');
+    }
+
+    function isVisible(el) {
+        if (!el || !el.getBoundingClientRect) return false;
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    }
+
+    function normalizeText(value) {
+        return String(value || '').toLowerCase().replace(/\s+/g, '').trim();
+    }
+
+    function focusNextElement(current, reverse) {
+        const focusables = getInteractiveCandidates(document).filter(el => {
+            if (el.disabled || el.getAttribute?.('aria-hidden') === 'true') return false;
+            return typeof el.focus === 'function';
+        });
+        if (!focusables.length) return;
+        const index = Math.max(0, focusables.indexOf(current));
+        const nextIndex = reverse
+            ? (index - 1 + focusables.length) % focusables.length
+            : (index + 1) % focusables.length;
+        focusables[nextIndex].focus();
     }
 
     function cssEscape(value) {
@@ -557,13 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.id = 'agent-orb';
         button.type = 'button';
         button.setAttribute('aria-label', '展开助手');
-        button.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="8"></circle>
-                <path d="M8.5 16l3.5-8 3.5 8"></path>
-                <path d="M10 13h4"></path>
-            </svg>`;
+        button.innerHTML = '<span class="agent-orb-label" aria-hidden="true">Agent</span>';
         chatWindow.parentElement.appendChild(button);
         button.addEventListener('click', () => {
             if (didDragOrb) {
@@ -693,6 +1001,454 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveOrbPosition(left, top) {
         localStorage.setItem('AGENTMASTER_ORB_POSITION', JSON.stringify({ left, top }));
+    }
+
+    async function tryRunFastCommand(text) {
+        const raw = String(text || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized) return null;
+
+        const browserResult = matchFastBrowserCommand(raw, normalized);
+        if (browserResult) {
+            const result = await executeBrowserAction(browserResult);
+            return { tool: result.message };
+        }
+
+        const uiResult = matchFastUiCommand(raw, normalized);
+        if (uiResult) {
+            const result = executeUiAction(uiResult);
+            return { tool: result.message };
+        }
+
+        return null;
+    }
+
+    function matchFastBrowserCommand(raw, normalized) {
+        if (/^(windows|tabs|listwindows|listtabs|窗口列表|列出窗口|列出标签|标签列表)$/.test(normalized)) {
+            return { action: 'list_windows' };
+        }
+        if (/^(当前窗口|聚焦当前|focuscurrent|focuswindow)$/.test(normalized)) {
+            return { action: 'focus_current' };
+        }
+        if (/^(刷新窗口|刷新页面|reload|reloadwindow)$/.test(normalized)) {
+            return { action: 'reload_window' };
+        }
+        if (/^(后退|返回|back)$/.test(normalized)) return { action: 'back' };
+        if (/^(前进|forward)$/.test(normalized)) return { action: 'forward' };
+
+        let match = raw.match(/^(?:打开窗口|新窗口|open window|new window)\s+(.+)$/i);
+        if (match) return { action: 'new_window', url: match[1].trim() };
+
+        match = raw.match(/^(?:切换窗口|切到窗口|switch window|focus window)\s+(.+)$/i);
+        if (match) return { action: 'switch_window', target: match[1].trim() };
+
+        match = raw.match(/^(?:关闭窗口|close window)\s+(.+)$/i);
+        if (match) return { action: 'close_window', target: match[1].trim() };
+
+        match = raw.match(/^(?:标记窗口|命名窗口|label window)\s+(.+)$/i);
+        if (match) return { action: 'set_window_label', label: match[1].trim() };
+
+        return null;
+    }
+
+    function matchFastUiCommand(raw, normalized) {
+        if (['apizhongzhuanzhan', 'apirouter', 'api中转站', 'api中轉站', '中转站'].includes(normalized)) {
+            return { action: 'navigate_section', target: 'apizhongzhuanzhan' };
+        }
+
+        const sections = {
+            jiamishiyanshi: ['jiamishiyanshi', 'cipher', 'ciphers', '加密实验室', '密码', '密码区'],
+            electroniclab: ['electroniclab', 'electronics', 'circuit', '电子实验室', '电路'],
+            workflow: ['workflow', '工作流'],
+            zhishitupu: ['zhishitupu', 'graph', '知识图谱'],
+            damoxing: ['damoxing', 'agent', '大模型', '模型'],
+            yijianfankui: ['yijianfankui', 'feedback', '反馈', '联系我们']
+        };
+        for (const [target, names] of Object.entries(sections)) {
+            if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`打开${name}`) || normalized === normalizeText(`goto ${name}`))) {
+                return { action: 'navigate_section', target };
+            }
+        }
+
+        const submodules = {
+            mimaqu: ['mimaqu', '经典区', '经典'],
+            xiandaiqu: ['xiandaiqu', '现代区', '现代'],
+            luojimiti: ['luojimiti', '逻辑区', '逻辑谜题'],
+            cihuiqu: ['cihuiqu', '词汇区', '词汇'],
+            yuliu: ['yuliu', '空间类', '空间区']
+        };
+        for (const [target, names] of Object.entries(submodules)) {
+            if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`切换${name}`) || normalized === normalizeText(`打开${name}`))) {
+                return { action: 'switch_submodule', target };
+            }
+        }
+
+        let match = raw.match(/^(?:搜索|search)\s+(.+)$/i);
+        if (match) return { action: 'search', value: match[1].trim() };
+
+        if (/^(清空搜索|clearsearch|clear search)$/.test(normalized)) return { action: 'clear_search' };
+
+        match = raw.match(/^(?:输入|填入|set|type)\s+(.+)$/i);
+        if (match) return { action: 'set_value', target: '#mainInput', value: match[1] };
+
+        match = raw.match(/^(?:点击|click)\s+(.+)$/i);
+        if (match) return { action: 'click', target: match[1].trim() };
+
+        match = raw.match(/^(?:高亮|highlight)\s+(.+)$/i);
+        if (match) return { action: 'highlight', target: match[1].trim() };
+
+        if (/^(页面快照|snapshot|page snapshot)$/.test(normalized)) return { action: 'snapshot' };
+
+        return null;
+    }
+
+    async function executeBrowserAction(args) {
+        const action = args.action;
+        switch (action) {
+            case 'list_windows':
+                return ok(formatWindowList(windowAgent.listWindows()), args.reason);
+            case 'new_window':
+                return windowAgent.openWindow(args.url || args.target || '', args.reason);
+            case 'switch_window':
+                return windowAgent.focusWindow(args.target || '', args.reason);
+            case 'focus_current':
+                window.focus();
+                return ok(`Focused current project window ${windowAgent.id}`, args.reason);
+            case 'close_window':
+                return windowAgent.closeWindow(args.target || '', args.reason);
+            case 'reload_window':
+                return windowAgent.reloadWindow(args.target || '', args.reason);
+            case 'back':
+                return windowAgent.historyMove(args.target || '', -1, args.reason);
+            case 'forward':
+                return windowAgent.historyMove(args.target || '', 1, args.reason);
+            case 'dispatch_ui_action':
+                return windowAgent.dispatchUiAction(args.target || '', args.ui_action || {}, args.reason);
+            case 'broadcast_ui_action':
+                return windowAgent.broadcastUiAction(args.ui_action || {}, args.reason);
+            case 'set_window_label':
+                return windowAgent.setLabel(args.label || args.target || '', args.reason);
+            default:
+                throw new Error(`unknown browser action "${action}"`);
+        }
+    }
+
+    function createBrowserWorkspaceAgent() {
+        const channelName = 'AGENTMASTER_WORKSPACE_V1';
+        const storageKey = 'AGENTMASTER_WINDOWS_V1';
+        const selfId = getOrCreateWindowId();
+        const openedRefs = new Map();
+        const pending = new Map();
+        const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(channelName) : null;
+
+        const api = {
+            id: selfId,
+            listWindows,
+            openWindow,
+            focusWindow,
+            closeWindow,
+            reloadWindow,
+            historyMove,
+            dispatchUiAction,
+            broadcastUiAction,
+            setLabel
+        };
+
+        channel?.addEventListener('message', event => handleChannelMessage(event.data));
+        window.addEventListener('storage', event => {
+            if (event.key === storageKey) registerSelf();
+        });
+        window.addEventListener('focus', registerSelf);
+        window.addEventListener('hashchange', registerSelf);
+        window.addEventListener('beforeunload', () => {
+            const registry = readRegistry();
+            delete registry[selfId];
+            writeRegistry(registry);
+            channel?.postMessage({ type: 'agent-window-left', id: selfId });
+        });
+
+        registerSelf();
+        channel?.postMessage({ type: 'agent-window-hello', id: selfId, state: getSelfState() });
+        setInterval(registerSelf, 2500);
+
+        return api;
+
+        function getOrCreateWindowId() {
+            try {
+                if (!window.name || !window.name.startsWith('agentmaster:')) {
+                    window.name = `agentmaster:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                }
+                return window.name.replace(/^agentmaster:/, '');
+            } catch {
+                return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            }
+        }
+
+        function getSelfState() {
+            const savedLabel = sessionStorage.getItem('AGENTMASTER_WINDOW_LABEL') || '';
+            return {
+                id: selfId,
+                label: savedLabel,
+                title: document.title || 'PzM Toolkit',
+                url: location.href,
+                hash: location.hash,
+                section: getCurrentSection(),
+                focused: document.hasFocus(),
+                lastSeen: Date.now()
+            };
+        }
+
+        function registerSelf() {
+            const registry = readRegistry();
+            registry[selfId] = getSelfState();
+            writeRegistry(cleanRegistry(registry));
+            channel?.postMessage({ type: 'agent-window-state', id: selfId, state: registry[selfId] });
+        }
+
+        function readRegistry() {
+            try {
+                return JSON.parse(localStorage.getItem(storageKey) || '{}') || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function writeRegistry(registry) {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(registry));
+            } catch {
+                // Storage can be unavailable in strict privacy modes.
+            }
+        }
+
+        function cleanRegistry(registry) {
+            const now = Date.now();
+            for (const [id, item] of Object.entries(registry)) {
+                if (!item || !item.lastSeen || now - item.lastSeen > 15000) delete registry[id];
+            }
+            return registry;
+        }
+
+        function listWindows() {
+            registerSelf();
+            const registry = cleanRegistry(readRegistry());
+            writeRegistry(registry);
+            return Object.values(registry).sort((a, b) => b.lastSeen - a.lastSeen);
+        }
+
+        function openWindow(url, reason) {
+            const resolvedUrl = resolveWorkspaceUrl(url);
+            const name = `agentmaster:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+            const ref = window.open(resolvedUrl, name, 'popup=no');
+            if (!ref) {
+                return ok(`Popup blocked while opening ${resolvedUrl}. Allow popups for this site and retry.`, reason);
+            }
+            openedRefs.set(name.replace(/^agentmaster:/, ''), ref);
+            return ok(`Opened project window ${resolvedUrl}`, reason);
+        }
+
+        function focusWindow(target, reason) {
+            const win = resolveWindow(target);
+            if (!win) return ok(`No registered project window matched "${target}".\n${formatWindowList(listWindows())}`, reason);
+            if (win.id === selfId) {
+                window.focus();
+                return ok(`Focused current project window ${selfId}`, reason);
+            }
+            const ref = openedRefs.get(win.id);
+            if (ref && !ref.closed) {
+                ref.focus();
+                return ok(`Focused opened project window ${describeWindow(win)}`, reason);
+            }
+            channel?.postMessage({ type: 'agent-window-command', target: win.id, command: 'focus' });
+            return ok(`Requested focus for project window ${describeWindow(win)}. Browser may require a user gesture.`, reason);
+        }
+
+        function closeWindow(target, reason) {
+            const win = resolveWindow(target);
+            if (!win) return ok(`No registered project window matched "${target}".`, reason);
+            if (win.id === selfId) return ok('Refusing to close the current assistant window from itself.', reason);
+            const ref = openedRefs.get(win.id);
+            if (ref && !ref.closed) {
+                ref.close();
+                return ok(`Closed opened project window ${describeWindow(win)}`, reason);
+            }
+            channel?.postMessage({ type: 'agent-window-command', target: win.id, command: 'close' });
+            return ok(`Requested close for project window ${describeWindow(win)}. Browser may block script-close for tabs not opened by this page.`, reason);
+        }
+
+        function reloadWindow(target, reason) {
+            const win = resolveWindow(target) || (target ? null : getSelfState());
+            if (!win) return ok(`No registered project window matched "${target}".`, reason);
+            if (win.id === selfId) {
+                location.reload();
+                return ok('Reloading current project window.', reason);
+            }
+            channel?.postMessage({ type: 'agent-window-command', target: win.id, command: 'reload' });
+            return ok(`Requested reload for project window ${describeWindow(win)}`, reason);
+        }
+
+        function historyMove(target, direction, reason) {
+            const win = resolveWindow(target) || (target ? null : getSelfState());
+            if (!win) return ok(`No registered project window matched "${target}".`, reason);
+            const command = direction < 0 ? 'back' : 'forward';
+            if (win.id === selfId) {
+                direction < 0 ? history.back() : history.forward();
+                return ok(`Requested ${command} in current project window.`, reason);
+            }
+            channel?.postMessage({ type: 'agent-window-command', target: win.id, command });
+            return ok(`Requested ${command} in project window ${describeWindow(win)}`, reason);
+        }
+
+        async function dispatchUiAction(target, uiAction, reason) {
+            const win = resolveWindow(target);
+            if (!win) throw new Error(`window not found: ${target}`);
+            if (win.id === selfId) return executeUiAction(uiAction);
+            const result = await requestRemote(win.id, { command: 'ui_action', args: uiAction });
+            return ok(`Remote ${describeWindow(win)}: ${result.message || 'action completed'}`, reason);
+        }
+
+        async function broadcastUiAction(uiAction, reason) {
+            const windows = listWindows();
+            if (!windows.length) throw new Error('no registered project windows');
+            const local = [];
+            const remote = [];
+            for (const win of windows) {
+                if (win.id === selfId) local.push(executeUiAction(uiAction).message);
+                else remote.push(requestRemote(win.id, { command: 'ui_action', args: uiAction }).catch(err => ({ message: err.message })));
+            }
+            const remoteResults = await Promise.all(remote);
+            return ok(`Broadcast completed:\n${[...local, ...remoteResults.map(item => item.message)].join('\n')}`, reason);
+        }
+
+        function setLabel(label, reason) {
+            const next = String(label || '').trim().slice(0, 48);
+            sessionStorage.setItem('AGENTMASTER_WINDOW_LABEL', next);
+            registerSelf();
+            return ok(`Set current project window label to "${next || 'blank'}"`, reason);
+        }
+
+        function requestRemote(targetId, payload) {
+            if (!channel) return Promise.reject(new Error('BroadcastChannel is not available in this browser'));
+            const requestId = `${selfId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+            channel.postMessage({ type: 'agent-window-request', target: targetId, requestId, source: selfId, payload });
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    pending.delete(requestId);
+                    reject(new Error(`remote window ${targetId} timed out`));
+                }, 5000);
+                pending.set(requestId, { resolve, reject, timer });
+            });
+        }
+
+        function handleChannelMessage(message) {
+            if (!message || message.id === selfId || message.source === selfId) return;
+            if (message.type === 'agent-window-hello' || message.type === 'agent-window-state') {
+                const registry = readRegistry();
+                registry[message.id] = message.state;
+                writeRegistry(cleanRegistry(registry));
+                if (message.type === 'agent-window-hello') registerSelf();
+                return;
+            }
+            if (message.type === 'agent-window-left') {
+                const registry = readRegistry();
+                delete registry[message.id];
+                writeRegistry(registry);
+                return;
+            }
+            if (message.type === 'agent-window-command' && message.target === selfId) {
+                runWindowCommand(message.command);
+                return;
+            }
+            if (message.type === 'agent-window-request' && message.target === selfId) {
+                handleRemoteRequest(message);
+                return;
+            }
+            if (message.type === 'agent-window-response') {
+                const item = pending.get(message.requestId);
+                if (!item) return;
+                clearTimeout(item.timer);
+                pending.delete(message.requestId);
+                message.ok ? item.resolve(message.result) : item.reject(new Error(message.error || 'remote action failed'));
+            }
+        }
+
+        function runWindowCommand(command) {
+            if (command === 'focus') window.focus();
+            if (command === 'close') window.close();
+            if (command === 'reload') location.reload();
+            if (command === 'back') history.back();
+            if (command === 'forward') history.forward();
+        }
+
+        async function handleRemoteRequest(message) {
+            try {
+                let result;
+                if (message.payload?.command === 'ui_action') {
+                    result = executeUiAction(message.payload.args || {});
+                } else {
+                    throw new Error(`unknown remote command: ${message.payload?.command}`);
+                }
+                channel?.postMessage({ type: 'agent-window-response', requestId: message.requestId, source: selfId, ok: true, result });
+            } catch (err) {
+                channel?.postMessage({ type: 'agent-window-response', requestId: message.requestId, source: selfId, ok: false, error: err.message });
+            }
+        }
+
+        function resolveWindow(target) {
+            const query = normalizeText(target);
+            const windows = listWindows();
+            if (!query) return windows.find(item => item.focused) || windows[0] || null;
+            return windows.find(item => {
+                return normalizeText(item.id) === query ||
+                    normalizeText(item.id).includes(query) ||
+                    normalizeText(item.label).includes(query) ||
+                    normalizeText(item.title).includes(query) ||
+                    normalizeText(item.url).includes(query) ||
+                    normalizeText(item.section).includes(query);
+            }) || null;
+        }
+
+        function resolveWorkspaceUrl(rawUrl) {
+            const raw = String(rawUrl || '').trim();
+            if (!raw) return location.href;
+            const mapped = normalizeTarget(raw);
+            if (document.querySelector(`.menu-item[data-target="${cssEscape(mapped)}"]`)) {
+                const url = new URL(location.href);
+                url.hash = mapped;
+                return url.href;
+            }
+            if (raw.startsWith('#')) {
+                const url = new URL(location.href);
+                url.hash = raw.slice(1);
+                return url.href;
+            }
+            try {
+                const url = new URL(raw, location.href);
+                if (url.origin !== location.origin) {
+                    return url.href;
+                }
+                return url.href;
+            } catch {
+                const url = new URL(location.href);
+                url.hash = mapped || raw;
+                return url.href;
+            }
+        }
+    }
+
+    function formatWindowList(windows) {
+        if (!windows.length) return 'No registered project windows.';
+        return windows.map((win, index) => {
+            const marker = win.id === windowAgent.id ? '*' : ' ';
+            return `${marker}${index + 1}. ${describeWindow(win)} section=${win.section || 'unknown'} ${win.focused ? '[focused]' : ''}`;
+        }).join('\n');
+    }
+
+    function describeWindow(win) {
+        const label = win.label ? `${win.label} ` : '';
+        const shortId = String(win.id || '').slice(0, 8);
+        const title = String(win.title || 'PzM Toolkit').slice(0, 42);
+        return `${label}[${shortId}] ${title}`;
     }
 
     function getAgentConfig() {

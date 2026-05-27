@@ -11,7 +11,7 @@
             { label: '清空填涂', onclick: 'window.clearHashiGrid && window.clearHashiGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHashiExample && window.buildSimpleHashiExample()' }
         ]) +
-        window.LogicUI.statsPanel('hashi', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('hashi', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('hashi', 'showHashiSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '用直线（单线或双线）连接所有的岛屿（带有数字的圆圈）。',
@@ -180,7 +180,7 @@
 
         const startTime = performance.now();
         const res = window.solveHashi(puzzle);
-        const elapsed = Math.round(performance.now() - startTime) + 'ms';
+        const elapsed = LogicUI.formatElapsed(performance.now() - startTime);
 
         if (res.error) { updateHashiStats(res.error, elapsed); return; }
 

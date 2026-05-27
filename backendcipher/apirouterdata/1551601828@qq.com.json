@@ -1,0 +1,79 @@
+{
+  "email" : "1551601828@qq.com",
+  "range" : "7",
+  "granularity" : "day",
+  "metrics" : {
+    "balance" : 806.84,
+    "apiKeys" : 1,
+    "requests" : 375,
+    "spend" : 232.5708,
+    "standardSpend" : 49.1168,
+    "todayToken" : 44.5,
+    "totalToken" : 44.5,
+    "rpm" : 2,
+    "tpm" : 8.8,
+    "avgLatency" : 25.37,
+    "inputToken" : 4.3,
+    "outputToken" : 0.2603
+  },
+  "models" : [ {
+    "name" : "gpt-5.5",
+    "requests" : 375,
+    "token" : "44.5M",
+    "cost" : 232.5708,
+    "standard" : 49.1168,
+    "share" : 72
+  }, {
+    "name" : "gpt-5-mini",
+    "requests" : 82,
+    "token" : "6.8M",
+    "cost" : 21.3042,
+    "standard" : 8.9711,
+    "share" : 19
+  }, {
+    "name" : "embedding-pro",
+    "requests" : 41,
+    "token" : "1.2M",
+    "cost" : 2.6801,
+    "standard" : 1.1034,
+    "share" : 9
+  } ],
+  "usage" : [ {
+    "model" : "gpt-5.5",
+    "time" : "2026/05/26 22:13:20",
+    "cost" : 0.1583,
+    "token" : "15,874 tokens"
+  }, {
+    "model" : "gpt-5.5",
+    "time" : "2026/05/26 22:12:08",
+    "cost" : 0.1362,
+    "token" : "2,092 tokens"
+  }, {
+    "model" : "gpt-5.5",
+    "time" : "2026/05/26 22:11:42",
+    "cost" : 0.1167,
+    "token" : "1,233 tokens"
+  }, {
+    "model" : "gpt-5-mini",
+    "time" : "2026/05/26 22:10:19",
+    "cost" : 0.0421,
+    "token" : "824 tokens"
+  } ],
+  "keys" : [ {
+    "name" : "main-router-key",
+    "mask" : "sk-pzm-****-9f21",
+    "status" : "Enabled",
+    "quota" : "$600.00",
+    "used" : "$232.57",
+    "lastUsed" : "2026/05/26 22:13"
+  }, {
+    "name" : "test-sandbox-key",
+    "mask" : "sk-pzm-****-1a77",
+    "status" : "Paused",
+    "quota" : "$50.00",
+    "used" : "$0.00",
+    "lastUsed" : "-"
+  } ],
+  "trend" : [ 12, 20, 28, 24, 36, 30, 44 ],
+  "updatedAt" : "2026-05-27T13:57:31.3149554"
+}

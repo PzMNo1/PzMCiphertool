@@ -10,7 +10,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aqre-workspace', 'aqre-layout
         { label: '重置清理', onclick: 'window.clearAqreGrid && window.clearAqreGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAqreExample && window.buildSimpleAqreExample()' }
     ]) +
-    LogicUI.statsPanel('aqre', { countLabel: '找到解决方案', timeLabel: '耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('aqre', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('aqre', 'showAqreSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>左键点击格子</strong>: 输入线索数字',
@@ -351,7 +351,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aqre-workspace', 'aqre-layout
             try { res = window.solveAqre(puzzle); } catch (e) {
                 updateStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0) + 'ms';
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateStats(res.error, elapsed); return; }
 

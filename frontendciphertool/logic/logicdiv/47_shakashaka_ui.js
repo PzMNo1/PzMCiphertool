@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearShakashakaGrid && window.clearShakashakaGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleShakashakaExample && window.buildSimpleShakashakaExample()' }
         ]) +
-        window.LogicUI.statsPanel('shaka', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('shaka', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('shaka', 'showShakashakaSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '先在下方 <strong>模式栏</strong> 选择要放置的元素',
@@ -198,7 +198,7 @@
         setTimeout(() => {
             const t0 = performance.now();
             const res = window.solveShakashaka({ rows: R, cols: C, grid: puzzleGrid });
-            const ms = Math.round(performance.now() - t0) + 'ms';
+            const ms = LogicUI.formatElapsed(performance.now() - t0);
             solutions = res.solutions || [];
             stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
             if (solutions.length) {

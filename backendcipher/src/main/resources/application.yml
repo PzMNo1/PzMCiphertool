@@ -55,6 +55,17 @@ llm:
   base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
   model: ${OPENAI_MODEL:gpt-4.1-mini}
 
+# API Router quota, rate limit and optional internal billing config
+api-router:
+  limit:
+    rpm: ${API_ROUTER_RPM_LIMIT:60}
+    tpm: ${API_ROUTER_TPM_LIMIT:120000}
+  quota:
+    default-tokens: ${API_ROUTER_DEFAULT_TOKEN_QUOTA:1000000}
+  price:
+    input-per-million: ${API_ROUTER_INPUT_PRICE_PER_MILLION:0}
+    output-per-million: ${API_ROUTER_OUTPUT_PRICE_PER_MILLION:0}
+
 # CORS Config
 cors:
   allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36,http://www.ozqmp.com}
@@ -66,4 +77,3 @@ logging:
   level:
     com.ciphertool: DEBUG
     root: INFO
-

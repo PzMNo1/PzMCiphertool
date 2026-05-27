@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearTentsGrid && window.clearTentsGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTentsExample && window.buildSimpleTentsExample()' }
         ]) +
-        window.LogicUI.statsPanel('tnt', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('tnt', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('tnt', 'showTentsSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '点击格子放置/移除树木 🌲',
@@ -77,7 +77,7 @@
         if (!grid.some(r => r.some(v => v === 1))) return stats('请先放置树木', '-');
         const t0 = performance.now();
         const res = window.solveTents({ rows: R, cols: C, grid, rowClues: rowClues.map(v => v === '' ? -1 : +v), colClues: colClues.map(v => v === '' ? -1 : +v) });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showTentsSolution(0); }

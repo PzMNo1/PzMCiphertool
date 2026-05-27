@@ -1,4 +1,4 @@
-﻿// 模块内容作为JavaScript变量
+// 模块内容作为JavaScript变量
 const MODULES = {
     // 加密实验室模块
     jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
@@ -18,357 +18,7 @@ const MODULES = {
     <div class="cipher-swiper-container">
         <div class="cipher-swiper-wrapper">
 
-    <div id="mimaqu" class="submodule active">
-        <div class="container">
-        
-        <div class="card main-input">
-            <button class="cyber-button pin-toggle-btn">
-                <span class="cyber-button__glitch"></span>
-                <span class="cyber-button__tag">置顶</span>
-            </button>
-            <button class="cyber-button usage-guide-btn">
-                <span class="cyber-button__glitch"></span>
-                <span class="cyber-button__tag">使用说明</span>
-            </button>
-            <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
-            <div class="quick-nav-container" id="quick-nav-container-mimaqu">
-                <input type="text" class="quick-nav-input" id="quick-nav-input-mimaqu" placeholder="[搜索密码卡片...]" autocomplete="off">
-                <div class="quick-nav-options" id="quick-nav-options-mimaqu"></div>
-            </div>
-        </div>
-
-        <!-- 凯撒密码 -->
-        <div class="card">
-            <div class="badge">凯撒 Caesar</div>
-            <input type="number" id="caesarShift" placeholder="偏移量" value="3" min="-26" max="26">
-            <div class="result" id="caesarResult"></div>
-        </div>
-
-        <!-- 维吉尼亚密码 -->
-        <div class="card">
-            <div class="badge">维吉尼亚 Vigenère</div>
-            <input type="text" id="vigenereKey" placeholder="输入密钥">
-            <div class="result" id="vigenereResult"></div>
-        </div>
-
-        <!-- 栅栏密码 -->
-        <div class="card">
-            <div class="badge">栅栏 Rail Fence</div>
-            <input type="number" id="railCount" placeholder="层数" value="3">
-            <div class="result" id="railResult"></div>
-        </div>
-
-        <!-- AtBash密码 -->
-        <div class="card">
-            <div class="badge">AtBash 埃特巴什</div>
-            <div class="result" id="atbashResult"></div>
-        </div>
-
-        <!-- 进制转换 -->
-        <div class="card">
-            <div class="badge">进制 Base Converter</div>
-            <div class="grid-2">
-                <input type="number" id="fromBase" placeholder="原进制" value="36">
-                <input type="number" id="toBase" placeholder="目标进制" value="10">
-            </div>
-            <div class="result" id="baseResult"></div>
-        </div>
-
-        <!-- 摩尔斯电码 -->
-        <div class="card">
-            <div class="badge">摩尔斯 Morse</div>
-            <div class="result" id="morseResult"></div>
-        </div>
-
-        <!-- 手机九键 -->
-        <div class="card">
-            <div class="badge">手机九键 Phone Keypad</div>
-            <div class="result" id="phoneResult"></div>
-        </div>
-
-        <!-- 比尔密码 -->
-        <div class="card">
-            <div class="badge">比尔密码 Beale Cipher</div>
-            <input type="text" id="bealeKey" placeholder="密钥用空格分隔">
-            <div class="result" id="bealeResult"></div>
-        </div>
-
-        <!-- 反切码 -->
-        <div class="card">
-            <div class="badge">反切码 Fanqie</div>
-            <div class="result" id="fanqieResult"></div>
-        </div>
-
-        <!-- mRNA序列 -->
-        <div class="card">
-            <div class="badge">mRNA序列 mRNA Sequence</div>
-            <div class="result" id="dnaResult"></div>
-        </div>
-
-        <!-- V字键盘密码 -->
-        <div class="card">
-            <div class="badge">V字键盘 V-Keyboard</div>
-            <div class="result" id="vKeyboardResult"></div>
-        </div>
-
-        <!-- QWE密码 -->
-        <div class="card">
-            <div class="badge">QWE键盘 QWE Keyboard</div>
-            <div class="result" id="qweResult"></div>
-        </div>
-
-        <!-- Bacon密码 --> 
-        <div class="card">
-            <div class="badge">Bacon 培根</div>
-            <div class="result" id="baconResult"></div>
-        </div>
-
-        <!-- 柱状栅栏密码 -->
-        <div class="card">
-            <div class="badge">柱状栅栏 Columnar Rail Fence</div>
-            <input type="number" id="columnarRailCount" placeholder="列数" value="2">
-            <div class="result" id="columnarRailResult"></div>
-        </div>
-
-        <!-- w型栅栏密码 -->
-        <div class="card">
-            <div class="badge">W型栅栏 W-Rail Fence</div>
-            <input type="number" id="wRailCount" placeholder="层数" value="3">
-            <div class="result" id="wRailResult"></div>
-        </div>
-
-        <!-- 01248密码 -->
-        <div class="card">
-            <div class="badge">01248密码 01248 Cipher</div>
-            <div class="result" id="cipher01248Result"></div>
-        </div>
-
-        <!-- 元音密码 -->
-        <div class="card">
-            <div class="badge">元音密码 Vowel Cipher</div>
-            <div class="result" id="vowelCipherResult"></div>
-        </div>
-
-        <!-- ASCII 转换 -->
-        <div class="card">
-            <div class="badge">ASCII 美国标准信息交换码</div>
-            <div class="grid-2">
-                <select id="asciiInputType">
-                    <option value="char">字符</option>
-                    <option value="dec">十进制</option>
-                    <option value="hex">十六进制</option>
-                    <option value="oct">八进制</option>
-                    <option value="bin">二进制</option>
-                </select>
-                <select id="asciiOutputType">
-                    <option value="char">字符</option>
-                    <option value="dec">十进制</option>
-                    <option value="hex">十六进制</option>
-                    <option value="oct">八进制</option>
-                    <option value="bin">二进制</option>
-                </select>
-            </div>
-            <div class="result" id="asciiResult"></div>
-        </div>
-
-        <!-- 中文电码 -->
-        <div class="card">
-            <div class="badge">中文电码 Chinese Telegraph Code</div>
-            <div class="result" id="cccResult"></div>
-        </div>
-
-        <!-- 四角号码 -->
-        <div class="card">
-            <div class="badge">四角号码 Four Corner Code</div>
-            <div class="result" id="fourcccResult"></div>
-        </div>
-
-        <!-- ROT 转换 -->
-        <div class="card">
-            <div class="badge">ROT 旋转加密</div>
-            <div class="grid-full">
-                <select id="rotOutputType">
-                    <option value="char">ROT5</option>
-                    <option value="dec">ROT13</option>
-                    <option value="hex">ROT18</option>
-                    <option value="oct">ROT47</option>
-                </select>
-            </div>
-            <div class="result" id="rotResult"></div>
-        </div>
-
-        <!-- Polybius 方阵 -->
-        <div class="card">
-            <div class="badge">Polybius Square 波利比乌斯方阵</div>
-            <div class="grid-full"> 
-                <input type="text" id="psAlpha" placeholder="字母" value="abcdefghiklmnopqrstuvwxyz"></div>
-            <div class="grid-2"> 
-                <input type="number" id="psRows" placeholder="行" value="12345">
-                <input type="number" id="psColumns" placeholder="列" value="12345">
-            </div>
-            <div class="result" id="PolybiusResult"></div>
-        </div>
-
-        <!-- ADFGX/ADFVGX -->
-        <div class="card">
-            <div class="badge">ADFGX/ADFVGX 密码</div>
-            <div class="grid-full">
-                <input type="text" id="ADFAlpha" placeholder="字母" value="abcdefghiklmnopqrstuvwxyz"></div>
-            <div class="grid-2"> 
-                <input type="text" id="ADFTranspositionKeyword" placeholder="换位密钥词" value="password">
-                <select id="adfCipherType">
-                    <option value="ADFGX">ADFGX</option>
-                    <option value="ADFVGX">ADFVGX</option>
-                </select>
-            </div>
-            <div class="result" id="ADFGXResult"></div>
-        </div>
-
-        <!-- 仿射 -->
-        <div class="card">
-            <div class="badge">仿射 Affine</div>
-            <div class="grid-full">
-                <input type="text" id="AffineAlpha" placeholder="字母" value="abcdefghijklmnopqrstuvwxyz"></div>
-            <div class="grid-2"> 
-                <input type="number" id="Affineslope" placeholder="坡度A" value="5">
-                <input type="number" id="AffineIntercept" placeholder="截距B" value="8">
-            </div>
-            <div class="result" id="AffineResult"></div>
-        </div>
-
-        <!-- 敲击码 -->
-        <div class="card">
-            <div class="badge">敲击码 Tap Code</div>
-            <div class="grid-3"> 
-                <input type="text" id="tapMark" placeholder="Tap" value=".">
-                <input type="text" id="groupMark" placeholder="Group" value="a">
-                <input type="text" id="letterMark" placeholder="Letter" value="b">
-            </div>
-            <div class="result" id="tapCodeResult"></div>
-        </div>
-
-        <!-- BifidCipher -->
-        <div class="card">
-            <div class="badge">BifidCipher 双密码</div>
-            <div class="grid-2"> 
-                <input type="text" id="BifidCipherkey" placeholder="Key" value="abcdefghiklmnopqrstuvwxyz">
-            </div>
-            <div class="result" id="BifidCipherResult"></div>
-        </div>
-
-        <!-- 旗语-盲文 -->
-        <div class="card">
-            <div class="badge">旗语-盲文 Semaphore-Braille</div>
-            <button class="cyber-button pin-toggle-btn">
-                <span class="cyber-button__glitch"></span>
-                <span class="cyber-button__tag">置顶</span>
-            </button>
-            <div class="grid-full2">
-                <select id="qiyuType">
-                    <option value="semaphore">旗语 (Semaphore)</option>
-                    <option value="braille">盲文 (Braille)</option>
-                </select>
-            </div>
-            <div class="grid-full2">
-                <input type="text" id="qiyuInput" placeholder="输入字母" value="">
-                <button id="qiyuClear" class="cyber-button">
-                    <span class="cyber-button__glitch"></span>
-                    <span class="cyber-button__tag">刷新</span>
-                </button>
-            </div>
-            <div id="qiyuCanvasContainer" class="input-group" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;"></div>
-            <div class="result" id="qiyuResult"></div>
-        </div>
-
-        <!-- Base码 -->
-        <div class="card">
-            <div class="badge">Base 编码</div>
-            <div class="grid-full">
-                <select id="baseOutputType">
-                    <option value="base16">BASE16</option>
-                    <option value="base32">BASE32</option>
-                    <option value="base64">BASE64</option>
-                    <option value="base58">BASE58</option>
-                    <option value="base85">BASE85</option>
-                    <option value="base91">BASE91</option>
-                    <option value="base100">BASE100</option>
-                </select>
-            </div>
-            <div class="result" id="baseEncodeResult"></div>
-        </div>
-        </div>
-    </div>
-
-    <!-- 现代区 -->
-    <div id="xiandaiqu" class="submodule">
-        <div class="container">
-
-            <!-- 输入 -->
-            <div class="card main-input">
-            <button class="cyber-button pin-toggle-btn">
-                <span class="cyber-button__glitch"></span>
-                <span class="cyber-button__tag">置顶</span>
-            </button>
-            <button class="cyber-button usage-guide-btn">
-                <span class="cyber-button__glitch"></span>
-                <span class="cyber-button__tag">使用说明</span>
-            </button>
-            <textarea id="mainInput" placeholder="输入要加密/解密的内容..." autofocus></textarea>
-            <div class="quick-nav-container" id="quick-nav-container-xiandaiqu">
-                <input type="text" class="quick-nav-input" id="quick-nav-input-xiandaiqu" placeholder="[搜索密码卡片...]" autocomplete="off">
-                <div class="quick-nav-options" id="quick-nav-options-xiandaiqu"></div>
-            </div>
-            </div>
-
-            <!-- MD5 -->
-            <div class="card">
-                <div class="badge">MD5</div>
-                <input type="text" id="MD5Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
-                <div class="result" id="MD5Result"></div>
-            </div>
-
-            <!-- SHA-1 -->
-            <div class="card">
-                <div class="badge">SHA-1</div>
-                <input type="text" id="SHA1Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
-                <div class="result" id="SHA1Result"></div>
-            </div>
-
-            <!-- SHA-256 -->
-            <div class="card">
-                <div class="badge">SHA-256</div>
-                <input type="text" id="SHA256Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
-                <div class="result" id="SHA256Result"></div>
-            </div>
-
-            <!-- SHA-384 -->
-            <div class="card">
-                <div class="badge">SHA-384</div>
-                <input type="text" id="SHA384Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
-                <div class="result" id="SHA384Result"></div>
-            </div>
-
-            <!-- SHA-512 -->
-            <div class="card">
-                <div class="badge">SHA-512</div>
-                <input type="text" id="SHA512Key" placeholder="输入十六进制生成Hmac" value="12 3a bc">
-                <div class="result" id="SHA512Result"></div>
-            </div>
-
-            <!-- Enigma 具体子布局在3_Enigma.js里-->
-            <div class="card">
-                <div class="badge">Enigma恩尼格玛</div>
-                <select id="enigmaModel" class="grid-3" onchange="updateEnigmaLayout()"></select>
-                <div id="rotorSettings"></div>
-                
-                <!-- 插板 有些机型是不需要的，也纳入动态子布局里 -->
-                <div class="grid-full2">
-                    <input type="text" id="Plugboard" placeholder="插板" value="bq cr di ej kw mt os">
-                </div>
-                <div class="result" id="EnigmaResult"></div>
-            </div>
-        </div>
-    </div>
+    ${window.CIPHER_CLASSIC_MODERN_DIV_BATCH || ''}
 
     <!-- 逻辑谜题区 -->
     <div id="luojimiti" class="submodule">
@@ -431,7 +81,16 @@ const MODULES = {
                         <div class="wf-toolbar-category-title">经典密码</div>
                         <div class="wf-toolbar-item" data-algo="Caesar凯撒">🔐 Caesar 凯撒</div>
                         <div class="wf-toolbar-item" data-algo="Vigenere维吉尼亚">🔐 Vigenere 维吉尼亚</div>
+                        <div class="wf-toolbar-item" data-algo="Beaufort">🔐 Beaufort</div>
+                        <div class="wf-toolbar-item" data-algo="Variant Beaufort">🔐 Variant Beaufort</div>
+                        <div class="wf-toolbar-item" data-algo="Autokey Vigenere">🔐 Autokey Vigenere</div>
+                        <div class="wf-toolbar-item" data-algo="Gronsfeld">🔐 Gronsfeld</div>
+                        <div class="wf-toolbar-item" data-algo="Porta">🔐 Porta</div>
                         <div class="wf-toolbar-item" data-algo="RailFence栅栏">🔐 RailFence 栅栏</div>
+                        <div class="wf-toolbar-item" data-algo="Route Transposition">🔐 Route Transposition</div>
+                        <div class="wf-toolbar-item" data-algo="Scytale">🔐 Scytale</div>
+                        <div class="wf-toolbar-item" data-algo="AMSCO">🔐 AMSCO</div>
+                        <div class="wf-toolbar-item" data-algo="Myszkowski">🔐 Myszkowski</div>
                         <div class="wf-toolbar-item" data-algo="Bifid双歧">🔐 Bifid 双歧</div>
                         <div class="wf-toolbar-item" data-algo="AtBash埃特巴什">🔐 AtBash 埃特巴什</div>
                         <div class="wf-toolbar-item" data-algo="BaseConverter进制">🔐 进制转换</div>
@@ -448,6 +107,7 @@ const MODULES = {
                         <div class="wf-toolbar-item" data-algo="ColRail柱栅栏">🔐 柱状栅栏</div>
                         <div class="wf-toolbar-item" data-algo="WRail-W栅栏">🔐 W型栅栏</div>
                         <div class="wf-toolbar-item" data-algo="Polybius方阵">🔐 Polybius 方阵</div>
+                        <div class="wf-toolbar-item" data-algo="Playfair">🔐 Playfair</div>
                         <div class="wf-toolbar-item" data-algo="ADFGX/ADFVGX">🔐 ADFGX/ADFVGX</div>
                         <div class="wf-toolbar-item" data-algo="Affine仿射">🔐 Affine 仿射</div>
                         <div class="wf-toolbar-item" data-algo="TapCode敲击码">🔐 敲击码</div>
@@ -455,6 +115,7 @@ const MODULES = {
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">编码 & 哈希</div>
+                        <div class="wf-toolbar-item" data-algo="A1Z26">🔐 A1Z26</div>
                         <div class="wf-toolbar-item" data-algo="ASCII">🔐 ASCII</div>
                         <div class="wf-toolbar-item" data-algo="Base编码">🔐 Base 编码</div>
                         <div class="wf-toolbar-item" data-algo="ROT旋转">🔐 ROT 旋转</div>
@@ -468,6 +129,8 @@ const MODULES = {
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">现代密码</div>
+                        <div class="wf-toolbar-item" data-algo="Substitution Analysis">🔐 Substitution Analysis</div>
+                        <div class="wf-toolbar-item" data-algo="Hill Cipher">🔐 Hill Cipher</div>
                         <div class="wf-toolbar-item" data-algo="Enigma恩尼格玛">🔐 Enigma 恩尼格玛</div>
                     </div>
                 </div>
@@ -500,7 +163,10 @@ const MODULES = {
         <div id="zstp-vignette"></div>
 
         <div id="zstp-import-layer">
-            <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
+            <div class="zstp-action-stack">
+                <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
+                <button id="zstp-guide-btn" class="zstp-import-btn" data-guide-id="zhishitupu">使用说明</button>
+            </div>
             <input type="file" id="zstp-folder-input" webkitdirectory multiple style="display:none">
         </div>
 
@@ -529,6 +195,19 @@ const MODULES = {
     </div>`,
 
     // 大模型模块
+    apizhongzhuanzhan: `
+    <div id="apizhongzhuanzhan-content" class="content-section">
+        <div id="apizz-root"></div>
+    </div>`,
+
+    mcpskilllab: `
+    <div id="mcpskilllab-content" class="content-section">
+        <div class="module-header">
+            <h2 class="neon-title" data-text="SKILL MCP LAB">SKILL / MCP LAB</h2>
+        </div>
+        <div id="mcpskilllab-root"></div>
+    </div>`,
+
     damoxing: `
     <div id="damoxing-content" class="content-section">
     <div id="damoxing-container">
@@ -551,7 +230,25 @@ const MODULES = {
                 </div>
                 
                 <div class="input-container">
-                    <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    <div class="attachment-controls">
+                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
+                            <span class="cyber-button__tag">作图模式</span>
+                        </button>
+                        <button id="attachment-add-btn" class="attachment-add-btn" title="导入文件或目录" aria-label="导入文件或目录" type="button">+</button>
+                        <div id="attachment-menu" class="attachment-menu" aria-hidden="true">
+                            <button id="attachment-file-btn" type="button">导入文件</button>
+                            <button id="attachment-folder-btn" type="button">导入目录</button>
+                            <button id="import-chat-history-btn" type="button">导入聊天</button>
+                        </div>
+                        <input id="attachment-file-input" type="file" multiple hidden>
+                        <input id="attachment-folder-input" type="file" webkitdirectory multiple hidden>
+                        <input id="import-chat-history-input" type="file" accept=".txt,text/plain" multiple hidden>
+                    </div>
+                    <div class="input-main">
+                        <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
+                        <div id="attachment-status" class="attachment-status" aria-live="polite"></div>
+                        <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    </div>
                     <div class="input-actions">
                         <button id="tool-toggle" class="cyber-button" title="启用工具">
                             <span class="cyber-button__tag">🔧 工具</span>
@@ -571,6 +268,12 @@ const MODULES = {
                 <div class="sidebar-header">
                     <button id="new-chat" class="cyber-button">
                         <span class="cyber-button__tag">新对话</span>
+                    </button>
+                    <button id="select-all-history" class="cyber-button">
+                        <span class="cyber-button__tag">全选</span>
+                    </button>
+                    <button id="export-chat-history" class="cyber-button">
+                        <span class="cyber-button__tag">导出聊天</span>
                     </button>
                 </div>
                 <div class="search-container">
@@ -661,25 +364,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== 核心脚本（页面框架、密码、工作流等）=====
     const coreScripts = [
         './electronic/electronic_lab.js',
-        './cipher/1_cipherlab.js',
-        './cipher/2_ADFGXCipher.js',
-        './cipher/3_Enigma.js',
-        './cipher/4_MD5.js',
-        './cipher/6_semaphore.js',
+        './apizhongzhuanzhan/apizhongzhuanzhan.js',
+        './mcpskilllab/mcpskilllab-resources.js',
+        './mcpskilllab/mcpskilllab.js',
         './0_sidebar_funtion.js',
-        './cipher/999_funtion.js',
+
         './model/DeepSeekClient.js',
         './model/ToolRegistry.js',
         './model/ChatUI.js',
         './model/HistoryManager.js',
+        './model/MemoryManager.js',
+        './model/ReflectionAgent.js',
         './model/AgentRuntime.js',
         './model/main.js',
         './workflow/workflow.js',
         './zhishitupu/graphData.js',
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
-        './spacepuzzle/rubikscube/nubikscube.js',
-        './spacepuzzle/spacepuzzle.js',
+        './spacepuzzle/spacepuzzlebatch.js',
         './sendfeedback/sendfeedback.js',
     ];
 
@@ -695,9 +397,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== 并行加载：核心区 + 逻辑区（互不阻塞）=====
     // 核心区：加载完立即初始化页面
-    loadBatch(coreScripts).then(() => {
+    Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
+        .then(() => Promise.resolve(window.spacePuzzleBatchReady))
+        .then(() => {
+        if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
         if (typeof initSearchFunction === 'function') initSearchFunction();
         if (typeof initWordSearch === 'function') initWordSearch();
+        if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
+        if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
         if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
         if (typeof initSendFeedback === 'function') initSendFeedback();
         if (typeof initChatFunctions === 'function') initChatFunctions();
@@ -710,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBatch(['./logic/logicbatch.js']);
 
     if (!MODULES) return console.error('模块内容未定义');
-    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'yijianfankui'].forEach(id =>
+    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'apizhongzhuanzhan', 'mcpskilllab', 'yijianfankui'].forEach(id =>
         document.getElementById(id + '-container').innerHTML = MODULES[id]
     );
 
@@ -766,6 +473,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (typeof bindChatEvents === 'function') {
                 bindChatEvents();
             }
+        }
+
+        if (id === 'apizhongzhuanzhan' && typeof initApiZhongZhuanZhan === 'function') {
+            initApiZhongZhuanZhan();
+        }
+
+        if (id === 'mcpskilllab' && typeof initMcpSkillLab === 'function') {
+            initMcpSkillLab();
         }
     }
 

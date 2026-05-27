@@ -147,6 +147,36 @@ class HistoryManager {
         }) || null;
     }
 
+    importChats(chats = []) {
+        const history = this.getChatHistory();
+        const importedIds = [];
+
+        chats.forEach((chat, index) => {
+            const baseId = String(chat.id || '').trim();
+            let chatId = baseId && !history[baseId] ? baseId : `imported_${Date.now()}_${index}`;
+            while (history[chatId]) {
+                chatId = `imported_${Date.now()}_${index}_${Math.random().toString(16).slice(2, 8)}`;
+            }
+
+            const messages = Array.isArray(chat.messages) ? chat.messages : [];
+            history[chatId] = {
+                id: chatId,
+                title: chat.title || `导入会话 ${Object.keys(history).length + 1}`,
+                messages,
+                timestamp: Number(chat.timestamp) || Date.now(),
+                imported_at: Date.now(),
+                imported_from: baseId || null
+            };
+            importedIds.push(chatId);
+        });
+
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
+        if (importedIds.length > 0) {
+            this.setCurrentChatId(importedIds[0]);
+        }
+        return importedIds;
+    }
+
     formatDate(timestamp) {
         const date = new Date(timestamp);
         return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;

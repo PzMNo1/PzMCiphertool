@@ -1,4 +1,179 @@
 (function () {
+    const STANDARD_CUBE_STYLE_ID = 'standard-rubiks-cube-style';
+const STANDARD_CUBE_STYLES = `
+/* 空间类：标准三维魔方 */
+#cube-step-counter {
+  color: var(--neon-cyan);
+  font-weight: 800;
+  text-shadow: 0 0 6px var(--neon-cyan);
+}
+
+#cube-step-move {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.space-cube-panel {
+  min-width: 400px;
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(0, 0, 0, 0.22);
+}
+
+.cube-scene {
+  width: 270px;
+  height: 270px;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+  margin: 0 auto 2rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cube-scene.dragging {
+  cursor: grabbing;
+}
+
+.cube-3d {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--cube-rot-x, -28deg)) rotateY(var(--cube-rot-y, -38deg));
+  transition: transform 0.08s linear;
+}
+
+.cube-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  padding: 7px;
+  background: rgba(2, 12, 18, 0.86);
+  border: 1px solid rgba(64, 224, 255, 0.26);
+  box-shadow:
+    inset 0 0 18px rgba(64, 224, 255, 0.12),
+    0 0 24px rgba(64, 224, 255, 0.08);
+}
+
+.cube-face b {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+.cube-face-f {
+  transform: translateZ(94px);
+}
+
+.cube-face-b {
+  transform: rotateY(180deg) translateZ(94px);
+}
+
+.cube-face-r {
+  transform: rotateY(90deg) translateZ(94px);
+}
+
+.cube-face-l {
+  transform: rotateY(-90deg) translateZ(94px);
+}
+
+.cube-face-u {
+  transform: rotateX(90deg) translateZ(94px);
+}
+
+.cube-face-d {
+  transform: rotateX(-90deg) translateZ(94px);
+}
+
+.cube-sticker {
+  display: block;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.72), transparent 22%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.24), transparent 42%),
+    var(--sticker-color);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.24),
+    0 0 12px rgba(64, 224, 255, 0.16);
+}
+
+.cube-move-grid {
+  display: none;
+}
+
+.cube-move-btn {
+  min-width: 0;
+  padding: 0.55rem 0.25rem;
+}
+
+@media (max-width: 760px) {
+  .cube-scene {
+    width: 210px;
+    height: 210px;
+    margin-bottom: 1.4rem;
+  }
+
+  .cube-3d {
+    width: 138px;
+    height: 138px;
+  }
+
+  .cube-face {
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .cube-face-f {
+    transform: translateZ(72px);
+  }
+
+  .cube-face-b {
+    transform: rotateY(180deg) translateZ(72px);
+  }
+
+  .cube-face-r {
+    transform: rotateY(90deg) translateZ(72px);
+  }
+
+  .cube-face-l {
+    transform: rotateY(-90deg) translateZ(72px);
+  }
+
+  .cube-face-u {
+    transform: rotateX(90deg) translateZ(72px);
+  }
+
+  .cube-face-d {
+    transform: rotateX(-90deg) translateZ(72px);
+  }
+
+}
+`;
+
+    function injectStandardCubeStyles() {
+        if (window.SpacePuzzleUI && typeof window.SpacePuzzleUI.injectStyles === 'function') {
+            window.SpacePuzzleUI.injectStyles(STANDARD_CUBE_STYLE_ID, STANDARD_CUBE_STYLES);
+            return;
+        }
+        if (typeof document === 'undefined' || document.getElementById(STANDARD_CUBE_STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = STANDARD_CUBE_STYLE_ID;
+        style.textContent = STANDARD_CUBE_STYLES;
+        document.head.appendChild(style);
+    }
+
+    injectStandardCubeStyles();
+
     const FACE_COLORS = {
         U: '#f4f7fb',
         D: '#ffd84a',
@@ -414,6 +589,10 @@
         scene.addEventListener('pointerleave', stopDragging);
     }
 
+    function getRegisteredSpacePuzzleModules() {
+        return Array.isArray(window.spacePuzzleModules) ? window.spacePuzzleModules : [];
+    }
+
     function getSpacePuzzleHTML() {
         const faceGroups = [
             { face: 'U', label: '上层', pos: 'top' },
@@ -434,13 +613,22 @@
         })
             .join('');
 
+        const extraModules = getRegisteredSpacePuzzleModules();
+        const extraButtons = extraModules
+            .map(module => typeof module.getListButton === 'function' ? module.getListButton() : '')
+            .join('');
+        const extraWorkspaces = extraModules
+            .map(module => typeof module.getWorkspaceHTML === 'function' ? module.getWorkspaceHTML() : '')
+            .join('');
+
         return `
             <div class="container" id="space-list-container">
                 <button class="logic-btn" type="button" onclick="window.openSpacePuzzle('standard-cube')">标准三维魔方</button>
+                ${extraButtons}
             </div>
 
-            <div id="space-workspace-container" style="display:none;padding-top:4rem;margin-top:2rem;">
-                <div id="standard-cube-workspace" class="space-workspace" style="display:none;gap:2rem;flex-wrap:wrap;align-items:flex-start;">
+            <div id="space-workspace-container" class="space-workspace-container">
+                <div id="standard-cube-workspace" class="space-workspace">
                     <div class="control-panel card cyber-border space-control-panel">
                         <button class="cyber-button space-back-btn" onclick="window.backSpacePuzzle()"><span class="cyber-button__tag">← 返回空间类</span></button>
                         <h2 class="neon-title space-title" data-text="STANDARD CUBE">STANDARD CUBE</h2>
@@ -487,7 +675,7 @@
                         </div>
                     </div>
 
-                    <div class="grid-container card space-cube-panel">
+                    <div class="grid-container card space-display-panel space-cube-panel">
                         <div class="space-cube-hud">
                             <span id="cube-status">魔方处于还原态</span>
                         </div>
@@ -499,6 +687,7 @@
                         <div class="cube-move-spatial">${moveButtons}</div>
                     </div>
                 </div>
+                ${extraWorkspaces}
             </div>`;
     }
 
@@ -507,6 +696,9 @@
         if (!container) return;
         container.innerHTML = getSpacePuzzleHTML();
         window.resetStandardCube();
+        getRegisteredSpacePuzzleModules().forEach(module => {
+            if (typeof module.init === 'function') module.init();
+        });
         bindCubeDrag();
     };
 
@@ -519,11 +711,15 @@
             renderCube();
             bindCubeDrag();
         }
+        const extraModule = getRegisteredSpacePuzzleModules().find(module => module.id === id);
+        if (extraModule && typeof extraModule.open === 'function') {
+            extraModule.open();
+        }
     };
 
     window.backSpacePuzzle = function () {
         document.getElementById('space-workspace-container').style.display = 'none';
-        document.getElementById('standard-cube-workspace').style.display = 'none';
+        document.querySelectorAll('#space-workspace-container > div').forEach(el => el.style.display = 'none');
         document.getElementById('space-list-container').style.display = '';
     };
 
@@ -610,4 +806,5 @@
         updateSolutionPanel([], 0);
         renderCube();
     };
+
 })();

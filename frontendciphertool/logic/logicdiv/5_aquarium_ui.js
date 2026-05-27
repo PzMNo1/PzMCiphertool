@@ -11,7 +11,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquarium-workspace', 'aquariu
         { label: '简单示例', onclick: 'window.buildSimpleAquariumExample && window.buildSimpleAquariumExample()' }
     ]) +
     `<div style="margin-bottom:1.5rem;display:flex;gap:10px;"><button class="cyber-button" style="flex:1;" id="aquarium-mode-btn" onclick="window.toggleAquariumMode && window.toggleAquariumMode()"><span class="cyber-button__tag">模式: 调整边界</span></button></div>` +
-    LogicUI.statsPanel('aquarium', { countLabel: '找到解决方案', timeLabel: '耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('aquarium', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     LogicUI.solutionNav('aquarium', 'showAquariumSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([
         '• <strong>边界模式</strong>: 在网格间拖动或点击来绘制区域!',
@@ -404,7 +404,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquarium-workspace', 'aquariu
             try { res = window.solveAquarium(puzzle); } catch (e) {
                 updateStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0) + 'ms';
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateStats(res.error, elapsed); return; }
 

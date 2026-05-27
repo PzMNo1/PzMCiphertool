@@ -35,6 +35,13 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(message);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return ApiResponse.error(e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {
@@ -42,7 +49,6 @@ public class GlobalExceptionHandler {
         return ApiResponse.error("系统繁忙，请稍后重试");
     }
 }
-
 
 
 

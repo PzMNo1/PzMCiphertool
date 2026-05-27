@@ -5,7 +5,7 @@
 
 (function() {
     // === 配置 ===
-    const API_BASE = 'https://waiw.ozqmp.com'; 
+    const API_BASE = 'http://localhost:8080'; 
     const STORAGE_KEY = 'cipher_toolbox_user';
     
     // === HTML 模板 ===

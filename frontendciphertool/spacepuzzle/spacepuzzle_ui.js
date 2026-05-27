@@ -1,6 +1,47 @@
-/* 空间类：标准三维魔方 */
+// 空间类公共 UI 基座
+// 放跨空间谜题复用的样式和轻量工具，具体谜题仍保留自己的棋盘/模型样式。
+(function () {
+    const BASE_STYLE_ID = 'space-puzzle-base-style';
+
+    function injectStyles(id, cssText) {
+        if (typeof document === 'undefined' || !id || document.getElementById(id)) return;
+        const style = document.createElement('style');
+        style.id = id;
+        style.textContent = cssText;
+        document.head.appendChild(style);
+    }
+
+    function setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    function loadScripts(list, version = new Date().getTime()) {
+        return Promise.all(list.map(src => new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = src + '?v=' + version;
+            s.async = false;
+            s.onload = s.onerror = resolve;
+            document.body.appendChild(s);
+        })));
+    }
+
+    const baseStyles = `
 #spacepuzzle {
   width: 100%;
+}
+
+.space-workspace-container {
+  display: none;
+  padding-top: 4rem;
+  margin-top: 2rem;
+}
+
+.space-workspace {
+  display: none;
+  gap: 2rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .space-control-panel {
@@ -85,6 +126,53 @@
   word-break: break-word;
 }
 
+.space-instructions {
+  opacity: 0.9;
+  font-size: 0.85em;
+}
+
+.space-instructions h3 {
+  margin-bottom: 0.8rem;
+  color: var(--neon-cyan);
+}
+
+.space-instructions p {
+  margin-bottom: 0.35rem;
+}
+
+.space-display-panel {
+  flex: 2;
+  min-width: 420px;
+  padding: 2.4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 255, 255, 0.03)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.space-cube-hud {
+  width: min(520px, 100%);
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.8rem;
+  border: 1px solid rgba(64, 224, 255, 0.25);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.08);
+}
+
+.cube-drag-hint {
+  margin: -0.8rem 0 1.2rem;
+  color: rgba(64, 224, 255, 0.62);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+}
+
 .cube-step-panel {
   display: none;
   gap: 0.75rem;
@@ -118,17 +206,6 @@
   color: rgba(255, 255, 255, 0.86);
 }
 
-#cube-step-counter {
-  color: var(--neon-cyan);
-  font-weight: 800;
-  text-shadow: 0 0 6px var(--neon-cyan);
-}
-
-#cube-step-move {
-  font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
 .cube-step-bar {
   height: 4px;
   background: rgba(255, 255, 255, 0.08);
@@ -142,149 +219,6 @@
   background: linear-gradient(90deg, var(--neon-cyan), #ffffff);
   box-shadow: 0 0 12px var(--neon-cyan);
   transition: width 0.22s ease;
-}
-
-.space-instructions {
-  opacity: 0.9;
-  font-size: 0.85em;
-}
-
-.space-instructions h3 {
-  margin-bottom: 0.8rem;
-  color: var(--neon-cyan);
-}
-
-.space-instructions p {
-  margin-bottom: 0.35rem;
-}
-
-.space-cube-panel {
-  flex: 2;
-  min-width: 400px;
-  padding: 3rem 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background:
-    linear-gradient(135deg, rgba(64, 224, 255, 0.07), rgba(255, 255, 255, 0.02)),
-    rgba(0, 0, 0, 0.22);
-  overflow: hidden;
-}
-
-.space-cube-hud {
-  width: min(520px, 100%);
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.8rem;
-  border: 1px solid rgba(64, 224, 255, 0.25);
-  color: rgba(255, 255, 255, 0.82);
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.08);
-}
-
-.cube-scene {
-  width: 270px;
-  height: 270px;
-  display: grid;
-  place-items: center;
-  perspective: 900px;
-  margin: 0 auto 2rem;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.cube-scene.dragging {
-  cursor: grabbing;
-}
-
-.cube-3d {
-  width: 180px;
-  height: 180px;
-  position: relative;
-  transform-style: preserve-3d;
-  transform: rotateX(var(--cube-rot-x, -28deg)) rotateY(var(--cube-rot-y, -38deg));
-  transition: transform 0.08s linear;
-}
-
-.cube-face {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 4px;
-  padding: 7px;
-  background: rgba(2, 12, 18, 0.86);
-  border: 1px solid rgba(64, 224, 255, 0.26);
-  box-shadow:
-    inset 0 0 18px rgba(64, 224, 255, 0.12),
-    0 0 24px rgba(64, 224, 255, 0.08);
-}
-
-.cube-face b {
-  position: absolute;
-  right: 8px;
-  bottom: 5px;
-  color: rgba(255, 255, 255, 0.28);
-  font-size: 0.65rem;
-  letter-spacing: 1px;
-  pointer-events: none;
-}
-
-.cube-face-f {
-  transform: translateZ(94px);
-}
-
-.cube-face-b {
-  transform: rotateY(180deg) translateZ(94px);
-}
-
-.cube-face-r {
-  transform: rotateY(90deg) translateZ(94px);
-}
-
-.cube-face-l {
-  transform: rotateY(-90deg) translateZ(94px);
-}
-
-.cube-face-u {
-  transform: rotateX(90deg) translateZ(94px);
-}
-
-.cube-face-d {
-  transform: rotateX(-90deg) translateZ(94px);
-}
-
-.cube-sticker {
-  display: block;
-  border-radius: 4px;
-  background:
-    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.72), transparent 22%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.24), transparent 42%),
-    var(--sticker-color);
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  box-shadow:
-    inset 0 0 10px rgba(255, 255, 255, 0.24),
-    0 0 12px rgba(64, 224, 255, 0.16);
-}
-
-.cube-move-grid {
-  display: none;
-}
-
-.cube-drag-hint {
-  margin: -0.8rem 0 1.2rem;
-  color: rgba(64, 224, 255, 0.62);
-  font-size: 0.82rem;
-  letter-spacing: 1px;
-}
-
-.cube-move-btn {
-  min-width: 0;
-  padding: 0.55rem 0.25rem;
 }
 
 .cube-control-title {
@@ -402,7 +336,7 @@
 
 @media (max-width: 760px) {
   .space-control-panel,
-  .space-cube-panel {
+  .space-display-panel {
     min-width: 0;
     width: 100%;
     padding: 1.25rem;
@@ -420,46 +354,6 @@
 
   .cube-step-reader {
     grid-template-columns: 1fr;
-  }
-
-  .cube-scene {
-    width: 210px;
-    height: 210px;
-    margin-bottom: 1.4rem;
-  }
-
-  .cube-3d {
-    width: 138px;
-    height: 138px;
-  }
-
-  .cube-face {
-    gap: 3px;
-    padding: 5px;
-  }
-
-  .cube-face-f {
-    transform: translateZ(72px);
-  }
-
-  .cube-face-b {
-    transform: rotateY(180deg) translateZ(72px);
-  }
-
-  .cube-face-r {
-    transform: rotateY(90deg) translateZ(72px);
-  }
-
-  .cube-face-l {
-    transform: rotateY(-90deg) translateZ(72px);
-  }
-
-  .cube-face-u {
-    transform: rotateX(90deg) translateZ(72px);
-  }
-
-  .cube-face-d {
-    transform: rotateX(-90deg) translateZ(72px);
   }
 
   .cube-move-spatial {
@@ -480,3 +374,13 @@
     gap: 0.35rem;
   }
 }
+`;
+
+    window.SpacePuzzleUI = {
+        injectStyles,
+        setText,
+        loadScripts
+    };
+
+    injectStyles(BASE_STYLE_ID, baseStyles);
+})();

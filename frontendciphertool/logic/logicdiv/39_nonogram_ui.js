@@ -10,7 +10,7 @@
             { label: '清空线索', onclick: 'window.clearNOGrid && window.clearNOGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNOExample && window.buildSimpleNOExample()' }
         ]) +
-        window.LogicUI.statsPanel('no', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('no', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('no', 'showNOSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '在行/列线索框输入数字(空格分隔)',
@@ -145,7 +145,7 @@
         const { rc, cc } = readClues();
         const t0 = performance.now();
         const res = window.solveNonogram({ rows: R, cols: C, rowClues: rc, colClues: cc });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showNOSolution(0); }

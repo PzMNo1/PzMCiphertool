@@ -16,7 +16,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('castlewall-workspace', 'castl
         { label: '清空线段', onclick: 'window.clearCastlewallGrid && window.clearCastlewallGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleCastlewallExample && window.buildSimpleCastlewallExample()' }
     ]) +
-    LogicUI.statsPanel('cw', { countLabel: '回路解数', timeLabel: '算力耗时', accent: 'var(--neon-cyan)' }) +
+    LogicUI.statsPanel('cw', { countLabel: '回路解数', timeLabel: 'AI thinking耗时', accent: 'var(--neon-cyan)' }) +
     LogicUI.solutionNav('cw', 'showCWSolution', { accent: 'var(--neon-cyan)' }) +
     LogicUI.instructions([
         '• <strong>白线索(⬜)</strong>: 放置在回路<strong>内部</strong>的线索格。',
@@ -319,7 +319,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('castlewall-workspace', 'castl
             try { res = window.solveCastlewall(puzzleCtx); } catch (e) {
                 updateCWStats('错误: ' + e.message, '-'); return;
             }
-            const elapsed = Math.round(performance.now() - t0);
+            const elapsed = LogicUI.formatElapsed(performance.now() - t0);
 
             if (res && res.error) { updateCWStats(res.error, elapsed); return; }
 

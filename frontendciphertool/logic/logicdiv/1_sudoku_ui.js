@@ -13,7 +13,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('sudoku-workspace', 'sudoku-la
         <h3 style="color:var(--neon-purple);margin-bottom:10px;font-size:1rem;">高级规则</h3>
         <button id="sudoku-diagonal-btn" class="cyber-button" style="width:100%;justify-content:center;border-color:rgba(255,255,255,0.2);" onclick="this.classList.toggle('active');this.style.borderColor=this.classList.contains('active')?'var(--neon-blue)':'rgba(255,255,255,0.2)';this.querySelector('.status').textContent=this.classList.contains('active')?'ON':'OFF';this.querySelector('.status').style.color=this.classList.contains('active')?'var(--neon-blue)':'#888';"><span class="cyber-button__tag">对角线约束 <span class="status" style="margin-left:10px;color:#888;font-weight:bold;">OFF</span></span></button>
     </div>` +
-    LogicUI.statsPanel('sudoku', { countLabel: '找到解决方案', timeLabel: '耗时', accent: 'var(--neon-blue)' }) +
+    LogicUI.statsPanel('sudoku', { countLabel: '找到解决方案', timeLabel: 'AI thinking耗时', accent: 'var(--neon-blue)' }) +
     `<div id="sudoku-result" style="margin-top:1rem;color:var(--neon-green);text-align:center;font-size:1.1rem;height:1.5rem;"></div>` +
     LogicUI.solutionNav('sudoku', 'showSudokuSolution', { accent: 'var(--neon-blue)' }) +
     LogicUI.instructions([

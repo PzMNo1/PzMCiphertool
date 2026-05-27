@@ -10,7 +10,7 @@
             { label: '清空填涂', onclick: 'window.clearNurimisakiGrid && window.clearNurimisakiGrid()' },
             { label: '简单示例', onclick: 'window.buildNurimisakiExample && window.buildNurimisakiExample()' }
         ]) +
-        window.LogicUI.statsPanel('nurimisaki', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('nurimisaki', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('nurimisaki', 'showNurimisakiSol', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '左键点击格子: 输入线索数字 (可见白格数,含自身)',
@@ -98,8 +98,7 @@
     }
 
     document.addEventListener('keydown', e => {
-        const ws = $('nurimisaki-workspace');
-        if (!ws || ws.style.display === 'none' || !sel) return;
+        if (window.LogicUI?.shouldIgnoreGlobalKeydown?.(e, 'nurimisaki-workspace') || !sel) return;
         if (document.activeElement?.classList.contains('ki')) return;
         let { r, c } = sel;
         if (e.key === 'ArrowUp' && r > 0) { e.preventDefault(); select(r - 1, c); }
@@ -130,7 +129,7 @@
         if (!Object.keys(clues).length) return stats('需要至少1个线索', '-');
         const t0 = performance.now();
         const res = window.solveNurimisaki({ rows: R, cols: C, clues });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showNurimisakiSol(0); }

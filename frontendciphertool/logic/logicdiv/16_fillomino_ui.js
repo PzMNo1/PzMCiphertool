@@ -12,7 +12,7 @@
             { label: '清空填涂', onclick: 'window.clearFillominoGrid && window.clearFillominoGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleFillominoExample && window.buildSimpleFillominoExample()' }
         ]) +
-        LogicUI.statsPanel('fillomino', { countLabel: '解记录数', timeLabel: '算力耗时', accent: 'var(--neon-pink)' }) +
+        LogicUI.statsPanel('fillomino', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: 'var(--neon-pink)' }) +
         LogicUI.solutionNav('fillomino', 'showFillominoSolution', { accent: 'var(--neon-pink)' }) +
         LogicUI.instructions([
             '点击格子输入数字 (1-9)',
@@ -99,7 +99,7 @@
 
         document.getElementById('fillomino-solution-nav').style.display = 'none';
         document.getElementById('fillomino-solutionsCount').textContent = '0';
-        document.getElementById('fillomino-timeElapsed').textContent = '0ms';
+        document.getElementById('fillomino-timeElapsed').textContent = '0';
 
         for (let r = 0; r < R; r++) {
             for (let c = 0; c < C; c++) {
@@ -158,7 +158,7 @@
         isShowingSolution = false;
         document.getElementById('fillomino-solution-nav').style.display = 'none';
         document.getElementById('fillomino-solutionsCount').textContent = '0';
-        document.getElementById('fillomino-timeElapsed').textContent = '0ms';
+        document.getElementById('fillomino-timeElapsed').textContent = '0';
     };
 
     window.buildSimpleFillominoExample = function () {
@@ -218,7 +218,7 @@
         const res = window.solveFillomino(puzzle);
         const endTime = performance.now();
 
-        document.getElementById('fillomino-timeElapsed').textContent = Math.round(endTime - startTime) + 'ms' + (res.timeout ? ' (Timeout)' : '');
+        document.getElementById('fillomino-timeElapsed').textContent = LogicUI.formatElapsed(endTime - startTime) + (res.timeout ? ' (Timeout)' : '');
 
         if (res.solutions && res.solutions.length > 0) {
             currentSolutions = res.solutions;

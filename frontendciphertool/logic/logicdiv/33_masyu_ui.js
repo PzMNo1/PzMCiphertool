@@ -10,7 +10,7 @@
             { label: '清空回路', onclick: 'window.clearMasyuGrid && window.clearMasyuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMasyuExample && window.buildSimpleMasyuExample()' }
         ]) +
-        window.LogicUI.statsPanel('masyu', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('masyu', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('masyu', 'showMasyuSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '左键点击格子: 循环 无 → 白圈 → 黑圈',
@@ -112,7 +112,7 @@
         if (!window.solveMasyu) return stats('模块未加载', '-');
         const t0 = performance.now();
         const res = window.solveMasyu({ rows: R, cols: C, circles });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showMasyuSolution(0); }

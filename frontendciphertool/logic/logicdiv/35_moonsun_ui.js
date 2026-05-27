@@ -10,7 +10,7 @@
             { label: '清空回路', onclick: 'window.clearMSUGrid && window.clearMSUGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMSUExample && window.buildSimpleMSUExample()' }
         ]) +
-        window.LogicUI.statsPanel('msu', { countLabel: '解记录数', timeLabel: '算力耗时', accent: '#00e5ff' }) +
+        window.LogicUI.statsPanel('msu', { countLabel: '解记录数', timeLabel: 'AI thinking耗时', accent: '#00e5ff' }) +
         window.LogicUI.solutionNav('msu', 'showMSUSolution', { accent: 'var(--neon-cyan)' }) +
         window.LogicUI.instructions([
             '拖拽/点击边缘细条: 划分区域边界',
@@ -154,7 +154,7 @@
         if (!window.solveMoonsun) return stats('模块未加载', '-');
         const t0 = performance.now();
         const res = window.solveMoonsun({ rows: R, cols: C, hBorders: hB, vBorders: vB, symbols });
-        const ms = Math.round(performance.now() - t0) + 'ms';
+        const ms = LogicUI.formatElapsed(performance.now() - t0);
         solutions = res.solutions || [];
         stats(res.timeout ? solutions.length + '+ (超时)' : (solutions.length || '未找到解'), ms);
         if (solutions.length) { showing = true; solIdx = 0; nav(true); window.showMSUSolution(0); }

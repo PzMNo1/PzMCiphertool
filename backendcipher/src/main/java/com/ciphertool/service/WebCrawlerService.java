@@ -1,5 +1,6 @@
 package com.ciphertool.service;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,6 +42,8 @@ public interface WebCrawlerService {
     String getWeather(String city, boolean detailed);
 
     String getFinanceQuote(String symbol);
+
+    String communitySnapshot(List<String> sources, Integer limit);
     /**
      * 多步搜索：获取搜索结果URL列表（搜索第一步）
      * @param query 搜索关键词
@@ -57,4 +60,9 @@ public interface WebCrawlerService {
      * @return 包含Markdown正文或错误信息的JSON字符串
      */
     String readWebpage(String url, String focusKeyword, Integer chunkIndex);
+
+    /**
+     * 聚合检索：多查询扇出、跨搜索源去重、可选深读Top来源。
+     */
+    String webResearch(String query, List<String> queries, String mode, Integer maxResults, Boolean readTop, String focusKeyword);
 }
