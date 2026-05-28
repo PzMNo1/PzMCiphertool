@@ -9,18 +9,26 @@ class ToolRegistry {
 
         // 动态获取后端 API 基础路径
         this.getApiBase = () => {
-            return window.location.hostname === 'waiw.ozqmp.com'
-                ? 'https://waiw.ozqmp.com/api/crawler'
-                : 'http://localhost:8080/api/crawler';
+            return `${this.getLocalBackendBase()}/api/crawler`;
         };
 
         this.getProjectApiBase = () => {
-            return window.location.hostname === 'waiw.ozqmp.com'
-                ? 'https://waiw.ozqmp.com/api/project'
-                : 'http://localhost:8080/api/project';
+            return `${this.getLocalBackendBase()}/api/project`;
         };
 
         this.registerBuiltinTools();
+    }
+
+    getLocalBackendBase() {
+        try {
+            const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+            if (/^https?:\/\//i.test(override)) {
+                return override.replace(/\/+$/, '');
+            }
+        } catch (error) {
+            // Fall through to the local default.
+        }
+        return 'http://localhost:8080';
     }
 
     /**
@@ -651,11 +659,26 @@ class ToolRegistry {
                     },
                     limit: {
                         type: 'integer',
-                        description: 'Items per source, usually 10-15.'
+                        description: 'Items per source, usually 15-20 for research-grade community scans.'
                     }
                 }
             },
-            execute: async ({ sources = [], limit = 12 }) => {
+            metadata: {
+                package: 'community_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 45000,
+                maxOutputChars: 32000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'once',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'community_snapshot',
+                tags: ['community', 'snapshot', 'current']
+            },
+            execute: async ({ sources = [], limit = 20 }) => {
                 try {
                     const response = await fetch(`${this.getApiBase()}/community_snapshot`, {
                         method: 'POST',
@@ -681,7 +704,7 @@ class ToolRegistry {
 
         this.register({
             name: 'web_research',
-            description: 'Grok/Gemini-style web research. Use depth="fast" for a quick source map when the source landscape is unclear, and depth="deep" when the final answer needs evidence passages from top pages. For academic/paper questions, do not loop on broad web search: prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
+            description: 'Grok/Gemini-style web research. Use depth="fast" only for a quick source map when the source landscape is unclear, and depth="deep" read_top=true for research-grade final evidence. For broad research, request max_results 28-32 and follow up if fewer than 28 useful sources are returned. Never use Baidu. For academic/paper questions, prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -706,7 +729,7 @@ class ToolRegistry {
                     },
                     max_results: {
                         type: 'integer',
-                        description: 'Maximum deduplicated sources to return, usually 8-12'
+                        description: 'Maximum deduplicated sources to return. Use 28-32 for broad research and evidence-heavy answers.'
                     },
                     read_top: {
                         type: 'boolean',
@@ -719,10 +742,30 @@ class ToolRegistry {
                 },
                 required: ['query']
             },
-            execute: async ({ query, queries = [], mode = 'auto', depth = 'fast', max_results = 10, read_top, focus_keyword = '' }) => {
+            metadata: {
+                package: 'research_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 120000,
+                maxOutputChars: 60000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'once',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'search_and_optional_read',
+                tags: ['research', 'search', 'evidence']
+            },
+            execute: async ({ query, queries = [], mode = 'auto', depth = 'deep', max_results = 32, read_top, focus_keyword = '' }) => {
                 try {
                     const normalizedDepth = depth === 'deep' ? 'deep' : 'fast';
                     const effectiveReadTop = typeof read_top === 'boolean' ? read_top : normalizedDepth === 'deep';
+                    const parsedMaxResults = Number(max_results);
+                    const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 32;
+                    const effectiveMaxResults = effectiveReadTop
+                        ? Math.max(28, Math.min(requestedMaxResults, 32))
+                        : Math.max(16, Math.min(requestedMaxResults, 32));
                     const endpoint = effectiveReadTop ? '/research/deep' : '/research/fast';
                     const response = await fetch(`${this.getApiBase()}${endpoint}`, {
                         method: 'POST',
@@ -731,7 +774,7 @@ class ToolRegistry {
                             query,
                             queries,
                             mode,
-                            max_results,
+                            max_results: effectiveMaxResults,
                             read_top: effectiveReadTop,
                             depth: effectiveReadTop ? 'deep' : 'fast',
                             focus_keyword: focus_keyword || query
@@ -758,6 +801,21 @@ class ToolRegistry {
                     }
                 },
                 required: ['query']
+            },
+            metadata: {
+                package: 'research_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 45000,
+                maxOutputChars: 32000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'once',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'search_candidates',
+                tags: ['search', 'urls']
             },
             execute: async ({ query }) => {
                 try {
@@ -795,6 +853,21 @@ class ToolRegistry {
                     }
                 },
                 required: ['url']
+            },
+            metadata: {
+                package: 'research_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 45000,
+                maxOutputChars: 24000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'once',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'opened_page',
+                tags: ['read', 'webpage', 'evidence']
             },
             execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
                 try {
@@ -1026,6 +1099,20 @@ class ToolRegistry {
                     depth: { type: 'integer', description: 'Directory depth, max 6' }
                 }
             },
+            metadata: {
+                package: 'project_read_tools',
+                risk: 'project_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 15000,
+                maxOutputChars: 16000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'read',
+                owner: 'backend',
+                tags: ['project', 'filesystem', 'list']
+            },
             execute: async ({ path = '.', depth = 2 }) => {
                 const response = await fetch(`${this.getProjectApiBase()}/list_files`, {
                     method: 'POST',
@@ -1046,6 +1133,20 @@ class ToolRegistry {
                     path: { type: 'string', description: 'Project-relative file path' }
                 },
                 required: ['path']
+            },
+            metadata: {
+                package: 'project_read_tools',
+                risk: 'project_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 15000,
+                maxOutputChars: 24000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'read',
+                owner: 'backend',
+                tags: ['project', 'filesystem', 'read']
             },
             execute: async ({ path }) => {
                 const response = await fetch(`${this.getProjectApiBase()}/read_file`, {
@@ -1069,6 +1170,20 @@ class ToolRegistry {
                 },
                 required: ['query']
             },
+            metadata: {
+                package: 'project_read_tools',
+                risk: 'project_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 20000,
+                maxOutputChars: 16000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'read',
+                owner: 'backend',
+                tags: ['project', 'filesystem', 'search']
+            },
             execute: async ({ query, path = '.' }) => {
                 const response = await fetch(`${this.getProjectApiBase()}/search_files`, {
                     method: 'POST',
@@ -1089,6 +1204,20 @@ class ToolRegistry {
                     path: { type: 'string', description: 'Project-relative path' }
                 },
                 required: ['path']
+            },
+            metadata: {
+                package: 'project_read_tools',
+                risk: 'project_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 10000,
+                maxOutputChars: 8000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'read',
+                owner: 'backend',
+                tags: ['project', 'filesystem', 'metadata']
             },
             execute: async ({ path }) => {
                 const response = await fetch(`${this.getProjectApiBase()}/file_info`, {
@@ -1128,7 +1257,7 @@ class ToolRegistry {
 
         this.register({
             name: 'news_query',
-            description: 'Search recent news by keyword and optional category. Returns ranked candidate links, not fully verified article text; for high-quality briefings, read_webpage the top authoritative links before final synthesis.',
+            description: 'Search recent news by keyword and optional category.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -1172,6 +1301,23 @@ class ToolRegistry {
             name: 'run_tests',
             description: 'Run the backend Maven test command from a fixed whitelist.',
             parameters: { type: 'object', properties: {} },
+            metadata: {
+                package: 'project_exec_tools',
+                risk: 'project_exec',
+                sideEffect: true,
+                requiresApproval: true,
+                approvalMode: 'interactive_gate_v1',
+                impact: 'Runs backend Maven tests through the fixed backend_test whitelist command.',
+                timeoutMs: 90000,
+                maxOutputChars: 16000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'exec',
+                owner: 'backend',
+                enabledByDefault: false,
+                tags: ['project', 'exec', 'test', 'maven']
+            },
             execute: async () => {
                 const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
                     method: 'POST',
@@ -1187,6 +1333,23 @@ class ToolRegistry {
             name: 'run_build',
             description: 'Run the backend Maven package command from a fixed whitelist.',
             parameters: { type: 'object', properties: {} },
+            metadata: {
+                package: 'project_exec_tools',
+                risk: 'project_exec',
+                sideEffect: true,
+                requiresApproval: true,
+                approvalMode: 'interactive_gate_v1',
+                impact: 'Runs backend Maven package with -DskipTests through the fixed backend_build whitelist command.',
+                timeoutMs: 90000,
+                maxOutputChars: 16000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'exec',
+                owner: 'backend',
+                enabledByDefault: false,
+                tags: ['project', 'exec', 'build', 'maven']
+            },
             execute: async () => {
                 const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
                     method: 'POST',
@@ -1210,6 +1373,21 @@ class ToolRegistry {
                 },
                 required: ['path', 'patch']
             },
+            metadata: {
+                package: 'patch_proposal_tools',
+                risk: 'project_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 15000,
+                maxOutputChars: 16000,
+                cachePolicy: 'none',
+                retryPolicy: 'none',
+                networkAccess: false,
+                projectAccess: 'read',
+                owner: 'backend',
+                impact: 'Returns a patch proposal only; it does not modify files.',
+                tags: ['project', 'patch', 'proposal']
+            },
             execute: async ({ path, summary = '', patch }) => {
                 const response = await fetch(`${this.getProjectApiBase()}/propose_patch`, {
                     method: 'POST',
@@ -1224,10 +1402,13 @@ class ToolRegistry {
 
     /**
      * 注册工具
-     * @param {Object} tool - { name, description, parameters, execute }
+     * @param {Object} tool - { name, description, parameters, execute, metadata? }
      */
     register(tool) {
-        this.tools.set(tool.name, tool);
+        const normalized = window.AgentContract?.normalizeToolContract
+            ? window.AgentContract.normalizeToolContract(tool)
+            : this.normalizeToolContractFallback(tool);
+        this.tools.set(normalized.name, normalized);
     }
 
     /**
@@ -1249,6 +1430,39 @@ class ToolRegistry {
             });
         });
         return definitions;
+    }
+
+    /**
+     * 获取工具契约列表（用于 Agent 运行记录和后续治理，不影响 API tools schema）
+     * @param {Array<string>|null} selectedNames
+     * @returns {Array}
+     */
+    getToolContracts(selectedNames = null) {
+        const selected = Array.isArray(selectedNames) ? new Set(selectedNames) : null;
+        const contracts = [];
+        this.tools.forEach((tool, name) => {
+            if (selected && !selected.has(name)) return;
+            contracts.push(tool.contract || {
+                name,
+                package: tool.metadata?.package || 'core_tools',
+                description: tool.description || '',
+                inputSchema: tool.parameters || { type: 'object', properties: {} },
+                risk: tool.metadata?.risk || 'safe_read',
+                sideEffect: Boolean(tool.metadata?.sideEffect),
+                requiresApproval: Boolean(tool.metadata?.requiresApproval)
+            });
+        });
+        return contracts;
+    }
+
+    /**
+     * 获取单个工具的元数据
+     * @param {string} name
+     * @returns {Object|null}
+     */
+    getToolMetadata(name) {
+        const tool = this.tools.get(name);
+        return tool?.metadata || null;
     }
 
     /**
@@ -1286,6 +1500,79 @@ class ToolRegistry {
      */
     getToolNames() {
         return Array.from(this.tools.keys());
+    }
+
+    normalizeToolContractFallback(tool) {
+        const projectExec = new Set(['run_tests', 'run_build']);
+        const projectRead = new Set(['list_files', 'read_file', 'search_files', 'file_info', 'propose_patch']);
+        const networkRead = new Set([
+            'community_snapshot',
+            'web_research',
+            'search_urls',
+            'read_webpage',
+            'click_link',
+            'get_weather',
+            'search_query',
+            'open_url',
+            'find_in_page',
+            'open',
+            'find',
+            'weather',
+            'news_query',
+            'finance_query'
+        ]);
+        const metadata = {
+            package: projectExec.has(tool.name)
+                ? 'project_exec_tools'
+                : projectRead.has(tool.name)
+                    ? tool.name === 'propose_patch' ? 'patch_proposal_tools' : 'project_read_tools'
+                    : networkRead.has(tool.name)
+                        ? tool.name === 'community_snapshot' ? 'community_tools' : tool.name === 'finance_query' ? 'market_tools' : 'research_tools'
+                        : 'core_tools',
+            risk: projectExec.has(tool.name)
+                ? 'project_exec'
+                : projectRead.has(tool.name)
+                    ? 'project_read'
+                    : networkRead.has(tool.name)
+                        ? 'network_read'
+                        : 'safe_read',
+            sideEffect: projectExec.has(tool.name),
+            requiresApproval: projectExec.has(tool.name),
+            approvalMode: projectExec.has(tool.name) ? 'interactive_gate_v1' : 'none',
+            timeoutMs: projectExec.has(tool.name) ? 90000 : networkRead.has(tool.name) ? 45000 : 5000,
+            maxInputChars: 6000,
+            maxOutputChars: projectExec.has(tool.name) || projectRead.has(tool.name) ? 16000 : 12000,
+            cachePolicy: networkRead.has(tool.name) ? 'per_run' : 'none',
+            retryPolicy: networkRead.has(tool.name) ? 'once' : 'none',
+            networkAccess: networkRead.has(tool.name),
+            projectAccess: projectExec.has(tool.name) ? 'exec' : projectRead.has(tool.name) ? 'read' : 'none',
+            owner: projectExec.has(tool.name) || projectRead.has(tool.name) || networkRead.has(tool.name) ? 'backend' : 'frontend',
+            enabledByDefault: !projectExec.has(tool.name),
+            ...(tool.metadata || {})
+        };
+        return {
+            ...tool,
+            metadata,
+            contract: {
+                name: tool.name,
+                package: metadata.package,
+                description: tool.description || '',
+                inputSchema: tool.parameters || { type: 'object', properties: {} },
+                outputSchema: tool.outputSchema || null,
+                risk: metadata.risk,
+                sideEffect: metadata.sideEffect,
+                requiresApproval: metadata.requiresApproval,
+                timeoutMs: metadata.timeoutMs,
+                maxInputChars: metadata.maxInputChars,
+                maxOutputChars: metadata.maxOutputChars,
+                cachePolicy: metadata.cachePolicy,
+                retryPolicy: metadata.retryPolicy,
+                networkAccess: metadata.networkAccess,
+                projectAccess: metadata.projectAccess,
+                owner: metadata.owner,
+                enabledByDefault: metadata.enabledByDefault
+            }
+        };
     }
 }
 

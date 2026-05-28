@@ -17,6 +17,12 @@ llm.txt
 *.class
 target/
 
+# Runtime data
+dump.rdb
+backendcipher/modelchathistory/
+backendcipher/.tools/
+backendcipher/apirouterdata/
+
 # Node
 node_modules/
 

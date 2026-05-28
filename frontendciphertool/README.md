@@ -8,6 +8,8 @@
 一般是http://127.0.0.1:5500/08_Ciphertool/frontendciphertool/index.html。
 这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
 
+4.Skill/MCP实验室依赖本地 Spring Boot 后端的只读检测接口，默认地址是 http://localhost:8080。使用前先确认后端健康检查 http://localhost:8080/api/mcp-lab/health 返回成功。完整说明见 ../docs/mcp-skill-lab-local.md。
+
 
 
 
@@ -199,4 +201,3 @@ async function updateAll() {
 1.  **修改 UI**: 如果要改界面文字或布局，**不要去 `index.html` 找**，要去 `modules.js` 的字符串里找。
 2.  **新增 JS**: 如果你添加了新的 JS 文件（例如 `cipher/5_NewCipher.js`），**必须**在 `modules.js`底部的加载列表中注册它，否则网页不会加载这个文件。
 3.  **异步问题**: 现代加密（SHA/MD5）使用了浏览器原生 Crypto API，是异步的。在 `updateAll` 中调用它们时记得使用 `await`，否则用户会看到 `[object Promise]`。
-

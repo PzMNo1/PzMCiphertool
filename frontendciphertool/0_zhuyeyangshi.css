@@ -702,6 +702,12 @@ body::after {
   top: 6px;
 }
 
+#mimaqu #caesarBruteBtn,
+#mimaqu #symbolCipherBackspace,
+#mimaqu #symbolCipherRefresh {
+  top: -2px;
+}
+
 .cyber-button:before {
   content: "";
   position: absolute;

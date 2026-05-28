@@ -67,6 +67,14 @@ mvn spring-boot:run
 
 Service runs at `http://localhost:8080`
 
+The default port is `8080`. You can override it for temporary local debugging:
+
+```bash
+SERVER_PORT=18080 mvn spring-boot:run
+```
+
+Prefer `8080` for normal project development because the frontend defaults to `http://localhost:8080`.
+
 ## API Endpoints
 
 ### Send Code
@@ -119,6 +127,31 @@ Content-Type: application/json
 GET /api/auth/health
 ```
 
+### MCP Lab Health Check
+
+```http
+GET /api/mcp-lab/health
+```
+
+This endpoint is used by `frontendciphertool/mcpskilllab` to confirm that the read-only Skill / MCP checker is available.
+
+### MCP Lab Resource Check
+
+```http
+POST /api/mcp-lab/check-resource
+Content-Type: application/json
+
+{
+  "id": "official-mcp-registry",
+  "name": "Official MCP Registry",
+  "url": "https://registry.modelcontextprotocol.io/",
+  "docs": "https://github.com/modelcontextprotocol/registry",
+  "checkGithub": true
+}
+```
+
+The checker only reads public `http/https` URLs and GitHub public metadata. It does not run install commands, start MCP servers, connect to MCP tools, or probe local/private hosts.
+
 ## Frontend Integration
 
 Update `auth.js`:
@@ -143,7 +176,7 @@ const res = await fetch('http://localhost:8080/api/auth/login', {
 
 | Config | Env Variable | Default | Description |
 |--------|--------------|---------|-------------|
-| Port | - | 8080 | HTTP Port |
+| Port | SERVER_PORT | 8080 | HTTP Port |
 | Redis Host | REDIS_HOST | localhost | Redis Address |
 | Redis Port | REDIS_PORT | 6379 | Redis Port |
 | AccessKey ID | ALIYUN_ACCESS_KEY_ID | - | Aliyun Key ID |

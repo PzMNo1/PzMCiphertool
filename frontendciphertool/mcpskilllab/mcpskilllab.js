@@ -1,440 +1,171 @@
 (function () {
-    const STYLE_ID = 'mcpskilllab-inline-style';
-    const FAVORITES_KEY = 'MCPSKILLLAB_FAVORITES';
-    const BACKLOG_META_KEY = 'MCPSKILLLAB_BACKLOG_META';
-    const CUSTOM_RESOURCES_KEY = 'MCPSKILLLAB_CUSTOM_RESOURCES';
+    const config = window.MCPSKILLLAB_CONFIG || {};
+    const STYLE_ID = config.styleId || 'mcpskilllab-inline-style';
+    const FAVORITES_KEY = config.favoritesKey || 'MCPSKILLLAB_FAVORITES';
+    const BACKLOG_META_KEY = config.backlogMetaKey || 'MCPSKILLLAB_BACKLOG_META';
+    const CUSTOM_RESOURCES_KEY = config.customResourcesKey || 'MCPSKILLLAB_CUSTOM_RESOURCES';
+    const CHECK_CACHE_KEY = config.checkCacheKey || 'MCPSKILLLAB_CHECK_CACHE';
+    const CHECK_API_PATH = config.checkApiPath || '/check-resource';
+    const HEALTH_API_PATH = config.healthApiPath || '/health';
+    const LOCAL_API_BASE = config.localApiBase || 'http://localhost:8080';
+    const BATCH_CHECK_DELAY_MS = config.batchCheckDelayMs || 350;
+    const REVIEW_HIGH_RISK_PERMISSIONS = config.reviewHighRiskPermissions || ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
+    const REVIEW_ITEM_LIMIT = config.reviewItemLimit || 8;
+    const fallbackResources = config.fallbackResources || [];
+    const templates = config.templates || [];
+    const auditItems = config.auditItems || [];
+    const backlogStatuses = config.backlogStatuses || [];
+    const categoryTabs = config.categoryTabs || [];
+    const sortOptions = config.sortOptions || [];
+    const allowedResourceTypes = config.allowedResourceTypes || [];
+    const allowedSources = config.allowedSources || [];
+    const allowedRisks = config.allowedRisks || [];
+    const allowedPermissions = config.allowedPermissions || [];
+    const allowedInstallModes = config.allowedInstallModes || [];
+    const allowedMaintenance = config.allowedMaintenance || [];
+    const allowedAuth = config.allowedAuth || [];
+    const MAX_IMPORT_BYTES = config.maxImportBytes || 200 * 1024;
+    const MAX_CUSTOM_RESOURCES = config.maxCustomResources || 200;
+    const MAX_FAVORITES = config.maxFavorites || 500;
+    const MAX_CHECK_RESULTS = config.maxCheckResults || 300;
+    const CHECK_CACHE_TTL_MS = config.checkCacheTtlMs || 14 * 24 * 60 * 60 * 1000;
+    const wizardPlatforms = config.wizardPlatforms || [];
+    const wizardModes = config.wizardModes || [];
+    const displayText = config.displayText || {};
 
-    const fallbackResources = [
-        {
-            id: 'official-mcp-registry',
-            name: 'Official MCP Registry',
-            type: 'MCP Registry',
-            source: 'Official',
-            risk: 'Low',
-            recommend: 'Official first',
-            tags: ['mcp', 'registry', 'official', 'api'],
-            scenario: 'Search standard MCP servers and inspect registry metadata.',
-            url: 'https://registry.modelcontextprotocol.io/',
-            docs: 'https://github.com/modelcontextprotocol/registry',
-            template: '{"mcpServers":{"server-name":{"command":"npx","args":["-y","package-name"]}}}'
-        },
-        {
-            id: 'docker-mcp-catalog',
-            name: 'Docker MCP Catalog',
-            type: 'MCP Registry',
-            source: 'Official',
-            risk: 'Medium',
-            recommend: 'Best for isolated local runs',
-            tags: ['mcp', 'docker', 'catalog', 'sandbox'],
-            scenario: 'Run MCP servers as Docker images with clearer isolation boundaries.',
-            url: 'https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/',
-            docs: 'https://docs.docker.com/ai/mcp-catalog-and-toolkit/',
-            template: '{"mcpServers":{"dockerized-tool":{"command":"docker","args":["run","--rm","image-name"]}}}'
-        },
-        {
-            id: 'openai-connectors-mcp',
-            name: 'OpenAI Connectors / MCP',
-            type: 'MCP Documentation',
-            source: 'Official',
-            risk: 'Low',
-            recommend: 'API-side MCP reference',
-            tags: ['mcp', 'openai', 'api', 'connector'],
-            scenario: 'Use OpenAI API documentation for connector and MCP server integration patterns.',
-            url: 'https://platform.openai.com/docs/guides/tools-connectors-mcp',
-            docs: 'https://platform.openai.com/docs/guides/tools-connectors-mcp',
-            template: 'Use official connector docs for remote MCP configuration and tool calling constraints.'
-        },
-        {
-            id: 'chatgpt-developer-mode-mcp',
-            name: 'ChatGPT Developer Mode MCP Apps',
-            type: 'MCP Documentation',
-            source: 'Official',
-            risk: 'Medium',
-            recommend: 'ChatGPT custom app reference',
-            tags: ['mcp', 'chatgpt', 'apps', 'connector'],
-            scenario: 'Reference ChatGPT custom MCP app behavior, connector boundaries, and testing flow.',
-            url: 'https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt',
-            docs: 'https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt',
-            template: 'Remote MCP apps need explicit connector setup; local-only servers usually need a tunnel or host.'
-        },
-        {
-            id: 'smithery',
-            name: 'Smithery',
-            type: 'MCP Registry',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Good discovery and install UX',
-            tags: ['mcp', 'registry', 'install', 'tools'],
-            scenario: 'Find MCP servers, review tools, and use install-oriented workflows.',
-            url: 'https://smithery.ai/',
-            docs: 'https://smithery.ai/docs/concepts/registry_search_servers',
-            template: '{"mcpServers":{"smithery-server":{"command":"npx","args":["-y","@smithery/cli","run","server-id"]}}}'
-        },
-        {
-            id: 'glama',
-            name: 'Glama',
-            type: 'MCP Registry',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Good inspector and schema view',
-            tags: ['mcp', 'inspector', 'gateway', 'schema'],
-            scenario: 'Inspect MCP server tools and schemas before connecting them.',
-            url: 'https://glama.ai/',
-            docs: 'https://glama.ai/mcp',
-            template: 'Review server tools and schemas before adding local credentials.'
-        },
-        {
-            id: 'pulsemcp',
-            name: 'PulseMCP',
-            type: 'MCP Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Broad ecosystem scan',
-            tags: ['mcp', 'directory', 'news', 'community'],
-            scenario: 'Browse MCP servers by category such as GitHub, Figma, Notion, browser, database.',
-            url: 'https://www.pulsemcp.com/servers',
-            docs: 'https://www.pulsemcp.com/',
-            template: 'Use as discovery, then verify package source and permissions manually.'
-        },
-        {
-            id: 'mcp-atlas',
-            name: 'MCP Atlas',
-            type: 'MCP Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Meta search across directories',
-            tags: ['mcp', 'search', 'aggregator'],
-            scenario: 'Search across multiple MCP sources from one place.',
-            url: 'https://www.mcp-atlas.com/',
-            docs: 'https://www.mcp-atlas.com/',
-            template: 'Use aggregator results as leads, not as trust signals.'
-        },
-        {
-            id: 'mcplist',
-            name: 'MCPList',
-            type: 'MCP Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Simple category browsing',
-            tags: ['mcp', 'directory', 'reference', 'community'],
-            scenario: 'Browse reference, official, and community MCP servers.',
-            url: 'https://www.mcplist.ai/',
-            docs: 'https://www.mcplist.ai/',
-            template: 'Check upstream repository and runtime permissions before install.'
-        },
-        {
-            id: 'safemcp',
-            name: 'SafeMCP',
-            type: 'MCP Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Useful for initial risk triage',
-            tags: ['mcp', 'safety', 'scoring', 'directory'],
-            scenario: 'Use scoring and classification as a first pass before manual review.',
-            url: 'https://safemcp.info/',
-            docs: 'https://safemcp.info/',
-            template: 'Treat scores as advisory; still inspect code and requested permissions.'
-        },
-        {
-            id: 'awesome-mcp-servers',
-            name: 'awesome-mcp-servers',
-            type: 'MCP Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Good GitHub curated list',
-            tags: ['mcp', 'github', 'curated', 'list'],
-            scenario: 'Find community MCP projects and compare maintenance status.',
-            url: 'https://github.com/appcypher/awesome-mcp-servers',
-            docs: 'https://github.com/appcypher/awesome-mcp-servers',
-            template: 'Prefer projects with active commits, issues, docs, and clear license.'
-        },
-        {
-            id: 'openai-skills',
-            name: 'OpenAI Skills Catalog',
-            type: 'Skill Registry',
-            source: 'Official',
-            risk: 'Low',
-            recommend: 'Codex skill baseline',
-            tags: ['skill', 'codex', 'openai', 'github'],
-            scenario: 'Use official Codex skills as examples for SKILL.md structure.',
-            url: 'https://github.com/openai/skills',
-            docs: 'https://openai.com/academy/codex-plugins-and-skills/',
-            template: 'skills/my-skill/SKILL.md\nskills/my-skill/scripts/\nskills/my-skill/references/'
-        },
-        {
-            id: 'anthropic-skills',
-            name: 'Anthropic Skills',
-            type: 'Skill Registry',
-            source: 'Official',
-            risk: 'Low',
-            recommend: 'Good reference for portable skills',
-            tags: ['skill', 'claude', 'anthropic', 'github'],
-            scenario: 'Study skill layout and reusable agent workflows.',
-            url: 'https://github.com/anthropics/skills',
-            docs: 'https://github.com/anthropics/skills',
-            template: 'SKILL.md describes when to use the skill, workflow, scripts, and references.'
-        },
-        {
-            id: 'agentskills',
-            name: 'Agent Skills Spec',
-            type: 'Skill Standard',
-            source: 'Official',
-            risk: 'Low',
-            recommend: 'Use as neutral format reference',
-            tags: ['skill', 'spec', 'standard', 'skill.md'],
-            scenario: 'Understand the open folder-based skill standard centered on SKILL.md.',
-            url: 'https://agentskills.io/',
-            docs: 'https://agentskills.io/',
-            template: '# Skill Name\n\n## When to use\n...\n\n## Workflow\n...\n\n## Constraints\n...'
-        },
-        {
-            id: 'codex-marketplace',
-            name: 'Codex Marketplace',
-            type: 'Plugin Marketplace',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Search Codex plugins and skills',
-            tags: ['skill', 'codex', 'plugin', 'marketplace'],
-            scenario: 'Discover community Codex plugins and skills.',
-            url: 'https://www.codex-marketplace.com/',
-            docs: 'https://www.codex-marketplace.com/skills',
-            template: 'Review plugin manifest and skill files before installing.'
-        },
-        {
-            id: 'claude-plugins',
-            name: 'Claude Plugin Marketplace',
-            type: 'Plugin Marketplace',
-            source: 'Official',
-            risk: 'Medium',
-            recommend: 'Claude Code plugin discovery',
-            tags: ['skill', 'claude', 'plugin', 'marketplace'],
-            scenario: 'Discover Claude Code plugins and plugin marketplaces.',
-            url: 'https://code.claude.com/docs/en/discover-plugins',
-            docs: 'https://code.claude.com/docs/en/discover-plugins',
-            template: 'Add marketplace by GitHub repo, Git URL, local path, or marketplace.json.'
-        },
-        {
-            id: 'findskills',
-            name: 'FindSkills',
-            type: 'Skill Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Cross ecosystem search',
-            tags: ['skill', 'mcp', 'search', 'directory'],
-            scenario: 'Search skills, MCP servers, GPT plugins, and other agent resources.',
-            url: 'https://www.findskills.org/',
-            docs: 'https://www.findskills.org/',
-            template: 'Use for discovery; verify target project source before install.'
-        },
-        {
-            id: 'skillery',
-            name: 'Skillery',
-            type: 'Skill Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Skill marketplace for CLI agents',
-            tags: ['skill', 'marketplace', 'codex', 'claude'],
-            scenario: 'Browse skills for Claude Code, Codex CLI, and compatible agents.',
-            url: 'https://skillery.dev/',
-            docs: 'https://skillery.dev/',
-            template: 'Install only after reading SKILL.md and bundled scripts.'
-        },
-        {
-            id: 'trustedskills',
-            name: 'TrustedSkills',
-            type: 'Skill Directory',
-            source: 'Community',
-            risk: 'Medium',
-            recommend: 'Multi-platform skill search',
-            tags: ['skill', 'directory', 'cursor', 'vscode', 'mcp'],
-            scenario: 'Search skills across OpenClaw, MCP, Claude, OpenAI, Cursor, and VS Code.',
-            url: 'https://trustedskills.dev/',
-            docs: 'https://trustedskills.dev/',
-            template: 'Use trust labels as hints; inspect source and permission scope.'
+    function clipText(value, maxLength, fallback = '') {
+        const text = String(value === undefined || value === null ? fallback : value).trim();
+        return text.slice(0, maxLength);
+    }
+
+    function normalizeResourceId(value, fallback = '') {
+        const source = clipText(value || fallback, 120);
+        return source
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 80);
+    }
+
+    function normalizeChoice(value, allowed, fallback) {
+        const text = clipText(value, 80);
+        return allowed.includes(text) ? text : fallback;
+    }
+
+    function normalizeAuthRequired(value) {
+        if (value === true) return 'true';
+        if (value === false) return 'false';
+        return normalizeChoice(String(value), allowedAuth, 'depends');
+    }
+
+    function clampScore(value) {
+        const score = Number(value);
+        if (!Number.isFinite(score)) return 60;
+        return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    function sanitizeExternalUrl(value) {
+        const text = clipText(value, 2048);
+        if (!text) return '';
+        try {
+            const url = new URL(text);
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+        } catch (error) {
+            return '';
         }
-    ];
+    }
 
-    const templates = [
-        {
-            id: 'mcp-json',
-            title: 'MCP JSON 基础模板',
-            body: '{\n  "mcpServers": {\n    "tool-name": {\n      "command": "npx",\n      "args": ["-y", "package-name"],\n      "env": {\n        "API_KEY": "your-key"\n      }\n    }\n  }\n}'
-        },
-        {
-            id: 'skill-folder',
-            title: 'Skill 文件夹结构',
-            body: 'my-skill/\n  SKILL.md\n  scripts/\n  references/\n  assets/\n\nSKILL.md 写清楚何时使用、工作流、限制条件；脚本和参考资料按需加载。'
-        },
-        {
-            id: 'audit-list',
-            title: '安装前审计清单',
-            body: '1. 阅读源码、manifest 和安装脚本。\n2. 检查文件、命令、浏览器、数据库、网络权限。\n3. 检查 API Key 是否只走本地环境变量。\n4. 优先选择官方或维护活跃项目。\n5. 先用最小权限测试，再逐步开放。'
-        }
-    ];
+    function normalizeListValue(value, fallback, allowed, options = {}) {
+        const source = Array.isArray(value)
+            ? value
+            : String(value || '').split(/[,，、\n/]+/);
+        const maxItems = options.maxItems || 12;
+        const maxLength = options.maxLength || 40;
+        const list = source
+            .map(item => clipText(item, maxLength))
+            .filter(Boolean)
+            .filter(item => !allowed || allowed.includes(item))
+            .slice(0, maxItems);
+        return list.length ? Array.from(new Set(list)) : fallback;
+    }
 
-    const auditItems = [
-        '先看上游仓库、manifest、安装脚本和最近维护记录。',
-        '确认它是否会读取文件、运行命令、控制浏览器、连接数据库或访问云服务。',
-        '高权限场景优先选择官方、维护活跃、可 Docker 隔离运行的 MCP Server。',
-        'API Key 只放环境变量或本地忽略文件，不写进公开代码。',
-        '第一次接入先用只读权限和测试账号，通过后再逐步开放写入权限。'
-    ];
+    function normalizeTags(value, fallback) {
+        return normalizeListValue(value, fallback, null, { maxItems: 16, maxLength: 32 })
+            .map(tag => tag.toLowerCase().replace(/[<>"'`\\]/g, ''))
+            .filter(Boolean);
+    }
 
-    const backlogStatuses = [
-        { id: 'review', label: '待评估' },
-        { id: 'ready', label: '准备接入' },
-        { id: 'connected', label: '已接入' },
-        { id: 'paused', label: '暂缓' }
-    ];
+    function normalizeInstallTemplates(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+        const allowedPlatformIds = new Set(wizardPlatforms.map(platform => platform.id));
+        const allowedModeIds = new Set([...wizardModes.map(mode => mode.id), 'default']);
+        const entries = Object.entries(value)
+            .filter(([key]) => allowedPlatformIds.has(key))
+            .map(([key, body]) => {
+                if (typeof body === 'string') return [key, { default: clipText(body, 5000) }];
+                if (!body || typeof body !== 'object' || Array.isArray(body)) return [key, null];
+                const modeEntries = Object.entries(body)
+                    .filter(([modeKey]) => allowedModeIds.has(modeKey))
+                    .map(([modeKey, modeBody]) => [modeKey, clipText(modeBody, 5000)])
+                    .filter(([, modeBody]) => modeBody);
+                return [key, modeEntries.length ? Object.fromEntries(modeEntries) : null];
+            })
+            .filter(([, body]) => body);
+        return entries.length ? Object.fromEntries(entries) : undefined;
+    }
 
-    const categoryTabs = [
-        { id: 'mcp', label: 'MCP', hint: 'MCP Server、Registry、Inspector、远程/本地 MCP 接入入口。' },
-        { id: 'skill', label: 'skill', hint: 'Skill 仓库、Skill 市场、插件/技能目录。' },
-        { id: 'prompt', label: 'prompt', hint: '提示词模板、提示词库、Prompt 配置和复用片段。' },
-        { id: 'workflow', label: 'workflow', hint: '可复用工作流、Agent 编排、任务链路和流程模板。' },
-        { id: 'devTools', label: 'dev tools', hint: '开发、调试、代码审查、CLI、IDE、仓库和工程工具。' },
-        { id: 'dataApis', label: 'data&APIs', hint: '数据源、数据库、API、云服务和连接器。' },
-        { id: 'security', label: 'security', hint: '安全审计、权限评估、风险扫描和防护工具。' },
-        { id: 'automation', label: 'automation', hint: '浏览器、文件、办公、集成服务和自动化执行。' },
-        { id: 'other', label: 'Other', hint: '暂时无法归入以上分类的资源。' }
-    ];
-
-    const sortOptions = [
-        { id: 'trust', label: '可信分优先' },
-        { id: 'name', label: '名称 A-Z' },
-        { id: 'recent', label: '最近检查' }
-    ];
-
-    const wizardPlatforms = [
-        { id: 'codex', label: 'Codex', configPath: '.codex/skills/', format: 'folder', hint: '在项目 .codex/skills/ 文件夹下创建 Skill 目录' },
-        { id: 'claude', label: 'Claude Code', configPath: '.claude/', format: 'json', hint: '在 .claude/ 目录或 Claude Code 设置中添加 MCP JSON 配置' },
-        { id: 'chatgpt', label: 'ChatGPT', configPath: 'Developer Mode > MCP Apps', format: 'remote', hint: 'ChatGPT 仅支持远程 MCP。本地 MCP Server 需通过隧道暴露。' },
-        { id: 'cursor', label: 'Cursor', configPath: '.cursor/mcp.json', format: 'json', hint: '在项目根目录 .cursor/mcp.json 中添加 MCP Server 配置' },
-        { id: 'generic', label: '通用 MCP', configPath: 'mcp.json', format: 'json', hint: '标准 MCP JSON 格式，适用于大多数兼容客户端' }
-    ];
-
-    const wizardModes = [
-        { id: 'local', label: '本地安装', icon: '💻', hint: '在本机运行 npx / node 命令启动 MCP Server' },
-        { id: 'remote', label: '远程 MCP', icon: '🌐', hint: '连接已部署的远程 MCP Server（需要 URL）' },
-        { id: 'docker', label: 'Docker', icon: '🐳', hint: '通过 Docker 容器隔离运行 MCP Server' }
-    ];
-
-    const displayText = {
-        source: {
-            Official: '官方',
-            Community: '社区'
-        },
-        risk: {
-            Low: '低风险',
-            Medium: '中风险'
-        },
-        type: {
-            'MCP Registry': 'MCP 注册表',
-            'MCP Documentation': 'MCP 文档',
-            'MCP Directory': 'MCP 目录',
-            'Skill Registry': 'Skill 仓库',
-            'Skill Standard': 'Skill 标准',
-            'Skill Directory': 'Skill 目录',
-            'Plugin Marketplace': '插件市场'
-        },
-        recommend: {
-            'Official first': '官方优先入口',
-            'Best for isolated local runs': '适合隔离运行',
-            'API-side MCP reference': 'API 接入参考',
-            'ChatGPT custom app reference': 'ChatGPT 自定义应用参考',
-            'Good discovery and install UX': '适合发现和安装',
-            'Good inspector and schema view': '适合看工具结构',
-            'Broad ecosystem scan': '适合扫全生态',
-            'Meta search across directories': '跨目录搜索',
-            'Simple category browsing': '分类浏览清晰',
-            'Useful for initial risk triage': '适合初步风险判断',
-            'Good GitHub curated list': 'GitHub 精选列表',
-            'Codex skill baseline': 'Codex Skill 基准',
-            'Good reference for portable skills': '可迁移 Skill 参考',
-            'Use as neutral format reference': '中立标准参考',
-            'Search Codex plugins and skills': 'Codex 插件/Skill 搜索',
-            'Claude Code plugin discovery': 'Claude Code 插件发现',
-            'Cross ecosystem search': '跨生态搜索',
-            'Skill marketplace for CLI agents': 'CLI Agent Skill 市场',
-            'Multi-platform skill search': '多平台 Skill 搜索'
-        },
-        scenario: {
-            'Search standard MCP servers and inspect registry metadata.': '查询标准 MCP Server，并查看注册表元数据。',
-            'Run MCP servers as Docker images with clearer isolation boundaries.': '用 Docker 镜像运行 MCP Server，权限边界更清楚。',
-            'Use OpenAI API documentation for connector and MCP server integration patterns.': '查看 OpenAI API 侧连接器和 MCP Server 的接入方式。',
-            'Reference ChatGPT custom MCP app behavior, connector boundaries, and testing flow.': '查看 ChatGPT 自定义 MCP App 的行为边界和测试流程。',
-            'Find MCP servers, review tools, and use install-oriented workflows.': '发现 MCP Server、查看工具列表，并参考安装流程。',
-            'Inspect MCP server tools and schemas before connecting them.': '接入前查看 MCP Server 暴露的工具和 schema。',
-            'Browse MCP servers by category such as GitHub, Figma, Notion, browser, database.': '按 GitHub、Figma、Notion、浏览器、数据库等分类浏览 MCP Server。',
-            'Search across multiple MCP sources from one place.': '聚合多个 MCP 来源，适合快速查找入口。',
-            'Browse reference, official, and community MCP servers.': '按参考实现、官方、社区分类浏览 MCP Server。',
-            'Use scoring and classification as a first pass before manual review.': '先看评分和分类，再做人工源码审查。',
-            'Find community MCP projects and compare maintenance status.': '查找社区 MCP 项目，并比较维护活跃度。',
-            'Use official Codex skills as examples for SKILL.md structure.': '参考 OpenAI 官方 Codex Skills 的 SKILL.md 组织方式。',
-            'Study skill layout and reusable agent workflows.': '学习 Skill 的目录结构和可复用 Agent 工作流。',
-            'Understand the open folder-based skill standard centered on SKILL.md.': '了解以 SKILL.md 为核心的开放 Skill 文件夹标准。',
-            'Discover community Codex plugins and skills.': '查找社区 Codex 插件和 Skill。',
-            'Discover Claude Code plugins and plugin marketplaces.': '查找 Claude Code 插件和 marketplace 接入方式。',
-            'Search skills, MCP servers, GPT plugins, and other agent resources.': '跨 Skill、MCP Server、GPT 插件等资源搜索。',
-            'Browse skills for Claude Code, Codex CLI, and compatible agents.': '浏览 Claude Code、Codex CLI 等 Agent 可用的 Skill。',
-            'Search skills across OpenClaw, MCP, Claude, OpenAI, Cursor, and VS Code.': '跨 OpenClaw、MCP、Claude、OpenAI、Cursor、VS Code 搜索 Skill。'
-        },
-        permission: {
-            network: '网络访问',
-            apiKey: '需要密钥',
-            filesRead: '读文件',
-            filesWrite: '写文件',
-            shell: '命令行',
-            browser: '浏览器',
-            database: '数据库',
-            docker: 'Docker',
-            remote: '远程服务',
-            installScript: '安装脚本',
-            scripts: '脚本资源'
-        },
-        installMode: {
-            registry: '注册表',
-            remote: '远程接入',
-            docker: 'Docker',
-            local: '本地安装',
-            cli: 'CLI 安装',
-            directory: '目录检索',
-            documentation: '文档参考',
-            inspector: '工具检查',
-            riskReview: '风险审查',
-            sourceReview: '源码审查',
-            marketplace: '市场安装'
-        },
-        maintenance: {
-            official: '官方维护',
-            community: '社区维护',
-            unknown: '维护未知'
-        },
-        auth: {
-            true: '需要密钥',
-            false: '不强制',
-            depends: '视资源而定'
-        }
-    };
-
-    function normalizeResources(list) {
-        return (Array.isArray(list) ? list : []).map(item => ({
+    function normalizeResource(raw) {
+        const source = raw && typeof raw === 'object' ? raw : {};
+        const item = {
             platforms: ['Generic MCP'],
             permissions: ['network'],
             installModes: ['directory'],
             authRequired: 'depends',
-            maintenance: item && item.source === 'Official' ? 'official' : 'community',
-            trustScore: item && item.source === 'Official' ? 85 : 65,
+            maintenance: source.source === 'Official' ? 'official' : 'community',
+            trustScore: source.source === 'Official' ? 85 : 65,
             lastChecked: '2026-05-27',
-            ...item
-        })).map(item => ({
-            ...item,
-            platforms: Array.isArray(item.platforms) ? item.platforms : [String(item.platforms || 'Generic MCP')],
-            permissions: Array.isArray(item.permissions) ? item.permissions : [String(item.permissions || 'network')],
-            installModes: Array.isArray(item.installModes) ? item.installModes : [String(item.installModes || 'directory')],
-            authRequired: String(item.authRequired),
-            trustScore: Number.isFinite(Number(item.trustScore)) ? Number(item.trustScore) : 60
-        }));
+            ...source
+        };
+        const name = clipText(item.name, 120);
+        const url = sanitizeExternalUrl(item.url || item.docs);
+        const docs = sanitizeExternalUrl(item.docs) || url;
+        if (!name || !url) return null;
+
+        const id = normalizeResourceId(item.id, name) || createCustomId(name);
+        const type = normalizeChoice(item.type, allowedResourceTypes, 'MCP Directory');
+        const sourceLabel = normalizeChoice(item.source, allowedSources, 'Community');
+        const category = normalizeCategory(item.category);
+        const categories = normalizeListValue(item.categories, [], categoryTabs.map(tab => tab.id), { maxItems: 6, maxLength: 24 });
+        if (category && !categories.includes(category)) categories.unshift(category);
+
+        return {
+            id,
+            name,
+            type,
+            category,
+            categories,
+            source: sourceLabel,
+            risk: normalizeChoice(item.risk, allowedRisks, 'Medium'),
+            recommend: clipText(item.recommend, 120, sourceLabel === 'Official' ? 'Official first' : '本地补充资源'),
+            tags: normalizeTags(item.tags, ['custom']),
+            scenario: clipText(item.scenario, 600, '本地手动添加的 Skill / MCP 候选资源。'),
+            url,
+            docs,
+            template: clipText(item.template, 5000, '先打开文档确认接入方式，再补充 MCP JSON 或 Skill 文件结构。'),
+            platforms: normalizeListValue(item.platforms, ['Generic MCP'], null, { maxItems: 12, maxLength: 40 }),
+            permissions: normalizeListValue(item.permissions, ['network'], allowedPermissions, { maxItems: 12, maxLength: 40 }),
+            installModes: normalizeListValue(item.installModes, ['directory'], allowedInstallModes, { maxItems: 12, maxLength: 40 }),
+            authRequired: normalizeAuthRequired(item.authRequired),
+            maintenance: normalizeChoice(item.maintenance, allowedMaintenance, sourceLabel === 'Official' ? 'official' : 'community'),
+            trustScore: clampScore(item.trustScore),
+            lastChecked: clipText(item.lastChecked, 32, 'unknown'),
+            custom: Boolean(item.custom),
+            installTemplates: normalizeInstallTemplates(item.installTemplates)
+        };
+    }
+
+    function normalizeResources(list) {
+        return (Array.isArray(list) ? list : []).map(normalizeResource).filter(Boolean);
     }
 
     const builtInResources = normalizeResources(window.MCPSKILLLAB_RESOURCES || fallbackResources);
@@ -452,6 +183,24 @@
     let wizardResourceId = '';
     let wizardPlatform = 'generic';
     let wizardMode = 'local';
+    let checkingResourceId = '';
+    let checkResults = {};
+    let backendHealth = {
+        loading: false,
+        checkedAt: '',
+        data: null,
+        error: ''
+    };
+    let batchCheckState = {
+        running: false,
+        total: 0,
+        done: 0,
+        success: 0,
+        failed: 0,
+        currentId: '',
+        mode: '',
+        stopRequested: false
+    };
 
     function injectStyles() {
         if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
@@ -607,6 +356,154 @@
   border-color: var(--primary);
 }
 
+.mcpskilllab-batch-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.2rem 0 1.1rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(64, 224, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.2);
+}
+
+.mcpskilllab-batch-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mcpskilllab-batch-title {
+  color: rgba(236, 240, 241, 0.94);
+  font-weight: 900;
+}
+
+.mcpskilllab-batch-hint,
+.mcpskilllab-batch-status {
+  color: rgba(236, 240, 241, 0.66);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.mcpskilllab-batch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.mcpskilllab-batch-panel .cyber-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.mcpskilllab-health-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(64, 224, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.2);
+}
+
+.mcpskilllab-health-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mcpskilllab-health-note {
+  color: rgba(236, 240, 241, 0.62);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.mcpskilllab-batch-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(236, 240, 241, 0.1);
+}
+
+.mcpskilllab-batch-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(64, 224, 255, 0.78), rgba(255, 218, 89, 0.82));
+  transition: width 0.2s ease;
+}
+
+.mcpskilllab-review-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0.2rem 0 1.2rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 218, 89, 0.16);
+  border-radius: 8px;
+  background: rgba(18, 24, 36, 0.32);
+}
+
+.mcpskilllab-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mcpskilllab-review-title {
+  color: rgba(236, 240, 241, 0.94);
+  font-weight: 900;
+}
+
+.mcpskilllab-review-hint {
+  margin-top: 0.2rem;
+  color: rgba(236, 240, 241, 0.66);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.mcpskilllab-review-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.mcpskilllab-review-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 0.72rem 0.78rem;
+  border: 1px solid rgba(64, 224, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.24);
+}
+
+.mcpskilllab-review-resource {
+  color: rgba(236, 240, 241, 0.92);
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.mcpskilllab-review-issues {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.mcpskilllab-review-issue {
+  color: rgba(236, 240, 241, 0.72);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.mcpskilllab-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-content: flex-start;
+  justify-content: flex-end;
+}
+
 .mcpskilllab-filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -760,6 +657,137 @@
   font-weight: 900;
 }
 
+.mcpskilllab-trust-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.85rem 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(64, 224, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.2);
+}
+
+.mcpskilllab-trust-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.mcpskilllab-trust-kicker {
+  color: rgba(236, 240, 241, 0.62);
+  font-size: 0.72rem;
+}
+
+.mcpskilllab-trust-title {
+  margin-top: 0.15rem;
+  color: rgba(236, 240, 241, 0.92);
+  font-weight: 800;
+}
+
+.mcpskilllab-trust-total {
+  color: #ffda59;
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mcpskilllab-trust-grid {
+  display: grid;
+  gap: 0.58rem;
+}
+
+.mcpskilllab-trust-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.24fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.mcpskilllab-trust-label {
+  color: rgba(236, 240, 241, 0.8);
+  font-size: 0.76rem;
+}
+
+.mcpskilllab-trust-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(236, 240, 241, 0.1);
+}
+
+.mcpskilllab-trust-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(64, 224, 255, 0.78), rgba(255, 218, 89, 0.82));
+}
+
+.mcpskilllab-trust-value {
+  color: rgba(236, 240, 241, 0.76);
+  font-size: 0.72rem;
+}
+
+.mcpskilllab-trust-hint,
+.mcpskilllab-trust-note {
+  color: rgba(236, 240, 241, 0.62);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.mcpskilllab-check-panel {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.85rem 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(64, 224, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.18);
+}
+
+.mcpskilllab-check-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.mcpskilllab-check-title {
+  color: rgba(236, 240, 241, 0.92);
+  font-weight: 800;
+}
+
+.mcpskilllab-check-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mcpskilllab-check-row {
+  display: grid;
+  grid-template-columns: minmax(68px, 0.24fr) minmax(90px, 0.18fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  color: rgba(236, 240, 241, 0.74);
+  font-size: 0.76rem;
+}
+
+.mcpskilllab-check-url {
+  overflow-wrap: anywhere;
+}
+
+.mcpskilllab-check-warnings {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mcpskilllab-check-warning {
+  padding-left: 0.65rem;
+  border-left: 2px solid rgba(255, 218, 89, 0.45);
+  color: rgba(255, 218, 89, 0.9);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
 .mcpskilllab-chip {
   display: inline-flex;
   align-items: center;
@@ -784,6 +812,11 @@
 .mcpskilllab-chip.medium {
   border-color: rgba(255, 218, 89, 0.36);
   color: #ffda59;
+}
+
+.mcpskilllab-chip.high {
+  border-color: rgba(255, 143, 163, 0.42);
+  color: rgba(255, 179, 193, 0.96);
 }
 
 .mcpskilllab-desc {
@@ -1114,6 +1147,32 @@
     display: grid;
   }
 
+  .mcpskilllab-batch-top {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .mcpskilllab-batch-controls {
+    justify-content: stretch;
+  }
+
+  .mcpskilllab-batch-controls .cyber-button {
+    flex: 1 1 auto;
+  }
+
+  .mcpskilllab-review-head,
+  .mcpskilllab-review-item {
+    display: grid;
+  }
+
+  .mcpskilllab-review-actions {
+    justify-content: stretch;
+  }
+
+  .mcpskilllab-review-actions .cyber-button {
+    flex: 1 1 auto;
+  }
+
   .mcpskilllab-top-actions {
     justify-content: stretch;
     flex-direction: column;
@@ -1264,11 +1323,16 @@
 
     function getFavorites() {
         const saved = readJson(FAVORITES_KEY, []);
-        return new Set(Array.isArray(saved) ? saved.map(String) : []);
+        return new Set(Array.isArray(saved)
+            ? saved.map(id => normalizeResourceId(id)).filter(Boolean).slice(0, MAX_FAVORITES)
+            : []);
     }
 
     function saveFavorites(favorites) {
-        writeJson(FAVORITES_KEY, Array.from(favorites));
+        writeJson(FAVORITES_KEY, Array.from(favorites)
+            .map(id => normalizeResourceId(id))
+            .filter(Boolean)
+            .slice(0, MAX_FAVORITES));
     }
 
     function normalizeBacklogMeta(value) {
@@ -1283,17 +1347,24 @@
     function getBacklogMeta() {
         const saved = readJson(BACKLOG_META_KEY, {});
         if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
-        return Object.fromEntries(Object.entries(saved).map(([id, value]) => [String(id), normalizeBacklogMeta(value)]));
+        return Object.fromEntries(Object.entries(saved)
+            .map(([id, value]) => [normalizeResourceId(id), normalizeBacklogMeta(value)])
+            .filter(([id]) => id));
     }
 
     function saveBacklogMeta(meta) {
-        writeJson(BACKLOG_META_KEY, meta && typeof meta === 'object' ? meta : {});
+        const source = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+        const cleaned = Object.fromEntries(Object.entries(source)
+            .map(([id, value]) => [normalizeResourceId(id), normalizeBacklogMeta(value)])
+            .filter(([id]) => id));
+        writeJson(BACKLOG_META_KEY, cleaned);
     }
 
     function updateBacklogMeta(id, updates) {
-        if (!id) return;
+        const normalizedId = normalizeResourceId(id);
+        if (!normalizedId) return;
         const meta = getBacklogMeta();
-        meta[id] = normalizeBacklogMeta({ ...(meta[id] || {}), ...(updates || {}) });
+        meta[normalizedId] = normalizeBacklogMeta({ ...(meta[normalizedId] || {}), ...(updates || {}) });
         saveBacklogMeta(meta);
     }
 
@@ -1303,15 +1374,7 @@
     }
 
     function parseListValue(value, fallback) {
-        if (Array.isArray(value)) {
-            const list = value.map(item => String(item).trim()).filter(Boolean);
-            return list.length ? list : fallback;
-        }
-        const list = String(value || '')
-            .split(/[,，、\n/]+/)
-            .map(item => item.trim())
-            .filter(Boolean);
-        return list.length ? list : fallback;
+        return normalizeListValue(value, fallback, null, { maxItems: 16, maxLength: 80 });
     }
 
     function createCustomId(name) {
@@ -1325,30 +1388,31 @@
 
     function normalizeCustomResource(raw) {
         const value = raw && typeof raw === 'object' ? raw : {};
-        const name = String(value.name || '').trim();
-        const url = String(value.url || value.docs || '').trim();
+        const name = clipText(value.name, 120);
+        const url = sanitizeExternalUrl(value.url || value.docs);
+        const docs = sanitizeExternalUrl(value.docs) || url;
         if (!name || !url) return null;
         return normalizeResources([{
-            id: String(value.id || createCustomId(name)),
+            id: normalizeResourceId(value.id) || createCustomId(name),
             name,
-            type: String(value.type || 'MCP Directory'),
+            type: normalizeChoice(value.type, allowedResourceTypes, 'MCP Directory'),
             category: normalizeCategory(value.category) || '',
             categories: Array.isArray(value.categories) ? value.categories.map(normalizeCategory).filter(Boolean) : undefined,
             source: 'Community',
-            risk: String(value.risk || 'Medium'),
-            recommend: String(value.recommend || '本地补充资源'),
-            tags: Array.from(new Set([...parseListValue(value.tags, ['custom']).map(tag => tag.toLowerCase()), 'custom'])),
-            scenario: String(value.scenario || '本地手动添加的 Skill / MCP 候选资源。'),
+            risk: normalizeChoice(value.risk, allowedRisks, 'Medium'),
+            recommend: clipText(value.recommend, 120, '本地补充资源'),
+            tags: Array.from(new Set([...normalizeTags(value.tags, ['custom']), 'custom'])),
+            scenario: clipText(value.scenario, 600, '本地手动添加的 Skill / MCP 候选资源。'),
             url,
-            docs: String(value.docs || url),
-            template: String(value.template || '先打开文档确认接入方式，再补充 MCP JSON 或 Skill 文件结构。'),
+            docs,
+            template: clipText(value.template, 5000, '先打开文档确认接入方式，再补充 MCP JSON 或 Skill 文件结构。'),
             platforms: parseListValue(value.platforms, ['Generic MCP']),
             permissions: parseListValue(value.permissions, ['network']),
             installModes: parseListValue(value.installModes, ['directory']),
             authRequired: value.authRequired === undefined ? 'depends' : value.authRequired,
-            maintenance: String(value.maintenance || 'unknown'),
-            trustScore: Number.isFinite(Number(value.trustScore)) ? Number(value.trustScore) : 50,
-            lastChecked: String(value.lastChecked || new Date().toISOString().slice(0, 10)),
+            maintenance: normalizeChoice(value.maintenance, allowedMaintenance, 'unknown'),
+            trustScore: clampScore(value.trustScore || 50),
+            lastChecked: clipText(value.lastChecked, 32, new Date().toISOString().slice(0, 10)),
             custom: true
         }])[0];
     }
@@ -1369,7 +1433,10 @@
     }
 
     function saveCustomResources(list) {
-        writeJson(CUSTOM_RESOURCES_KEY, (Array.isArray(list) ? list : []).map(normalizeCustomResource).filter(Boolean));
+        writeJson(CUSTOM_RESOURCES_KEY, (Array.isArray(list) ? list : [])
+            .map(normalizeCustomResource)
+            .filter(Boolean)
+            .slice(0, MAX_CUSTOM_RESOURCES));
     }
 
     function mergeResources() {
@@ -1408,33 +1475,46 @@
             exportedAt: new Date().toISOString(),
             favorites: Array.from(getFavorites()),
             backlogMeta: getBacklogMeta(),
-            customResources: getCustomResources()
+            customResources: getCustomResources(),
+            checkResults: getCheckCache()
         };
         downloadText(`mcpskilllab-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2));
     }
 
     function importHubData(text) {
+        if (String(text || '').length > MAX_IMPORT_BYTES) {
+            throw new Error('JSON 文件过大');
+        }
         const payload = JSON.parse(text);
         if (!payload || typeof payload !== 'object') {
             throw new Error('JSON 格式不正确');
         }
 
+        if (Array.isArray(payload.customResources)) {
+            saveCustomResources(mergeCustomResourceLists(getCustomResources(), payload.customResources.slice(0, MAX_CUSTOM_RESOURCES)));
+        }
+
         if (Array.isArray(payload.favorites)) {
             const favorites = getFavorites();
-            payload.favorites.forEach(id => favorites.add(String(id)));
+            payload.favorites
+                .slice(0, MAX_FAVORITES)
+                .map(id => normalizeResourceId(id))
+                .filter(Boolean)
+                .forEach(id => favorites.add(id));
             saveFavorites(favorites);
         }
 
         if (payload.backlogMeta && typeof payload.backlogMeta === 'object' && !Array.isArray(payload.backlogMeta)) {
             const meta = getBacklogMeta();
             Object.entries(payload.backlogMeta).forEach(([id, value]) => {
-                meta[String(id)] = normalizeBacklogMeta(value);
+                const normalizedId = normalizeResourceId(id);
+                if (normalizedId) meta[normalizedId] = normalizeBacklogMeta(value);
             });
             saveBacklogMeta(meta);
         }
 
-        if (Array.isArray(payload.customResources)) {
-            saveCustomResources(mergeCustomResourceLists(getCustomResources(), payload.customResources));
+        if (payload.checkResults && typeof payload.checkResults === 'object' && !Array.isArray(payload.checkResults)) {
+            saveCheckCache({ ...getCheckCache(), ...payload.checkResults });
         }
     }
 
@@ -1451,23 +1531,553 @@
     }
 
     function deleteCustomResource(id) {
-        saveCustomResources(getCustomResources().filter(item => item.id !== id));
+        const normalizedId = normalizeResourceId(id);
+        if (!normalizedId) return;
+        saveCustomResources(getCustomResources().filter(item => item.id !== normalizedId));
         const favorites = getFavorites();
-        favorites.delete(id);
+        favorites.delete(normalizedId);
         saveFavorites(favorites);
         const meta = getBacklogMeta();
-        delete meta[id];
+        delete meta[normalizedId];
         saveBacklogMeta(meta);
+        const cache = getCheckCache();
+        delete cache[normalizedId];
+        saveCheckCache(cache);
+    }
+
+    function normalizeUrlCheck(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        return {
+            role: clipText(raw.role, 40, 'url'),
+            url: sanitizeExternalUrl(raw.url),
+            checked: Boolean(raw.checked),
+            reachable: Boolean(raw.reachable),
+            statusCode: Number.isFinite(Number(raw.statusCode)) ? Number(raw.statusCode) : 0,
+            method: clipText(raw.method, 12),
+            contentType: clipText(raw.contentType, 120),
+            finalUrl: sanitizeExternalUrl(raw.finalUrl) || sanitizeExternalUrl(raw.url),
+            latencyMs: Number.isFinite(Number(raw.latencyMs)) ? Math.max(0, Math.round(Number(raw.latencyMs))) : 0,
+            errorCode: clipText(raw.errorCode, 80),
+            error: clipText(raw.error, 240),
+            recommendation: clipText(raw.recommendation, 240)
+        };
+    }
+
+    function normalizeGithubInfo(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        return {
+            checked: Boolean(raw.checked),
+            found: Boolean(raw.found),
+            repository: clipText(raw.repository, 160),
+            apiUrl: sanitizeExternalUrl(raw.apiUrl),
+            htmlUrl: sanitizeExternalUrl(raw.htmlUrl),
+            description: clipText(raw.description, 280),
+            stars: Number.isFinite(Number(raw.stars)) ? Math.max(0, Math.round(Number(raw.stars))) : 0,
+            forks: Number.isFinite(Number(raw.forks)) ? Math.max(0, Math.round(Number(raw.forks))) : 0,
+            openIssues: Number.isFinite(Number(raw.openIssues)) ? Math.max(0, Math.round(Number(raw.openIssues))) : 0,
+            defaultBranch: clipText(raw.defaultBranch, 80),
+            license: clipText(raw.license, 120),
+            pushedAt: clipText(raw.pushedAt, 40),
+            updatedAt: clipText(raw.updatedAt, 40),
+            archived: Boolean(raw.archived),
+            disabled: Boolean(raw.disabled),
+            visibility: clipText(raw.visibility, 40),
+            errorCode: clipText(raw.errorCode, 80),
+            error: clipText(raw.error, 240),
+            recommendation: clipText(raw.recommendation, 240)
+        };
+    }
+
+    function normalizeCheckData(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        return {
+            id: normalizeResourceId(raw.id),
+            name: clipText(raw.name, 120),
+            checkedAt: clipText(raw.checkedAt, 40, new Date().toISOString()),
+            status: normalizeChoice(raw.status, ['healthy', 'review', 'risk'], 'review'),
+            score: clampScore(raw.score),
+            warnings: normalizeListValue(raw.warnings, [], null, { maxItems: 20, maxLength: 240 }),
+            urls: Array.isArray(raw.urls) ? raw.urls.slice(0, 4).map(normalizeUrlCheck) : [],
+            github: raw.github && typeof raw.github === 'object' ? normalizeGithubInfo(raw.github) : undefined
+        };
+    }
+
+    function normalizeCheckState(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        const data = raw.data && typeof raw.data === 'object' ? normalizeCheckData(raw.data) : undefined;
+        const error = clipText(raw.error, 240);
+        const checkedAt = clipText(raw.checkedAt || (data && data.checkedAt), 40, new Date().toISOString());
+        if (!data && !error) return null;
+        return {
+            loading: false,
+            checkedAt,
+            data,
+            error
+        };
+    }
+
+    function getCheckCache() {
+        const saved = readJson(CHECK_CACHE_KEY, {});
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+        return Object.fromEntries(Object.entries(saved)
+            .slice(0, MAX_CHECK_RESULTS)
+            .map(([id, value]) => [normalizeResourceId(id), normalizeCheckState(value)])
+            .filter(([id, value]) => id && value));
+    }
+
+    function saveCheckCache(cache) {
+        const source = cache && typeof cache === 'object' && !Array.isArray(cache) ? cache : {};
+        const cleaned = Object.fromEntries(Object.entries(source)
+            .map(([id, value]) => [normalizeResourceId(id), normalizeCheckState(value)])
+            .filter(([id, value]) => id && value)
+            .slice(0, MAX_CHECK_RESULTS));
+        checkResults = cleaned;
+        writeJson(CHECK_CACHE_KEY, cleaned);
+    }
+
+    function updateCheckCache(id, state) {
+        const normalizedId = normalizeResourceId(id);
+        if (!normalizedId) return;
+        const normalized = normalizeCheckState(state);
+        if (!normalized) return;
+        checkResults = {
+            ...checkResults,
+            [normalizedId]: normalized
+        };
+        saveCheckCache(checkResults);
+    }
+
+    function clearCheckCache() {
+        checkResults = {};
+        saveCheckCache({});
+    }
+
+    function getCheckState(item) {
+        return item && item.id ? checkResults[item.id] || null : null;
+    }
+
+    function isCheckStateFresh(state) {
+        if (!state || !state.checkedAt) return false;
+        const time = Date.parse(state.checkedAt);
+        return Number.isFinite(time) && Date.now() - time <= CHECK_CACHE_TTL_MS;
+    }
+
+    function formatCheckDate(value) {
+        if (!value) return '未检测';
+        const time = Date.parse(value);
+        if (!Number.isFinite(time)) return value;
+        return new Date(time).toLocaleString('zh-CN', { hour12: false });
     }
 
     function getWizardAvailableModes(resource) {
         const modes = resource.installModes || [];
         return wizardModes.filter(mode => {
-            if (mode.id === 'local') return modes.some(m => ['local', 'cli', 'registry', 'sourceReview'].includes(m));
+            if (mode.id === 'local') return modes.some(m => ['local', 'cli', 'registry', 'directory', 'sourceReview', 'documentation', 'riskReview'].includes(m));
             if (mode.id === 'remote') return modes.some(m => ['remote', 'registry', 'marketplace'].includes(m));
             if (mode.id === 'docker') return modes.some(m => ['docker', 'local'].includes(m));
             return false;
         });
+    }
+
+    function getResourceInstallTemplate(resource, platformId, modeId) {
+        const templates = resource.installTemplates || {};
+        const platformTemplates = templates[platformId] || templates.generic;
+        if (!platformTemplates || typeof platformTemplates !== 'object') return '';
+        return platformTemplates[modeId] || platformTemplates.default || '';
+    }
+
+    function getMcpLabApiBase() {
+        return `${getLocalApiBase()}/api/mcp-lab`;
+    }
+
+    function getLocalApiBase() {
+        let override = '';
+        try {
+            override = (typeof window !== 'undefined' && window.CIPHERTOOL_API_BASE)
+                || localStorage.getItem('CIPHERTOOL_API_BASE')
+                || '';
+        } catch (error) {
+            override = '';
+        }
+        const safeOverride = sanitizeExternalUrl(override);
+        return (safeOverride || LOCAL_API_BASE).replace(/\/+$/, '');
+    }
+
+    function normalizeBackendHealthData(value) {
+        const raw = value && typeof value === 'object' ? value : {};
+        return {
+            status: clipText(raw.status, 40, 'unknown'),
+            checkedAt: clipText(raw.checkedAt, 40),
+            checker: clipText(raw.checker, 80),
+            version: clipText(raw.version, 40),
+            safety: clipText(raw.safety, 160),
+            connectTimeoutMs: Number.isFinite(Number(raw.connectTimeoutMs)) ? Math.max(0, Math.round(Number(raw.connectTimeoutMs))) : 0,
+            requestTimeoutMs: Number.isFinite(Number(raw.requestTimeoutMs)) ? Math.max(0, Math.round(Number(raw.requestTimeoutMs))) : 0,
+            maxRedirects: Number.isFinite(Number(raw.maxRedirects)) ? Math.max(0, Math.round(Number(raw.maxRedirects))) : 0
+        };
+    }
+
+    async function runBackendHealthCheck(options = {}) {
+        const silent = Boolean(options.silent);
+        if (backendHealth.loading) return;
+        backendHealth = {
+            ...backendHealth,
+            loading: true,
+            error: ''
+        };
+        if (!silent) render();
+        try {
+            if (typeof fetch !== 'function') throw new Error('当前环境不支持 fetch。');
+            const response = await fetch(`${getMcpLabApiBase()}${HEALTH_API_PATH}`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || `HTTP ${response.status}`);
+            }
+            backendHealth = {
+                loading: false,
+                checkedAt: new Date().toISOString(),
+                data: normalizeBackendHealthData(payload.data),
+                error: ''
+            };
+        } catch (error) {
+            backendHealth = {
+                loading: false,
+                checkedAt: new Date().toISOString(),
+                data: null,
+                error: clipText(error.message || '后端健康检查失败', 240)
+            };
+        }
+        render();
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setResourceCheckLoading(resourceId) {
+        const id = normalizeResourceId(resourceId);
+        if (!id) return;
+        checkResults = {
+            ...checkResults,
+            [id]: {
+                loading: true,
+                checkedAt: new Date().toISOString()
+            }
+        };
+    }
+
+    async function requestResourceCheck(resource) {
+        if (!resource) throw new Error('资源不存在');
+        if (typeof fetch !== 'function') throw new Error('当前环境不支持 fetch，无法调用后端检测。');
+        const response = await fetch(`${getMcpLabApiBase()}${CHECK_API_PATH}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: resource.id,
+                name: resource.name,
+                url: resource.url,
+                docs: resource.docs,
+                checkGithub: true
+            })
+        });
+
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch (error) {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            throw new Error('后端响应不是有效 JSON');
+        }
+
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.message || `HTTP ${response.status}`);
+        }
+
+        return normalizeCheckState({
+            loading: false,
+            data: payload.data,
+            checkedAt: new Date().toISOString()
+        });
+    }
+
+    async function runResourceCheck(resourceId) {
+        const resource = getResourceById(resourceId);
+        if (!resource) return;
+        if (batchCheckState.running) return;
+        checkingResourceId = resource.id;
+        setResourceCheckLoading(resource.id);
+        render();
+        try {
+            const result = await requestResourceCheck(resource);
+            updateCheckCache(resource.id, result);
+        } catch (error) {
+            updateCheckCache(resource.id, {
+                loading: false,
+                error: error.message || '检测失败',
+                checkedAt: new Date().toISOString()
+            });
+        } finally {
+            checkingResourceId = '';
+            render();
+        }
+    }
+
+    function isFailedCheckCandidate(item) {
+        const state = getCheckState(item);
+        return Boolean(state && state.error);
+    }
+
+    function isRefreshCheckCandidate(item) {
+        const state = getCheckState(item);
+        return !state || Boolean(state.error) || !isCheckStateFresh(state);
+    }
+
+    function getBatchPriority(item) {
+        const state = getCheckState(item);
+        const highRiskPermissions = ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
+        const permissionWeight = (item.permissions || [])
+            .filter(permission => highRiskPermissions.includes(permission))
+            .length * 6;
+        let score = permissionWeight;
+        if (state && state.error) score += 80;
+        if (!state) score += 55;
+        else if (!isCheckStateFresh(state)) score += 45;
+        if (item.risk === 'Medium') score += 24;
+        if (item.authRequired === 'true') score += 8;
+        score += Math.max(0, 70 - getTrustScore(item)) / 2;
+        return score;
+    }
+
+    function sortBatchTargets(list) {
+        return [...list].sort((a, b) => {
+            const priority = getBatchPriority(b) - getBatchPriority(a);
+            if (priority) return priority;
+            return String(a.name).localeCompare(String(b.name));
+        });
+    }
+
+    function getBatchTargets(mode) {
+        const favorites = getFavorites();
+        const source = mode === 'favorites'
+            ? resources.filter(item => favorites.has(item.id))
+            : getFilteredResources();
+        const seen = new Set();
+        const candidates = source.filter(item => {
+            if (!item || !item.id || seen.has(item.id)) return false;
+            seen.add(item.id);
+            return Boolean(item.url || item.docs);
+        });
+        if (mode === 'refresh') return sortBatchTargets(candidates.filter(isRefreshCheckCandidate));
+        if (mode === 'failed') return sortBatchTargets(candidates.filter(isFailedCheckCandidate));
+        return sortBatchTargets(candidates);
+    }
+
+    function getBatchModeLabel(mode) {
+        const labels = {
+            filtered: '当前结果',
+            favorites: '待接入',
+            refresh: '需更新',
+            failed: '失败重试'
+        };
+        return labels[mode] || labels.filtered;
+    }
+
+    function getReviewSeverityRank(severity) {
+        return { high: 3, medium: 2, low: 1 }[severity] || 0;
+    }
+
+    function getReviewChipClass(severity) {
+        return severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : 'low';
+    }
+
+    function hasHighRiskPermissions(item) {
+        return (item.permissions || []).some(permission => REVIEW_HIGH_RISK_PERMISSIONS.includes(permission));
+    }
+
+    function isStaleCheckedResource(item) {
+        const state = getCheckState(item);
+        return Boolean(state && !state.loading && !state.error && !isCheckStateFresh(state));
+    }
+
+    function getCheckReviewIssues(item) {
+        const issues = [];
+        const state = getCheckState(item);
+        const trustScore = getTrustScore(item);
+        const highRiskPermissions = (item.permissions || [])
+            .filter(permission => REVIEW_HIGH_RISK_PERMISSIONS.includes(permission))
+            .map(permission => localize('permission', permission));
+
+        if (state && state.error) {
+            issues.push({
+                severity: 'high',
+                label: '检测失败',
+                detail: state.error
+            });
+        } else if (state && !state.loading && !isCheckStateFresh(state)) {
+            issues.push({
+                severity: 'medium',
+                label: '缓存过期',
+                detail: `最近检测：${formatCheckDate(state.checkedAt)}`
+            });
+        }
+
+        if (state && state.data) {
+            const data = state.data;
+            if (data.score < 60) {
+                issues.push({ severity: 'high', label: '后端低分', detail: `${data.score} 分，需要优先复核。` });
+            } else if (data.score < 75) {
+                issues.push({ severity: 'medium', label: '后端需复核', detail: `${data.score} 分，建议确认链接和仓库状态。` });
+            }
+
+            const unreachable = (data.urls || []).filter(url => url.checked && !url.reachable).length;
+            if (unreachable) {
+                const firstFailure = (data.urls || []).find(url => url.checked && !url.reachable);
+                issues.push({
+                    severity: unreachable > 1 ? 'high' : 'medium',
+                    label: '链接不可达',
+                    detail: `${unreachable} 个检测链接不可达。${firstFailure && firstFailure.error ? firstFailure.error : ''}${firstFailure && firstFailure.recommendation ? ` 建议：${firstFailure.recommendation}` : ''}`
+                });
+            }
+
+            const warningCount = (data.warnings || []).length;
+            if (warningCount) {
+                issues.push({
+                    severity: warningCount > 2 ? 'high' : 'medium',
+                    label: '检测警告',
+                    detail: `${warningCount} 条后端检测警告。`
+                });
+            }
+
+            const github = data.github || {};
+            if (github.checked && github.found && (github.archived || github.disabled)) {
+                issues.push({
+                    severity: 'high',
+                    label: '仓库状态异常',
+                    detail: github.disabled ? 'GitHub 仓库已禁用。' : 'GitHub 仓库已归档。'
+                });
+            }
+            if (github.checked && !github.found && github.error) {
+                issues.push({
+                    severity: 'medium',
+                    label: 'GitHub 未确认',
+                    detail: `${github.error}${github.recommendation ? ` 建议：${github.recommendation}` : ''}`
+                });
+            }
+        }
+
+        if (trustScore < 60) {
+            issues.push({ severity: 'high', label: '可信分偏低', detail: `当前可信分 ${trustScore}，不建议直接接入。` });
+        } else if (trustScore < 70) {
+            issues.push({ severity: 'medium', label: '可信分偏低', detail: `当前可信分 ${trustScore}，需要人工审查。` });
+        }
+
+        if (highRiskPermissions.length) {
+            issues.push({
+                severity: 'high',
+                label: '高风险权限',
+                detail: highRiskPermissions.join(' / ')
+            });
+        }
+
+        return issues.sort((a, b) => getReviewSeverityRank(b.severity) - getReviewSeverityRank(a.severity));
+    }
+
+    function getCheckReviewItems(list) {
+        return (Array.isArray(list) ? list : [])
+            .map(item => {
+                const issues = getCheckReviewIssues(item);
+                const severity = issues[0] ? issues[0].severity : 'low';
+                return { item, issues, severity };
+            })
+            .filter(entry => entry.issues.length)
+            .sort((a, b) => {
+                const severityDiff = getReviewSeverityRank(b.severity) - getReviewSeverityRank(a.severity);
+                if (severityDiff) return severityDiff;
+                const priorityDiff = getBatchPriority(b.item) - getBatchPriority(a.item);
+                if (priorityDiff) return priorityDiff;
+                return String(a.item.name).localeCompare(String(b.item.name));
+            });
+    }
+
+    function getCheckReviewStats(list) {
+        const source = Array.isArray(list) ? list : [];
+        return {
+            failed: source.filter(isFailedCheckCandidate).length,
+            stale: source.filter(isStaleCheckedResource).length,
+            lowScore: source.filter(item => getTrustScore(item) < 70).length,
+            highPermission: source.filter(hasHighRiskPermissions).length
+        };
+    }
+
+    async function runBatchCheck(mode) {
+        if (batchCheckState.running) return;
+        const targets = getBatchTargets(mode);
+        if (!targets.length) {
+            if (typeof window !== 'undefined' && window.alert) window.alert('当前没有可检测资源。');
+            return;
+        }
+
+        batchCheckState = {
+            running: true,
+            total: targets.length,
+            done: 0,
+            success: 0,
+            failed: 0,
+            currentId: '',
+            mode,
+            stopRequested: false
+        };
+        render();
+
+        for (const resource of targets) {
+            if (batchCheckState.stopRequested) break;
+            batchCheckState.currentId = resource.id;
+            checkingResourceId = resource.id;
+            setResourceCheckLoading(resource.id);
+            render();
+
+            try {
+                const result = await requestResourceCheck(resource);
+                updateCheckCache(resource.id, result);
+                batchCheckState.success += 1;
+            } catch (error) {
+                updateCheckCache(resource.id, {
+                    loading: false,
+                    error: error.message || '检测失败',
+                    checkedAt: new Date().toISOString()
+                });
+                batchCheckState.failed += 1;
+            }
+
+            batchCheckState.done += 1;
+            batchCheckState.currentId = '';
+            checkingResourceId = '';
+            render();
+
+            if (!batchCheckState.stopRequested && batchCheckState.done < batchCheckState.total) {
+                await sleep(BATCH_CHECK_DELAY_MS);
+            }
+        }
+
+        checkingResourceId = '';
+        batchCheckState = {
+            ...batchCheckState,
+            running: false,
+            currentId: ''
+        };
+        render();
+    }
+
+    function stopBatchCheck() {
+        if (!batchCheckState.running) return;
+        batchCheckState = {
+            ...batchCheckState,
+            stopRequested: true
+        };
+        render();
     }
 
     function generateWizardConfig(resource, platformId, modeId) {
@@ -1556,9 +2166,10 @@
             steps.push(`4. 访问 ${resource.url} 确认安装命令`);
         }
 
-        // Use resource-specific template override if available
-        if (resource.installTemplates && resource.installTemplates[platformId]) {
-            config = resource.installTemplates[platformId];
+        const specificTemplate = getResourceInstallTemplate(resource, platformId, modeId);
+        if (specificTemplate) {
+            config = specificTemplate;
+            steps.unshift(`0. 当前配置使用 ${resource.name} 的资源专属模板`);
         }
 
         return { config, steps, warnings };
@@ -1577,7 +2188,7 @@
                 <div class="mcpskilllab-wizard-resource">
                     <span class="mcpskilllab-chip ${resource.source === 'Official' ? 'official' : ''}">${escapeHtml(localize('source', resource.source))}</span>
                     <span class="mcpskilllab-chip ${resource.risk.toLowerCase()}">风险：${escapeHtml(localize('risk', resource.risk))}</span>
-                    <span class="mcpskilllab-chip">可信分：<span class="mcpskilllab-score">${escapeHtml(resource.trustScore)}</span></span>
+                    ${renderTrustScoreChip(resource)}
                 </div>
 
                 <div class="mcpskilllab-wizard-step">
@@ -1720,6 +2331,303 @@
         return Object.fromEntries(categoryTabs.map(tab => [tab.id, getCategoryResources(tab.id).length]));
     }
 
+    function getTrustBreakdown(item) {
+        const permissions = new Set(item.permissions || []);
+        const installModes = new Set(item.installModes || []);
+        const checkState = getCheckState(item);
+        const checkData = checkState && checkState.data && isCheckStateFresh(checkState) ? checkState.data : null;
+
+        const sourceScore = item.source === 'Official' ? 20 : 12;
+        const sourceHint = item.source === 'Official' ? '官方来源，默认可信度较高。' : '社区来源，需要额外看仓库、维护和权限。';
+
+        const maintenanceScore = item.maintenance === 'official' ? 15 : item.maintenance === 'community' ? 10 : 5;
+        const maintenanceHint = {
+            official: '官方维护。',
+            community: '社区维护，需看活跃度。',
+            unknown: '维护状态未知。'
+        }[item.maintenance] || '维护状态未知。';
+
+        const hasSeparateDocs = item.docs && item.docs !== item.url;
+        const hasTemplate = String(item.template || '').length > 80;
+        const docScore = Math.min(15, 7 + (hasSeparateDocs ? 4 : 0) + (hasTemplate ? 4 : 0));
+        const docHint = hasSeparateDocs
+            ? '有独立文档链接和配置片段。'
+            : '文档入口与官网相同，接入前应再确认 README。';
+
+        const permissionPenalties = {
+            filesWrite: 8,
+            shell: 8,
+            database: 6,
+            browser: 6,
+            installScript: 5,
+            docker: 4,
+            apiKey: 3,
+            remote: 3,
+            filesRead: 2,
+            scripts: 2,
+            network: 1
+        };
+        const permissionPenalty = Array.from(permissions).reduce((sum, value) => sum + (permissionPenalties[value] || 0), 0);
+        const permissionScore = Math.max(4, 25 - permissionPenalty);
+        const highRiskPermissions = ['filesWrite', 'shell', 'database', 'browser', 'installScript']
+            .filter(value => permissions.has(value))
+            .map(value => localize('permission', value));
+        const permissionHint = highRiskPermissions.length
+            ? `高权限：${highRiskPermissions.join(' / ')}。`
+            : '权限范围较轻，主要是只读或网络访问。';
+
+        const installPenalties = {
+            docker: 4,
+            cli: 3,
+            local: 2,
+            remote: 2,
+            marketplace: 2,
+            registry: 1,
+            sourceReview: 1,
+            riskReview: 1,
+            inspector: 1
+        };
+        const installPenalty = Array.from(installModes).reduce((sum, value) => sum + (installPenalties[value] || 0), 0);
+        const installScore = Math.max(5, 15 - installPenalty);
+        const installHint = installModes.has('sourceReview') || installModes.has('riskReview')
+            ? '包含源码或风险审查路径。'
+            : '接入方式越接近本地执行，越需要手工确认命令。';
+
+        const authScore = item.authRequired === 'false' ? 10 : item.authRequired === 'true' ? 4 : 7;
+        const authHint = item.authRequired === 'true'
+            ? '需要密钥，必须使用环境变量或本地忽略文件。'
+            : item.authRequired === 'false'
+                ? '不强制密钥。'
+                : '是否需要密钥取决于具体资源。';
+
+        const components = [
+            { id: 'source', label: '来源', score: sourceScore, max: 20, hint: sourceHint },
+            { id: 'maintenance', label: '维护', score: maintenanceScore, max: 15, hint: maintenanceHint },
+            { id: 'docs', label: '文档', score: docScore, max: 15, hint: docHint },
+            { id: 'permissions', label: '权限', score: permissionScore, max: 25, hint: permissionHint },
+            { id: 'install', label: '接入', score: installScore, max: 15, hint: installHint },
+            { id: 'auth', label: '密钥', score: authScore, max: 10, hint: authHint }
+        ];
+        const baseTotal = Math.round(components.reduce((sum, item) => sum + item.score, 0));
+        const checkImpact = getCheckImpact(checkData);
+        const total = Math.max(0, Math.min(100, baseTotal + checkImpact.adjustment));
+        const level = total >= 85 ? 'high' : total >= 70 ? 'medium' : 'low';
+        return {
+            total,
+            baseTotal,
+            level,
+            components,
+            checkImpact,
+            checkState,
+            checkFresh: Boolean(checkData)
+        };
+    }
+
+    function getCheckImpact(data) {
+        if (!data) {
+            return {
+                adjustment: 0,
+                hint: '暂无新鲜后端检测结果，可信分仅使用本地元数据。'
+            };
+        }
+        let adjustment = 0;
+        const hints = [];
+        if (data.score >= 85) {
+            adjustment += 4;
+            hints.push('后端检测健康。');
+        } else if (data.score < 60) {
+            adjustment -= 15;
+            hints.push('后端检测分较低。');
+        } else if (data.score < 75) {
+            adjustment -= 6;
+            hints.push('后端检测需要复核。');
+        }
+
+        const unreachable = (data.urls || []).filter(url => url.checked && !url.reachable).length;
+        if (unreachable) {
+            adjustment -= Math.min(16, unreachable * 8);
+            hints.push(`${unreachable} 个链接不可达。`);
+        }
+
+        const warningCount = (data.warnings || []).length;
+        if (warningCount) {
+            adjustment -= Math.min(8, warningCount * 2);
+            hints.push(`${warningCount} 条检测警告。`);
+        }
+
+        const github = data.github || {};
+        if (github.checked && github.found) {
+            if (github.archived) {
+                adjustment -= 15;
+                hints.push('GitHub 仓库已归档。');
+            }
+            if (github.disabled) {
+                adjustment -= 25;
+                hints.push('GitHub 仓库已禁用。');
+            }
+            if (!github.license) {
+                adjustment -= 4;
+                hints.push('未识别到许可证。');
+            }
+            if (github.stars >= 1000) {
+                adjustment += 3;
+                hints.push('仓库关注度较高。');
+            } else if (github.stars >= 100) {
+                adjustment += 1;
+                hints.push('仓库有一定关注度。');
+            }
+        }
+
+        return {
+            adjustment: Math.max(-30, Math.min(8, adjustment)),
+            hint: hints.length ? hints.join(' ') : '后端检测无额外扣分。'
+        };
+    }
+
+    function getTrustScore(item) {
+        return getTrustBreakdown(item).total;
+    }
+
+    function renderTrustScoreChip(item) {
+        const trust = getTrustBreakdown(item);
+        return `<span class="mcpskilllab-chip">可信分：<span class="mcpskilllab-score">${escapeHtml(trust.total)}</span></span>`;
+    }
+
+    function renderCheckSummaryChip(item) {
+        const state = getCheckState(item);
+        if (!state) return '<span class="mcpskilllab-chip">后端检测：未检测</span>';
+        if (state.loading) return '<span class="mcpskilllab-chip medium">后端检测：检测中</span>';
+        const fresh = isCheckStateFresh(state);
+        if (state.data) {
+            return `<span class="mcpskilllab-chip ${fresh ? 'official' : 'medium'}">后端检测：${escapeHtml(state.data.score)}${fresh ? '' : ' · 过期'}</span>`;
+        }
+        return `<span class="mcpskilllab-chip medium">后端检测：失败</span>`;
+    }
+
+    function renderTrustBreakdown(item) {
+        const trust = getTrustBreakdown(item);
+        return `
+            <div class="mcpskilllab-trust-panel">
+                <div class="mcpskilllab-trust-head">
+                    <div>
+                        <div class="mcpskilllab-trust-kicker">可信分拆解</div>
+                        <div class="mcpskilllab-trust-title">${trust.level === 'high' ? '可优先评估' : trust.level === 'medium' ? '需要常规审查' : '需要谨慎审查'}</div>
+                    </div>
+                    <div class="mcpskilllab-trust-total">${escapeHtml(trust.total)}</div>
+                </div>
+                <div class="mcpskilllab-trust-grid">
+                    ${trust.components.map(component => {
+                        const width = Math.round((component.score / component.max) * 100);
+                        return `
+                            <div>
+                                <div class="mcpskilllab-trust-row">
+                                    <div class="mcpskilllab-trust-label">${escapeHtml(component.label)}</div>
+                                    <div class="mcpskilllab-trust-bar"><div class="mcpskilllab-trust-fill" style="width:${escapeHtml(width)}%"></div></div>
+                                    <div class="mcpskilllab-trust-value">${escapeHtml(component.score)} / ${escapeHtml(component.max)}</div>
+                                </div>
+                                <div class="mcpskilllab-trust-hint">${escapeHtml(component.hint)}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="mcpskilllab-trust-note">
+                    基础分：${escapeHtml(trust.baseTotal)}；后端检测调整：${trust.checkImpact.adjustment > 0 ? '+' : ''}${escapeHtml(trust.checkImpact.adjustment)}。
+                    ${escapeHtml(trust.checkImpact.hint)}
+                    目录原始分：${escapeHtml(item.trustScore)}。
+                </div>
+            </div>
+        `;
+    }
+
+    function renderReadOnlyCheck(item) {
+        const state = checkResults[item.id];
+        if (!state) {
+            return `
+                <div class="mcpskilllab-check-panel">
+                    <div class="mcpskilllab-check-head">
+                        <div>
+                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
+                            <div class="mcpskilllab-check-title">尚未检测</div>
+                        </div>
+                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">只读检测</span></button>
+                    </div>
+                    <div class="mcpskilllab-trust-note">检测只做链接可达性和 GitHub 公开元信息读取，不执行安装命令，也不连接 MCP Server。</div>
+                </div>
+            `;
+        }
+        if (state.loading) {
+            return `
+                <div class="mcpskilllab-check-panel">
+                    <div class="mcpskilllab-check-head">
+                        <div>
+                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
+                            <div class="mcpskilllab-check-title">检测中...</div>
+                        </div>
+                    </div>
+                    <div class="mcpskilllab-trust-note">正在请求后端检测链接和公开仓库元信息。</div>
+                </div>
+            `;
+        }
+        if (state.error) {
+            return `
+                <div class="mcpskilllab-check-panel">
+                    <div class="mcpskilllab-check-head">
+                        <div>
+                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
+                            <div class="mcpskilllab-check-title">检测失败</div>
+                        </div>
+                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">重试</span></button>
+                    </div>
+                    <div class="mcpskilllab-check-warning">${escapeHtml(state.error)}</div>
+                </div>
+            `;
+        }
+
+        const data = state.data || {};
+        const github = data.github || {};
+        const fresh = isCheckStateFresh(state);
+        return `
+            <div class="mcpskilllab-check-panel">
+                <div class="mcpskilllab-check-head">
+                    <div>
+                        <div class="mcpskilllab-trust-kicker">后端只读检测</div>
+                        <div class="mcpskilllab-check-title">${escapeHtml(data.status || 'unknown')} · ${escapeHtml(data.score || 0)} 分${fresh ? '' : ' · 已过期'}</div>
+                    </div>
+                    <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">重新检测</span></button>
+                </div>
+                <div class="mcpskilllab-trust-note">最近检测：${escapeHtml(formatCheckDate(state.checkedAt || data.checkedAt))}。${fresh ? '该结果正在参与可信分。' : '该结果只展示，不参与可信分。'}</div>
+                <div class="mcpskilllab-check-grid">
+                    ${(data.urls || []).map(url => `
+                        <div class="mcpskilllab-check-row">
+                            <span class="mcpskilllab-chip ${url.reachable ? 'low' : 'medium'}">${escapeHtml(url.role || 'url')}</span>
+                            <span>${escapeHtml(url.method || 'HTTP')} ${escapeHtml(url.statusCode || 0)} · ${escapeHtml(url.latencyMs || 0)}ms</span>
+                            <span class="mcpskilllab-check-url">
+                                ${escapeHtml(url.finalUrl || url.url || '')}
+                                ${url.error ? `<br>${escapeHtml(url.errorCode ? `[${url.errorCode}] ${url.error}` : url.error)}` : ''}
+                                ${url.recommendation ? `<br>建议：${escapeHtml(url.recommendation)}` : ''}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+                ${github.checked ? `
+                    <div class="mcpskilllab-meta">
+                        <span class="mcpskilllab-chip ${github.found ? 'official' : 'medium'}">GitHub：${github.found ? '已确认' : '未确认'}</span>
+                        ${github.repository ? `<span class="mcpskilllab-chip">${escapeHtml(github.repository)}</span>` : ''}
+                        ${github.stars !== undefined ? `<span class="mcpskilllab-chip">Stars：${escapeHtml(github.stars)}</span>` : ''}
+                        ${github.license ? `<span class="mcpskilllab-chip">License：${escapeHtml(github.license)}</span>` : ''}
+                        ${github.pushedAt ? `<span class="mcpskilllab-chip">Pushed：${escapeHtml(github.pushedAt)}</span>` : ''}
+                    </div>
+                    ${github.error ? `<div class="mcpskilllab-check-warning">${escapeHtml(github.errorCode ? `[${github.errorCode}] ${github.error}` : github.error)}${github.recommendation ? `；建议：${escapeHtml(github.recommendation)}` : ''}</div>` : ''}
+                ` : ''}
+                ${(data.warnings || []).length ? `
+                    <div class="mcpskilllab-check-warnings">
+                        ${data.warnings.map(warning => `<div class="mcpskilllab-check-warning">${escapeHtml(warning)}</div>`).join('')}
+                    </div>
+                ` : '<div class="mcpskilllab-trust-note">没有后端检测警告。</div>'}
+            </div>
+        `;
+    }
+
     function renderSortOptions() {
         return sortOptions
             .map(item => `<option value="${escapeHtml(item.id)}"${sortMode === item.id ? ' selected' : ''}>${escapeHtml(item.label)}</option>`)
@@ -1734,7 +2642,7 @@
             if (sortMode === 'recent') {
                 return String(b.lastChecked || '').localeCompare(String(a.lastChecked || '')) || String(a.name).localeCompare(String(b.name));
             }
-            return Number(b.trustScore || 0) - Number(a.trustScore || 0) || String(a.name).localeCompare(String(b.name));
+            return getTrustScore(b) - getTrustScore(a) || String(a.name).localeCompare(String(b.name));
         });
     }
 
@@ -1773,8 +2681,9 @@
                 <div class="mcpskilllab-meta">
                     <span class="mcpskilllab-chip">密钥：${escapeHtml(localize('auth', item.authRequired))}</span>
                     <span class="mcpskilllab-chip">${escapeHtml(localize('maintenance', item.maintenance))}</span>
-                    <span class="mcpskilllab-chip">可信分：<span class="mcpskilllab-score">${escapeHtml(item.trustScore)}</span></span>
+                    ${renderTrustScoreChip(item)}
                     <span class="mcpskilllab-chip">检查：${escapeHtml(item.lastChecked)}</span>
+                    ${renderCheckSummaryChip(item)}
                 </div>
             </div>
         `;
@@ -1806,7 +2715,8 @@
     }
 
     function getResourceById(id) {
-        return resources.find(item => item.id === id) || null;
+        const normalizedId = normalizeResourceId(id);
+        return resources.find(item => item.id === normalizedId) || null;
     }
 
     function renderIntro() {
@@ -1837,6 +2747,7 @@
         return `
             <div class="mcpskilllab-top-actions">
                 <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="add">添加技能</button>
+                <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="batchReview">批量审查</button>
                 <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="review">审查技能</button>
                 <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="templates">配置模板</button>
             </div>
@@ -1845,7 +2756,8 @@
 
     function renderCategoryTabs() {
         const counts = getCategoryCounts();
-        return categoryTabs.map(tab => `
+        const visibleTabs = categoryTabs.filter(tab => (counts[tab.id] || 0) > 0 || activeCategory === tab.id);
+        return visibleTabs.map(tab => `
             <button class="btn back-btn mcpskilllab-filter ${activeCategory === tab.id ? 'active' : ''}" type="button" data-category="${escapeHtml(tab.id)}">
                 ${escapeHtml(tab.label)}<span class="mcpskilllab-category-count">${escapeHtml(counts[tab.id] || 0)}</span>
             </button>
@@ -1854,6 +2766,8 @@
 
     function renderCategoryContext(filtered) {
         const category = getCategoryMeta(activeCategory);
+        const counts = getCategoryCounts();
+        const hiddenEmptyCount = categoryTabs.filter(tab => !counts[tab.id] && activeCategory !== tab.id).length;
         return `
             <div class="mcpskilllab-category-context">
                 <div>
@@ -1863,7 +2777,152 @@
                 <div class="mcpskilllab-meta">
                     <span class="mcpskilllab-chip">当前结果：${escapeHtml(filtered.length)}</span>
                     <span class="mcpskilllab-chip">分类资源：${escapeHtml(getCategoryResources(activeCategory).length)}</span>
+                    ${hiddenEmptyCount ? `<span class="mcpskilllab-chip">已隐藏空分类：${escapeHtml(hiddenEmptyCount)}</span>` : ''}
                 </div>
+            </div>
+        `;
+    }
+
+    function renderBackendHealth() {
+        const data = backendHealth.data || {};
+        const status = backendHealth.loading
+            ? '检测中'
+            : backendHealth.error
+                ? '不可用'
+                : data.status === 'ready'
+                    ? '可用'
+                    : '未检测';
+        const chipClass = backendHealth.error ? 'high' : data.status === 'ready' ? 'official' : 'medium';
+        const checkedAt = backendHealth.checkedAt || data.checkedAt || '';
+        const note = backendHealth.error
+            ? backendHealth.error
+            : data.status === 'ready'
+                ? `接口：${getMcpLabApiBase()}；超时 ${data.requestTimeoutMs || 0}ms；重定向 ${data.maxRedirects || 0} 跳。`
+                : `接口：${getMcpLabApiBase()}`;
+        return `
+            <div class="mcpskilllab-health-card">
+                <div class="mcpskilllab-health-row">
+                    <div class="mcpskilllab-meta">
+                        <span class="mcpskilllab-chip ${chipClass}">后端状态：${escapeHtml(status)}</span>
+                        ${data.version ? `<span class="mcpskilllab-chip">Checker：${escapeHtml(data.version)}</span>` : ''}
+                        ${checkedAt ? `<span class="mcpskilllab-chip">检查：${escapeHtml(formatCheckDate(checkedAt))}</span>` : ''}
+                    </div>
+                    <button class="cyber-button" id="mcpskilllab-refresh-health" type="button"><span class="cyber-button__tag">${backendHealth.loading ? '检查中' : '刷新状态'}</span></button>
+                </div>
+                <div class="mcpskilllab-health-note">${escapeHtml(note)}</div>
+            </div>
+        `;
+    }
+
+    function renderBatchCheckPanel(filtered, favorites) {
+        const favoriteCount = resources.filter(item => favorites.has(item.id)).length;
+        const cacheCount = Object.keys(checkResults).length;
+        const freshCount = resources.filter(item => isCheckStateFresh(getCheckState(item))).length;
+        const refreshCount = filtered.filter(isRefreshCheckCandidate).length;
+        const failedCount = filtered.filter(isFailedCheckCandidate).length;
+        const total = Math.max(0, batchCheckState.total);
+        const done = Math.min(total, Math.max(0, batchCheckState.done));
+        const progress = total ? Math.round((done / total) * 100) : 0;
+        const currentResource = getResourceById(batchCheckState.currentId);
+        const currentLabel = currentResource ? currentResource.name : '无';
+        const modeLabel = batchCheckState.mode ? getBatchModeLabel(batchCheckState.mode) : '未开始';
+        const statusText = batchCheckState.running
+            ? `正在检测${modeLabel}：${done} / ${total}，当前：${currentLabel}`
+            : total
+                ? `${batchCheckState.stopRequested ? '已停止' : '已完成'}${modeLabel}检测：成功 ${batchCheckState.success}，失败 ${batchCheckState.failed}`
+                : '批量检测空闲。';
+        const filteredDisabled = batchCheckState.running || !filtered.length ? ' disabled' : '';
+        const favoritesDisabled = batchCheckState.running || !favoriteCount ? ' disabled' : '';
+        const refreshDisabled = batchCheckState.running || !refreshCount ? ' disabled' : '';
+        const failedDisabled = batchCheckState.running || !failedCount ? ' disabled' : '';
+
+        return `
+            <div class="mcpskilllab-batch-panel">
+                <div class="mcpskilllab-batch-top">
+                    <div>
+                        <div class="mcpskilllab-batch-title">批量只读检测</div>
+                        <div class="mcpskilllab-batch-hint">按风险优先队列调用后端检测链接可达性和 GitHub 公开元信息，不执行安装命令，不连接 MCP Server。</div>
+                    </div>
+                    <div class="mcpskilllab-batch-controls">
+                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="refresh"${refreshDisabled}><span class="cyber-button__tag">检测需更新</span></button>
+                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="failed"${failedDisabled}><span class="cyber-button__tag">重试失败</span></button>
+                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="filtered"${filteredDisabled}><span class="cyber-button__tag">检测当前结果</span></button>
+                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="favorites"${favoritesDisabled}><span class="cyber-button__tag">检测待接入</span></button>
+                        ${batchCheckState.running ? '<button class="cyber-button" id="mcpskilllab-stop-batch-check" type="button"><span class="cyber-button__tag">停止检测</span></button>' : ''}
+                    </div>
+                </div>
+                <div class="mcpskilllab-meta">
+                    <span class="mcpskilllab-chip">当前结果：${escapeHtml(filtered.length)}</span>
+                    <span class="mcpskilllab-chip">需更新：${escapeHtml(refreshCount)}</span>
+                    <span class="mcpskilllab-chip">失败：${escapeHtml(failedCount)}</span>
+                    <span class="mcpskilllab-chip">待接入：${escapeHtml(favoriteCount)}</span>
+                    <span class="mcpskilllab-chip">新鲜缓存：${escapeHtml(freshCount)}</span>
+                    <span class="mcpskilllab-chip">总缓存：${escapeHtml(cacheCount)}</span>
+                </div>
+                ${renderBackendHealth()}
+                <div class="mcpskilllab-batch-progress" aria-label="批量检测进度">
+                    <div class="mcpskilllab-batch-fill" style="width:${escapeHtml(progress)}%"></div>
+                </div>
+                <div class="mcpskilllab-batch-status">${escapeHtml(statusText)}</div>
+            </div>
+        `;
+    }
+
+    function renderCheckReviewPanel(filtered, favorites) {
+        const stats = getCheckReviewStats(filtered);
+        const reviewItems = getCheckReviewItems(filtered);
+        const visibleItems = reviewItems.slice(0, REVIEW_ITEM_LIMIT);
+        const hiddenCount = Math.max(0, reviewItems.length - visibleItems.length);
+        const checkDisabled = batchCheckState.running ? ' disabled' : '';
+
+        return `
+            <div class="mcpskilllab-review-panel">
+                <div class="mcpskilllab-review-head">
+                    <div>
+                        <div class="mcpskilllab-review-title">检测结果审查</div>
+                        <div class="mcpskilllab-review-hint">聚合当前筛选结果里的失败、过期、低分和高风险权限资源，用于批量检测后的接入前复核。</div>
+                    </div>
+                    <div class="mcpskilllab-meta">
+                        <span class="mcpskilllab-chip high">失败：${escapeHtml(stats.failed)}</span>
+                        <span class="mcpskilllab-chip medium">过期：${escapeHtml(stats.stale)}</span>
+                        <span class="mcpskilllab-chip medium">低分：${escapeHtml(stats.lowScore)}</span>
+                        <span class="mcpskilllab-chip high">高权限：${escapeHtml(stats.highPermission)}</span>
+                    </div>
+                </div>
+                ${visibleItems.length ? `
+                    <div class="mcpskilllab-review-list">
+                        ${visibleItems.map(entry => {
+                            const item = entry.item;
+                            const isFavorite = favorites.has(item.id);
+                            return `
+                                <div class="mcpskilllab-review-item">
+                                    <div>
+                                        <div class="mcpskilllab-review-resource">${escapeHtml(item.name)}</div>
+                                        <div class="mcpskilllab-meta">
+                                            <span class="mcpskilllab-chip ${getReviewChipClass(entry.severity)}">${escapeHtml(entry.severity === 'high' ? '优先处理' : entry.severity === 'medium' ? '需要复核' : '留意')}</span>
+                                            ${renderTrustScoreChip(item)}
+                                            ${renderCheckSummaryChip(item)}
+                                        </div>
+                                        <div class="mcpskilllab-review-issues">
+                                            ${entry.issues.slice(0, 4).map(issue => `
+                                                <div class="mcpskilllab-review-issue">
+                                                    <span class="mcpskilllab-chip ${getReviewChipClass(issue.severity)}">${escapeHtml(issue.label)}</span>
+                                                    ${escapeHtml(issue.detail)}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <div class="mcpskilllab-review-actions">
+                                        <button class="cyber-button mcpskilllab-select" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">查看</span></button>
+                                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"${checkDisabled}><span class="cyber-button__tag">${isFailedCheckCandidate(item) ? '重试' : '检测'}</span></button>
+                                        <button class="cyber-button mcpskilllab-favorite" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${isFavorite ? '已待接入' : '加入待接入'}</span></button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    ${hiddenCount ? `<div class="mcpskilllab-review-hint">还有 ${escapeHtml(hiddenCount)} 个问题资源未展开，可缩小筛选条件或先处理上方高优先级条目。</div>` : ''}
+                ` : '<div class="mcpskilllab-review-hint">当前筛选结果没有需要优先处理的检测问题。</div>'}
             </div>
         `;
     }
@@ -1925,11 +2984,14 @@
                 </div>
                 <div class="mcpskilllab-desc">${escapeHtml(localize('scenario', item.scenario))}</div>
                 ${renderStructuredInfo(item)}
+                ${renderTrustBreakdown(item)}
+                ${renderReadOnlyCheck(item)}
                 <div class="result">${escapeHtml(item.template)}</div>
                 <div class="mcpskilllab-actions">
                     <button class="cyber-button mcpskilllab-open" type="button" data-url="${escapeHtml(item.url)}"><span class="cyber-button__tag">官网</span></button>
                     <button class="cyber-button mcpskilllab-open" type="button" data-url="${escapeHtml(item.docs)}"><span class="cyber-button__tag">文档</span></button>
                     <button class="cyber-button mcpskilllab-copy" type="button" data-copy="${escapeHtml(item.template)}"><span class="cyber-button__tag">复制配置</span></button>
+                    <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${checkingResourceId === item.id ? '检测中' : '只读检测'}</span></button>
                     <button class="cyber-button mcpskilllab-favorite" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${isFavorite ? '已收藏' : '加入待接入'}</span></button>
                     <button class="cyber-button mcpskilllab-wizard-open" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">安装向导</span></button>
                 </div>
@@ -1990,14 +3052,9 @@
     }
 
     function renderTypeOptions(current) {
-        return [
-            'MCP Registry',
-            'MCP Directory',
-            'MCP Documentation',
-            'Skill Registry',
-            'Skill Directory',
-            'Plugin Marketplace'
-        ].map(value => `<option value="${escapeHtml(value)}"${current === value ? ' selected' : ''}>${escapeHtml(localize('type', value))}</option>`).join('');
+        return allowedResourceTypes
+            .map(value => `<option value="${escapeHtml(value)}"${current === value ? ' selected' : ''}>${escapeHtml(localize('type', value))}</option>`)
+            .join('');
     }
 
     function renderCategoryOptions(current) {
@@ -2017,7 +3074,8 @@
                     <div class="mcpskilllab-meta">
                         <span class="mcpskilllab-chip">${escapeHtml(localize('type', item.type))}</span>
                         <span class="mcpskilllab-chip">${escapeHtml(getCategoryMeta(getResourceCategory(item)).label)}</span>
-                        <span class="mcpskilllab-chip">可信分：${escapeHtml(item.trustScore)}</span>
+                        ${renderTrustScoreChip(item)}
+                        ${renderCheckSummaryChip(item)}
                     </div>
                 </div>
                 <div class="mcpskilllab-inline-actions">
@@ -2031,6 +3089,8 @@
 
     function renderHubPanel(favorites) {
         const customResources = getCustomResources();
+        const checkCache = getCheckCache();
+        const checkCount = Object.keys(checkCache).length;
         return `
             <div class="mcpskilllab-hub-grid">
                 <div class="card mcpskilllab-hub-card">
@@ -2056,9 +3116,10 @@
                     <div class="mcpskilllab-inline-actions">
                         <button class="cyber-button" id="mcpskilllab-export" type="button"><span class="cyber-button__tag">导出JSON</span></button>
                         <button class="cyber-button" id="mcpskilllab-import" type="button"><span class="cyber-button__tag">导入JSON</span></button>
+                        <button class="cyber-button" id="mcpskilllab-clear-check-cache" type="button"><span class="cyber-button__tag">清除检测缓存</span></button>
                         <input id="mcpskilllab-import-file" type="file" accept="application/json,.json" hidden>
                     </div>
-                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个，自定义资源 ${customResources.length} 个。</div>
+                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个，自定义资源 ${customResources.length} 个，检测缓存 ${checkCount} 条。</div>
                 </div>
 
                 <div class="card mcpskilllab-hub-card">
@@ -2160,7 +3221,8 @@
                 <div class="mcpskilllab-meta">
                     <span class="mcpskilllab-chip">平台：${escapeHtml(item.platforms.slice(0, 2).join(' / '))}${item.platforms.length > 2 ? '...' : ''}</span>
                     <span class="mcpskilllab-chip">权限：${escapeHtml(item.permissions.map(value => localize('permission', value)).slice(0, 2).join(' / '))}${item.permissions.length > 2 ? '...' : ''}</span>
-                    <span class="mcpskilllab-chip">可信分：${escapeHtml(item.trustScore)}</span>
+                    ${renderTrustScoreChip(item)}
+                    ${renderCheckSummaryChip(item)}
                 </div>
                 <div class="mcpskilllab-tags">
                     ${item.tags.map(tag => `<span class="mcpskilllab-chip">#${escapeHtml(tag)}</span>`).join('')}
@@ -2201,13 +3263,26 @@
         `;
     }
 
-    function renderDialog(selectedResource, favorites) {
+    function renderBatchReviewDialog(filtered, favorites) {
+        return `
+            <div class="mcpskilllab-side-stack">
+                ${renderBatchCheckPanel(filtered, favorites)}
+                ${renderCheckReviewPanel(filtered, favorites)}
+            </div>
+        `;
+    }
+
+    function renderDialog(selectedResource, favorites, filtered) {
         if (!activeDialog) return '';
 
         const dialogMap = {
             add: {
                 title: '添加技能',
                 body: renderHubPanel(favorites)
+            },
+            batchReview: {
+                title: '批量审查',
+                body: renderBatchReviewDialog(filtered, favorites)
             },
             review: {
                 title: '审查技能',
@@ -2296,7 +3371,7 @@
                         : '<div class="card mcpskilllab-empty">这个子模块下没有匹配资源。可以换筛选条件，或在本地 Hub 里添加。</div>'}
                 </div>
 
-                ${renderDialog(selectedResource, favorites)}
+                ${renderDialog(selectedResource, favorites, filtered)}
             </div>
         `;
         bindEvents(root);
@@ -2316,6 +3391,15 @@
         document.execCommand('copy');
         area.remove();
         return Promise.resolve();
+    }
+
+    function safeOpenUrl(value) {
+        const url = sanitizeExternalUrl(value);
+        if (!url) {
+            window.alert('链接格式不安全或不可用。只支持 http/https。');
+            return;
+        }
+        window.open(url, '_blank', 'noopener');
     }
 
     function bindEvents(root) {
@@ -2417,7 +3501,7 @@
         root.querySelectorAll('.mcpskilllab-open').forEach(button => {
             button.addEventListener('click', () => {
                 const url = button.getAttribute('data-url');
-                if (url) window.open(url, '_blank', 'noopener');
+                if (url) safeOpenUrl(url);
             });
         });
 
@@ -2433,6 +3517,33 @@
                 });
             });
         });
+
+        root.querySelectorAll('.mcpskilllab-check-resource').forEach(button => {
+            button.addEventListener('click', () => {
+                const id = button.getAttribute('data-id');
+                if (id && checkingResourceId !== id && !batchCheckState.running) {
+                    runResourceCheck(id);
+                }
+            });
+        });
+
+        root.querySelectorAll('.mcpskilllab-batch-check').forEach(button => {
+            if (button.disabled) return;
+            button.addEventListener('click', () => {
+                const mode = button.getAttribute('data-mode') || 'filtered';
+                runBatchCheck(mode);
+            });
+        });
+
+        const stopBatchButton = root.querySelector('#mcpskilllab-stop-batch-check');
+        if (stopBatchButton) {
+            stopBatchButton.addEventListener('click', stopBatchCheck);
+        }
+
+        const refreshHealthButton = root.querySelector('#mcpskilllab-refresh-health');
+        if (refreshHealthButton) {
+            refreshHealthButton.addEventListener('click', () => runBackendHealthCheck());
+        }
 
         root.querySelectorAll('.mcpskilllab-backlog-status').forEach(select => {
             select.addEventListener('change', () => {
@@ -2452,6 +3563,15 @@
             exportButton.addEventListener('click', exportHubData);
         }
 
+        const clearCheckCacheButton = root.querySelector('#mcpskilllab-clear-check-cache');
+        if (clearCheckCacheButton) {
+            clearCheckCacheButton.addEventListener('click', () => {
+                if (window.confirm && !window.confirm('确定清除所有后端检测缓存吗？')) return;
+                clearCheckCache();
+                render();
+            });
+        }
+
         const importButton = root.querySelector('#mcpskilllab-import');
         const importFile = root.querySelector('#mcpskilllab-import-file');
         if (importButton && importFile) {
@@ -2461,6 +3581,11 @@
             importFile.addEventListener('change', event => {
                 const file = event.target.files && event.target.files[0];
                 if (!file) return;
+                if (file.size > MAX_IMPORT_BYTES) {
+                    window.alert('导入失败：JSON 文件过大');
+                    importFile.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = () => {
                     try {
@@ -2469,6 +3594,7 @@
                     } catch (error) {
                         window.alert(`导入失败：${error.message || 'JSON 无法解析'}`);
                     }
+                    importFile.value = '';
                 };
                 reader.readAsText(file, 'utf-8');
             });
@@ -2560,7 +3686,9 @@
     }
 
     window.initMcpSkillLab = function () {
+        checkResults = getCheckCache();
         injectStyles();
         render();
+        runBackendHealthCheck({ silent: true });
     };
 })();

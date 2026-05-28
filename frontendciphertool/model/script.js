@@ -60,7 +60,7 @@ function formatMessage(text) {
         }
 
         if (trimmed.startsWith('###')) {
-             html += `<h3 class="section-header">${processInline(trimmed.replace(/^###+/, '').trim())}</h3>`;
+            html += `<h3 class="section-header">${processInline(trimmed.replace(/^###+/, '').trim())}</h3>`;
         }
         else if (/^\d+\./.test(trimmed)) {
             html += `<p class="section-title">${processInline(line)}</p>`;
@@ -69,10 +69,10 @@ function formatMessage(text) {
             html += `<p class="subsection"><span class="bold-text">${processInline(trimmed.replace(/^-/, '').trim())}</span></p>`;
         }
         else if (trimmed.includes(':') && trimmed.length < 100 && !trimmed.includes('http') && !trimmed.includes('//')) {
-             let firstColon = trimmed.indexOf(':');
-             let subtitle = trimmed.substring(0, firstColon).trim();
-             let content = trimmed.substring(firstColon + 1).trim();
-             html += `<p><span class="subtitle">${processInline(subtitle)}</span>: ${processInline(content)}</p>`;
+            let firstColon = trimmed.indexOf(':');
+            let subtitle = trimmed.substring(0, firstColon).trim();
+            let content = trimmed.substring(firstColon + 1).trim();
+            html += `<p><span class="subtitle">${processInline(subtitle)}</span>: ${processInline(content)}</p>`;
         }
         else {
             html += `<p>${processInline(line)}</p>`;
@@ -106,7 +106,7 @@ function getChatHistory() {
 }
 
 // 获取当前活动的聊天ID
-function getCurrentChatId() {return localStorage.getItem('currentChatId');}
+function getCurrentChatId() { return localStorage.getItem('currentChatId'); }
 
 // 创建新的聊天ID
 function createNewChatId() {
@@ -128,18 +128,18 @@ function updateChatHistoryUI() {
         if (chat.id === getCurrentChatId()) {
             chatItem.classList.add('active');
         }
-        
+
         chatItem.innerHTML = `
             <div class="history-title">${chat.title}</div>
             <div class="history-time">${formatDate(chat.timestamp)}</div>
             <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
         `;
-        
+
         chatItem.addEventListener('click', (e) => {
             if (e.target.classList.contains('history-checkbox')) return;
             loadChat(chat.id);
         });
-        
+
         historyList.appendChild(chatItem);
     });
 }
@@ -154,12 +154,12 @@ function formatDate(timestamp) {
 function loadChat(chatId) {
     const history = getChatHistory();
     if (!history[chatId]) return;
-    
+
     localStorage.setItem('currentChatId', chatId);
     const chatMessages = document.getElementById('chat-messages');
     if (chatMessages) {
         chatMessages.innerHTML = '';
-        
+
         if (history[chatId].messages.length === 0) {
             chatMessages.innerHTML = `
                 <div class="message system-message">
@@ -172,7 +172,7 @@ function loadChat(chatId) {
             });
         }
     }
-    
+
     updateChatHistoryUI();
 
     // Close sidebar on mobile after selecting chat
@@ -188,11 +188,11 @@ function displayMessageFromHistory(role, message, reasoning = null) {
     if (!messagesContainer) return;
     const messageElement = document.createElement('div');
     messageElement.className = `message ${role === 'user' ? 'user-message' : 'assistant-message'}`;
-    
+
     if (reasoning) {
         const reasoningDetails = document.createElement('details');
-        reasoningDetails.className = 'reasoning-details'; 
-        reasoningDetails.open = false; 
+        reasoningDetails.className = 'reasoning-details';
+        reasoningDetails.open = false;
         const reasoningSummary = document.createElement('summary');
         reasoningSummary.innerHTML = `<span>ANALYSIS LOG [SAVED]</span> <span class="status-dot"></span>`;
         const reasoningContentDiv = document.createElement('div');
@@ -201,13 +201,13 @@ function displayMessageFromHistory(role, message, reasoning = null) {
         reasoningDetails.appendChild(reasoningSummary);
         reasoningDetails.appendChild(reasoningContentDiv);
         messageElement.appendChild(reasoningDetails);
-    } 
+    }
     else if (message.startsWith('> **SYSTEM ANALYSIS:**')) {
     }
-    
+
     const messageContent = document.createElement('div');
     messageContent.className = 'message-content message-text';
-    
+
     let displayContent = message;
     if (reasoning && message.includes('> **SYSTEM ANALYSIS:**')) {
     }
@@ -215,7 +215,7 @@ function displayMessageFromHistory(role, message, reasoning = null) {
     messageContent.innerHTML = role === 'user' ? message : formatMessage(displayContent);
     messageElement.appendChild(messageContent);
     messagesContainer.appendChild(messageElement);
-    
+
     // MathJax 渲染
     if (window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([messageContent]).catch(err => console.log('MathJax error:', err));
@@ -228,9 +228,9 @@ function saveMessageToHistory(role, content, reasoning = null) {
     if (!chatId) {
         chatId = createNewChatId();
     }
-    
+
     const history = getChatHistory();
-    
+
     if (!history[chatId]) {
         const title = content.length > 20 ? content.substring(0, 20) + '...' : content;
         history[chatId] = {
@@ -240,14 +240,14 @@ function saveMessageToHistory(role, content, reasoning = null) {
             timestamp: Date.now()
         };
     }
-    
+
     history[chatId].messages.push({ role, content, reasoning });
-    
+
     // 如果是第一条用户消息，更新标题
     if (role === 'user' && history[chatId].messages.filter(m => m.role === 'user').length === 1) {
         history[chatId].title = content.length > 20 ? content.substring(0, 20) + '...' : content;
     }
-    
+
     // 确保更新了 currentChatId
     localStorage.setItem('currentChatId', chatId);
     localStorage.setItem('chatHistory', JSON.stringify(history));
@@ -256,7 +256,7 @@ function saveMessageToHistory(role, content, reasoning = null) {
 
 function displayMessage(role, message) {
     const messagesContainer = document.getElementById('chat-messages');
-    if (!messagesContainer) return; 
+    if (!messagesContainer) return;
     const messageElement = document.createElement('div');
     messageElement.className = `message ${role === 'user' ? 'user-message' : 'assistant-message'}`;
     const messageContent = document.createElement('div');
@@ -265,11 +265,11 @@ function displayMessage(role, message) {
     messageElement.appendChild(messageContent);
     messagesContainer.appendChild(messageElement);
     messageElement.scrollIntoView({ behavior: 'smooth' });
-    
+
     if (window.MathJax && window.MathJax.typesetPromise && role !== 'user') {
         window.MathJax.typesetPromise([messageContent]).catch(err => console.log('MathJax error:', err));
     }
-    
+
     saveMessageToHistory(role, message);
 }
 
@@ -278,8 +278,8 @@ let chatAbortController = null;
 function normalizeDeepSeekModel(model) {
     const normalized = String(model || '').trim();
     if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
-    if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-pro';
-    return normalized || 'deepseek-v4-pro';
+    if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-flash';
+    return normalized || 'deepseek-v4-flash';
 }
 
 async function sendMessage() {
@@ -294,7 +294,7 @@ async function sendMessage() {
 
     const inputElement = document.getElementById('user-input');
     if (!inputElement) return;
-    
+
     const message = inputElement.value;
     if (!message.trim()) return;
 
@@ -310,8 +310,8 @@ async function sendMessage() {
     const messageElement = document.createElement('div');
     messageElement.className = 'message assistant-message';
     const reasoningDetails = document.createElement('details');
-    reasoningDetails.className = 'reasoning-details thinking-state'; 
-    reasoningDetails.open = true; 
+    reasoningDetails.className = 'reasoning-details thinking-state';
+    reasoningDetails.open = true;
     const reasoningSummary = document.createElement('summary');
     reasoningSummary.innerHTML = `<span>SYSTEM ANALYSIS</span> <span class="status-dot"></span>`;
     const reasoningContent = document.createElement('div');
@@ -333,7 +333,7 @@ async function sendMessage() {
     const apiBaseUrl = aiConfig.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1';
     const apiModel = normalizeDeepSeekModel(aiConfig.defaultModel || aiConfig.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'));
     if (!apiKey) throw new Error('DeepSeek API Key 未配置');
-    
+
     const deepThinkToggle = document.getElementById('deep-think-toggle');
     const isDeepThink = deepThinkToggle && deepThinkToggle.classList.contains('active');
 
@@ -367,13 +367,13 @@ async function sendMessage() {
     let isMathJaxRendering = false;
     let lastMathJaxRenderTime = 0;
 
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify(payload),
-                signal: chatAbortController.signal
-            });
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify(payload),
+            signal: chatAbortController.signal
+        });
 
         if (!response.ok) throw new Error(`Network error: ${response.status}`);
 
@@ -403,10 +403,10 @@ async function sendMessage() {
                             if (reasoningDetails.classList.contains('thinking-state')) {
                                 reasoningDetails.classList.remove('thinking-state');
                                 reasoningSummary.innerHTML = `<span>ANALYSIS COMPLETE</span> <span class="status-dot"></span>`;
-                                if(cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
+                                if (cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
                             }
                             finalContent += delta.content;
-                            contentDiv.innerHTML = formatMessage(finalContent); 
+                            contentDiv.innerHTML = formatMessage(finalContent);
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
                             if (window.MathJax && window.MathJax.typesetPromise && !isMathJaxRendering && (Date.now() - lastMathJaxRenderTime > 250)) {
@@ -421,11 +421,11 @@ async function sendMessage() {
                 }
             }
         }
-        
+
         reasoningDetails.classList.remove('thinking-state');
-        if(cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
+        if (cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
         reasoningSummary.innerHTML = `<span>ANALYSIS LOG [SAVED]</span> <span class="status-dot"></span>`;
-        
+
         // 最后一次渲染 MathJax
         if (window.MathJax && window.MathJax.typesetPromise) {
             window.MathJax.typesetPromise([contentDiv]).catch(err => console.log('MathJax error:', err));
@@ -435,15 +435,15 @@ async function sendMessage() {
 
     } catch (error) {
         if (error.name === 'AbortError') {
-             // 处理中断
-             reasoningDetails.classList.remove('thinking-state');
-             if(cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
-             reasoningSummary.innerHTML = `<span>ANALYSIS INTERRUPTED</span> <span class="status-dot"></span>`;
-             
-             finalContent += "\n[TRANSMISSION INTERRUPTED]";
-             contentDiv.innerHTML = formatMessage(finalContent);
-             
-             saveMessageToHistory('assistant', finalContent, finalReasoning);
+            // 处理中断
+            reasoningDetails.classList.remove('thinking-state');
+            if (cursorSpan.parentNode) cursorSpan.parentNode.removeChild(cursorSpan);
+            reasoningSummary.innerHTML = `<span>ANALYSIS INTERRUPTED</span> <span class="status-dot"></span>`;
+
+            finalContent += "\n[TRANSMISSION INTERRUPTED]";
+            contentDiv.innerHTML = formatMessage(finalContent);
+
+            saveMessageToHistory('assistant', finalContent, finalReasoning);
         } else {
             contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${error.message}</span>`;
             console.error('Fetch error:', error);
@@ -461,19 +461,19 @@ async function sendMessage() {
 function deleteSelectedChats() {
     const checkboxes = document.querySelectorAll('.history-checkbox:checked');
     if (checkboxes.length === 0) return;
-    
+
     const history = getChatHistory();
     let currentChatDeleted = false;
     const currentChatId = localStorage.getItem('currentChatId');
-    
+
     checkboxes.forEach(checkbox => {
         const chatId = checkbox.getAttribute('data-id');
         if (chatId === currentChatId) currentChatDeleted = true;
         delete history[chatId];
     });
-    
+
     localStorage.setItem('chatHistory', JSON.stringify(history));
-    
+
     if (currentChatDeleted) {
         const remainingIds = Object.keys(history).sort((a, b) => history[b].timestamp - history[a].timestamp);
         if (remainingIds.length > 0) {
@@ -501,7 +501,7 @@ function searchChatHistory(query) {
         updateChatHistoryUI();
         return;
     }
-    
+
     const history = getChatHistory();
     const filteredHistory = {};
     Object.entries(history).forEach(([id, chat]) => {
@@ -516,7 +516,7 @@ function searchChatHistory(query) {
             }
         }
     });
-    
+
     displayFilteredHistory(filteredHistory);
 }
 
@@ -532,18 +532,18 @@ function displayFilteredHistory(filteredHistory) {
         if (chat.id === getCurrentChatId()) {
             chatItem.classList.add('active');
         }
-        
+
         chatItem.innerHTML = `
             <div class="history-title">${chat.title}</div>
             <div class="history-time">${formatDate(chat.timestamp)}</div>
             <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
         `;
-        
+
         chatItem.addEventListener('click', (e) => {
             if (e.target.classList.contains('history-checkbox')) return;
             loadChat(chat.id);
         });
-        
+
         historyList.appendChild(chatItem);
     });
 }
@@ -553,7 +553,7 @@ function newChat(force) {
     if (force !== true) {
         const history = getChatHistory();
         const currentId = localStorage.getItem('currentChatId');
-        
+
         // 1. 检查当前聊天是否为空
         if (currentId) {
             const currentChat = history[currentId];
@@ -571,7 +571,7 @@ function newChat(force) {
             return !chat.messages || chat.messages.length === 0;
         });
 
-        if (emptyChatId) {loadChat(emptyChatId);return;}
+        if (emptyChatId) { loadChat(emptyChatId); return; }
     }
 
     saveChatHistory(createNewChatId());
@@ -583,7 +583,7 @@ function newChat(force) {
             </div>
         `;
     }
-    
+
     updateChatHistoryUI();
 }
 
@@ -595,25 +595,25 @@ function bindChatEvents() {
         sendButton.removeEventListener('click', sendMessage);
         sendButton.addEventListener('click', sendMessage);
     }
-    
+
     const inputElement = document.getElementById('user-input');
     if (inputElement) {
         inputElement.removeEventListener('keypress', handleKeyPress);
         inputElement.addEventListener('keypress', handleKeyPress);
     }
-    
+
     const newChatButton = document.getElementById('new-chat');
     if (newChatButton) {
         newChatButton.removeEventListener('click', newChat);
         newChatButton.addEventListener('click', newChat);
     }
-    
+
     const deleteHistoryButton = document.getElementById('delete-history');
     if (deleteHistoryButton) {
         deleteHistoryButton.removeEventListener('click', deleteSelectedChats);
         deleteHistoryButton.addEventListener('click', deleteSelectedChats);
     }
-    
+
     const deepThinkToggle = document.getElementById('deep-think-toggle');
     if (deepThinkToggle) {
         deepThinkToggle.addEventListener('click', () => {
@@ -626,7 +626,7 @@ function bindChatEvents() {
         searchInput.removeEventListener('input', handleSearchInput);
         searchInput.addEventListener('input', handleSearchInput);
     }
-    
+
     // Mobile Sidebar Toggle
     const sidebarToggle = document.getElementById('sidebar-toggle');
     if (sidebarToggle) {
@@ -652,7 +652,7 @@ function bindChatEvents() {
         if (window.innerWidth <= 768) {
             const sidebar = document.querySelector('.chat-sidebar');
             const toggle = document.getElementById('sidebar-toggle');
-            
+
             if (sidebar && sidebar.classList.contains('active')) {
                 // If click is NOT inside sidebar AND NOT on the toggle button
                 if (!sidebar.contains(e.target) && (!toggle || !toggle.contains(e.target))) {
@@ -679,7 +679,7 @@ function handleKeyPress(event) {
 
 // 初始化 MathJax
 function initMathJax() {
-    if (window.MathJax) return; 
+    if (window.MathJax) return;
 
     window.MathJax = {
         tex: {
@@ -695,7 +695,7 @@ function initMathJax() {
     script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
     script.async = true;
     script.id = 'MathJax-script';
-    
+
     script.onload = () => {
         if (window.MathJax && window.MathJax.typesetPromise) {
             const chatMessages = document.getElementById('chat-messages');
@@ -718,7 +718,7 @@ function initChatFunctions() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (window.location.hash === '#damoxing') {
         initChatFunctions();
     }

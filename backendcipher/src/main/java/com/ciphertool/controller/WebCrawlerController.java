@@ -41,7 +41,7 @@ public class WebCrawlerController {
             List<String> sources = safeRequest.get("sources") instanceof List<?> list
                     ? list.stream().map(String::valueOf).toList()
                     : List.of();
-            Integer limit = safeRequest.get("limit") instanceof Number number ? number.intValue() : 12;
+            Integer limit = safeRequest.get("limit") instanceof Number number ? number.intValue() : 20;
             String result = webCrawlerService.communitySnapshot(sources, limit);
             return Map.of("success", true, "data", result);
         } catch (Exception e) {
@@ -108,7 +108,7 @@ public class WebCrawlerController {
                 ? list.stream().map(String::valueOf).toList()
                 : List.of();
         String mode = (String) request.getOrDefault("mode", "auto");
-        Integer maxResults = request.get("max_results") instanceof Number number ? number.intValue() : 10;
+        Integer maxResults = request.get("max_results") instanceof Number number ? number.intValue() : 32;
         Boolean readTop = readTopOverride != null
                 ? readTopOverride
                 : request.get("read_top") instanceof Boolean value ? value : Boolean.TRUE;

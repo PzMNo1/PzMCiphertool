@@ -70,9 +70,26 @@ function getLogicHTML() {
     </div>`;
 }
 
+function hydrateLogicPuzzleTargets(root = document) {
+    const buttons = root.querySelectorAll('.logic-btn');
+    buttons.forEach(btn => {
+        const onclick = btn.getAttribute('onclick') || '';
+        const workspaceMatch = onclick.match(/getElementById\('([a-z0-9-]+)-workspace'\)\.style\.display='flex'/i);
+        if (!workspaceMatch) return;
+
+        const target = workspaceMatch[1];
+        btn.dataset.target = target;
+        btn.dataset.workspace = `${target}-workspace`;
+        if (!btn.getAttribute('aria-label')) {
+            btn.setAttribute('aria-label', `打开逻辑谜题 ${btn.textContent.trim() || target}`);
+        }
+    });
+}
+
 function initLogicModule() {
     const container = document.getElementById('luojimiti');
     if (container) {
         container.innerHTML = getLogicHTML();
+        hydrateLogicPuzzleTargets(container);
     }
 }

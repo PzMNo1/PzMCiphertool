@@ -320,20 +320,33 @@ class ChatUI {
         const toolDeck = document.createElement('div');
         toolDeck.className = 'agent-tool-deck';
 
+        const approvalDeck = this.createAgentApprovalDeck([]);
+
         const trace = document.createElement('div');
         trace.className = 'agent-trace-log';
 
         body.appendChild(stages);
+        body.appendChild(approvalDeck);
         body.appendChild(toolDeck);
         body.appendChild(trace);
+        const eventTimeline = this.createAgentEventTimeline([]);
+        body.appendChild(eventTimeline.panel);
         panel.appendChild(summary);
         panel.appendChild(body);
 
         container.agentRunPanel = panel;
         container.agentStages = stages;
+        container.agentApprovalDeck = approvalDeck;
         container.toolDeck = toolDeck;
         container.agentTrace = trace;
+        container.agentEventTimeline = eventTimeline.panel;
+        container.agentEventLog = eventTimeline.log;
+        container.agentEventCount = eventTimeline.count;
         container.element.insertBefore(panel, container.contentDiv);
+        if (Array.isArray(container.pendingAgentEvents) && container.pendingAgentEvents.length) {
+            const pending = container.pendingAgentEvents.splice(0);
+            pending.forEach(event => this.appendAgentEvent(container, event));
+        }
         return panel;
     }
 
@@ -374,6 +387,9 @@ class ChatUI {
             stages.appendChild(item);
         });
 
+        const events = Array.isArray(snapshot.events) ? snapshot.events : [];
+        const approvalDeck = this.createAgentApprovalDeck(events);
+
         const trace = document.createElement('div');
         trace.className = 'agent-trace-log';
         (Array.isArray(snapshot.traces) ? snapshot.traces : []).forEach(row => {
@@ -387,7 +403,12 @@ class ChatUI {
         });
 
         body.appendChild(stages);
+        body.appendChild(approvalDeck);
         body.appendChild(trace);
+        const eventTimeline = this.createAgentEventTimeline(events);
+        if (eventTimeline.panel) {
+            body.appendChild(eventTimeline.panel);
+        }
         panel.appendChild(summary);
         panel.appendChild(body);
         // Safety: only use insertBefore if contentDiv is already a child of messageElement
@@ -423,6 +444,361 @@ class ChatUI {
             <span class="agent-trace-message">${this.escapeHtml(message)}</span>
         `;
         container.agentTrace.appendChild(row);
+    }
+
+    createAgentEventTimeline(events = []) {
+        const visibleEvents = events.filter(event => this.shouldDisplayAgentEvent(event));
+        const panel = document.createElement('details');
+        panel.className = 'agent-event-panel';
+        panel.open = false;
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-event-summary';
+        summary.innerHTML = `
+            <span class="agent-event-title">EVENTS</span>
+            <span class="agent-event-count">${visibleEvents.length}</span>
+        `;
+
+        const log = document.createElement('div');
+        log.className = 'agent-event-log';
+        visibleEvents.forEach(event => log.appendChild(this.createAgentEventRow(event)));
+
+        panel.appendChild(summary);
+        panel.appendChild(log);
+        return {
+            panel,
+            log,
+            count: summary.querySelector('.agent-event-count')
+        };
+    }
+
+    appendAgentEvent(container, event) {
+        if (!container || !this.shouldDisplayAgentEvent(event)) return;
+        if (!container.agentRunPanel) {
+            if (!Array.isArray(container.pendingAgentEvents)) {
+                container.pendingAgentEvents = [];
+            }
+            container.pendingAgentEvents.push(event);
+            return;
+        }
+        if (!container.agentEventLog) {
+            const timeline = this.createAgentEventTimeline([]);
+            container.agentEventTimeline = timeline.panel;
+            container.agentEventLog = timeline.log;
+            container.agentEventCount = timeline.count;
+            if (container.agentRunPanel?.querySelector('.agent-run-body')) {
+                container.agentRunPanel.querySelector('.agent-run-body').appendChild(timeline.panel);
+            }
+        }
+        container.agentEventLog.appendChild(this.createAgentEventRow(event));
+        const count = container.agentEventLog.children.length;
+        if (container.agentEventCount) {
+            container.agentEventCount.textContent = String(count);
+        }
+        if (event.type === 'approval.required') {
+            this.displayApprovalCard(container, event);
+        }
+        if (event.type === 'approval.resolved') {
+            this.applyApprovalResolution(container, event);
+        }
+    }
+
+    createAgentApprovalDeck(events = []) {
+        const deck = document.createElement('div');
+        deck.className = 'agent-approval-deck';
+        events
+            .filter(event => event?.type === 'approval.required')
+            .forEach(event => deck.appendChild(this.createApprovalCard(event)));
+        events
+            .filter(event => event?.type === 'approval.resolved')
+            .forEach(event => this.applyApprovalResolutionToDeck(deck, event));
+        return deck;
+    }
+
+    displayApprovalCard(container, event, options = {}) {
+        if (!container.agentApprovalDeck) {
+            const deck = this.createAgentApprovalDeck([]);
+            container.agentApprovalDeck = deck;
+            const body = container.agentRunPanel?.querySelector('.agent-run-body');
+            if (body) {
+                const toolDeck = body.querySelector('.agent-tool-deck');
+                if (toolDeck) body.insertBefore(deck, toolDeck);
+                else body.appendChild(deck);
+            }
+        }
+        const key = this.getApprovalKey(event);
+        const existing = Array.from(container.agentApprovalDeck.children)
+            .find(card => card.dataset.approvalKey === key);
+        if (existing && !options.interactive) return existing;
+        const card = this.createApprovalCard(event, options);
+        if (existing) {
+            existing.replaceWith(card);
+        } else {
+            container.agentApprovalDeck.appendChild(card);
+        }
+        return card;
+    }
+
+    createApprovalCard(event, options = {}) {
+        const payload = event.payload || {};
+        const card = document.createElement('div');
+        const interactive = Boolean(options.interactive && payload.enforced);
+        card.className = `agent-approval-card ${payload.enforced ? 'pending' : 'event-only'}`;
+        card.dataset.approvalKey = this.getApprovalKey(event);
+        const args = this.formatApprovalArguments(options.args ?? payload.arguments_preview);
+        const impact = payload.impact || 'No impact description provided.';
+        const argsBlock = interactive
+            ? `
+                <textarea class="agent-approval-editor" spellcheck="false" aria-label="Approval arguments">${this.escapeHtml(args)}</textarea>
+                <div class="agent-approval-error" aria-live="polite"></div>
+                <div class="agent-approval-actions">
+                    <button type="button" class="agent-approval-btn approve" data-approval-action="approve">Approve</button>
+                    <button type="button" class="agent-approval-btn reject" data-approval-action="reject">Reject</button>
+                </div>
+            `
+            : `<pre class="agent-approval-args">${this.escapeHtml(args)}</pre>`;
+        card.innerHTML = `
+            <div class="agent-approval-header">
+                <span class="agent-approval-title">APPROVAL</span>
+                <span class="agent-approval-risk">${this.escapeHtml(payload.risk || 'unknown')}</span>
+                <span class="agent-approval-mode" data-approval-status>${this.escapeHtml(payload.enforced ? 'WAITING' : 'EVENT ONLY')}</span>
+            </div>
+            <div class="agent-approval-grid">
+                <span class="agent-approval-label">Tool</span>
+                <span class="agent-approval-value">${this.escapeHtml(payload.name || 'tool')}</span>
+                <span class="agent-approval-label">Impact</span>
+                <span class="agent-approval-value">${this.escapeHtml(impact)}</span>
+            </div>
+            ${argsBlock}
+        `;
+        return card;
+    }
+
+    waitForAgentApproval(container, event, context = {}) {
+        const card = this.displayApprovalCard(container, event, {
+            interactive: true,
+            args: context.args
+        });
+        const payload = event?.payload || {};
+        if (!card) {
+            return Promise.resolve({
+                status: 'rejected',
+                args: context.args || {},
+                reason: 'Approval UI is unavailable.'
+            });
+        }
+
+        return new Promise(resolve => {
+            let settled = false;
+            const editor = card.querySelector('.agent-approval-editor');
+            const error = card.querySelector('.agent-approval-error');
+            const buttons = Array.from(card.querySelectorAll('[data-approval-action]'));
+            const settle = status => {
+                if (settled) return;
+                if (status === 'approved') {
+                    try {
+                        const args = this.parseApprovalArguments(editor?.value, context.args || {});
+                        settled = true;
+                        this.setApprovalCardBusy(card);
+                        resolve({ status: 'approved', args });
+                    } catch (e) {
+                        if (error) error.textContent = e.message;
+                        editor?.classList.add('invalid');
+                    }
+                    return;
+                }
+                settled = true;
+                this.setApprovalCardBusy(card);
+                resolve({
+                    status: 'rejected',
+                    args: context.args || {},
+                    reason: `用户拒绝执行 ${payload.name || 'tool'}`
+                });
+            };
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => settle(button.dataset.approvalAction === 'approve' ? 'approved' : 'rejected'));
+            });
+            editor?.addEventListener('input', () => {
+                editor.classList.remove('invalid');
+                if (error) error.textContent = '';
+            });
+        });
+    }
+
+    parseApprovalArguments(value, fallback) {
+        const text = String(value ?? '').trim();
+        if (!text) return {};
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error('Arguments must be valid JSON before approval.');
+        }
+    }
+
+    setApprovalCardBusy(card) {
+        card.classList.add('resolving');
+        card.querySelectorAll('button, textarea').forEach(element => {
+            element.disabled = true;
+        });
+    }
+
+    applyApprovalResolution(container, event) {
+        if (!container?.agentApprovalDeck) return;
+        this.applyApprovalResolutionToDeck(container.agentApprovalDeck, event);
+    }
+
+    applyApprovalResolutionToDeck(deck, event) {
+        const key = this.getApprovalKey(event);
+        const card = Array.from(deck?.children || []).find(item => item.dataset.approvalKey === key);
+        if (!card) return;
+        const payload = event.payload || {};
+        const approved = payload.status === 'approved' || payload.approved === true;
+        card.classList.remove('pending', 'event-only', 'resolving');
+        card.classList.add(approved ? 'approved' : 'rejected');
+        const status = card.querySelector('[data-approval-status]');
+        if (status) status.textContent = approved ? 'APPROVED' : 'REJECTED';
+        card.querySelectorAll('button, textarea').forEach(element => {
+            element.disabled = true;
+        });
+        let resolution = card.querySelector('.agent-approval-resolution');
+        if (!resolution) {
+            resolution = document.createElement('div');
+            resolution.className = 'agent-approval-resolution';
+            card.appendChild(resolution);
+        }
+        resolution.textContent = `${approved ? 'Approved' : 'Rejected'}${payload.edited ? ' · edited arguments' : ''}`;
+    }
+
+    getApprovalKey(event) {
+        const payload = event?.payload || {};
+        return String(payload.approval_id || payload.tool_call_id || `${payload.name || 'tool'}-${event?.seq || ''}`);
+    }
+
+    formatApprovalArguments(value) {
+        const text = typeof value === 'string' ? value : JSON.stringify(value || {});
+        if (!text) return '{}';
+        try {
+            return JSON.stringify(JSON.parse(text), null, 2);
+        } catch (e) {
+            return text;
+        }
+    }
+
+    shouldDisplayAgentEvent(event) {
+        if (!event || !event.type) return false;
+        return event.type !== 'model.delta';
+    }
+
+    createAgentEventRow(event) {
+        const row = document.createElement('div');
+        const state = this.getAgentEventState(event);
+        row.className = `agent-event-row ${state}`;
+        const time = this.formatAgentEventTime(event.ts);
+        const label = this.getAgentEventLabel(event);
+        const message = this.getAgentEventMessage(event);
+        const stage = event.stage || '';
+        row.innerHTML = `
+            <span class="agent-event-dot"></span>
+            <span class="agent-event-time">${this.escapeHtml(time)}</span>
+            <span class="agent-event-type">${this.escapeHtml(label)}</span>
+            <span class="agent-event-stage">${this.escapeHtml(stage)}</span>
+            <span class="agent-event-message">${this.escapeHtml(message)}</span>
+        `;
+        return row;
+    }
+
+    getAgentEventState(event) {
+        if (/failed|error/i.test(event.type || '')) return 'error';
+        if (/approval\.required/.test(event.type || '')) return 'warning';
+        if (/approval\.resolved/.test(event.type || '') && event.payload?.status !== 'approved') return 'error';
+        if (/completed|added|resolved|verified/.test(event.type || '')) return 'done';
+        if (/started|requested|created|built|route/.test(event.type || '')) return 'active';
+        return 'neutral';
+    }
+
+    getAgentEventLabel(event) {
+        const map = {
+            'run.started': 'run',
+            'context.built': 'context',
+            'plan.created': 'plan',
+            'route.completed': 'route',
+            'model.started': 'model',
+            'model.completed': 'model',
+            'tool.requested': 'tool',
+            'approval.required': 'approval',
+            'approval.resolved': 'approval',
+            'tool.started': 'tool',
+            'tool.completed': 'tool',
+            'tool.failed': 'tool',
+            'evidence.added': 'evidence',
+            'citation.verified': 'citation',
+            'artifact.created': 'artifact',
+            'synthesis.started': 'synthesis',
+            'run.completed': 'run',
+            'run.failed': 'run',
+            'run.cancelled': 'run'
+        };
+        return map[event.type] || event.type;
+    }
+
+    getAgentEventMessage(event) {
+        const payload = event.payload || {};
+        switch (event.type) {
+            case 'run.started':
+                return `${payload.mode || 'run'}${payload.researchProfile ? ` / ${payload.researchProfile}` : ''}`;
+            case 'context.built':
+                return this.formatContextSummary(payload.summary);
+            case 'plan.created':
+                return `${payload.mode || 'plan'} · ${payload.maxIterations || 0} iterations`;
+            case 'route.completed':
+                return `${Array.isArray(payload.selectedTools) ? payload.selectedTools.length : 0} tools selected`;
+            case 'model.started':
+                return payload.iteration ? `iteration ${payload.iteration}` : 'model turn started';
+            case 'model.completed':
+                return payload.tool_call_count !== undefined
+                    ? `${payload.tool_call_count} tool call(s), ${payload.content_chars || 0} chars`
+                    : `${payload.content_chars || 0} chars`;
+            case 'tool.requested':
+            case 'tool.started':
+                return `${payload.name || 'tool'}${payload.metadata?.risk ? ` · ${payload.metadata.risk}` : ''}`;
+            case 'tool.completed':
+                return `${payload.name || 'tool'} completed · ${payload.result_chars || 0} chars`;
+            case 'tool.failed':
+                return `${payload.name || 'tool'} failed · ${payload.result_chars || 0} chars`;
+            case 'approval.required':
+                return `${payload.name || 'tool'} · ${payload.risk || 'approval'} · ${payload.enforced ? 'enforced' : 'event only'}`;
+            case 'approval.resolved':
+                return `${payload.name || 'tool'} · ${payload.status || 'resolved'}${payload.edited ? ' · edited' : ''}`;
+            case 'evidence.added':
+                return `${payload.title || payload.url || payload.kind || 'evidence'}${payload.trustLevel ? ` · ${payload.trustLevel}` : ''}`;
+            case 'citation.verified':
+                return `${Array.isArray(payload.matched) ? payload.matched.length : 0} matched, ${Array.isArray(payload.unmatched) ? payload.unmatched.length : 0} unmatched, ${Array.isArray(payload.weak) ? payload.weak.length : 0} weak`;
+            case 'synthesis.started':
+                return `${payload.tool_calls || 0} tool call(s), ${payload.evidence_items || 0} evidence item(s)`;
+            case 'run.completed':
+                return `${payload.content_chars || 0} chars${Array.isArray(payload.warnings) && payload.warnings.length ? ` · ${payload.warnings.length} warning(s)` : ''}`;
+            default:
+                return this.truncateForLog(JSON.stringify(payload || {}), 180);
+        }
+    }
+
+    formatContextSummary(summary) {
+        if (!summary) return 'context ready';
+        const parts = [
+            `${summary.priorMessageCount || 0} messages`,
+            `${summary.attachmentCount || 0} attachments`
+        ];
+        if (summary.textAttachmentCount) parts.push(`${summary.textAttachmentCount} text`);
+        if (summary.imageAttachmentCount) parts.push(`${summary.imageAttachmentCount} image`);
+        return parts.join(' · ');
+    }
+
+    formatAgentEventTime(ts) {
+        if (!ts) return '';
+        const date = new Date(ts);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
     /**
@@ -649,8 +1025,18 @@ class ChatUI {
         if (msg.role === 'user') {
             this.appendAttachmentSummary(messageElement, msg.attachments || []);
         }
-        if (msg.role !== 'user' && msg.agent_run) {
-            this.restoreAgentRunPanel(messageElement, messageContent, msg.agent_run);
+        const agentRunId = msg.agent_run_id || msg.agentRunId || '';
+        const restoredAgentRun = msg.role !== 'user'
+            ? (msg.agent_run || window.agentRunStore?.getRun?.(agentRunId))
+            : null;
+        if (restoredAgentRun) {
+            this.restoreAgentRunPanel(messageElement, messageContent, restoredAgentRun);
+        } else if (msg.role !== 'user' && agentRunId && window.agentRunStore?.fetchRun) {
+            window.agentRunStore.fetchRun(agentRunId).then(run => {
+                if (!run || !messageElement.isConnected || messageElement.querySelector('.agent-run-panel')) return;
+                msg.agent_run = run;
+                this.restoreAgentRunPanel(messageElement, messageContent, run);
+            });
         }
         if (msg.role !== 'user' && Array.isArray(msg.images) && msg.images.length) {
             const grid = document.createElement('div');

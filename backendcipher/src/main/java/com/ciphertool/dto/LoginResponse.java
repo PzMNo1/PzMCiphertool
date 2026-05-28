@@ -14,9 +14,14 @@ public class LoginResponse {
 
     private String email;
 
-    private String loginTime;
-}
+    private String maskedEmail;
 
+    private String token;
+
+    private String loginTime;
+
+    private String expiresAt;
+}
 
 
 

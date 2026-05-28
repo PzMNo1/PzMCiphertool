@@ -28,6 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
             content: [
                 'You are PzM assistant, a page-control agent embedded in this toolkit UI.',
                 'You can answer questions normally, and when the user asks you to operate the page, call the ui_action tool.',
+                'Only use tools when the latest user message explicitly asks for a UI operation such as open, switch, click, fill, search, scroll, focus, highlight, close, reload, or navigate.',
+                'Do not use tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, Skill/MCP, or 联系我们.',
                 'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, and highlighting.',
                 'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
                 'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
@@ -35,8 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
-                'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, apizhongzhuanzhan, yijianfankui.',
-                'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu.'
+                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch.',
+                'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
+                'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
+                'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu. Use yuliu for 空间类 / space puzzle.',
+                'Available contact submodule targets: guanyuzuozhe, zuozhecaifang, yijianfankui, kaifarizhi.',
+                'Available logic puzzle targets include sudoku, akari, nonogram, kakuro, hashi, hitori, nurikabe, slitherlink.',
+                'Available space puzzle targets include standard-cube, skewbmofang, jinzitamofang, rubiksclock, squreonemofang, number-huarong, qiqiaoban, pentomino.'
             ].join('\n')
         }
     ];
@@ -54,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         enum: [
                             'navigate_section',
                             'switch_submodule',
+                            'switch_contact_submodule',
+                            'open_logic_puzzle',
+                            'open_space_puzzle',
                             'set_value',
                             'click',
                             'search',
@@ -70,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     target: {
                         type: 'string',
-                        description: 'A known target id/name or a CSS selector. Examples: jiamishiyanshi, mimaqu, #mainInput, .usage-guide-btn.'
+                        description: 'A known target id/name or a CSS selector. Examples: jiamishiyanshi, mimaqu, sudoku, skewbmofang, #mainInput, .usage-guide-btn.'
                     },
                     value: {
                         type: 'string',
@@ -287,16 +297,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const allowAgentTools = shouldAllowAgentTools(text);
         const loader = showLoading();
 
         try {
             const payload = {
                 model: AGENT_MODEL,
-                messages,
+                messages: buildRequestMessages(messages, allowAgentTools),
                 stream: true
             };
 
-            if (AGENT_USE_NATIVE_TOOLS) {
+            if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) {
                 payload.tools = [uiActionTool, browserActionTool];
             }
 
@@ -324,13 +335,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const { reply, toolCalls, inlineActions } = await readStream(res);
+            const { reply, toolCalls, inlineActions } = await readStream(res, allowAgentTools);
 
             if (reply) {
                 messages.push({ role: 'assistant', content: reply });
             }
 
-            if (toolCalls.length > 0 || inlineActions.length > 0) {
+            if (allowAgentTools && (toolCalls.length > 0 || inlineActions.length > 0)) {
                 const executed = [
                     ...await executeToolCalls(toolCalls),
                     ...await executeInlineActions(inlineActions)
@@ -338,6 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!reply) {
                     messages.push({ role: 'assistant', content: executed.join('\n') || 'UI action completed.' });
                 }
+            } else if (!allowAgentTools && (toolCalls.length > 0 || inlineActions.length > 0)) {
+                addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
             }
         } catch (err) {
             loader.remove();
@@ -345,7 +358,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function readStream(res) {
+    function buildRequestMessages(baseMessages, allowTools) {
+        if (allowTools) return baseMessages;
+        const guard = {
+            role: 'system',
+            content: 'The latest user message is a normal information/explanation question, not a page-control request. Do not call tools and do not emit <ui_action> or <browser_action> blocks. Answer directly in the user language.'
+        };
+        return [baseMessages[0], guard, ...baseMessages.slice(1)];
+    }
+
+    async function readStream(res, allowInlineActions = true) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let reply = '', buf = '';
@@ -389,8 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const parsed = extractInlineActions(reply);
-        msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : '<p>正在操作页面...</p>';
+        const parsed = allowInlineActions ? extractInlineActions(reply) : { text: reply, actions: [] };
+        msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : (allowInlineActions ? '<p>正在操作页面...</p>' : '<p>我理解这是普通问题，但没有生成回答。</p>');
         window.MathJax?.typesetPromise?.([msgDiv]);
         return {
             reply: parsed.text,
@@ -477,15 +499,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function executeUiAction(args) {
-        const action = args.action;
-        const target = normalizeTarget(args.target || '');
-        const value = String(args.value ?? '');
+        const action = normalizeUiActionName(args.action);
+        const target = normalizeTarget(resolveActionTarget(args, action));
+        const value = String(args.value ?? args.text ?? args.content ?? args.input ?? '');
 
         switch (action) {
             case 'navigate_section':
                 return navigateSection(target, args.reason);
             case 'switch_submodule':
                 return switchSubmodule(target, args.reason);
+            case 'switch_contact_submodule':
+                return switchContactSubmodule(target, args.reason);
+            case 'open_logic_puzzle':
+                return openLogicPuzzle(target, args.reason);
+            case 'open_space_puzzle':
+                return openSpacePuzzle(target, args.reason);
             case 'set_value':
                 return setValue(target, value, Boolean(args.append), args.reason);
             case 'click':
@@ -513,6 +541,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function resolveActionTarget(args, action) {
+        if (!args || typeof args !== 'object') return '';
+        const direct = args.target ?? args.selector ?? args.element ?? args.id ?? args.name;
+        if (action === 'open_logic_puzzle') return args.puzzle ?? args.logic_puzzle ?? args.logicPuzzle ?? args.puzzle_target ?? args.puzzleTarget ?? direct ?? '';
+        if (action === 'open_space_puzzle') {
+            return args.puzzle ?? args.space_puzzle ?? args.spacePuzzle ?? args.space_puzzle_target ?? args.spacePuzzleTarget ?? args.puzzle_target ?? args.puzzleTarget ?? args.puzzle_id ?? args.puzzleId ?? direct ?? '';
+        }
+        if (direct) return direct;
+        if (action === 'navigate_section') return args.section ?? args.page ?? args.module ?? '';
+        if (action === 'switch_submodule') return args.tab ?? args.submodule ?? args.cipher_tab ?? args.cipherTab ?? '';
+        if (action === 'switch_contact_submodule') return args.tab ?? args.submodule ?? args.contact_tab ?? args.contactTab ?? '';
+        if (action === 'set_value') return args.field ?? args.input_target ?? args.inputTarget ?? args.input_name ?? args.inputName ?? '#mainInput';
+        if (action === 'click') return args.button ?? args.label ?? '';
+        return '';
+    }
+
+    function normalizeUiActionName(action) {
+        const raw = String(action || '').trim();
+        const aliases = {
+            open_section: 'navigate_section',
+            go_to_section: 'navigate_section',
+            goto_section: 'navigate_section',
+            switch_section: 'navigate_section',
+            switch_cipher_tab: 'switch_submodule',
+            switch_tab: 'switch_submodule',
+            switch_cipher_submodule: 'switch_submodule',
+            open_cipher_tab: 'switch_submodule',
+            switch_contact_tab: 'switch_contact_submodule',
+            switch_contact_submodule: 'switch_contact_submodule',
+            open_contact_tab: 'switch_contact_submodule',
+            open_contact_submodule: 'switch_contact_submodule',
+            contact_submodule: 'switch_contact_submodule',
+            open_logic: 'open_logic_puzzle',
+            open_logic_puzzle: 'open_logic_puzzle',
+            select_logic_puzzle: 'open_logic_puzzle',
+            switch_logic_puzzle: 'open_logic_puzzle',
+            logic_puzzle: 'open_logic_puzzle',
+            open_space: 'open_space_puzzle',
+            open_space_puzzle: 'open_space_puzzle',
+            select_space_puzzle: 'open_space_puzzle',
+            switch_space_puzzle: 'open_space_puzzle',
+            space_puzzle: 'open_space_puzzle',
+            fill_input: 'set_value',
+            fill: 'set_value',
+            input_text: 'set_value',
+            type_text: 'set_value',
+            set_input: 'set_value',
+            click_element: 'click',
+            press_button: 'click',
+            find: 'search'
+        };
+        return aliases[raw] || aliases[raw.toLowerCase()] || raw;
+    }
+
     function normalizeTarget(target) {
         const aliases = {
             '加密实验室': 'jiamishiyanshi',
@@ -522,6 +604,11 @@ document.addEventListener('DOMContentLoaded', () => {
             '工作流': 'workflow',
             '知识图谱': 'zhishitupu',
             '大模型': 'damoxing',
+            'Skill/MCP实验室': 'mcpskilllab',
+            'Skill / MCP 实验室': 'mcpskilllab',
+            'MCP实验室': 'mcpskilllab',
+            'Skill实验室': 'mcpskilllab',
+            '技能实验室': 'mcpskilllab',
             '联系我们': 'yijianfankui',
             '反馈': 'yijianfankui',
             '经典区': 'mimaqu',
@@ -529,7 +616,16 @@ document.addEventListener('DOMContentLoaded', () => {
             '逻辑区': 'luojimiti',
             '词汇区': 'cihuiqu',
             '预留区': 'yuliu',
+            '预留': 'yuliu',
+            '空间类': 'yuliu',
+            '空间区': 'yuliu',
+            '空间': 'yuliu',
+            '空间谜题': 'yuliu',
             'mainInput': '#mainInput',
+            'main_input': '#mainInput',
+            'main-input': '#mainInput',
+            'main input': '#mainInput',
+            '主输入': '#mainInput',
             '主输入框': '#mainInput'
         };
         Object.assign(aliases, {
@@ -541,6 +637,11 @@ document.addEventListener('DOMContentLoaded', () => {
             '知识图谱': 'zhishitupu',
             '大模型': 'damoxing',
             '模型': 'damoxing',
+            'Skill/MCP实验室': 'mcpskilllab',
+            'Skill / MCP 实验室': 'mcpskilllab',
+            'MCP实验室': 'mcpskilllab',
+            'Skill实验室': 'mcpskilllab',
+            '技能实验室': 'mcpskilllab',
             '反馈': 'yijianfankui',
             '联系我们': 'yijianfankui',
             '经典区': 'mimaqu',
@@ -553,10 +654,27 @@ document.addEventListener('DOMContentLoaded', () => {
             '词汇': 'cihuiqu',
             '空间类': 'yuliu',
             '空间区': 'yuliu',
+            '空间': 'yuliu',
+            '空间谜题': 'yuliu',
+            '预留': 'yuliu',
+            space: 'yuliu',
+            Space: 'yuliu',
+            spacepuzzle: 'yuliu',
+            'space puzzle': 'yuliu',
             '主输入框': '#mainInput',
+            '主输入': '#mainInput',
             '输入框': '#mainInput',
+            '输入': '#mainInput',
+            'main_input': '#mainInput',
+            'main-input': '#mainInput',
+            'main input': '#mainInput',
             'search': '#cardSearch',
-            '搜索框': '#cardSearch'
+            '搜索框': '#cardSearch',
+            '逻辑': 'luojimiti',
+            'logic': 'luojimiti',
+            'logic area': 'luojimiti',
+            'sudoku': '数独',
+            'Sudoku': '数独'
         });
         aliases.Agent = 'damoxing';
         aliases.agent = 'damoxing';
@@ -565,6 +683,11 @@ document.addEventListener('DOMContentLoaded', () => {
         aliases['中转站'] = 'apizhongzhuanzhan';
         aliases['API Router'] = 'apizhongzhuanzhan';
         aliases['api router'] = 'apizhongzhuanzhan';
+        aliases.mcpskilllab = 'mcpskilllab';
+        aliases['skill/mcp'] = 'mcpskilllab';
+        aliases['skill mcp'] = 'mcpskilllab';
+        aliases['mcp lab'] = 'mcpskilllab';
+        aliases['skill lab'] = 'mcpskilllab';
         return aliases[target] || target;
     }
 
@@ -576,10 +699,264 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchSubmodule(target, reason) {
+        ensureCipherLabVisible();
         const btn = document.querySelector(`.submodule-btn[data-target="${cssEscape(target)}"]`);
         if (!btn) throw new Error(`submodule not found: ${target}`);
         btn.click();
         return ok(`已切换到 ${btn.textContent.trim() || target}`, reason);
+    }
+
+    function switchContactSubmodule(target, reason) {
+        const contactTarget = normalizeContactSubmoduleTarget(target);
+        navigateSection('yijianfankui');
+        const btn = document.querySelector(`.contact-submodule-btn[data-target="${cssEscape(contactTarget)}"]`);
+        if (!btn) throw new Error(`contact submodule not found: ${target}`);
+        btn.click();
+        syncContactSubmoduleState(contactTarget, btn);
+        return ok(`已打开 联系我们 / ${btn.textContent.trim() || contactTarget}`, reason);
+    }
+
+    function syncContactSubmoduleState(target, btn) {
+        const submodules = Array.from(document.querySelectorAll('#yijianfankui-content .lianxiwomen-submodule'));
+        const active = document.getElementById(target);
+        if (!active || !submodules.includes(active)) return;
+
+        document.querySelectorAll('#yijianfankui-content .contact-submodule-btn').forEach(item => {
+            item.classList.toggle('active', item === btn);
+        });
+        submodules.forEach(item => item.classList.toggle('active', item === active));
+
+        const wrapper = active.closest('.cipher-swiper-wrapper');
+        const container = active.closest('.cipher-swiper-container');
+        if (wrapper && container) {
+            const index = submodules.indexOf(active);
+            wrapper.style.transform = `translateX(${-index * container.offsetWidth}px)`;
+            container.style.height = `${active.scrollHeight}px`;
+        }
+    }
+
+    function openLogicPuzzle(target, reason) {
+        const puzzleTarget = normalizeLogicPuzzleTarget(target);
+        ensureCipherLabVisible();
+
+        const logicSection = document.querySelector('.submodule-btn[data-target="luojimiti"]');
+        if (logicSection && !document.getElementById('luojimiti')?.classList.contains('active')) {
+            logicSection.click();
+        }
+
+        const btn = findLogicPuzzleButton(puzzleTarget);
+        if (!btn) throw new Error(`logic puzzle not found: ${target}`);
+        btn.click();
+        return ok(`已打开逻辑谜题 ${btn.textContent.trim() || puzzleTarget}`, reason);
+    }
+
+    function openSpacePuzzle(target, reason) {
+        const puzzleTarget = normalizeSpacePuzzleTarget(target);
+        ensureCipherLabVisible();
+
+        const spaceSection = document.querySelector('.submodule-btn[data-target="yuliu"]');
+        if (spaceSection && !document.getElementById('yuliu')?.classList.contains('active')) {
+            spaceSection.click();
+        }
+
+        ensureSpacePuzzleInitialized();
+
+        if (typeof window.openSpacePuzzle === 'function' && isKnownSpacePuzzleTarget(puzzleTarget)) {
+            window.openSpacePuzzle(puzzleTarget);
+            return ok(`已打开空间类 ${getSpacePuzzleLabel(puzzleTarget)}`, reason);
+        }
+
+        const btn = findSpacePuzzleButton(puzzleTarget);
+        if (!btn) throw new Error(`space puzzle not found: ${target}`);
+        btn.click();
+        return ok(`已打开空间类 ${btn.textContent.trim() || puzzleTarget}`, reason);
+    }
+
+    function ensureCipherLabVisible() {
+        if (getCurrentSection() === 'jiamishiyanshi') return;
+        const item = document.querySelector('.menu-item[data-target="jiamishiyanshi"]');
+        if (item) item.click();
+    }
+
+    function ensureSpacePuzzleInitialized() {
+        const container = document.getElementById('spacepuzzle');
+        if (container && !document.getElementById('space-list-container') && typeof window.initSpacePuzzle === 'function') {
+            window.initSpacePuzzle();
+        }
+    }
+
+    function findLogicPuzzleButton(target) {
+        const raw = String(target || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized) return null;
+        const buttons = Array.from(document.querySelectorAll('.logic-btn')).filter(isVisible);
+        return buttons.find(btn => normalizeText(btn.dataset?.target) === normalized) ||
+            buttons.find(btn => normalizeText(btn.dataset?.workspace) === normalized) ||
+            buttons.find(btn => normalizeText(btn.textContent) === normalized) ||
+            buttons.find(btn => normalizeText(btn.dataset?.target).includes(normalized)) ||
+            buttons.find(btn => normalizeText(btn.textContent).includes(normalized)) ||
+            null;
+    }
+
+    function normalizeLogicPuzzleTarget(target) {
+        const raw = String(target || '').trim();
+        const aliases = {
+            '数独': 'sudoku',
+            sudoku: 'sudoku',
+            '数独题': 'sudoku',
+            nonogram: 'nonogram',
+            '数织': 'nonogram',
+            '绘图方块': 'nonogram',
+            kakuro: 'kakuro',
+            '数和': 'kakuro',
+            hashi: 'hashi',
+            '桥梁': 'hashi',
+            hitori: 'hitori',
+            nurikabe: 'nurikabe',
+            slitherlink: 'slitherlink',
+            akari: 'akari',
+            '美术馆': 'akari'
+        };
+        return aliases[raw] || aliases[raw.toLowerCase()] || raw;
+    }
+
+    function normalizeContactSubmoduleTarget(target) {
+        const raw = String(target || '').trim();
+        const normalized = normalizeText(raw);
+        const found = getContactSubmoduleAliases().find(item =>
+            item.names.some(name => normalizeText(name) === normalized)
+        );
+        return found ? found.target : raw;
+    }
+
+    function findContactSubmoduleTargetInText(text) {
+        const normalized = normalizeText(text);
+        const found = getContactSubmoduleAliases().find(item =>
+            item.names.some(name => normalized.includes(normalizeText(name)))
+        );
+        return found ? found.target : '';
+    }
+
+    function getContactSubmoduleAliases() {
+        return [
+            {
+                target: 'guanyuzuozhe',
+                names: ['guanyuzuozhe', '关于作者', '作者', 'about author', 'about']
+            },
+            {
+                target: 'zuozhecaifang',
+                names: ['zuozhecaifang', '作者采访', '采访', 'interview']
+            },
+            {
+                target: 'yijianfankui',
+                names: ['yijianfankui', '意见反馈', '一键反馈', '反馈', 'feedback']
+            },
+            {
+                target: 'kaifarizhi',
+                names: ['kaifarizhi', '开发日志', '日志', '更新日志', 'changelog', 'devlog']
+            }
+        ];
+    }
+
+    function findSpacePuzzleButton(target) {
+        const raw = String(target || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized) return null;
+
+        const root = document.getElementById('spacepuzzle') || document;
+        const buttons = Array.from(root.querySelectorAll('.logic-btn, button')).filter(isVisible);
+        return buttons.find(btn => normalizeSpacePuzzleTarget(readSpacePuzzleButtonTarget(btn)) === raw) ||
+            buttons.find(btn => normalizeSpacePuzzleTarget(btn.textContent) === raw) ||
+            buttons.find(btn => normalizeText(readSpacePuzzleButtonTarget(btn)) === normalized) ||
+            buttons.find(btn => normalizeText(btn.textContent) === normalized) ||
+            buttons.find(btn => normalizeText(btn.textContent).includes(normalized)) ||
+            null;
+    }
+
+    function readSpacePuzzleButtonTarget(btn) {
+        const dataTarget = btn.dataset?.target || btn.dataset?.workspace;
+        if (dataTarget) return dataTarget;
+        const onclick = btn.getAttribute?.('onclick') || '';
+        const match = onclick.match(/openSpacePuzzle\(['"]([^'"]+)['"]\)/);
+        return match ? match[1] : '';
+    }
+
+    function normalizeSpacePuzzleTarget(target) {
+        const raw = String(target || '').trim();
+        const normalized = normalizeSpacePuzzleAliasText(raw);
+        const found = getSpacePuzzleAliases().find(item =>
+            item.names.some(name => normalizeSpacePuzzleAliasText(name) === normalized)
+        );
+        return found ? found.target : raw;
+    }
+
+    function findSpacePuzzleTargetInText(text) {
+        const normalized = normalizeSpacePuzzleAliasText(text);
+        const found = getSpacePuzzleAliases().find(item =>
+            item.names.some(name => normalized.includes(normalizeSpacePuzzleAliasText(name)))
+        );
+        return found ? found.target : '';
+    }
+
+    function normalizeSpacePuzzleAliasText(value) {
+        return normalizeText(value).replace(/['’]/g, '');
+    }
+
+    function getSpacePuzzleAliases() {
+        return [
+            {
+                target: 'standard-cube',
+                names: ['standard-cube', 'standard cube', 'standardcube', 'rubikscube', 'rubiks cube', 'rubik cube', '标准三维魔方', '标准魔方', '三阶魔方']
+            },
+            {
+                target: 'skewbmofang',
+                names: ['skewbmofang', 'skewb', 'skewb魔方', '斜转魔方', '斜轉魔方']
+            },
+            {
+                target: 'jinzitamofang',
+                names: ['jinzitamofang', 'pyraminx', 'pyramid cube', '金字塔魔方']
+            },
+            {
+                target: 'rubiksclock',
+                names: ['rubiksclock', "rubik's clock", 'rubiks clock', 'rubik clock', '魔表']
+            },
+            {
+                target: 'squreonemofang',
+                names: ['squreonemofang', 'square-1', 'square1', 'square one', 'square-1魔方']
+            },
+            {
+                target: 'number-huarong',
+                names: ['number-huarong', 'number huarong', '数字华容道', '华容道']
+            },
+            {
+                target: 'qiqiaoban',
+                names: ['qiqiaoban', '七巧板', 'tangram']
+            },
+            {
+                target: 'pentomino',
+                names: ['pentomino', '五连方', '五连块']
+            }
+        ];
+    }
+
+    function isKnownSpacePuzzleTarget(target) {
+        if (target === 'standard-cube') return true;
+        return Array.isArray(window.spacePuzzleModules) &&
+            window.spacePuzzleModules.some(module => module && module.id === target);
+    }
+
+    function getSpacePuzzleLabel(target) {
+        const labels = {
+            'standard-cube': '标准三维魔方',
+            skewbmofang: 'Skewb 魔方',
+            jinzitamofang: '金字塔魔方',
+            rubiksclock: "Rubik's Clock",
+            squreonemofang: 'Square-1 魔方',
+            'number-huarong': '数字华容道',
+            qiqiaoban: '七巧板',
+            pentomino: 'Pentomino 五连方'
+        };
+        return labels[target] || target;
     }
 
     function setValue(target, value, append, reason) {
@@ -720,14 +1097,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (raw.startsWith('#') || raw.startsWith('.') || raw.startsWith('[') || /^[a-z][\w-]*(?:[.#\[]|$)/i.test(raw)) {
             try {
-                const direct = document.querySelector(raw);
+                const direct = querySelectorPreferActive(raw);
                 if (direct) return direct;
             } catch {
                 // Continue with semantic lookup.
             }
         }
 
-        const byId = document.getElementById(raw);
+        const byId = querySelectorPreferActive(`#${cssEscape(raw)}`) || document.getElementById(raw);
         if (byId) return byId;
 
         const normalized = normalizeText(raw);
@@ -736,6 +1113,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (exact) return exact;
 
         return candidates.find(el => candidateTexts(el).some(text => normalizeText(text).includes(normalized))) || null;
+    }
+
+    function querySelectorPreferActive(selector) {
+        const matches = Array.from(document.querySelectorAll(selector));
+        if (!matches.length) return null;
+        return matches.find(isInActiveUiContext) ||
+            matches.find(isVisible) ||
+            matches[0];
+    }
+
+    function isInActiveUiContext(el) {
+        if (!isVisible(el)) return false;
+        const submodule = el.closest?.('.submodule, .lianxiwomen-submodule');
+        if (submodule && !submodule.classList.contains('active')) return false;
+        const section = el.closest?.('.content-section');
+        if (section) {
+            const style = getComputedStyle(section);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+        }
+        return true;
     }
 
     function ok(message, reason) {
@@ -1003,6 +1400,49 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('AGENTMASTER_ORB_POSITION', JSON.stringify({ left, top }));
     }
 
+    function shouldAllowAgentTools(text) {
+        const raw = String(text || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized) return false;
+
+        if (isLikelyAnswerOnlyRequest(raw, normalized)) return false;
+        return hasExplicitOperationIntent(raw, normalized);
+    }
+
+    function isLikelyAnswerOnlyRequest(raw, normalized) {
+        const answerTerms = [
+            '解释', '说明', '科普', '是什么', '什么意思', '含义', '定义', '用途', '原理', '为什么', '为何',
+            '怎么', '如何', '介绍', '分析', '讲讲', '告诉我', '区别', '谁', '哪', '何时', '多少',
+            'explain', 'what', 'why', 'how', 'who', 'where', 'when', 'which', 'meaning', 'definition'
+        ];
+        const hasAnswerTerm = answerTerms.some(term => normalized.includes(normalizeText(term))) ||
+            /[?？]$/.test(raw);
+        return hasAnswerTerm && !hasExplicitOperationIntent(raw, normalized);
+    }
+
+    function hasExplicitOperationIntent(raw, normalized) {
+        const operationStarts = [
+            '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航到', '去', '点击', '点开', '选择',
+            '输入', '填入', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',
+            '刷新', '关闭', '后退', '前进', '打开窗口', '新窗口',
+            'open', 'show', 'goto', 'switch', 'navigate', 'click', 'select', 'type', 'set', 'search',
+            'find', 'clear', 'highlight', 'scroll', 'focus', 'reload', 'close', 'back', 'forward'
+        ].map(normalizeText);
+        if (operationStarts.some(term => normalized.startsWith(term))) return true;
+
+        const helperPrefixes = ['帮我', '请帮我', '帮忙', '麻烦', '替我', '给我', '现在', '直接', 'please'];
+        const hasHelperPrefix = helperPrefixes.some(prefix => normalized.startsWith(normalizeText(prefix)));
+        if (!hasHelperPrefix) return false;
+
+        const operationTerms = [
+            '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航', '去到', '点击', '点开', '选择',
+            '输入', '填入', '填成', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',
+            '刷新', '关闭', '后退', '前进', 'open', 'show', 'goto', 'switch', 'navigate', 'click', 'select',
+            'type', 'set', 'search', 'find', 'clear', 'highlight', 'scroll', 'focus', 'reload', 'close'
+        ];
+        return operationTerms.some(term => normalized.includes(normalizeText(term)));
+    }
+
     async function tryRunFastCommand(text) {
         const raw = String(text || '').trim();
         const normalized = normalizeText(raw);
@@ -1062,12 +1502,23 @@ document.addEventListener('DOMContentLoaded', () => {
             workflow: ['workflow', '工作流'],
             zhishitupu: ['zhishitupu', 'graph', '知识图谱'],
             damoxing: ['damoxing', 'agent', '大模型', '模型'],
+            mcpskilllab: ['mcpskilllab', 'skill/mcp实验室', 'skill / mcp 实验室', 'mcp实验室', 'skill实验室', '技能实验室', 'skillmcp', 'mcp lab', 'skill lab'],
             yijianfankui: ['yijianfankui', 'feedback', '反馈', '联系我们']
         };
         for (const [target, names] of Object.entries(sections)) {
-            if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`打开${name}`) || normalized === normalizeText(`goto ${name}`))) {
+            if (names.some(name => isFastSectionCommand(normalized, name))) {
                 return { action: 'navigate_section', target };
             }
+        }
+
+        const contactSubmoduleTarget = findContactSubmoduleTargetInText(raw);
+        if (contactSubmoduleTarget && hasFastOpenIntent(normalized)) {
+            return { action: 'switch_contact_submodule', target: contactSubmoduleTarget };
+        }
+
+        const spacePuzzleTarget = findSpacePuzzleTargetInText(raw);
+        if (spacePuzzleTarget && hasFastOpenIntent(normalized)) {
+            return { action: 'open_space_puzzle', target: spacePuzzleTarget };
         }
 
         const submodules = {
@@ -1075,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
             xiandaiqu: ['xiandaiqu', '现代区', '现代'],
             luojimiti: ['luojimiti', '逻辑区', '逻辑谜题'],
             cihuiqu: ['cihuiqu', '词汇区', '词汇'],
-            yuliu: ['yuliu', '空间类', '空间区']
+            yuliu: ['yuliu', '空间类', '空间区', '空间', '空间谜题', 'space', 'spacepuzzle', 'space puzzle']
         };
         for (const [target, names] of Object.entries(submodules)) {
             if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`切换${name}`) || normalized === normalizeText(`打开${name}`))) {
@@ -1100,6 +1551,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (/^(页面快照|snapshot|page snapshot)$/.test(normalized)) return { action: 'snapshot' };
 
         return null;
+    }
+
+    function hasFastOpenIntent(normalized) {
+        return ['打开', '开启', '进入', '切换', '跳转', '转到', '去', 'open', 'show', 'goto', 'switch']
+            .some(term => normalized.includes(normalizeText(term)));
+    }
+
+    function isFastSectionCommand(normalized, name) {
+        const section = normalizeText(name);
+        return normalized === section ||
+            normalized === normalizeText(`打开${name}`) ||
+            normalized === normalizeText(`开启${name}`) ||
+            normalized === normalizeText(`进入${name}`) ||
+            normalized === normalizeText(`切换到${name}`) ||
+            normalized === normalizeText(`切换${name}`) ||
+            normalized === normalizeText(`转到${name}`) ||
+            normalized === normalizeText(`去${name}`) ||
+            normalized === normalizeText(`goto ${name}`) ||
+            normalized === normalizeText(`open ${name}`) ||
+            normalized === normalizeText(`show ${name}`) ||
+            normalized === normalizeText(`switch ${name}`);
     }
 
     async function executeBrowserAction(args) {
@@ -1453,7 +1925,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getAgentConfig() {
         const config = window.AGENTMASTER_CONFIG || {};
-        const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-v4-pro';
+        const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-v4-flash';
         return {
             apiKey: config.apiKey || localStorage.getItem('AGENTMASTER_API_KEY') || '',
             baseUrl: config.baseUrl || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1',
@@ -1465,8 +1937,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function normalizeDeepSeekModel(model) {
         const normalized = String(model || '').trim();
         if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
-        if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-pro';
-        return normalized || 'deepseek-v4-pro';
+        if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-flash';
+        return normalized || 'deepseek-v4-flash';
     }
 
     function resolveChatCompletionsUrl(baseUrl) {

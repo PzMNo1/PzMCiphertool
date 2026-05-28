@@ -38,11 +38,11 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private String tavilyApiKey;
     
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-    private static final int DEEP_READ_LIMIT = 4;
-    private static final int DEEP_READ_REQUEST_TIMEOUT_SECONDS = 12;
-    private static final int DEEP_READ_FUTURE_TIMEOUT_SECONDS = 14;
-    private static final int SEARCH_REQUEST_TIMEOUT_SECONDS = 5;
-    private static final int SEARCH_FUTURE_TIMEOUT_SECONDS = 6;
+    private static final int DEEP_READ_LIMIT = 16;
+    private static final int DEEP_READ_REQUEST_TIMEOUT_SECONDS = 18;
+    private static final int DEEP_READ_FUTURE_TIMEOUT_SECONDS = 22;
+    private static final int SEARCH_REQUEST_TIMEOUT_SECONDS = 6;
+    private static final int SEARCH_FUTURE_TIMEOUT_SECONDS = 8;
     private static final int NEWS_RESULT_LIMIT = 8;
     private static final int NEWS_CANDIDATE_LIMIT = 64;
     private static final int NEWS_PER_DOMAIN_LIMIT = 2;
@@ -60,7 +60,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-        this.researchExecutor = Executors.newFixedThreadPool(8);
+        this.researchExecutor = Executors.newFixedThreadPool(16);
     }
 
     @PreDestroy
@@ -75,7 +75,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             String url;
             
             if ("baidu".equalsIgnoreCase(engine)) {
-                url = "https://www.baidu.com/s?wd=" + encodedQuery;
+                return "Baidu search is disabled by research policy. Use non-Baidu research sources instead.";
             } else {
                 // Bing 国际版
                 // timeLimit: d=day, w=week, m=month
@@ -644,7 +644,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                 output.append("   Snippet: ").append(trimTo(snippet, 240)).append("\n");
             }
         }
-        output.append("Next step: use read_webpage on the top 2-4 links before making factual claims or writing a final briefing.");
+        output.append("Next step: use read_webpage on the top 12-16 links before making factual claims or writing a final briefing.");
         return output.toString();
     }
 
@@ -739,7 +739,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     @Override
     public String communitySnapshot(List<String> sources, Integer limit) {
         try {
-            int safeLimit = Math.max(3, Math.min(limit == null ? 12 : limit, 20));
+            int safeLimit = Math.max(3, Math.min(limit == null ? 20 : limit, 24));
             LinkedHashSet<String> requested = new LinkedHashSet<>();
             if (sources != null) {
                 sources.stream()
@@ -760,13 +760,13 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                 communities.add(fetchCommunity(source, safeLimit));
             }
             result.put("communities", communities);
-            result.put("guidance", "Use these community snapshot ids in citations. End the final answer with a Sources/来源 section and do not append a one-sentence summary unless explicitly requested.");
+            result.put("guidance", "Use these community snapshot ids in citations. For broad research, combine several communities with web_research/read_webpage evidence, cite 18+ useful sources when available, and end with a plain-text 来源 note instead of a Markdown source heading.");
             return result.toJSONString();
         } catch (Exception e) {
             log.error("Community snapshot failed", e);
             JSONObject result = new JSONObject();
             result.put("retrieved_at", java.time.OffsetDateTime.now().toString());
-            result.put("limit", limit == null ? 12 : limit);
+            result.put("limit", limit == null ? 20 : limit);
             result.put("communities", new JSONArray());
             result.put("error", "community_snapshot recovered from backend error: " + e.getMessage());
             result.put("guidance", "The snapshot endpoint recovered from an internal error. Retry with fewer sources or use web_research/search_urls as fallback.");
@@ -1021,9 +1021,9 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     @Override
     public String searchUrls(String query) {
         try {
-            List<JSONObject> searchResults = searchUrlsAsList(query, 10);
+            List<JSONObject> searchResults = searchUrlsAsList(query, 32);
             if (searchResults.isEmpty()) {
-                return JSON.toJSONString(List.of(Map.of("error", "未查找到有效结果，可能被搜索引擎拦截，请更换搜索词")));
+                return JSON.toJSONString(List.of(Map.of("error", "未查找到有效非百度结果，可能被搜索引擎或目标站点拦截，请更换搜索词或改用直连来源")));
             }
 
             return JSON.toJSONString(searchResults);
@@ -1036,7 +1036,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     @Override
     public String webResearch(String query, List<String> queries, String mode, Integer maxResults, Boolean readTop, String focusKeyword) {
-        int max = Math.max(4, Math.min(maxResults == null ? 10 : maxResults, 20));
+        int max = Math.max(16, Math.min(maxResults == null ? 32 : maxResults, 32));
         boolean shouldReadTop = readTop == null || readTop;
         List<String> queryPlan = buildResearchQueries(query, queries, mode);
 
@@ -1073,7 +1073,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             result.put("query_plan", queryPlan);
             result.put("sources", sources);
             result.put("evidence", evidence);
-            result.put("guidance", "Use source ids like [1], [2] in the final answer. If evidence is sparse or contradictory, call search_urls/read_webpage again with narrower queries.");
+            result.put("source_policy", "Default search fanout uses Bing CN, Bing Global, DuckDuckGo, Jina Search, Tavily when configured, and direct official/community fallback sources. Baidu is disabled completely.");
+            result.put("guidance", "Use source ids like [1], [2] in the final answer. Research-grade answers should aim for 28+ distinct sources and cite 18+ when available; community research should aim for 20+ citations. If evidence is sparse or contradictory, call search_urls/read_webpage again with narrower queries or direct source URLs.");
             return result.toJSONString();
         } catch (Exception e) {
             log.error("webResearch failed: {}", e.getMessage(), e);
@@ -1125,8 +1126,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             }
             String content = page.getString("content");
             if (content == null) content = page.toJSONString();
-            item.put("content", trimTo(content, 3500));
-            item.put("truncated", content.length() > 3500);
+            item.put("content", trimTo(content, 3000));
+            item.put("truncated", content.length() > 3000);
         } catch (Exception readError) {
             item.put("error", "read_failed: " + readError.getMessage());
         }
@@ -1304,31 +1305,37 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     private List<JSONObject> searchUrlsAsList(String query, int maxResults) {
-        return searchUrlsAsList(query, maxResults, true);
+        return searchUrlsAsList(query, maxResults, false);
     }
 
     private List<JSONObject> searchUrlsAsList(String query, int maxResults, boolean includeBaidu) {
+        int limit = Math.max(1, Math.min(maxResults, 32));
         List<JSONObject> combined = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         List<CompletableFuture<List<JSONObject>>> futures = new ArrayList<>();
+        if (includeBaidu) {
+            log.debug("Baidu include request ignored by research policy for query: {}", trimTo(query, 80));
+        }
 
         futures.add(searchSourceFuture("bing-cn", () -> fetchBingResults(query, "cn.bing.com", "bing-cn")));
         futures.add(searchSourceFuture("bing-global", () -> fetchBingResults(query, "www.bing.com", "bing-global")));
         futures.add(searchSourceFuture("duckduckgo", () -> fetchDuckDuckGoResults(query)));
-        if (includeBaidu) {
-            futures.add(searchSourceFuture("baidu", () -> fetchBaiduResults(query)));
-        }
+        futures.add(searchSourceFuture("jina-search", () -> fetchJinaSearchResults(query, Math.min(limit, 16))));
 
         if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
-            futures.add(searchSourceFuture("tavily", () -> fetchTavilyResults(query, Math.min(maxResults, 8))));
+            futures.add(searchSourceFuture("tavily", () -> fetchTavilyResults(query, Math.min(limit, 12))));
         }
 
         for (CompletableFuture<List<JSONObject>> future : futures) {
-            addSearchResults(combined, seen, future.join(), maxResults);
+            addSearchResults(combined, seen, future.join(), limit);
+        }
+
+        if (combined.size() < limit) {
+            addSearchResults(combined, seen, buildDirectResearchFallbackSources(query, limit), limit);
         }
 
         combined.sort((a, b) -> Integer.compare(scoreSearchResult(b, query), scoreSearchResult(a, query)));
-        return combined.stream().limit(maxResults).collect(Collectors.toList());
+        return combined.stream().limit(limit).collect(Collectors.toList());
     }
 
     private CompletableFuture<List<JSONObject>> searchSourceFuture(String source, Supplier<List<JSONObject>> supplier) {
@@ -1371,6 +1378,72 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         return plan.stream().limit(6).collect(Collectors.toList());
     }
 
+    private List<JSONObject> buildDirectResearchFallbackSources(String query, int maxResults) {
+        List<JSONObject> results = new ArrayList<>();
+        String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
+        boolean agentLike = containsAny(q,
+                "agent", "agents", "ai agent", "agentic", "mcp", "langchain", "langgraph", "llamaindex",
+                "crewai", "autogen", "cursor", "windsurf", "copilot", "claude code", "社区", "开发者社区", "智能体");
+        boolean academicLike = containsAny(q, "paper", "research", "benchmark", "arxiv", "论文", "学术", "研究", "评测");
+        boolean newsLike = containsAny(q, "latest", "today", "news", "current", "最新", "今天", "新闻", "趋势", "前沿");
+
+        if (agentLike || newsLike) {
+            addDirectSource(results, "direct-source", "OpenAI News", "https://openai.com/news/", "Official OpenAI announcements and research/product updates");
+            addDirectSource(results, "direct-source", "Anthropic News", "https://www.anthropic.com/news", "Official Anthropic announcements and model/product updates");
+            addDirectSource(results, "direct-source", "Google DeepMind Blog", "https://deepmind.google/discover/blog/", "Official Google DeepMind research and product blog");
+            addDirectSource(results, "direct-source", "Google AI Blog", "https://blog.google/technology/ai/", "Official Google AI news and product updates");
+            addDirectSource(results, "direct-source", "Microsoft AI Blog", "https://blogs.microsoft.com/ai/", "Official Microsoft AI announcements and analysis");
+            addDirectSource(results, "direct-source", "GitHub AI & ML Blog", "https://github.blog/ai-and-ml/", "GitHub AI engineering and developer tooling updates");
+            addDirectSource(results, "direct-source", "Hugging Face Blog", "https://huggingface.co/blog", "Open-source model and tooling community updates");
+            addDirectSource(results, "direct-source", "The Batch", "https://www.deeplearning.ai/the-batch/", "AI industry and research newsletter from DeepLearning.AI");
+        }
+
+        if (agentLike) {
+            addDirectSource(results, "direct-source", "LangChain Blog", "https://blog.langchain.com/", "LangChain and LangGraph agent framework updates");
+            addDirectSource(results, "direct-source", "LangGraph GitHub", "https://github.com/langchain-ai/langgraph", "LangGraph source repository and releases");
+            addDirectSource(results, "direct-source", "LlamaIndex Blog", "https://www.llamaindex.ai/blog", "LlamaIndex agent/RAG framework updates");
+            addDirectSource(results, "direct-source", "Microsoft AutoGen GitHub", "https://github.com/microsoft/autogen", "AutoGen source repository and releases");
+            addDirectSource(results, "direct-source", "CrewAI GitHub", "https://github.com/crewAIInc/crewAI", "CrewAI source repository and releases");
+            addDirectSource(results, "direct-source", "Model Context Protocol", "https://modelcontextprotocol.io/", "MCP official documentation and ecosystem entry point");
+            addDirectSource(results, "direct-source", "Aider News", "https://aider.chat/docs/news.html", "Aider coding-agent release notes");
+            addDirectSource(results, "direct-source", "Cursor Changelog", "https://www.cursor.com/changelog", "Cursor product changelog");
+            addDirectSource(results, "direct-source", "GitHub Trending", "https://github.com/trending?since=daily", "Daily trending GitHub repositories");
+            addDirectSource(results, "direct-source", "Hacker News", "https://news.ycombinator.com/news", "Developer community front page");
+            addDirectSource(results, "direct-source", "Hacker News Newest", "https://news.ycombinator.com/newest", "Fresh Hacker News submissions");
+            addDirectSource(results, "direct-source", "Product Hunt AI", "https://www.producthunt.com/topics/artificial-intelligence", "Product Hunt AI product launches");
+            addDirectSource(results, "direct-source", "Lobsters", "https://lobste.rs/", "Technical community discussions");
+            addDirectSource(results, "direct-source", "V2EX Hot", "https://www.v2ex.com/?tab=hot", "Chinese developer community hot topics");
+            addDirectSource(results, "direct-source", "Reddit r/LocalLLaMA", "https://www.reddit.com/r/LocalLLaMA/hot/", "Open-source LLM and agent community discussions");
+            addDirectSource(results, "direct-source", "Reddit r/MachineLearning", "https://www.reddit.com/r/MachineLearning/hot/", "Machine learning community discussions");
+            addDirectSource(results, "direct-source", "Reddit r/programming", "https://www.reddit.com/r/programming/hot/", "Programming community discussions");
+            addDirectSource(results, "direct-source", "Simon Willison", "https://simonwillison.net/", "Practitioner notes on LLM tools, agents, and AI engineering");
+        }
+
+        if (academicLike || agentLike) {
+            addDirectSource(results, "direct-source", "arXiv cs.AI recent", "https://arxiv.org/list/cs.AI/recent", "Recent artificial intelligence papers");
+            addDirectSource(results, "direct-source", "arXiv cs.CL recent", "https://arxiv.org/list/cs.CL/recent", "Recent computational linguistics and LLM papers");
+            addDirectSource(results, "direct-source", "Papers with Code", "https://paperswithcode.com/", "Paper, benchmark, and code index");
+            addDirectSource(results, "direct-source", "Nature Machine Intelligence", "https://www.nature.com/natmachintell/", "Peer-reviewed AI research journal");
+            addDirectSource(results, "direct-source", "ACM Digital Library", "https://dl.acm.org/", "ACM publication index");
+            addDirectSource(results, "direct-source", "IEEE Xplore", "https://ieeexplore.ieee.org/", "IEEE publication index");
+        }
+
+        if (newsLike || results.isEmpty()) {
+            addDirectSource(results, "direct-source", "Reuters Technology", "https://www.reuters.com/technology/", "Reuters technology news section");
+            addDirectSource(results, "direct-source", "AP Technology", "https://apnews.com/technology", "Associated Press technology news section");
+            addDirectSource(results, "direct-source", "TechCrunch AI", "https://techcrunch.com/category/artificial-intelligence/", "TechCrunch AI coverage");
+            addDirectSource(results, "direct-source", "The Verge AI", "https://www.theverge.com/ai-artificial-intelligence", "The Verge AI coverage");
+            addDirectSource(results, "direct-source", "Ars Technica AI", "https://arstechnica.com/ai/", "Ars Technica AI coverage");
+            addDirectSource(results, "direct-source", "Wired AI", "https://www.wired.com/tag/artificial-intelligence/", "Wired AI coverage");
+        }
+
+        return results.stream().limit(maxResults).collect(Collectors.toList());
+    }
+
+    private void addDirectSource(List<JSONObject> results, String source, String title, String url, String snippet) {
+        results.add(searchResult(source, title, url, snippet));
+    }
+
     private List<JSONObject> fetchBingResults(String query, String host, String source) {
         try {
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -1379,7 +1452,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             List<JSONObject> results = new ArrayList<>();
 
             String[] blocks = html.split("class=\"b_algo\"");
-            for (int i = 1; i < blocks.length && results.size() < 8; i++) {
+            for (int i = 1; i < blocks.length && results.size() < 12; i++) {
                 String block = blocks[i];
                 Matcher linkMatcher = Pattern.compile("<h2[^>]*>\\s*<a[^>]*href=\"(http[^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL | Pattern.CASE_INSENSITIVE).matcher(block);
                 if (!linkMatcher.find()) continue;
@@ -1400,27 +1473,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     private List<JSONObject> fetchBaiduResults(String query) {
-        try {
-            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-            String html = stripNoise(fetchHtml("https://www.baidu.com/s?wd=" + encodedQuery, Duration.ofSeconds(SEARCH_REQUEST_TIMEOUT_SECONDS)));
-            List<JSONObject> results = new ArrayList<>();
-            Pattern[] patterns = {
-                    Pattern.compile("<h3[^>]*>\\s*<a[^>]*href=\"([^\"]+)\"[^>]*>\\s*(.*?)</a>", Pattern.DOTALL | Pattern.CASE_INSENSITIVE),
-                    Pattern.compile("class=\"t\"[^>]*>\\s*<a[^>]*href=\"([^\"]+)\"[^>]*>\\s*(.*?)</a>", Pattern.DOTALL | Pattern.CASE_INSENSITIVE)
-            };
-            for (Pattern pattern : patterns) {
-                Matcher matcher = pattern.matcher(html);
-                while (matcher.find() && results.size() < 8) {
-                    String title = cleanText(matcher.group(2)).replace("<em>", "").replace("</em>", "");
-                    String resultUrl = normalizeUrl(matcher.group(1));
-                    results.add(searchResult("baidu", title, resultUrl, "Baidu search result"));
-                }
-            }
-            return results;
-        } catch (Exception e) {
-            log.debug("Baidu search failed: {}", e.getMessage());
-            return List.of();
-        }
+        log.debug("Baidu search skipped by research policy for query: {}", trimTo(query, 80));
+        return List.of();
     }
 
     private List<JSONObject> fetchDuckDuckGoResults(String query) {
@@ -1430,7 +1484,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             List<JSONObject> results = new ArrayList<>();
             Pattern pattern = Pattern.compile("<a[^>]*class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(html);
-            while (matcher.find() && results.size() < 8) {
+            while (matcher.find() && results.size() < 12) {
                 String resultUrl = decodeDuckDuckGoUrl(normalizeUrl(matcher.group(1)));
                 String title = cleanText(matcher.group(2));
                 results.add(searchResult("duckduckgo", title, resultUrl, "DuckDuckGo search result"));
@@ -1440,6 +1494,41 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             log.debug("DuckDuckGo search failed: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private List<JSONObject> fetchJinaSearchResults(String query, int maxResults) {
+        try {
+            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8).replace("+", "%20");
+            String text = fetchText("https://s.jina.ai/" + encodedQuery, Duration.ofSeconds(SEARCH_REQUEST_TIMEOUT_SECONDS + 2));
+            return parseJinaSearchResults(text, maxResults);
+        } catch (Exception e) {
+            log.debug("Jina search failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<JSONObject> parseJinaSearchResults(String text, int maxResults) {
+        List<JSONObject> results = new ArrayList<>();
+        String value = text == null ? "" : text;
+        Pattern blockPattern = Pattern.compile("(?is)(?:^|\\n)Title:\\s*(.*?)\\s*\\nURL Source:\\s*(https?://\\S+)\\s*(.*?)(?=\\nTitle:|\\z)");
+        Matcher blockMatcher = blockPattern.matcher(value);
+        while (blockMatcher.find() && results.size() < maxResults) {
+            String title = cleanText(blockMatcher.group(1));
+            String url = normalizeUrl(blockMatcher.group(2));
+            String snippet = cleanText(blockMatcher.group(3).replaceFirst("(?is)^\\s*Markdown Content:\\s*", ""));
+            results.add(searchResult("jina-search", title, url, snippet));
+        }
+
+        if (results.size() >= maxResults) return results;
+
+        Pattern markdownLinkPattern = Pattern.compile("\\[([^\\]\\n]{6,160})\\]\\((https?://[^\\s)]+)\\)");
+        Matcher linkMatcher = markdownLinkPattern.matcher(value);
+        while (linkMatcher.find() && results.size() < maxResults) {
+            String title = cleanText(linkMatcher.group(1));
+            String url = normalizeUrl(linkMatcher.group(2));
+            results.add(searchResult("jina-search", title, url, "Jina search result"));
+        }
+        return results;
     }
 
     private List<JSONObject> fetchTavilyResults(String query, int maxResults) {
@@ -1486,6 +1575,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             String title = item.getString("title");
             String url = item.getString("url");
             if (!isValidTitle(title) || url == null || !url.startsWith("http")) continue;
+            if (isSearchRedirectDomain(extractDomain(url), url)) continue;
             String key = normalizeUrlForDedup(url);
             if (key.isBlank() || seen.contains(key)) continue;
             seen.add(key);
@@ -1518,7 +1608,9 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
         if (url.contains(".gov") || url.contains(".edu") || url.contains("docs.") || url.contains("developer.") || url.contains("github.com")) score += 3;
         String source = Optional.ofNullable(result.getString("source")).orElse("");
-        if ("tavily".equals(source) || "bing-cn".equals(source) || "bing-global".equals(source)) score += 2;
+        if ("tavily".equals(source) || "bing-cn".equals(source) || "bing-global".equals(source)
+                || "jina-search".equals(source) || "direct-source".equals(source)) score += 2;
+        if ("baidu".equalsIgnoreCase(source) || url.contains("baidu.com")) score -= 6;
         return score;
     }
 

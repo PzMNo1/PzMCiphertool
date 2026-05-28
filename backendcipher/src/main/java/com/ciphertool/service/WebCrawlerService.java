@@ -11,7 +11,7 @@ public interface WebCrawlerService {
     /**
      * 搜索引擎搜索
      * @param query 搜索关键词
-     * @param engine 搜索引擎 (bing/baidu)
+     * @param engine 搜索引擎 (bing；baidu 已禁用)
      * @param timeLimit 时间限制 (d:一天, w:一周, m:一月, y:一年)
      * @return 搜索结果摘要
      */

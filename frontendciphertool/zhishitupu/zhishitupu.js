@@ -21,7 +21,13 @@ async function initKnowledgeGraph() {
     const loader = document.getElementById('zstp-loader');
     
     if (!container) return;
-    if (container.querySelector('canvas')) return;
+    if (container.querySelector('canvas')) {
+        if (window.ZSTP && typeof window.ZSTP.resume === 'function') {
+            window.ZSTP.resume();
+        }
+        window.dispatchEvent(new Event('resize'));
+        return;
+    }
 
     try {
         if (!document.getElementById('sci-fi-font')) {
@@ -188,6 +194,7 @@ function renderGraph(container) {
                 group.add(text);
             }
 
+            stampGraphNodeObject(group, node);
             return group;
         })
         
@@ -200,10 +207,11 @@ function renderGraph(container) {
         .linkDirectionalParticleColor(() => '#ffffff') // 粒子颜色
         
         // --- 交互 ---
-        .onNodeClick(node => {
-            focusGraphNode(node);
-            handleGraphNodeClick(node);
+        .onNodeClick((node, event) => {
+            runGraphNodeAction(node, event);
         });
+
+    installGraphCanvasClickFallback();
 
     // 5. 场景增强 (星空背景)
     const scene = Graph.scene();
@@ -233,28 +241,38 @@ function renderGraph(container) {
     // 初始化全局状态标记
     window.isZSTPActive = true;
 
+    let starsAnimating = false;
     const animateStars = () => {
         // 添加运行状态检查，如果未激活则停止循环
-        if (!window.isZSTPActive) return;
+        if (!window.isZSTPActive) {
+            starsAnimating = false;
+            return;
+        }
 
+        starsAnimating = true;
         angle += 0.0003;
         starMesh.rotation.y = angle;
         starMesh.rotation.x = angle * 0.2;
         requestAnimationFrame(animateStars);
     };
-    animateStars();
+    function ensureStarsAnimating() {
+        if (!starsAnimating) animateStars();
+    }
+    ensureStarsAnimating();
 
     // 7. 力导向参数
     Graph.d3Force('charge').strength(-150);
     Graph.d3Force('link').distance(80);
 
     // 8. 窗口自适应
-    window.addEventListener('resize', () => {
+    function resizeGraph() {
         if(container && Graph) {
             Graph.width(container.clientWidth);
             Graph.height(container.clientHeight);
         }
-    });
+    }
+
+    window.addEventListener('resize', resizeGraph);
 
     // --- 面板控制逻辑 ---
     let panelTimeout;
@@ -294,6 +312,97 @@ function renderGraph(container) {
 
     // 初始调用
     resetPanel();
+
+    let lastGraphNodeAction = { node: null, time: 0 };
+
+    function runGraphNodeAction(node, event) {
+        if (!node) return false;
+        const now = performance.now();
+        if (lastGraphNodeAction.node === node && now - lastGraphNodeAction.time < 250) return true;
+        lastGraphNodeAction = { node, time: now };
+        focusGraphNode(node);
+        handleGraphNodeClick(node);
+        if (event?.preventDefault) event.preventDefault();
+        return true;
+    }
+
+    function stampGraphNodeObject(root, node) {
+        if (!root || !node) return;
+        root.userData = root.userData || {};
+        root.userData.graphNode = node;
+        if (typeof root.traverse === 'function') {
+            root.traverse(child => {
+                child.userData = child.userData || {};
+                child.userData.graphNode = node;
+            });
+        }
+    }
+
+    function installGraphCanvasClickFallback() {
+        const renderer = typeof Graph.renderer === 'function' ? Graph.renderer() : null;
+        const camera = typeof Graph.camera === 'function' ? Graph.camera() : null;
+        const canvas = renderer?.domElement;
+        if (!canvas || !camera || typeof THREE === 'undefined') return;
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let pointerDown = null;
+
+        canvas.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            pointerDown = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }, { capture: true, passive: true });
+
+        canvas.addEventListener('pointerup', event => {
+            if (event.button !== 0) return;
+            const start = pointerDown;
+            pointerDown = null;
+            if (!start) return;
+            const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+            if (moved > 6) return;
+            const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);
+            if (node) runGraphNodeAction(node, event);
+        }, { capture: true, passive: false });
+
+        canvas.addEventListener('click', event => {
+            const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);
+            if (node) runGraphNodeAction(node, event);
+        }, { capture: true, passive: false });
+    }
+
+    function pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas) {
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+
+        const nodeObjects = (Graph.graphData()?.nodes || [])
+            .map(node => node.__threeObj)
+            .filter(Boolean);
+        if (!nodeObjects.length) return null;
+
+        const hits = raycaster.intersectObjects(nodeObjects, true);
+        for (const hit of hits) {
+            const node = readGraphNodeFromObject(hit.object);
+            if (node) return node;
+        }
+        return null;
+    }
+
+    function readGraphNodeFromObject(object) {
+        let current = object;
+        while (current) {
+            if (current.userData?.graphNode) return current.userData.graphNode;
+            if (current.__graphObjType === 'node' && current.__data) return current.__data;
+            current = current.parent;
+        }
+        return null;
+    }
 
     function focusGraphNode(node) {
         if (!node) return false;
@@ -612,16 +721,15 @@ function renderGraph(container) {
     window.ZSTP = {
         focusNode: focusNodeByQuery,
         pause: () => {
-            if (!window.isZSTPActive) return;
             window.isZSTPActive = false;
-            if (Graph) Graph.pauseAnimation(); // 暂停力导向图物理计算和渲染
+            if (Graph && typeof Graph.pauseAnimation === 'function') Graph.pauseAnimation(); // 暂停力导向图物理计算和渲染
             console.log('知识图谱已暂停');
         },
         resume: () => {
-            if (window.isZSTPActive) return;
             window.isZSTPActive = true;
-            if (Graph) Graph.resumeAnimation(); // 恢复物理计算
-            animateStars(); // 重启星空动画循环
+            if (Graph && typeof Graph.resumeAnimation === 'function') Graph.resumeAnimation(); // 恢复物理计算和交互
+            resizeGraph();
+            ensureStarsAnimating(); // 重启星空动画循环
             resetPanel(); // 重置面板显示和定时器
             console.log('知识图谱已恢复');
         }

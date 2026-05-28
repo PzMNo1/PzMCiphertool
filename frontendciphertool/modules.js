@@ -275,6 +275,9 @@ const MODULES = {
                     <button id="export-chat-history" class="cyber-button">
                         <span class="cyber-button__tag">导出聊天</span>
                     </button>
+                    <button id="agent-workbench-open" class="cyber-button">
+                        <span class="cyber-button__tag">运行记录</span>
+                    </button>
                 </div>
                 <div class="search-container">
                     <input type="text" id="history-search" placeholder="搜索对话...">
@@ -365,16 +368,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const coreScripts = [
         './electronic/electronic_lab.js',
         './apizhongzhuanzhan/apizhongzhuanzhan.js',
+        './mcpskilllab/mcpskilllab-config.js',
+        './mcpskilllab/mcpskilllab-resources-mcp.js',
+        './mcpskilllab/mcpskilllab-resources-skills.js',
         './mcpskilllab/mcpskilllab-resources.js',
         './mcpskilllab/mcpskilllab.js',
         './0_sidebar_funtion.js',
 
+        './model/contracts/AgentContract.js',
+        './model/AgentRunStore.js',
+        './model/AgentRunReplay.js',
+        './model/AgentRunQuality.js',
+        './model/AgentEvalSuite.js',
+        './model/AgentLiveEvalRunner.js',
+        './model/AgentEvalBatchStore.js',
+        './model/AgentEvalDiagnostics.js',
+        './model/AgentWorkbench.js',
         './model/DeepSeekClient.js',
         './model/ToolRegistry.js',
         './model/ChatUI.js',
         './model/HistoryManager.js',
-        './model/MemoryManager.js',
-        './model/ReflectionAgent.js',
         './model/AgentRuntime.js',
         './model/main.js',
         './workflow/workflow.js',
@@ -389,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
+            s.async = false;
             s.src = src + '?v=' + loadVersion;
             s.onload = s.onerror = resolve;
             document.body.appendChild(s);

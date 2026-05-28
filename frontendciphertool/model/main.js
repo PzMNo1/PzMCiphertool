@@ -372,6 +372,178 @@
         return text;
     }
 
+    function buildContextPack({ chatId, userMessage, routingMessage, priorMessages, priorAgentRuns = [], preparedAttachments, isImageModeEnabled }) {
+        if (window.AgentContract?.createContextPack) {
+            return window.AgentContract.createContextPack({
+                chatId,
+                userMessage,
+                routingMessage,
+                priorMessages,
+                priorAgentRuns,
+                preparedAttachments,
+                isImageModeEnabled,
+                isToolEnabled,
+                isDeepThinkEnabled,
+                maxAttachments: MAX_ATTACHMENTS,
+                maxTotalTextChars: MAX_TOTAL_TEXT_CHARS,
+                maxImageAttachments: MAX_IMAGE_ATTACHMENTS
+            });
+        }
+
+        const historyAttachments = preparedAttachments.historyAttachments || [];
+        const textAttachmentCount = historyAttachments.filter(item => item.kind === 'text').length;
+        const imageAttachmentCount = historyAttachments.filter(item => item.kind === 'image').length;
+        return {
+            id: `ctx-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`,
+            contract_version: 'agent-contract-v1',
+            task: {
+                text: userMessage,
+                routingText: routingMessage,
+                imageMode: Boolean(isImageModeEnabled),
+                toolEnabled: Boolean(isToolEnabled),
+                deepThinkEnabled: Boolean(isDeepThinkEnabled)
+            },
+            recentMessages: (priorMessages || []).slice(-12).map(msg => ({
+                role: msg.role,
+                contentPreview: String(msg.content || '').slice(0, 600)
+            })),
+            attachmentsManifest: historyAttachments,
+            attachmentChunks: historyAttachments.filter(item => item.kind === 'text').map(item => ({
+                path: item.path,
+                kind: 'text',
+                includedInPrompt: true
+            })),
+            imageInputs: historyAttachments.filter(item => item.kind === 'image').map(item => ({
+                path: item.path,
+                kind: 'image',
+                includedInPrompt: true
+            })),
+            projectSnippets: [],
+            toolResultSummaries: [],
+            agentRunSummaries: priorAgentRuns,
+            toolResultSummaries: priorAgentRuns.flatMap(run => run.toolResultSummaries || []).slice(-12),
+            evidenceLedger: priorAgentRuns.flatMap(run => run.evidence || []).slice(-24),
+            outputPolicy: {
+                citeSourcesWhenEvidenceExists: true,
+                preserveUserLanguage: true
+            },
+            limits: {
+                maxAttachments: MAX_ATTACHMENTS,
+                maxTotalTextChars: MAX_TOTAL_TEXT_CHARS,
+                maxImageAttachments: MAX_IMAGE_ATTACHMENTS
+            },
+            summary: {
+                chatId,
+                priorMessageCount: (priorMessages || []).length,
+                attachmentCount: historyAttachments.length,
+                textAttachmentCount,
+                imageAttachmentCount,
+                hasAttachmentContext: Boolean(preparedAttachments.contextText),
+                priorAgentRunCount: priorAgentRuns.length,
+                priorEvidenceCount: priorAgentRuns.reduce((sum, run) => sum + (Array.isArray(run.evidence) ? run.evidence.length : 0), 0)
+            }
+        };
+    }
+
+    function buildPriorAgentRunSummaries(messages = []) {
+        return (Array.isArray(messages) ? messages : [])
+            .filter(message => message?.role === 'assistant' && resolveAgentRunForMessage(message))
+            .slice(-4)
+            .map(message => summarizeAgentRunForContext(resolveAgentRunForMessage(message), message.content || ''))
+            .filter(Boolean);
+    }
+
+    function resolveAgentRunForMessage(message) {
+        if (!message || typeof message !== 'object') return null;
+        return window.agentRunStore?.resolveMessageRun?.(message)
+            || message.agent_run
+            || null;
+    }
+
+    function summarizeAgentRunForContext(run, assistantContent) {
+        if (!run || typeof run !== 'object') return null;
+        const evidence = selectAgentRunEvidence(run.evidence_ledger || []);
+        const metrics = run.metrics || {};
+        return {
+            runId: run.runId || '',
+            mode: run.mode || '',
+            researchProfile: run.researchProfile || '',
+            selectedTools: Array.isArray(run.selectedTools) ? run.selectedTools.slice(0, 12) : [],
+            finalAnswerPreview: truncateContextText(assistantContent, 700),
+            metrics: {
+                tool_calls: metrics.tool_calls || 0,
+                evidence_items: metrics.evidence_items || 0,
+                citation_markers: metrics.citation_markers || 0,
+                matched_citation_markers: metrics.matched_citation_markers || 0,
+                unmatched_citation_markers: metrics.unmatched_citation_markers || 0,
+                weak_citation_markers: metrics.weak_citation_markers || 0
+            },
+            warnings: Array.isArray(run.warnings) ? run.warnings.slice(0, 5).map(warning => truncateContextText(warning, 240)) : [],
+            citationVerification: summarizeCitationVerification(run.citation_verification),
+            evidence,
+            toolResultSummaries: summarizeToolResultsForContext(run.tool_results || [])
+        };
+    }
+
+    function selectAgentRunEvidence(evidenceLedger = []) {
+        const trustRank = { primary: 5, high: 4, medium: 3, low: 2, unknown: 1 };
+        return (Array.isArray(evidenceLedger) ? evidenceLedger : [])
+            .filter(item => item && (item.url || item.title || item.source_id))
+            .slice()
+            .sort((a, b) => {
+                const usedDelta = Number(Boolean(b.usedInFinalAnswer)) - Number(Boolean(a.usedInFinalAnswer));
+                if (usedDelta) return usedDelta;
+                return (trustRank[b.trustLevel] || 0) - (trustRank[a.trustLevel] || 0);
+            })
+            .slice(0, 8)
+            .map(item => ({
+                id: item.id || '',
+                source_id: item.source_id ?? item.sourceId ?? '',
+                kind: item.kind || '',
+                title: truncateContextText(item.title || '', 180),
+                url: truncateContextText(item.url || '', 320),
+                trustLevel: item.trustLevel || 'unknown',
+                usedInFinalAnswer: Boolean(item.usedInFinalAnswer),
+                claimIds: Array.isArray(item.claimIds) ? item.claimIds.slice(0, 6) : []
+            }));
+    }
+
+    function summarizeCitationVerification(verification) {
+        if (!verification || typeof verification !== 'object') return null;
+        return {
+            matched: Array.isArray(verification.matched) ? verification.matched.slice(0, 8).map(item => ({
+                marker: item.marker,
+                evidence_ids: Array.isArray(item.evidence_ids) ? item.evidence_ids.slice(0, 6) : [],
+                strongestTrustLevel: item.strongestTrustLevel || ''
+            })) : [],
+            unmatched: Array.isArray(verification.unmatched) ? verification.unmatched.slice(0, 8).map(item => ({
+                marker: item.marker,
+                source_line: truncateContextText(item.source_line || '', 240)
+            })) : [],
+            weak: Array.isArray(verification.weak) ? verification.weak.slice(0, 8).map(item => ({
+                marker: item.marker,
+                reason: truncateContextText(item.reason || '', 180)
+            })) : []
+        };
+    }
+
+    function summarizeToolResultsForContext(toolResults = []) {
+        return (Array.isArray(toolResults) ? toolResults : [])
+            .slice(-8)
+            .map(result => ({
+                name: result.name || '',
+                status: result.status || '',
+                risk: result.risk || '',
+                approval_required: Boolean(result.approval_required),
+                result_preview: truncateContextText(result.result_preview || '', 260)
+            }));
+    }
+
+    function truncateContextText(value, max) {
+        const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+        return text.length <= max ? text : `${text.slice(0, max)}...`;
+    }
+
     function buildImageGenerationPrompt(userText, preparedAttachments) {
         return [
             String(userText || '').trim(),
@@ -531,7 +703,9 @@
         if (!chatId) {
             chatId = window.historyManager.createNewChat();
         }
+        const priorStoredMessages = window.historyManager.getMessages(chatId);
         const priorMessages = window.historyManager.getMessagesForAPI(chatId);
+        const priorAgentRuns = buildPriorAgentRunSummaries(priorStoredMessages);
         window.historyManager.addMessage(chatId, {
             role: 'user',
             content: message,
@@ -562,6 +736,15 @@
             { role: 'user', content: apiUserContent }
         ];
         const routingMessage = [isImageModeEnabled ? '作图模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
+        const contextPack = buildContextPack({
+            chatId,
+            userMessage: message,
+            routingMessage,
+            priorMessages,
+            priorAgentRuns,
+            preparedAttachments,
+            isImageModeEnabled
+        });
 
         // 初始化客户端
         initClient();
@@ -595,6 +778,7 @@
                     enableThinking: isDeepThinkEnabled,
                     toolEnabled: isToolEnabled,
                     hasAttachments: preparedAttachments.historyAttachments.length > 0,
+                    contextPack,
                     container
                 });
 
@@ -935,9 +1119,10 @@
                 });
             }
 
-            if (msg.agent_run) {
+            const agentRunForExport = resolveAgentRunForMessage(msg);
+            if (agentRunForExport) {
                 lines.push('', '[Agent Run 状态]');
-                lines.push(formatAgentRunForExport(msg.agent_run));
+                lines.push(formatAgentRunForExport(agentRunForExport));
             }
 
             if (Array.isArray(msg.images) && msg.images.length) {
@@ -993,22 +1178,41 @@
 
     function formatAgentRunForExport(run) {
         const lines = [
+            `contract_version: ${run.contract_version || 'agent-contract-v1'}`,
             `runId: ${run.runId || ''}`,
             `mode: ${run.mode || ''}`,
+            `researchProfile: ${run.researchProfile || ''}`,
             `maxIterations: ${run.maxIterations ?? ''}`
         ];
         if (Array.isArray(run.selectedTools) && run.selectedTools.length) {
             lines.push(`selectedTools: ${run.selectedTools.join(', ')}`);
         }
+        if (Array.isArray(run.tool_contracts) && run.tool_contracts.length) {
+            lines.push('tool_contracts:');
+            lines.push(indentText(JSON.stringify(run.tool_contracts, null, 2), '  '));
+        }
+        if (Array.isArray(run.events) && run.events.length) {
+            const exportableEvents = run.events.filter(event => event?.type !== 'model.delta').slice(0, 160);
+            lines.push('events:');
+            lines.push(indentText(JSON.stringify(exportableEvents, null, 2), '  '));
+        }
         if (run.metrics) {
             lines.push('metrics:');
             lines.push(indentText(JSON.stringify(run.metrics, null, 2), '  '));
+        }
+        if (run.context_pack_summary) {
+            lines.push('context_pack_summary:');
+            lines.push(indentText(JSON.stringify(run.context_pack_summary, null, 2), '  '));
         }
         if (Array.isArray(run.warnings) && run.warnings.length) {
             lines.push('warnings:');
             run.warnings.forEach(warning => {
                 lines.push(`  - ${warning}`);
             });
+        }
+        if (run.citation_verification) {
+            lines.push('citation_verification:');
+            lines.push(indentText(JSON.stringify(run.citation_verification, null, 2), '  '));
         }
         if (Array.isArray(run.evidence_ledger) && run.evidence_ledger.length) {
             lines.push('evidence_ledger:');
@@ -1159,6 +1363,13 @@
         if (sections['工具调用']) {
             message.tool_calls = parseImportedToolCalls(sections['工具调用']);
         }
+        if (sections['Agent Run 状态']) {
+            const agentRun = parseImportedAgentRun(sections['Agent Run 状态']);
+            if (agentRun) {
+                message.agent_run = agentRun;
+                message.agent_run_id = agentRun.runId || null;
+            }
+        }
         if (sections['生成图片']) {
             message.images = parseImportedImages(sections['生成图片']);
         }
@@ -1215,6 +1426,152 @@
                 }
             };
         }).filter(toolCall => toolCall.function.name);
+    }
+
+    function parseImportedAgentRun(section) {
+        const text = String(section || '').trim();
+        if (!text) return null;
+        const contractVersion = matchLine(text, /^contract_version:\s*(.*)$/m) || 'agent-contract-v1';
+        const runId = matchLine(text, /^runId:\s*(.*)$/m);
+        const mode = matchLine(text, /^mode:\s*(.*)$/m);
+        const researchProfile = matchLine(text, /^researchProfile:\s*(.*)$/m);
+        const maxIterationsText = matchLine(text, /^maxIterations:\s*(.*)$/m);
+        const selectedToolsText = matchLine(text, /^selectedTools:\s*(.*)$/m);
+        const toolContracts = parseIndentedJsonField(text, 'tool_contracts') || [];
+        const events = parseIndentedJsonField(text, 'events') || [];
+        const metrics = parseIndentedJsonField(text, 'metrics') || null;
+        const contextPackSummary = parseIndentedJsonField(text, 'context_pack_summary') || null;
+        const citationVerification = parseIndentedJsonField(text, 'citation_verification') || null;
+        const evidenceLedger = parseIndentedJsonField(text, 'evidence_ledger') || [];
+        const toolResults = parseIndentedJsonField(text, 'tool_results') || [];
+        const stages = parseImportedAgentRunStages(text);
+        const traces = parseImportedAgentRunTraces(text);
+        const warnings = parseIndentedListField(text, 'warnings');
+        const restoredEvents = Array.isArray(events) ? events : [];
+        if (!restoredEvents.length && citationVerification) {
+            restoredEvents.push(createImportedAgentRunEvent(runId, 1, 'citation.verified', {
+                citation_markers: [
+                    ...(Array.isArray(citationVerification.matched) ? citationVerification.matched.map(item => item.marker) : []),
+                    ...(Array.isArray(citationVerification.unmatched) ? citationVerification.unmatched.map(item => item.marker) : []),
+                    ...(Array.isArray(citationVerification.weak) ? citationVerification.weak.map(item => item.marker) : [])
+                ].filter(Boolean),
+                matched: citationVerification.matched || [],
+                unmatched: citationVerification.unmatched || [],
+                weak: citationVerification.weak || [],
+                imported: true
+            }));
+        }
+
+        if (!runId && !mode && !metrics && !evidenceLedger.length && !toolResults.length) {
+            return null;
+        }
+
+        const maxIterations = Number(maxIterationsText);
+        return {
+            contract_version: contractVersion,
+            runId,
+            mode,
+            researchProfile,
+            selectedTools: selectedToolsText
+                ? selectedToolsText.split(',').map(item => item.trim()).filter(Boolean)
+                : [],
+            maxIterations: Number.isFinite(maxIterations) ? maxIterations : '',
+            stages,
+            traces,
+            context_pack_summary: contextPackSummary,
+            tool_contracts: Array.isArray(toolContracts) ? toolContracts : [],
+            events: restoredEvents,
+            metrics,
+            warnings,
+            tool_results: Array.isArray(toolResults) ? toolResults : [],
+            evidence_ledger: Array.isArray(evidenceLedger) ? evidenceLedger : [],
+            citation_verification: citationVerification,
+            artifacts: []
+        };
+    }
+
+    function createImportedAgentRunEvent(runId, seq, type, payload) {
+        return {
+            id: `evt-imported-${Date.now().toString(36)}-${seq}`,
+            contract_version: 'agent-contract-v1',
+            runId: runId || '',
+            seq,
+            type,
+            ts: new Date().toISOString(),
+            stage: 'synthesize',
+            payload: payload || {},
+            visibility: 'history'
+        };
+    }
+
+    function parseIndentedJsonField(section, label) {
+        const block = extractIndentedField(section, label);
+        if (!block) return null;
+        try {
+            return JSON.parse(block);
+        } catch (e) {
+            console.warn(`AgentRun import skipped invalid JSON field ${label}:`, e);
+            return null;
+        }
+    }
+
+    function parseIndentedListField(section, label) {
+        const block = extractIndentedField(section, label);
+        if (!block) return [];
+        return block.split('\n')
+            .map(line => line.replace(/^-\s*/, '').trim())
+            .filter(Boolean);
+    }
+
+    function extractIndentedField(section, label) {
+        const lines = String(section || '').split('\n');
+        const start = lines.findIndex(line => line.trim() === `${label}:`);
+        if (start < 0) return '';
+        const block = [];
+        for (let i = start + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.startsWith('  ')) {
+                block.push(line.replace(/^ {2}/, ''));
+                continue;
+            }
+            if (!line.trim()) {
+                if (block.length) block.push('');
+                continue;
+            }
+            break;
+        }
+        return block.join('\n').trim();
+    }
+
+    function parseImportedAgentRunStages(section) {
+        const block = extractIndentedField(section, 'stages');
+        if (!block) return [];
+        return block.split('\n')
+            .map(line => line.replace(/^-\s*/, '').trim())
+            .filter(Boolean)
+            .map(line => {
+                const parts = line.split('|').map(part => part.trim());
+                return {
+                    id: parts[0] || '',
+                    label: parts[0] || '',
+                    state: parts[1] || 'done',
+                    note: parts.slice(2).join(' | ')
+                };
+            });
+    }
+
+    function parseImportedAgentRunTraces(section) {
+        const block = extractIndentedField(section, 'traces');
+        if (!block) return [];
+        return block.split('\n')
+            .map(line => line.replace(/^-\s*/, '').trim())
+            .filter(Boolean)
+            .map(line => {
+                const match = line.match(/^\[(.*?)]\s*(.*)$/);
+                return match
+                    ? { stage: match[1], message: match[2] || '' }
+                    : { stage: '', message: line };
+            });
     }
 
     function parseImportedImages(section) {
@@ -1343,6 +1700,16 @@
             searchInput.addEventListener('input', (e) => searchHistory(e.target.value));
         }
 
+        window.agentWorkbench?.mount?.();
+        window.addEventListener('agent-workbench-open-chat', event => {
+            const chatId = event.detail?.chatId;
+            if (!chatId) return;
+            const history = window.historyManager.getChatHistory();
+            if (history[chatId]) {
+                loadChat(chatId);
+            }
+        });
+
         // 移动端侧边栏切换
         const sidebarToggle = document.getElementById('sidebar-toggle');
         if (sidebarToggle) {
@@ -1387,6 +1754,7 @@
         // 初始化 UI
         window.chatUI.init();
         window.chatUI.initMathJax();
+        window.agentWorkbench?.mount?.();
 
         // 绑定事件
         bindEvents();

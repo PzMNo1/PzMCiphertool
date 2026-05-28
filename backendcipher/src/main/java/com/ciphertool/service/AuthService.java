@@ -7,8 +7,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +32,8 @@ public class AuthService {
     private static final String CODE_KEY_PREFIX = "auth:code:";
     private static final String LOCK_KEY_PREFIX = "auth:lock:";
     private static final String LIMIT_KEY_PREFIX = "auth:limit:";
+    private static final String SESSION_KEY_PREFIX = "auth:session:";
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${auth.code.length:6}")
     private int codeLength;
@@ -38,6 +46,9 @@ public class AuthService {
 
     @Value("${auth.code.max-send-per-hour:5}")
     private int maxSendPerHour;
+
+    @Value("${auth.session.expire-hours:168}")
+    private long sessionExpireHours;
 
     /**
      * Send verification code
@@ -114,10 +125,41 @@ public class AuthService {
 
         log.info("Login successful: email={}", maskEmail(email));
 
-        return new LoginResponse(
-                maskEmail(email),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        String normalizedEmail = normalizeEmail(email);
+        String token = generateSessionToken();
+        LocalDateTime loginTime = LocalDateTime.now();
+        LocalDateTime expiresAt = loginTime.plusHours(Math.max(1, sessionExpireHours));
+        redisTemplate.opsForValue().set(
+                SESSION_KEY_PREFIX + hashToken(token),
+                normalizedEmail,
+                Math.max(1, sessionExpireHours),
+                TimeUnit.HOURS
         );
+
+        return new LoginResponse(
+                normalizedEmail,
+                maskEmail(normalizedEmail),
+                token,
+                loginTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                expiresAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        );
+    }
+
+    public String requireSessionEmail(String authorization) {
+        String email = resolveSessionEmail(authorization);
+        if (email == null || email.isBlank()) {
+            throw AuthAccessException.unauthorized("请先登录");
+        }
+        return email;
+    }
+
+    public String resolveSessionEmail(String authorization) {
+        String token = extractBearerToken(authorization);
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        String email = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + hashToken(token));
+        return email == null || email.isBlank() ? null : normalizeEmail(email);
     }
 
     private String generateCode() {
@@ -129,6 +171,36 @@ public class AuthService {
         return code.toString();
     }
 
+    private String generateSessionToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return "ct_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String extractBearerToken(String authorization) {
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+        String prefix = "Bearer ";
+        if (!authorization.regionMatches(true, 0, prefix, 0, prefix.length())) {
+            return null;
+        }
+        return authorization.substring(prefix.length()).trim();
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase();
+    }
+
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) {
             return email;
@@ -138,5 +210,15 @@ public class AuthService {
             return email;
         }
         return email.substring(0, 3) + "****" + email.substring(atIndex);
+    }
+
+    public static class AuthAccessException extends RuntimeException {
+        private AuthAccessException(String message) {
+            super(message);
+        }
+
+        public static AuthAccessException unauthorized(String message) {
+            return new AuthAccessException(message);
+        }
     }
 }

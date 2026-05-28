@@ -1,8 +1,10 @@
 package com.ciphertool.controller;
 
 import com.ciphertool.service.ApiRouterService;
+import com.ciphertool.service.RiskControlService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,8 +27,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -35,6 +40,7 @@ import java.util.Map;
 public class OpenAiCompatibleController {
 
     private final ApiRouterService apiRouterService;
+    private final RiskControlService riskControlService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
@@ -49,49 +55,64 @@ public class OpenAiCompatibleController {
     @Value("${llm.model:gpt-5.5}")
     private String defaultModel;
 
+    @Value("${api-router.routing.retry-statuses:429,500,502,503,504}")
+    private String retryStatuses;
+
+    @Value("${api-router.risk.invalid-key-per-minute:30}")
+    private int invalidKeyPerMinute;
+
     @PostMapping("/chat/completions")
     public ResponseEntity<StreamingResponseBody> chatCompletions(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            HttpServletRequest servletRequest,
             @RequestBody Map<String, Object> requestBody) {
 
         ApiRouterService.ApiKeyValidation validation;
+        String bearerToken = "";
         try {
-            validation = apiRouterService.validateApiKey(extractBearerToken(authorization));
+            bearerToken = extractBearerToken(authorization);
+            validation = apiRouterService.validateApiKey(bearerToken);
         } catch (ApiRouterService.ApiRouterAccessException e) {
+            if (e.getStatusCode() == 401 || e.getStatusCode() == 403) {
+                return trackedInvalidApiKeyError(servletRequest, bearerToken, HttpStatus.valueOf(e.getStatusCode()), e.getMessage(), e.getType());
+            }
             return jsonError(HttpStatus.valueOf(e.getStatusCode()), e.getMessage(), e.getType());
         } catch (IllegalArgumentException e) {
-            return jsonError(HttpStatus.UNAUTHORIZED, e.getMessage());
-        }
-
-        if (upstreamApiKey == null || upstreamApiKey.isBlank()) {
-            return jsonError(HttpStatus.BAD_GATEWAY, "上游 API key 未配置");
+            return trackedInvalidApiKeyError(servletRequest, bearerToken, HttpStatus.UNAUTHORIZED, e.getMessage(), "authentication_error");
         }
 
         String model = normalizeModel(requestBody);
         boolean stream = Boolean.TRUE.equals(requestBody.get("stream"));
         long started = System.currentTimeMillis();
         long estimatedInputTokens = estimateInputTokens(requestBody);
+        List<ApiRouterService.UpstreamChannel> channels = apiRouterService.resolveUpstreamChannels(model);
+        if (channels.isEmpty()) {
+            return jsonError(HttpStatus.BAD_GATEWAY, "没有可用上游渠道");
+        }
+        ApiRouterService.WalletReservation reservation;
+        try {
+            reservation = apiRouterService.reserveWalletForRequest(validation, model, estimatedInputTokens);
+        } catch (ApiRouterService.ApiRouterAccessException e) {
+            return jsonError(HttpStatus.valueOf(e.getStatusCode()), e.getMessage(), e.getType());
+        }
 
         HttpResponse<InputStream> upstreamResponse;
+        ApiRouterService.UpstreamChannel selectedChannel;
         try {
             String body = objectMapper.writeValueAsString(requestBody);
-            HttpRequest upstreamRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(resolveChatCompletionsUrl(upstreamBaseUrl)))
-                    .timeout(Duration.ofMinutes(5))
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + upstreamApiKey.trim())
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                    .build();
-            upstreamResponse = httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofInputStream());
+            UpstreamAttempt attempt = sendWithFallback(channels, body);
+            upstreamResponse = attempt.response();
+            selectedChannel = attempt.channel();
         } catch (Exception e) {
             long latency = System.currentTimeMillis() - started;
-            apiRouterService.recordProxyUsage(validation, model, 502, latency, estimatedInputTokens, 0, e.getMessage());
+            apiRouterService.recordProxyUsage(validation, model, 502, latency, estimatedInputTokens, 0, "", "", e.getMessage(), reservation);
             log.error("OpenAI compatible proxy request failed", e);
             return jsonError(HttpStatus.BAD_GATEWAY, "上游请求失败");
         }
 
         int upstreamStatus = upstreamResponse.statusCode();
         MediaType contentType = stream ? MediaType.TEXT_EVENT_STREAM : MediaType.APPLICATION_JSON;
+        ApiRouterService.UpstreamChannel finalSelectedChannel = selectedChannel;
         StreamingResponseBody responseBody = outputStream -> {
             byte[] responseBytes = new byte[0];
             String streamError = null;
@@ -124,14 +145,68 @@ public class OpenAiCompatibleController {
                         latency,
                         usage.inputTokens(),
                         usage.outputTokens(),
-                        error
+                        finalSelectedChannel == null ? "" : finalSelectedChannel.getProvider(),
+                        finalSelectedChannel == null ? "" : finalSelectedChannel.getId(),
+                        error,
+                        reservation
                 );
+                apiRouterService.markChannelResult(finalSelectedChannel, upstreamStatus, error);
             }
         };
 
         return ResponseEntity.status(upstreamStatus)
                 .contentType(contentType)
                 .body(responseBody);
+    }
+
+    private UpstreamAttempt sendWithFallback(List<ApiRouterService.UpstreamChannel> channels, String body) throws Exception {
+        Exception lastException = null;
+        for (int i = 0; i < channels.size(); i++) {
+            ApiRouterService.UpstreamChannel channel = channels.get(i);
+            try {
+                HttpRequest upstreamRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(resolveChatCompletionsUrl(channel.getBaseUrl())))
+                        .timeout(Duration.ofMinutes(5))
+                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + channel.getApiKey().trim())
+                        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                        .build();
+                HttpResponse<InputStream> response = httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofInputStream());
+                boolean canTryNext = i < channels.size() - 1
+                        && channel.isRetryEnabled()
+                        && retryableStatus(response.statusCode());
+                if (canTryNext) {
+                    byte[] errorBytes = response.body().readAllBytes();
+                    String error = errorBytes.length == 0 ? "HTTP " + response.statusCode() : trimBody(errorBytes);
+                    apiRouterService.markChannelResult(channel, response.statusCode(), error);
+                    continue;
+                }
+                return new UpstreamAttempt(channel, response);
+            } catch (Exception e) {
+                lastException = e;
+                apiRouterService.markChannelResult(channel, 502, e.getMessage());
+                if (i >= channels.size() - 1 || !channel.isRetryEnabled()) {
+                    throw e;
+                }
+            }
+        }
+        throw lastException == null ? new IllegalStateException("没有可用上游渠道") : lastException;
+    }
+
+    private boolean retryableStatus(int statusCode) {
+        Set<Integer> statuses = Arrays.stream(retryStatuses == null ? new String[0] : retryStatuses.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return Integer.parseInt(value);
+                    } catch (NumberFormatException e) {
+                        return -1;
+                    }
+                })
+                .filter(value -> value > 0)
+                .collect(Collectors.toSet());
+        return statuses.contains(statusCode);
     }
 
     private String extractBearerToken(String authorization) {
@@ -223,6 +298,35 @@ public class OpenAiCompatibleController {
         return jsonError(status, message, "api_router_error");
     }
 
+    private ResponseEntity<StreamingResponseBody> trackedInvalidApiKeyError(
+            HttpServletRequest servletRequest,
+            String token,
+            HttpStatus status,
+            String message,
+            String type) {
+        try {
+            riskControlService.requireIpAction(
+                    riskControlService.clientIp(servletRequest),
+                    "invalid-api-key",
+                    invalidKeyPerMinute,
+                    Duration.ofMinutes(1),
+                    "无效 API key 请求过于频繁，请稍后再试"
+            );
+            if (token != null && !token.isBlank()) {
+                riskControlService.requireTokenAction(
+                        token,
+                        "invalid-api-key",
+                        invalidKeyPerMinute,
+                        Duration.ofMinutes(1),
+                        "无效 API key 请求过于频繁，请稍后再试"
+                );
+            }
+        } catch (ApiRouterService.ApiRouterAccessException e) {
+            return jsonError(HttpStatus.valueOf(e.getStatusCode()), e.getMessage(), e.getType());
+        }
+        return jsonError(status, message, type);
+    }
+
     private ResponseEntity<StreamingResponseBody> jsonError(HttpStatus status, String message, String type) {
         StreamingResponseBody body = outputStream -> {
             String json = objectMapper.writeValueAsString(Map.of(
@@ -239,5 +343,8 @@ public class OpenAiCompatibleController {
     }
 
     private record TokenUsage(long inputTokens, long outputTokens) {
+    }
+
+    private record UpstreamAttempt(ApiRouterService.UpstreamChannel channel, HttpResponse<InputStream> response) {
     }
 }

@@ -206,7 +206,13 @@
 
             if (result.success) {
                 // 登录成功
-                saveUser({ email: email, loginTime: result.data.loginTime });
+                saveUser({
+                    email: result.data.email || email,
+                    maskedEmail: result.data.maskedEmail || maskEmail(email),
+                    token: result.data.token || '',
+                    loginTime: result.data.loginTime,
+                    expiresAt: result.data.expiresAt
+                });
                 closeModal();
                 renderSidebarBtn();
                 alert('登录成功！');
@@ -245,7 +251,20 @@
 
     function getUser() {
         const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : null;
+        if (!data) return null;
+        try {
+            const user = JSON.parse(data);
+            if (!user || !user.token) return null;
+            return user;
+        } catch (error) {
+            localStorage.removeItem(STORAGE_KEY);
+            return null;
+        }
+    }
+
+    function getAuthHeaders() {
+        const user = getUser();
+        return user && user.token ? { Authorization: `Bearer ${user.token}` } : {};
     }
 
     function showMessage(msg, type = 'error') {
@@ -259,6 +278,7 @@
     // === 公开接口 ===
     window.CipherAuth = {
         getUser: getUser,
+        getAuthHeaders: getAuthHeaders,
         openModal: openModal
     };
 
