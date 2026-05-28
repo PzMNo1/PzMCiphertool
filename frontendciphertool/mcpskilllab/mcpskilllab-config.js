@@ -6,7 +6,7 @@
     const CHECK_CACHE_KEY = 'MCPSKILLLAB_CHECK_CACHE';
     const CHECK_API_PATH = '/check-resource';
     const HEALTH_API_PATH = '/health';
-    const LOCAL_API_BASE = 'http://localhost:8080';
+    const LOCAL_API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
     const BATCH_CHECK_DELAY_MS = 350;
     const REVIEW_HIGH_RISK_PERMISSIONS = ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
     const REVIEW_ITEM_LIMIT = 8;

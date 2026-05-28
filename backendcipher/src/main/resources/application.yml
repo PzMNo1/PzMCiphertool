@@ -107,7 +107,7 @@ api-router:
 
 # CORS Config
 cors:
-  allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36}
+  allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36,https://pzmno1.github.io}
   allowed-methods: GET,POST,OPTIONS
   allowed-headers: "*"
   max-age: 3600
