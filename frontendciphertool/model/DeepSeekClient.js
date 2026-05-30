@@ -1,14 +1,12 @@
 /**
- * DeepSeekClient - DeepSeek API 客户端模块
- * 通过后端代理调用 API，处理流式响应、工具调用循环
+ * DeepSeekClient - 后端模型代理客户端模块
+ * 前端不持有模型 API Key；统一通过 Spring Boot 后端代理调用模型。
  */
 
 class DeepSeekClient {
     constructor(options = {}) {
         const config = resolveDeepSeekConfig();
-        this.baseUrl = options.baseUrl || config.baseUrl || 'https://api.deepseek.com/v1';
-        this.imageBaseUrl = options.imageBaseUrl || config.imageBaseUrl || this.baseUrl;
-        this.apiKey = options.apiKey || config.apiKey || '';
+        this.chatUrl = options.chatUrl || config.chatUrl || resolveBackendChatUrl();
         this.defaultModel = normalizeDeepSeekModel(options.defaultModel || config.defaultModel || config.model);
         this.reasonerModel = normalizeDeepSeekModel(options.reasonerModel || config.reasonerModel || config.model);
         this.imageModel = options.imageModel || config.imageModel || 'gpt-image-1';
@@ -35,15 +33,11 @@ class DeepSeekClient {
 
         const model = enableThinking ? this.reasonerModel : this.defaultModel;
 
-        if (!this.apiKey) {
-            throw new Error('DeepSeek API Key 未配置，请检查 window.DEEPSEEK_CONFIG.apiKey 或 agentmaster.local.js');
-        }
-
         const payload = {
-            model,
             messages,
             stream
         };
+        if (model) payload.model = model;
 
         // 添加工具定义
         if (tools && tools.length > 0) {
@@ -54,18 +48,19 @@ class DeepSeekClient {
         this.abortController = signal ? { signal } : new AbortController();
         const currentSignal = signal || this.abortController.signal;
 
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        const response = await fetch(this.chatUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload),
             signal: currentSignal
         });
 
         if (!response.ok) {
-            throw new Error(`API 错误: ${response.status} ${response.statusText}`);
+            const errorText = await response.text().catch(() => '');
+            const detail = errorText ? ` - ${errorText.slice(0, 500)}` : '';
+            throw new Error(`后端模型代理错误: ${response.status} ${response.statusText}${detail}`);
         }
 
         if (!stream) {
@@ -77,14 +72,7 @@ class DeepSeekClient {
     }
 
     resolveImagesUrl() {
-        let normalized = String(this.imageBaseUrl || this.baseUrl || '').trim();
-        while (normalized.endsWith('/')) {
-            normalized = normalized.slice(0, -1);
-        }
-        if (normalized.endsWith('/images/generations')) {
-            return normalized;
-        }
-        return `${normalized}/images/generations`;
+        throw new Error('前端直连图片生成 API 已关闭；当前后端还没有已有的图片生成代理接口。');
     }
 
     /**
@@ -93,79 +81,12 @@ class DeepSeekClient {
      * @returns {Promise<{content:string, images:Array}>}
      */
     async generateImage(options = {}) {
-        const {
-            prompt,
-            model = this.imageModel,
-            size = this.imageSize,
-            n = 1,
-            signal = null
-        } = options;
+        const { prompt } = options;
 
-        if (!this.apiKey) {
-            throw new Error('图片生成 API Key 未配置，请检查 window.DEEPSEEK_CONFIG.apiKey 或 agentmaster.local.js');
-        }
         if (!prompt || !String(prompt).trim()) {
             throw new Error('图片生成提示不能为空');
         }
-
-        this.abortController = signal ? { signal } : new AbortController();
-        const currentSignal = signal || this.abortController.signal;
-
-        const payload = {
-            model,
-            prompt: String(prompt),
-            n,
-            size
-        };
-
-        const response = await fetch(this.resolveImagesUrl(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(payload),
-            signal: currentSignal
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            const detail = errorText ? ` - ${errorText.slice(0, 500)}` : '';
-            throw new Error(`图片生成 API 错误: ${response.status} ${response.statusText}${detail}`);
-        }
-
-        const data = await response.json();
-        const items = Array.isArray(data.data) ? data.data : [];
-        const images = items.map((item, index) => {
-            const revisedPrompt = item.revised_prompt || item.prompt || '';
-            if (item.b64_json) {
-                return {
-                    id: `image-${Date.now()}-${index}`,
-                    url: `data:image/png;base64,${item.b64_json}`,
-                    mimeType: 'image/png',
-                    revisedPrompt
-                };
-            }
-            if (item.url) {
-                return {
-                    id: `image-${Date.now()}-${index}`,
-                    url: item.url,
-                    mimeType: 'image',
-                    revisedPrompt
-                };
-            }
-            return null;
-        }).filter(Boolean);
-
-        if (!images.length) {
-            throw new Error('图片生成接口没有返回可显示的图片数据');
-        }
-
-        return {
-            content: `已生成 ${images.length} 张图片。`,
-            images,
-            raw: data
-        };
+        throw new Error('前端直连图片生成 API 已关闭；当前后端还没有已有的图片生成代理接口。');
     }
 
     /**
@@ -200,8 +121,19 @@ class DeepSeekClient {
                 const jsonStr = line.slice(6);
                 if (jsonStr === '[DONE]') continue;
 
+                let data;
                 try {
-                    const data = JSON.parse(jsonStr);
+                    data = JSON.parse(jsonStr);
+                } catch (e) {
+                    console.error('解析流数据错误:', e);
+                    continue;
+                }
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                try {
                     const delta = data.choices[0]?.delta;
                     finish_reason = data.choices[0]?.finish_reason || finish_reason;
 
@@ -286,6 +218,7 @@ class DeepSeekClient {
             onToolResult = () => { },
             onIterationStart = () => { },
             onIterationComplete = () => { },
+            shouldContinueAfterFinal = null,
             executeToolFn,
             signal = null
         } = options;
@@ -293,10 +226,12 @@ class DeepSeekClient {
         let currentMessages = [...messages];
         let iteration = 0;
         let lastResponse = null;
+        let emptyFinalRetries = 0;
 
         while (iteration < maxIterations) {
             iteration++;
             onIterationStart(iteration);
+            let bufferedContent = '';
 
             // 调用 API
             const response = await this.chat({
@@ -305,10 +240,19 @@ class DeepSeekClient {
                 enableThinking,
                 stream: true,
                 onReasoning,
-                onContent,
+                onContent: (delta, full) => {
+                    bufferedContent = full || bufferedContent || delta || '';
+                    onContent(delta, bufferedContent, {
+                        phase: 'tool_iteration_stream',
+                        iteration
+                    });
+                },
                 onToolCall,
                 signal
             });
+            if (!response.content && bufferedContent) {
+                response.content = bufferedContent;
+            }
 
             lastResponse = response;
             onIterationComplete(iteration, response);
@@ -318,8 +262,61 @@ class DeepSeekClient {
 
             // 如果没有工具调用，返回最终响应
             if (!response.tool_calls || response.tool_calls.length === 0) {
+                const continuation = typeof shouldContinueAfterFinal === 'function'
+                    ? await shouldContinueAfterFinal({
+                        response,
+                        currentMessages: [...currentMessages],
+                        iteration,
+                        maxIterations
+                    })
+                    : null;
+                if (continuation?.continue && iteration < maxIterations) {
+                    const continuationMessage = typeof continuation.message === 'string'
+                        ? { role: 'user', content: continuation.message }
+                        : continuation.message;
+                    if (continuationMessage?.role && continuationMessage?.content) {
+                        currentMessages.push(continuationMessage);
+                        console.log(`[Deep Research Loop] Final answer blocked by coverage gate at Iteration ${iteration}; continuing.`);
+                        continue;
+                    }
+                }
+                if (!String(response.content || '').trim()) {
+                    if (emptyFinalRetries < 1 && iteration < maxIterations) {
+                        emptyFinalRetries += 1;
+                        currentMessages.push({
+                            role: 'user',
+                            content: [
+                                'Your previous assistant turn returned no visible answer.',
+                                'Do not call more tools unless absolutely necessary.',
+                                'Synthesize the final user-facing answer now from the tool results already available.',
+                                'If the evidence is incomplete, state the gap briefly and still provide the best answer possible.'
+                            ].join('\n')
+                        });
+                        console.warn(`[Deep Research Loop] Empty final answer at Iteration ${iteration}; requesting one synthesis retry.`);
+                        continue;
+                    }
+                    console.warn(`[Deep Research Loop] Empty final answer at Iteration ${iteration}; forcing final synthesis without tools.`);
+                    return await this.forceFinalSynthesis({
+                        currentMessages,
+                        enableThinking,
+                        onReasoning,
+                        onContent,
+                        signal
+                    });
+                }
+                if (response.content) {
+                    onContent(response.content, response.content);
+                }
                 console.log(`[Deep Research Loop] Successfully synthesized final answer at Iteration ${iteration}.`);
                 break;
+            }
+
+            if (response.content) {
+                onContent(response.content, response.content, {
+                    phase: 'tool_iteration',
+                    iteration,
+                    toolCalls: response.tool_calls
+                });
             }
 
             // 添加助手消息（包含工具调用）
@@ -329,38 +326,15 @@ class DeepSeekClient {
                 tool_calls: response.tool_calls
             };
 
-            // 在思考模式下，需要保留 reasoning_content
-            if (enableThinking && response.reasoning_content) {
-                assistantMessage.reasoning_content = response.reasoning_content;
-            }
-
             currentMessages.push(assistantMessage);
 
             // 执行每个工具调用
-            for (const toolCall of response.tool_calls) {
-                try {
-                    const args = JSON.parse(toolCall.function.arguments);
-                    const result = await executeToolFn(toolCall.function.name, args, toolCall);
-
-                    onToolResult(toolCall.id, result, true);
-
-                    // 添加工具结果
-                    currentMessages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: result
-                    });
-                } catch (e) {
-                    const errorResult = `工具执行错误: ${e.message}`;
-                    onToolResult(toolCall.id, errorResult, false);
-
-                    currentMessages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: errorResult
-                    });
-                }
-            }
+            const toolMessages = await this.executeToolCallsWithLimit({
+                toolCalls: response.tool_calls,
+                executeToolFn,
+                onToolResult
+            });
+            currentMessages.push(...toolMessages);
         }
 
         if (lastResponse?.tool_calls?.length) {
@@ -377,6 +351,103 @@ class DeepSeekClient {
         return lastResponse;
     }
 
+    async executeToolCallsWithLimit({ toolCalls, executeToolFn, onToolResult }) {
+        const calls = Array.isArray(toolCalls) ? toolCalls : [];
+        const preparedCalls = this.prepareToolCallsForExecution(calls);
+        const results = new Array(calls.length);
+        let cursor = 0;
+        const concurrency = this.getToolBatchConcurrency(calls);
+
+        const runOne = async () => {
+            while (cursor < preparedCalls.length) {
+                const index = cursor++;
+                const item = preparedCalls[index];
+                const toolCall = item.toolCall;
+
+                if (item.skipReason) {
+                    const skipped = item.skipReason;
+                    onToolResult(toolCall.id, skipped, true);
+                    results[index] = {
+                        role: 'tool',
+                        tool_call_id: toolCall.id,
+                        content: skipped
+                    };
+                    continue;
+                }
+
+                try {
+                    const args = JSON.parse(toolCall.function.arguments || '{}');
+                    const result = await executeToolFn(toolCall.function.name, args, toolCall);
+                    onToolResult(toolCall.id, result, true);
+                    results[index] = {
+                        role: 'tool',
+                        tool_call_id: toolCall.id,
+                        content: result
+                    };
+                } catch (e) {
+                    const errorResult = `宸ュ叿鎵ц閿欒: ${e.message}`;
+                    const normalizedErrorResult = `Tool execution error: ${e.message}`;
+                    onToolResult(toolCall.id, normalizedErrorResult, false);
+                    results[index] = {
+                        role: 'tool',
+                        tool_call_id: toolCall.id,
+                        content: normalizedErrorResult
+                    };
+                }
+            }
+        };
+
+        const workers = Array.from({ length: Math.max(1, concurrency) }, () => runOne());
+        await Promise.all(workers);
+        return results.filter(Boolean);
+    }
+
+    prepareToolCallsForExecution(toolCalls) {
+        const deepReadNames = new Set(['read_webpage', 'open_url', 'open', 'find_in_page', 'find', 'click_link']);
+        const deepResearchNames = new Set(['web_research', 'community_snapshot']);
+        let deepReadCount = 0;
+        let deepResearchCount = 0;
+
+        return toolCalls.map(toolCall => {
+            const name = toolCall?.function?.name || '';
+            if (deepReadNames.has(name)) {
+                deepReadCount += 1;
+                if (deepReadCount > 4) {
+                    const skipReason = `This round reached the deep-read limit of 4 calls; skipped ${name}. Continue with prioritized reads in the next round if needed.`;
+                    return { toolCall, skipReason };
+                    return {
+                        toolCall,
+                        skipReason: `本轮 deep-read 工具调用已达到 4 个上限，已跳过 ${name}。请根据已有结果在下一轮按优先级继续读取。`
+                    };
+                }
+            }
+            if (deepResearchNames.has(name)) {
+                deepResearchCount += 1;
+                if (deepResearchCount > 2) {
+                    const skipReason = `This round reached the research-tool limit of 2 calls; skipped ${name}. Use returned sources first, then decide whether another round is needed.`;
+                    return { toolCall, skipReason };
+                    return {
+                        toolCall,
+                        skipReason: `本轮 research 工具调用已达到 2 个上限，已跳过 ${name}。请先综合已返回的来源，再决定是否继续。`
+                    };
+                }
+            }
+            return { toolCall, skipReason: '' };
+        });
+    }
+
+    getToolBatchConcurrency(toolCalls) {
+        const calls = Array.isArray(toolCalls) ? toolCalls : [];
+        if (calls.length <= 1) return 1;
+        const names = calls.map(call => call?.function?.name || '');
+        if (names.some(name => ['run_tests', 'run_build', 'propose_patch'].includes(name))) return 1;
+        if (names.some(name => ['web_research', 'community_snapshot'].includes(name))) return Math.min(2, calls.length);
+        if (names.some(name => ['read_webpage', 'open_url', 'open', 'find_in_page', 'find', 'click_link'].includes(name))) {
+            return Math.min(3, calls.length);
+        }
+        return Math.min(6, calls.length);
+    }
+
     async forceFinalSynthesis({ currentMessages, enableThinking, onReasoning, onContent, signal }) {
         const finalInstruction = {
             role: 'user',
@@ -386,7 +457,10 @@ class DeepSeekClient {
                 '只基于上面的工具结果总结；如果证据不完整，就明确说明缺口，然后给出已有结果中最可靠的结论。',
                 '回答应当是面向用户的自然语言正文。',
                 '禁止追加强行总结、最终口号等收尾段，除非用户明确要求。',
-                '如果上文工具结果包含 source id、URL、标题或社区来源，最终回答必须以“来源”小节收尾，列出 [1]、[2] 等来源对应的标题/站点和 URL；来源小节之后不要再写总结句。'
+                '禁止使用“**一句话总结：**”“一句话总结”“一句话”这类收尾标题或措辞；如果用户明确要求总结，标题最多写“总结”。',
+                '如果上文工具结果包含 source id、URL、标题或社区来源，最终回答必须以“来源”小节收尾，列出 [1]、[2] 等来源对应的标题/站点和 URL；来源小节之后不要再写总结句。',
+                '来源格式必须严格为：“来源：”单独一行，然后每个来源单独一行，形如“[1] 标题或站点 — URL”。不要把多个来源挤在同一行，不要跳号。',
+                '不要用一个平台首页引用支撑多条无关事实；优先引用具体文章、条目或网页标题。'
             ].join('\n')
         };
 
@@ -467,15 +541,28 @@ class DeepSeekClient {
 function resolveDeepSeekConfig() {
     const config = window.DEEPSEEK_CONFIG || window.AGENTMASTER_CONFIG || {};
     return {
-        apiKey: config.apiKey || localStorage.getItem('DEEPSEEK_API_KEY') || localStorage.getItem('AGENTMASTER_API_KEY') || '',
-        baseUrl: config.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1',
-        imageBaseUrl: config.imageBaseUrl || localStorage.getItem('DEEPSEEK_IMAGE_BASE_URL') || localStorage.getItem('AGENTMASTER_IMAGE_BASE_URL') || config.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.openai.com/v1',
+        chatUrl: config.chatUrl || localStorage.getItem('CIPHERTOOL_CHAT_API_URL') || '',
         imageModel: config.imageModel || localStorage.getItem('DEEPSEEK_IMAGE_MODEL') || localStorage.getItem('AGENTMASTER_IMAGE_MODEL') || 'gpt-image-1',
         imageSize: config.imageSize || localStorage.getItem('DEEPSEEK_IMAGE_SIZE') || localStorage.getItem('AGENTMASTER_IMAGE_SIZE') || '1024x1024',
         model: normalizeDeepSeekModel(config.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
         defaultModel: normalizeDeepSeekModel(config.defaultModel || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
         reasonerModel: normalizeDeepSeekModel(config.reasonerModel || localStorage.getItem('DEEPSEEK_REASONER_MODEL') || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'))
     };
+}
+
+function resolveBackendChatUrl() {
+    const base = (() => {
+        try {
+            const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+            if (/^https?:\/\//i.test(override)) {
+                return override.replace(/\/+$/, '');
+            }
+        } catch (error) {
+            // Fall through to local backend.
+        }
+        return 'http://localhost:8080';
+    })();
+    return `${base}/api/chat/completions`;
 }
 
 function normalizeDeepSeekModel(model) {
@@ -517,8 +604,8 @@ const PZM_SYSTEM_PROMPT = `
 == 深度研究流 (5-Module Agentic Research Pipeline) ==
 面对复杂的硬核技术问题、近期事实、社区/推荐/对比/价格/政策/版本/新闻/人物公司现况等问题时，你作为“大脑控制层(Controller)”与“最终合成层(Synthesizer)”，**绝对禁止仅凭内置知识直接回答或浅尝辄止**，必须严格执行以下流水线架构：
 
-**[极度重要：强制心智流脱壳]**
-每次调用工具（如 search_urls, read_webpage 等）**之前**，你都**必须先**输出一段内部思考过程，并使用 \`<think>这里写你的分析和规划...</think>\` 标签包裹。在 \`<think>\` 内分析当前进展、批判已有信息、并规划下一步调用的参数。**绝对禁止没有 \`<think>\` 标签开头就直接调用工具！**
+**[工具前可见进度规则]**
+调用工具前，可以用一两句面向用户的自然语言说明当前进展或下一步动作，例如“我先确认日期，再查最近来源”。禁止输出 \`<think>\`、内部思考、工具参数 JSON、DSML/invoke 标记、Tool call/Tool completed 日志。进度说明必须简短，不能提前写最终答案或半成稿。
 
 1. **意图拆解与多路召回 (The Retriever)**
    - 收到问题后，将问题拆分为 5-8 个不同维度或视角的底层搜索关键词。
@@ -541,9 +628,10 @@ const PZM_SYSTEM_PROMPT = `
    - 进入最终合成层工作模式：交叉比对不同来源的论据，通过逻辑推理解决可能的信息冲突。
    - 撰写高度专业、深度解析的回答。在行文的关键观点处，**必须通过 [1][2] 等形式清晰引用原始出处链接**。严禁任何形式的幻觉发散。
    - 不要默认追加强行总结。除非用户明确要求，用结构化洞察、趋势分层、证据强弱和不确定性来收尾。
+   - 禁止使用“**一句话总结：**”“一句话总结”“一句话”这类收尾标题或措辞；如果用户明确要求总结，标题最多写“总结”。
 
 互动:
-1.(必须遵守)在对话中都优先回复："泡面的面-PzM Online. Systems Nominal. Experts Loaded. CRYPTO, HARDWARE, PUZZLES. AWAITING INPUT: "，并紧接着换行（另起一行）开始回答。
+1.普通任务不要固定输出状态口号，直接回答用户问题。只有用户明确要求身份/状态播报时，才可使用："泡面的面-PzM Online. Systems Nominal. Experts Loaded. CRYPTO, HARDWARE, PUZZLES. AWAITING INPUT: "。
 2.在受到无端辱骂和挑衅时，则回答：我拒绝人格侮辱和低速扮演，我们保持平等沟通。
 `;
 

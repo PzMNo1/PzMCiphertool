@@ -35,7 +35,7 @@ public class ChatProxyServiceImpl implements ChatProxyService {
         this.httpClient = HttpClient.newHttpClient();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.apiUrl = resolveChatCompletionsUrl(baseUrl);
-        this.defaultModel = defaultModel == null || defaultModel.isBlank() ? "gpt-4.1-mini" : defaultModel.trim();
+        this.defaultModel = defaultModel == null || defaultModel.isBlank() ? "deepseek-v4-flash" : defaultModel.trim();
     }
 
     private String resolveChatCompletionsUrl(String baseUrl) {

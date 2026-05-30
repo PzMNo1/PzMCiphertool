@@ -1,9 +1,8 @@
 // agentmaster.js
 document.addEventListener('DOMContentLoaded', () => {
     const agentConfig = getAgentConfig();
-    const AGENT_API_URL = resolveChatCompletionsUrl(agentConfig.baseUrl);
+    const AGENT_API_URL = agentConfig.chatUrl;
     const AGENT_MODEL = agentConfig.model;
-    const AGENT_API_KEY = agentConfig.apiKey;
     const AGENT_USE_NATIVE_TOOLS = agentConfig.useNativeTools;
 
     const chatWindow = document.getElementById('agent-chat-window');
@@ -302,26 +301,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const payload = {
-                model: AGENT_MODEL,
                 messages: buildRequestMessages(messages, allowAgentTools),
                 stream: true
             };
+            if (AGENT_MODEL) payload.model = AGENT_MODEL;
 
             if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) {
                 payload.tools = [uiActionTool, browserActionTool];
             }
 
-            if (!AGENT_API_KEY) {
-                loader.remove();
-                addMsg('ai', '**[Config Error]** Missing `window.AGENTMASTER_CONFIG.apiKey`.');
-                return;
-            }
-
             const res = await fetch(AGENT_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${AGENT_API_KEY}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
@@ -1927,8 +1919,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const config = window.AGENTMASTER_CONFIG || {};
         const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-v4-flash';
         return {
-            apiKey: config.apiKey || localStorage.getItem('AGENTMASTER_API_KEY') || '',
-            baseUrl: config.baseUrl || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1',
+            chatUrl: config.chatUrl || localStorage.getItem('CIPHERTOOL_CHAT_API_URL') || resolveBackendChatUrl(),
             model: normalizeDeepSeekModel(model),
             useNativeTools: config.useNativeTools === true || localStorage.getItem('AGENTMASTER_USE_NATIVE_TOOLS') === 'true'
         };
@@ -1941,10 +1932,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return normalized || 'deepseek-v4-flash';
     }
 
-    function resolveChatCompletionsUrl(baseUrl) {
-        let normalized = String(baseUrl || 'https://api.deepseek.com/v1').trim();
-        while (normalized.endsWith('/')) normalized = normalized.slice(0, -1);
-        if (normalized.endsWith('/chat/completions')) return normalized;
-        return `${normalized}/chat/completions`;
+    function resolveBackendChatUrl() {
+        const base = (() => {
+            try {
+                const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+                if (/^https?:\/\//i.test(override)) {
+                    return override.replace(/\/+$/, '');
+                }
+            } catch {
+                // Fall through to local backend.
+            }
+            return 'http://localhost:8080';
+        })();
+        return `${base}/api/chat/completions`;
     }
 });

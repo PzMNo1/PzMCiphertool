@@ -14,7 +14,7 @@ public class ChatCompletionRequest {
     @Data
     public static class Message {
         private String role;
-        private String content;
+        private Object content;
         private String reasoning_content;  // 思维链内容(用于工具调用循环)
         private List<ToolCall> tool_calls; // 助手的工具调用
         private String tool_call_id;       // 工具结果消息的ID
@@ -46,4 +46,3 @@ public class ChatCompletionRequest {
         private String arguments;
     }
 }
-

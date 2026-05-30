@@ -153,6 +153,9 @@ class ChatUI {
      * @param {string} text - 新增的文本
      */
     appendReasoningContent(container, text) {
+        if (container?.reasoningDetails) {
+            container.reasoningDetails.hidden = false;
+        }
         const textNode = document.createTextNode(text);
         const cursorIsAttached = container.cursorSpan
             && container.cursorSpan.parentNode === container.reasoningContent;
@@ -170,9 +173,6 @@ class ChatUI {
     }
 
     appendReasoningEvent(container, message) {
-        if (!container?.reasoningContent) return;
-        const prefix = container.reasoningContent.textContent.trim() ? '\n' : '';
-        this.appendReasoningContent(container, `${prefix}${message}`);
     }
 
     /**
@@ -184,6 +184,14 @@ class ChatUI {
         this.setReasoningStatus(container, '正在整理回答');
         if (container.cursorSpan.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
+        }
+        this.hideEmptyReasoning(container);
+    }
+
+    hideEmptyReasoning(container) {
+        if (!container?.reasoningDetails || !container?.reasoningContent) return;
+        if (!String(container.reasoningContent.textContent || '').trim()) {
+            container.reasoningDetails.hidden = true;
         }
     }
 
@@ -433,7 +441,7 @@ class ChatUI {
     }
 
     addAgentTrace(container, stage, message) {
-        if (stage === 'route' || stage === 'act' || stage === 'observe') {
+        if (false && (stage === 'route' || stage === 'act' || stage === 'observe')) {
             this.appendReasoningEvent(container, this.formatTraceForReasoning(stage, message));
         }
         if (!container.agentTrace) return;
@@ -710,6 +718,7 @@ class ChatUI {
 
     getAgentEventState(event) {
         if (/failed|error/i.test(event.type || '')) return 'error';
+        if (/coverage_gap|gap/i.test(event.type || '')) return 'warning';
         if (/approval\.required/.test(event.type || '')) return 'warning';
         if (/approval\.resolved/.test(event.type || '') && event.payload?.status !== 'approved') return 'error';
         if (/completed|added|resolved|verified/.test(event.type || '')) return 'done';
@@ -734,6 +743,7 @@ class ChatUI {
             'evidence.added': 'evidence',
             'citation.verified': 'citation',
             'artifact.created': 'artifact',
+            'research.coverage_gap': 'coverage',
             'synthesis.started': 'synthesis',
             'run.completed': 'run',
             'run.failed': 'run',
@@ -774,6 +784,8 @@ class ChatUI {
                 return `${payload.title || payload.url || payload.kind || 'evidence'}${payload.trustLevel ? ` · ${payload.trustLevel}` : ''}`;
             case 'citation.verified':
                 return `${Array.isArray(payload.matched) ? payload.matched.length : 0} matched, ${Array.isArray(payload.unmatched) ? payload.unmatched.length : 0} unmatched, ${Array.isArray(payload.weak) ? payload.weak.length : 0} weak`;
+            case 'research.coverage_gap':
+                return `${payload.unique_source_urls || 0} unique URLs, ${payload.evidence_items || 0} evidence item(s), follow-up ${payload.forcedFollowups || 0}`;
             case 'synthesis.started':
                 return `${payload.tool_calls || 0} tool call(s), ${payload.evidence_items || 0} evidence item(s)`;
             case 'run.completed':
@@ -809,7 +821,7 @@ class ChatUI {
      */
     displayToolCall(container, toolCall) {
         this.toolCallNames.set(toolCall.id, toolCall.function.name);
-        this.setReasoningStatus(container, `正在调用 ${toolCall.function.name}`);
+        this.setReasoningStatus(container, '正在读取资料');
         const toolCard = document.createElement('div');
         toolCard.className = 'tool-call-card tool-executing';
         toolCard.id = `tool-${toolCall.id}`;
@@ -820,7 +832,6 @@ class ChatUI {
         } catch (e) {
             args = toolCall.function.arguments;
         }
-        this.appendReasoningEvent(container, `调用工具：${toolCall.function.name} ${this.truncateForLog(String(args).replace(/\s+/g, ' '), 220)}`);
 
         toolCard.innerHTML = `
             <div class="tool-call-header">
@@ -852,7 +863,6 @@ class ChatUI {
     updateToolResult(toolCallId, result, success = true) {
         const toolCard = document.getElementById(`tool-${toolCallId}`);
         if (!toolCard) return;
-        this.appendToolResultEvent(toolCard, toolCallId, result, success);
 
         toolCard.classList.remove('tool-executing');
         toolCard.classList.add(success ? 'tool-success' : 'tool-error');
@@ -865,28 +875,10 @@ class ChatUI {
     }
 
     appendToolResultEvent(toolCard, toolCallId, result, success) {
-        const messageElement = toolCard.closest('.assistant-message');
-        const summary = messageElement?.querySelector('.reasoning-details summary');
-        const reasoningContent = messageElement?.querySelector('.reasoning-content');
-        const cursorSpan = reasoningContent?.querySelector('.cursor-blink');
-        if (summary) {
-            summary.innerHTML = `<span>${success ? '正在读取工具结果' : '工具调用失败，正在调整'}</span> <span class="status-dot"></span>`;
-        }
-        if (!reasoningContent) return;
-        const toolName = this.toolCallNames.get(toolCallId) || '工具';
-        const preview = this.truncateForLog(String(result ?? '').replace(/\s+/g, ' ').trim(), 260);
-        const prefix = reasoningContent.textContent.trim() ? '\n' : '';
-        const line = `${prefix}${success ? '工具完成' : '工具失败'}：${toolName}${preview ? `，结果摘要：${preview}` : ''}`;
-        const textNode = document.createTextNode(line);
-        if (cursorSpan && cursorSpan.parentNode === reasoningContent) {
-            reasoningContent.insertBefore(textNode, cursorSpan);
-        } else {
-            reasoningContent.appendChild(textNode);
-        }
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
 
     getPlanStatus(plan) {
+        if (plan.mode === 'news_brief') return '\u6b63\u5728\u6574\u7406\u65b0\u95fb\u7b80\u62a5';
         if (plan.mode === 'research') return '正在检索资料';
         if (plan.mode === 'agent') return '正在分析并选择工具';
         return '正在分析问题';
@@ -930,6 +922,7 @@ class ChatUI {
         if (container.cursorSpan.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
+        this.hideEmptyReasoning(container);
 
         // 最终 MathJax 渲染
         if (window.MathJax && window.MathJax.typesetPromise) {
@@ -1025,18 +1018,9 @@ class ChatUI {
         if (msg.role === 'user') {
             this.appendAttachmentSummary(messageElement, msg.attachments || []);
         }
-        const agentRunId = msg.agent_run_id || msg.agentRunId || '';
-        const restoredAgentRun = msg.role !== 'user'
-            ? (msg.agent_run || window.agentRunStore?.getRun?.(agentRunId))
-            : null;
+        const restoredAgentRun = msg.role !== 'user' ? msg.agent_run : null;
         if (restoredAgentRun) {
             this.restoreAgentRunPanel(messageElement, messageContent, restoredAgentRun);
-        } else if (msg.role !== 'user' && agentRunId && window.agentRunStore?.fetchRun) {
-            window.agentRunStore.fetchRun(agentRunId).then(run => {
-                if (!run || !messageElement.isConnected || messageElement.querySelector('.agent-run-panel')) return;
-                msg.agent_run = run;
-                this.restoreAgentRunPanel(messageElement, messageContent, run);
-            });
         }
         if (msg.role !== 'user' && Array.isArray(msg.images) && msg.images.length) {
             const grid = document.createElement('div');

@@ -91,7 +91,7 @@ public class ApiRouterService {
     @Value("${llm.base-url:https://api.openai.com/v1}")
     private String defaultUpstreamBaseUrl;
 
-    @Value("${llm.model:gpt-4.1-mini}")
+    @Value("${llm.model:deepseek-v4-flash}")
     private String defaultUpstreamModel;
 
     @Value("${api-router.payment.callback-secret:}")

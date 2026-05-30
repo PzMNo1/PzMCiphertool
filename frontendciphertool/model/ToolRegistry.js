@@ -31,6 +31,70 @@ class ToolRegistry {
         return 'http://localhost:8080';
     }
 
+    async fetchJson(url, options = {}, timeoutMs = 30000) {
+        const controller = new AbortController();
+        const timer = Number.isFinite(timeoutMs) && timeoutMs > 0
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
+        try {
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+            const text = await response.text();
+            let result = null;
+            try {
+                result = text ? JSON.parse(text) : null;
+            } catch (parseError) {
+                parseError.response = response;
+                parseError.responseText = text;
+                throw parseError;
+            }
+            return { response, result, text };
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`);
+            }
+            throw error;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
+    async fetchWithAbort(url, options = {}, timeoutMs = null) {
+        const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+            ? timeoutMs
+            : this.inferFetchTimeoutMs(url);
+        const controller = new AbortController();
+        const timer = effectiveTimeout > 0
+            ? setTimeout(() => controller.abort(), effectiveTimeout)
+            : null;
+        try {
+            return await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                throw new Error(`request timed out after ${Math.round(effectiveTimeout / 1000)}s`);
+            }
+            throw error;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
+    inferFetchTimeoutMs(url) {
+        const value = String(url || '');
+        if (value.includes('/research')) return 120000;
+        if (value.includes('/run_command')) return 90000;
+        if (value.includes('/propose_patch')) return 60000;
+        if (value.includes('/read_webpage')) return 45000;
+        if (value.includes('/community_snapshot')) return 45000;
+        if (value.includes('/search_urls')) return 45000;
+        return 30000;
+    }
+
     /**
      * 注册内置工具
      */
@@ -680,7 +744,7 @@ class ToolRegistry {
             },
             execute: async ({ sources = [], limit = 20 }) => {
                 try {
-                    const response = await fetch(`${this.getApiBase()}/community_snapshot`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}/community_snapshot`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sources, limit })
@@ -704,7 +768,7 @@ class ToolRegistry {
 
         this.register({
             name: 'web_research',
-            description: 'Grok/Gemini-style web research. Use depth="fast" only for a quick source map when the source landscape is unclear, and depth="deep" read_top=true for research-grade final evidence. For broad research, request max_results 28-32 and follow up if fewer than 28 useful sources are returned. Never use Baidu. For academic/paper questions, prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
+            description: 'Grok/Gemini-style web research. Use depth="fast" only for a quick source map when the source landscape is unclear, and depth="deep" read_top=true for research-grade final evidence. For broad daily news briefings, use mode="news_brief", request max_results 28-32, and cover domestic, international, finance/markets, technology/science, and society/sports/culture. Never use Baidu. For academic/paper questions, prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -719,8 +783,8 @@ class ToolRegistry {
                     },
                     mode: {
                         type: 'string',
-                        enum: ['auto', 'news', 'technical', 'academic', 'community', 'market'],
-                        description: 'Research mode. Use auto unless a narrower mode clearly fits.'
+                        enum: ['auto', 'news', 'news_brief', 'technical', 'academic', 'community', 'market'],
+                        description: 'Research mode. Use news_brief for broad daily news briefings; otherwise use auto unless a narrower mode clearly fits.'
                     },
                     depth: {
                         type: 'string',
@@ -767,7 +831,7 @@ class ToolRegistry {
                         ? Math.max(28, Math.min(requestedMaxResults, 32))
                         : Math.max(16, Math.min(requestedMaxResults, 32));
                     const endpoint = effectiveReadTop ? '/research/deep' : '/research/fast';
-                    const response = await fetch(`${this.getApiBase()}${endpoint}`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}${endpoint}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -819,7 +883,7 @@ class ToolRegistry {
             },
             execute: async ({ query }) => {
                 try {
-                    const response = await fetch(`${this.getApiBase()}/search_urls`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}/search_urls`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query })
@@ -871,7 +935,7 @@ class ToolRegistry {
             },
             execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
                 try {
-                    const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url, focus_keyword, chunk_index })
@@ -900,7 +964,7 @@ class ToolRegistry {
             },
             execute: async ({ url }) => {
                 try {
-                    const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         // 复用 read_webpage 接口以获取全文 Markdown
@@ -934,7 +998,7 @@ class ToolRegistry {
             },
             execute: async ({ city, detailed = false }) => {
                 try {
-                    const response = await fetch(`${this.getApiBase()}/weather`, {
+                    const response = await this.fetchWithAbort(`${this.getApiBase()}/weather`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ city, detailed })
@@ -958,7 +1022,7 @@ class ToolRegistry {
                 required: ['query']
             },
             execute: async ({ query }) => {
-                const response = await fetch(`${this.getApiBase()}/search_urls`, {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/search_urls`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
@@ -981,7 +1045,7 @@ class ToolRegistry {
                 required: ['url']
             },
             execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
-                const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url, focus_keyword, chunk_index })
@@ -1003,7 +1067,7 @@ class ToolRegistry {
                 required: ['url', 'pattern']
             },
             execute: async ({ url, pattern }) => {
-                const response = await fetch(`${this.getApiBase()}/read_webpage`, {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url, focus_keyword: pattern, chunk_index: 0 })
@@ -1114,7 +1178,7 @@ class ToolRegistry {
                 tags: ['project', 'filesystem', 'list']
             },
             execute: async ({ path = '.', depth = 2 }) => {
-                const response = await fetch(`${this.getProjectApiBase()}/list_files`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/list_files`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path, depth })
@@ -1149,7 +1213,7 @@ class ToolRegistry {
                 tags: ['project', 'filesystem', 'read']
             },
             execute: async ({ path }) => {
-                const response = await fetch(`${this.getProjectApiBase()}/read_file`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/read_file`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path })
@@ -1185,7 +1249,7 @@ class ToolRegistry {
                 tags: ['project', 'filesystem', 'search']
             },
             execute: async ({ query, path = '.' }) => {
-                const response = await fetch(`${this.getProjectApiBase()}/search_files`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/search_files`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query, path })
@@ -1220,7 +1284,7 @@ class ToolRegistry {
                 tags: ['project', 'filesystem', 'metadata']
             },
             execute: async ({ path }) => {
-                const response = await fetch(`${this.getProjectApiBase()}/file_info`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/file_info`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path })
@@ -1266,7 +1330,7 @@ class ToolRegistry {
                 }
             },
             execute: async ({ keyword = '', category = '' }) => {
-                const response = await fetch(`${this.getApiBase()}/news`, {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/news`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ keyword, category })
@@ -1287,7 +1351,7 @@ class ToolRegistry {
                 required: ['symbol']
             },
             execute: async ({ symbol }) => {
-                const response = await fetch(`${this.getApiBase()}/finance`, {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/finance`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ symbol })
@@ -1319,7 +1383,7 @@ class ToolRegistry {
                 tags: ['project', 'exec', 'test', 'maven']
             },
             execute: async () => {
-                const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/run_command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command: 'backend_test' })
@@ -1351,7 +1415,7 @@ class ToolRegistry {
                 tags: ['project', 'exec', 'build', 'maven']
             },
             execute: async () => {
-                const response = await fetch(`${this.getProjectApiBase()}/run_command`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/run_command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command: 'backend_build' })
@@ -1389,7 +1453,7 @@ class ToolRegistry {
                 tags: ['project', 'patch', 'proposal']
             },
             execute: async ({ path, summary = '', patch }) => {
-                const response = await fetch(`${this.getProjectApiBase()}/propose_patch`, {
+                const response = await this.fetchWithAbort(`${this.getProjectApiBase()}/propose_patch`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path, summary, patch })
@@ -1478,11 +1542,25 @@ class ToolRegistry {
         }
 
         try {
-            const result = await tool.execute(args);
+            const timeoutMs = Number(tool.metadata?.timeoutMs) || 30000;
+            const result = await this.withTimeout(Promise.resolve().then(() => tool.execute(args)), timeoutMs, name);
             return typeof result === 'string' ? result : JSON.stringify(result);
         } catch (e) {
             throw new Error(`工具执行失败: ${e.message}`);
         }
+    }
+
+    withTimeout(promise, timeoutMs, name) {
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
+        let timer = null;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => {
+                reject(new Error(`${name} timed out after ${Math.round(timeoutMs / 1000)}s`));
+            }, timeoutMs);
+        });
+        return Promise.race([promise, timeout]).finally(() => {
+            if (timer) clearTimeout(timer);
+        });
     }
 
     /**

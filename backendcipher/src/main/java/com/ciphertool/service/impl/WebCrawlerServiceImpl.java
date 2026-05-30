@@ -293,6 +293,17 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             results.add(searchResult("official-source", "World News: Top & Breaking World News Today | AP News", "https://apnews.com/world-news", "Official AP world section"));
             results.add(searchResult("official-source", "World | Latest News & Updates | BBC News", "https://www.bbc.com/news/world", "Official BBC world section"));
             results.add(searchResult("official-source", "World news | The Guardian", "https://www.theguardian.com/world", "Official Guardian world section"));
+        } else {
+            results.add(searchResult("official-source", "BBC News", "https://www.bbc.com/news", "BBC general, world, business, technology and culture news"));
+            results.add(searchResult("official-source", "Reuters World News", "https://www.reuters.com/world/", "Reuters world and international news section"));
+            results.add(searchResult("official-source", "Reuters Business News", "https://www.reuters.com/business/", "Reuters business, economy, finance and market news"));
+            results.add(searchResult("official-source", "AP News", "https://apnews.com/", "Associated Press top news, world, business, politics and society"));
+            results.add(searchResult("official-source", "AP World News", "https://apnews.com/world-news", "Associated Press world and international news"));
+            results.add(searchResult("official-source", "Sina News", "https://news.sina.com.cn/", "Sina Chinese domestic, international, society, finance and rolling news"));
+            results.add(searchResult("official-source", "China News Service", "https://www.chinanews.com.cn/", "China News Service domestic, international, finance, society and culture news"));
+            results.add(searchResult("official-source", "NetEase Latest News", "https://news.163.com/latest/", "NetEase rolling news, China, world, society, finance and technology"));
+            results.add(searchResult("official-source", "CCTV News 30", "https://tv.cctv.com/lm/xw30f/", "CCTV daily Chinese news broadcast and major headlines"));
+            results.add(searchResult("official-source", "National Business Daily", "https://www.nbd.com.cn/", "Chinese finance, markets, companies and economy news"));
         }
         return results;
     }
@@ -422,7 +433,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         if (containsAny(d, "bbc.com", "bbc.co.uk", "wsj.com", "ft.com", "bloomberg.com")) return 20;
         if (containsAny(d, "cnbc.com", "nytimes.com", "washingtonpost.com", "theguardian.com", "scmp.com")) return 18;
         if (containsAny(d, "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com", "theregister.com")) return 16;
-        if (containsAny(d, "caixin.com", "wallstreetcn.com", "xinhuanet.com", "people.com.cn", "thepaper.cn")) return 14;
+        if (containsAny(d, "caixin.com", "wallstreetcn.com", "xinhuanet.com", "people.com.cn", "thepaper.cn",
+                "chinanews.com.cn", "news.sina.com.cn", "sina.com.cn", "news.163.com", "cctv.com", "cctv.cn", "nbd.com.cn")) return 14;
         if (containsAny(d, "ithome.com", "36kr.com", "qbitai.com", "ifanr.com", "livemint.com", "timesnownews.com")) return 10;
         return 0;
     }
@@ -1384,18 +1396,24 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         boolean agentLike = containsAny(q,
                 "agent", "agents", "ai agent", "agentic", "mcp", "langchain", "langgraph", "llamaindex",
                 "crewai", "autogen", "cursor", "windsurf", "copilot", "claude code", "社区", "开发者社区", "智能体");
+        boolean aiLike = containsAny(q,
+                "artificial intelligence", "openai", "anthropic", "deepmind", "hugging face", "llm",
+                "large language model", "machine learning", "codex", "claude", "gemini", "deepseek",
+                "人工智能", "生成式ai", "生成式 ai", "大模型", "机器学习")
+                || Pattern.compile("(^|[^a-z])ai([^a-z]|$)").matcher(q).find();
         boolean academicLike = containsAny(q, "paper", "research", "benchmark", "arxiv", "论文", "学术", "研究", "评测");
         boolean newsLike = containsAny(q, "latest", "today", "news", "current", "最新", "今天", "新闻", "趋势", "前沿");
+        boolean generalNewsLike = newsLike && !agentLike && !aiLike && containsAny(q,
+                "top news", "world", "international", "china", "domestic", "business", "finance", "market",
+                "markets", "economy", "politics", "society", "sports", "culture", "entertainment",
+                "头条", "要闻", "国内", "国际", "中国", "财经", "市场", "经济", "社会", "体育", "娱乐", "文化", "综合", "全景");
 
-        if (agentLike || newsLike) {
-            addDirectSource(results, "direct-source", "OpenAI News", "https://openai.com/news/", "Official OpenAI announcements and research/product updates");
-            addDirectSource(results, "direct-source", "Anthropic News", "https://www.anthropic.com/news", "Official Anthropic announcements and model/product updates");
-            addDirectSource(results, "direct-source", "Google DeepMind Blog", "https://deepmind.google/discover/blog/", "Official Google DeepMind research and product blog");
-            addDirectSource(results, "direct-source", "Google AI Blog", "https://blog.google/technology/ai/", "Official Google AI news and product updates");
-            addDirectSource(results, "direct-source", "Microsoft AI Blog", "https://blogs.microsoft.com/ai/", "Official Microsoft AI announcements and analysis");
-            addDirectSource(results, "direct-source", "GitHub AI & ML Blog", "https://github.blog/ai-and-ml/", "GitHub AI engineering and developer tooling updates");
-            addDirectSource(results, "direct-source", "Hugging Face Blog", "https://huggingface.co/blog", "Open-source model and tooling community updates");
-            addDirectSource(results, "direct-source", "The Batch", "https://www.deeplearning.ai/the-batch/", "AI industry and research newsletter from DeepLearning.AI");
+        if (generalNewsLike) {
+            addGeneralNewsFallbackSources(results);
+        }
+
+        if (agentLike || aiLike) {
+            addAiResearchFallbackSources(results);
         }
 
         if (agentLike) {
@@ -1429,15 +1447,57 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
 
         if (newsLike || results.isEmpty()) {
-            addDirectSource(results, "direct-source", "Reuters Technology", "https://www.reuters.com/technology/", "Reuters technology news section");
-            addDirectSource(results, "direct-source", "AP Technology", "https://apnews.com/technology", "Associated Press technology news section");
+            if (!generalNewsLike) {
+                addGeneralNewsFallbackSources(results);
+            }
+            addTechnologyNewsFallbackSources(results, agentLike || aiLike);
+        }
+
+        return results.stream().limit(maxResults).collect(Collectors.toList());
+    }
+
+    private void addGeneralNewsFallbackSources(List<JSONObject> results) {
+        addDirectSource(results, "direct-source", "BBC News", "https://www.bbc.com/news", "General breaking news, world, business, technology, culture and analysis");
+        addDirectSource(results, "direct-source", "BBC World", "https://www.bbc.com/news/world", "World and international news from BBC");
+        addDirectSource(results, "direct-source", "Reuters World", "https://www.reuters.com/world/", "Reuters world, politics, diplomacy and conflict news");
+        addDirectSource(results, "direct-source", "Reuters Business", "https://www.reuters.com/business/", "Reuters business, finance, economy and market news");
+        addDirectSource(results, "direct-source", "Reuters Markets", "https://www.reuters.com/markets/", "Reuters financial markets and economy news");
+        addDirectSource(results, "direct-source", "AP Top News", "https://apnews.com/", "Associated Press top news across world, politics, business, sports and culture");
+        addDirectSource(results, "direct-source", "AP World News", "https://apnews.com/world-news", "Associated Press world and international news");
+        addDirectSource(results, "direct-source", "The Guardian World", "https://www.theguardian.com/world", "Guardian world and international news");
+        addDirectSource(results, "direct-source", "CNBC Markets", "https://www.cnbc.com/markets/", "CNBC markets, business, economy and finance news");
+        addDirectSource(results, "direct-source", "Sina News", "https://news.sina.com.cn/", "Chinese domestic, international, society and rolling news");
+        addDirectSource(results, "direct-source", "China News Service", "https://www.chinanews.com.cn/", "Chinese domestic, international, finance, society and culture news");
+        addDirectSource(results, "direct-source", "NetEase Latest News", "https://news.163.com/latest/", "Chinese rolling latest news, China, world, society, finance and technology");
+        addDirectSource(results, "direct-source", "People's Daily Online", "https://www.people.com.cn/", "Chinese official domestic, politics, society and international news");
+        addDirectSource(results, "direct-source", "CCTV News 30", "https://tv.cctv.com/lm/xw30f/", "CCTV daily Chinese news broadcast and major headlines");
+        addDirectSource(results, "direct-source", "National Business Daily", "https://www.nbd.com.cn/", "Chinese finance, markets, companies and economy news");
+    }
+
+    private void addAiResearchFallbackSources(List<JSONObject> results) {
+        addDirectSource(results, "direct-source", "OpenAI News", "https://openai.com/news/", "Official OpenAI announcements and research/product updates");
+        addDirectSource(results, "direct-source", "Anthropic News", "https://www.anthropic.com/news", "Official Anthropic announcements and model/product updates");
+        addDirectSource(results, "direct-source", "Google DeepMind Blog", "https://deepmind.google/discover/blog/", "Official Google DeepMind research and product blog");
+        addDirectSource(results, "direct-source", "Google AI Blog", "https://blog.google/technology/ai/", "Official Google AI news and product updates");
+        addDirectSource(results, "direct-source", "Microsoft AI Blog", "https://blogs.microsoft.com/ai/", "Official Microsoft AI announcements and analysis");
+        addDirectSource(results, "direct-source", "GitHub AI & ML Blog", "https://github.blog/ai-and-ml/", "GitHub AI engineering and developer tooling updates");
+        addDirectSource(results, "direct-source", "Hugging Face Blog", "https://huggingface.co/blog", "Open-source model and tooling community updates");
+        addDirectSource(results, "direct-source", "The Batch", "https://www.deeplearning.ai/the-batch/", "AI industry and research newsletter from DeepLearning.AI");
+    }
+
+    private void addTechnologyNewsFallbackSources(List<JSONObject> results, boolean aiFocused) {
+        addDirectSource(results, "direct-source", "Reuters Technology", "https://www.reuters.com/technology/", "Reuters technology news section");
+        addDirectSource(results, "direct-source", "AP Technology", "https://apnews.com/technology", "Associated Press technology news section");
+        addDirectSource(results, "direct-source", "TechCrunch", "https://techcrunch.com/", "TechCrunch startup and technology news");
+        addDirectSource(results, "direct-source", "The Verge Tech", "https://www.theverge.com/tech", "The Verge technology, science, art and culture news");
+        addDirectSource(results, "direct-source", "Ars Technica", "https://arstechnica.com/", "Ars Technica technology, science and policy news");
+        addDirectSource(results, "direct-source", "Wired", "https://www.wired.com/", "Wired technology, business, culture and science news");
+        if (aiFocused) {
             addDirectSource(results, "direct-source", "TechCrunch AI", "https://techcrunch.com/category/artificial-intelligence/", "TechCrunch AI coverage");
             addDirectSource(results, "direct-source", "The Verge AI", "https://www.theverge.com/ai-artificial-intelligence", "The Verge AI coverage");
             addDirectSource(results, "direct-source", "Ars Technica AI", "https://arstechnica.com/ai/", "Ars Technica AI coverage");
             addDirectSource(results, "direct-source", "Wired AI", "https://www.wired.com/tag/artificial-intelligence/", "Wired AI coverage");
         }
-
-        return results.stream().limit(maxResults).collect(Collectors.toList());
     }
 
     private void addDirectSource(List<JSONObject> results, String source, String title, String url, String snippet) {

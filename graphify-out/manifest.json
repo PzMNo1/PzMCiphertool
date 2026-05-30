@@ -1,0 +1,3237 @@
+{
+  "D:\\10_Leochad\\PzMCiphertool-\\0_sidebar_funtion.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "a93f6e21915ba50f18303083ee029c9d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\start.sh": {
+    "mtime": 1779790588.0749893,
+    "ast_hash": "eb70da09b610ec9432798aad470718af",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\CipherToolApplication.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "9b718ae593b9b871e623c59bff7d0b85",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\config\\AliyunSmsConfig.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "a820eaff935ebdc369712deba756a425",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\config\\CorsConfig.java": {
+    "mtime": 1779966136.286523,
+    "ast_hash": "0d2adb2ba48ef489afb805656bad67e0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\config\\RedisConfig.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "4a1223c21450176c7eee6cfc4ca81ee9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\ApiRouterController.java": {
+    "mtime": 1779988627.0330818,
+    "ast_hash": "5cfa16935fb16a353a12e307d5386088",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\AuthController.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "abd6d2948292dc6ab6848e61f181699a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\ChatController.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "31b9d550a16820f6b5be8b1b9b36a6ae",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\ChatHistoryController.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "c39807ef50f3e7c092db8acdfcccc4d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\McpLabController.java": {
+    "mtime": 1779979128.154035,
+    "ast_hash": "a0c8dc46c67b3e83c8426e654705a8ba",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\OpenAiCompatibleController.java": {
+    "mtime": 1779976630.3358133,
+    "ast_hash": "103395ea521b5f38c650414e748c3e72",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\ProjectToolController.java": {
+    "mtime": 1779684531.3604248,
+    "ast_hash": "550c527e7ab9e6f666998d04df6ea32f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\controller\\WebCrawlerController.java": {
+    "mtime": 1780002655.5778723,
+    "ast_hash": "9feee760b0e9d5a2c3947efef9769431",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiResponse.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "0165630352f03f8f6b9ce9ec37abb444",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterAdminOverview.java": {
+    "mtime": 1779987151.4163427,
+    "ast_hash": "99cfd0bbcf73c88d083f859bf80f03c0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterChannelHealthCheckRequest.java": {
+    "mtime": 1779977564.7099876,
+    "ast_hash": "f18b5f3cb19d4f6fd6f66cd62bfc85d3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterChannelRequest.java": {
+    "mtime": 1779971129.835636,
+    "ast_hash": "14fe4dcc803f26c14777d18ac0e9deb9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterChannelStatusRequest.java": {
+    "mtime": 1779971142.2070386,
+    "ast_hash": "fdfd360d22666078b9dc460f5f02c459",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterDashboard.java": {
+    "mtime": 1779981004.273781,
+    "ast_hash": "c056c2aa271a28353fecb355d983c74b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterDashboardRequest.java": {
+    "mtime": 1779966699.4591303,
+    "ast_hash": "06e0a2d897994ee4ba2743910383f65d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterKeyConfigRequest.java": {
+    "mtime": 1779887825.8107696,
+    "ast_hash": "747cd0e59c24c6719324a4f6c459e820",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterKeyCreateResponse.java": {
+    "mtime": 1779863146.3436677,
+    "ast_hash": "a23f8fbe968de0ee509bb525fbfb6531",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterKeyRequest.java": {
+    "mtime": 1779855396.7065904,
+    "ast_hash": "549c28f94f1a59a94529ee858434e2b3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterKeyStatusRequest.java": {
+    "mtime": 1779863146.389657,
+    "ast_hash": "7c77721c9178f78acc95aa7c6e87e87a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterModelPriceRequest.java": {
+    "mtime": 1779978645.3838353,
+    "ast_hash": "4a0923eafbddd5eb0a01a3b45ceecc1d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterModelPriceStatusRequest.java": {
+    "mtime": 1779978645.4221008,
+    "ast_hash": "d93898d08cdf49383187bcbe19536338",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterOrderRequest.java": {
+    "mtime": 1779975173.8253388,
+    "ast_hash": "0abcbc4840515b2bb1fdcf3f10d3e2fc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterOrderStatusRequest.java": {
+    "mtime": 1779974703.57583,
+    "ast_hash": "50844aa35c6c1ce0fdd2b118ea044617",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterPaymentCallbackRequest.java": {
+    "mtime": 1779988591.6994727,
+    "ast_hash": "4555274fd09d135f2b62b264131083f5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterPaymentReconciliation.java": {
+    "mtime": 1779988417.0680468,
+    "ast_hash": "734b8046931c00240214d5ae15e7bd17",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterReconciliationResolveRequest.java": {
+    "mtime": 1779988425.0193038,
+    "ast_hash": "55f3078858dadfe00cedf919c573ff20",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterRedeemCodeRequest.java": {
+    "mtime": 1779972430.1008825,
+    "ast_hash": "e1f3ca954542c4316b4b302a08fd44d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterRedeemCodeStatusRequest.java": {
+    "mtime": 1779972441.2275984,
+    "ast_hash": "eaff0315a92b9d727e6bc98756798238",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterRedeemRequest.java": {
+    "mtime": 1779972419.087629,
+    "ast_hash": "188aba63c18009ce59a6277a076a3ab3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterStatus.java": {
+    "mtime": 1779977554.8086152,
+    "ast_hash": "898e929c3e1526ec00d578435f1765a8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterUserControlRequest.java": {
+    "mtime": 1779987161.1019866,
+    "ast_hash": "e8939115556cf3ca059842882d3905cb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ApiRouterWalletCreditRequest.java": {
+    "mtime": 1779971112.9377542,
+    "ast_hash": "8955c6d690ef2afc1ff7c124e56ea762",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ChatCompletionRequest.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "ee2fc36fd11f1efa44e69bd90b30c7cb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\ChatHistoryRequest.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "916f7f3414ed7bb78c9565bc2e7d7b1c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\LoginRequest.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "1215fe2a895a9e38efed73ac58110455",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\LoginResponse.java": {
+    "mtime": 1779965979.139499,
+    "ast_hash": "97d8819f75f62c3f71f82f74baf5e6ef",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\McpLabCheckRequest.java": {
+    "mtime": 1779972496.3103218,
+    "ast_hash": "28c4b04bdb9f9292a39432e0f987b75b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\McpLabCheckResponse.java": {
+    "mtime": 1779978616.146015,
+    "ast_hash": "f86b4e6956cb57a8a4350c4d26c1e9e9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\dto\\SendCodeRequest.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "85f28e9fca150609240137f6ccbd6bc6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\exception\\GlobalExceptionHandler.java": {
+    "mtime": 1779976506.1568859,
+    "ast_hash": "b16b30e987390b605719c5713d5ab58f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\ApiRouterPaymentService.java": {
+    "mtime": 1779981037.8508894,
+    "ast_hash": "ace4e368ca5a2af5afd9edd2322d2e9a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\ApiRouterService.java": {
+    "mtime": 1779988581.0262916,
+    "ast_hash": "eb697957faf0a4a12096ba5b0f3bff2c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\AuthService.java": {
+    "mtime": 1779966021.2033484,
+    "ast_hash": "9de0f16507d59a323681a4365110aeca",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\ChatHistoryService.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "08fcf70b506e229eaeb80a83958dc6b5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\ChatProxyService.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "67f1be204ff6c7297966da169715f2d8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\EmailService.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "c946f04b3cc05d1b084378f0953c7c6b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\McpLabCheckService.java": {
+    "mtime": 1779980247.672226,
+    "ast_hash": "9efcd9ddc5bdba47694e3fe3c929dec1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\RiskControlService.java": {
+    "mtime": 1779976413.045442,
+    "ast_hash": "07e9f0f023db6258cf03a48f988ee935",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\SmsService.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "b909b8be7ec7e1cf31451dcab2b2ceb1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\WebCrawlerService.java": {
+    "mtime": 1780002797.611475,
+    "ast_hash": "007303da7ac952e848828354aa2d1ef5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\impl\\AliyunSmsServiceImpl.java": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3194966e92766dbb1875bf1a1f313552",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\impl\\ChatProxyServiceImpl.java": {
+    "mtime": 1779629937.7585032,
+    "ast_hash": "c0c1c2a18ad45a66d69453ee7a364350",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\java\\com\\ciphertool\\service\\impl\\WebCrawlerServiceImpl.java": {
+    "mtime": 1780002784.703043,
+    "ast_hash": "44d3579aeec115c3f8e0665a55afc02f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\schema.sql": {
+    "mtime": 1779988389.7506921,
+    "ast_hash": "f327cf25dcb72cc718c075ef5e77a9aa",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\db\\migration\\V1__commercial_router_baseline.sql": {
+    "mtime": 1779982482.3940969,
+    "ast_hash": "c3ca22a7220d201dff88d64495819955",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\db\\migration\\V2__api_router_admin_audits.sql": {
+    "mtime": 1779983325.279829,
+    "ast_hash": "4d9d78f29097f940d80fa9415a2befad",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\db\\migration\\V3__api_router_user_controls.sql": {
+    "mtime": 1779987142.531765,
+    "ast_hash": "3f445864cafa959f598e50be202ff24e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\db\\migration\\V4__api_router_payment_reconciliation.sql": {
+    "mtime": 1779988405.2767234,
+    "ast_hash": "e8b14eb36a3bed4c9fe23b8cf9acaef4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\test\\java\\com\\ciphertool\\controller\\McpLabControllerTest.java": {
+    "mtime": 1779980358.0018127,
+    "ast_hash": "1366de52d4f6ac7c9e9949d47a1c7ca7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\test\\java\\com\\ciphertool\\service\\ApiRouterServicePaymentTest.java": {
+    "mtime": 1779989570.0815983,
+    "ast_hash": "67f14a858bda0c78fa7dc9bfc7d9eee7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\test\\java\\com\\ciphertool\\service\\McpLabCheckServiceTest.java": {
+    "mtime": 1779980312.9762044,
+    "ast_hash": "7c8055309cfa6aacbdab50f1854b243d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\0_sidebar_funtion.js": {
+    "mtime": 1779716837.8460019,
+    "ast_hash": "b054f0ec561528ba8e7528802ed4837f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\backendconfig.js": {
+    "mtime": 1780007333.3882806,
+    "ast_hash": "4992bd55ea875b4d40caf78944c61589",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\modules.js": {
+    "mtime": 1780098878.5410562,
+    "ast_hash": "979a033e9bfe27cf1b00f9a9eae4f8b0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\agentmaster\\agentmaster.js": {
+    "mtime": 1779966111.3770628,
+    "ast_hash": "715404bab0d2daa1bab57dbd5be392ff",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\apizhongzhuanzhan\\apizhongzhuanzhan.js": {
+    "mtime": 1780007361.4557757,
+    "ast_hash": "c395bdbd73fabbba0a0ab07767727523",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\0_cipher_div_batch.js": {
+    "mtime": 1779858689.1385086,
+    "ast_hash": "77c2eb3753f18d77fca4d00872237b2e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\1_cipherlab.js": {
+    "mtime": 1779721498.6957932,
+    "ast_hash": "468db4e0cc93979d29769e34d6d36492",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\2_ADFGXCipher.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "ed204fc5049fda247c79dfbd1a680d54",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\3_Enigma.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "fc569de1512b0019e1421aca77d92114",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\4_MD5.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "c9b0a2afe6bfb5f37c512ccd0a685e7b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\6_semaphore.js": {
+    "mtime": 1779730924.7381313,
+    "ast_hash": "0de8b79a9a6abaa9c782c315ae1700dc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\888_chinese_code_table.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "87d79507d079d00853c586e80064a9fa",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\888_CornerMap.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "758e966be6a7ba3a26d2d7526dfde366",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\999_funtion.js": {
+    "mtime": 1779730984.1988022,
+    "ast_hash": "50a576b514504e639fd9524b1212019c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\shiyongshuoming\\shiyongshuoming.js": {
+    "mtime": 1779716265.086469,
+    "ast_hash": "9bf07c47afc055f1cee8ecda3f832145",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\electronic_lab.js": {
+    "mtime": 1765647430.0,
+    "ast_hash": "3b06edded6076676580f768634839526",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\lz-string.min.js": {
+    "mtime": 1740874294.0,
+    "ast_hash": "109c13d75d0b6fc6440d3e98f803d396",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\manifest.json": {
+    "mtime": 1765179990.0,
+    "ast_hash": "4d5c9e0afe48c168ff5c2a9b269c2ce5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\B06BF325B05C374EF777BBEC5CD33483.cache.js": {
+    "mtime": 1740874294.0,
+    "ast_hash": "52da9ca1aed828b0c05dff2645bba717",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuitjs1.devmode.js": {
+    "mtime": 1740874294.0,
+    "ast_hash": "87abb9051674b22de2c31ff93943426d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuitjs1.nocache.js": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f47f0e5a3679aa48203687befb0062a2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\ECF89C6D904D807B7E14740EDF3619B4.cache.js": {
+    "mtime": 1740874294.0,
+    "ast_hash": "feeef2ab854d9212431987f5ee5a995f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\minimal2.py": {
+    "mtime": 1740874294.0,
+    "ast_hash": "badf54d84d1489833cb6787def8896ba",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\font\\config.json": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4f5a517a9cdc19130404fd43b2b1f523",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicbatch.js": {
+    "mtime": 1779628908.1905627,
+    "ast_hash": "63b394b63b2901c5645a011f938135b8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\10_cave.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "6e66e08d9a6f0a8e5d1d43396d8a902b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\11_chocobanana.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "ec8b8a92cf31e4340a4e64a664f0dae6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\12_chocona.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "c9e05fb1341746021c149d132c308a8d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\13_countryroad.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "b7c53eefc455fb53178dfc59b5ca9b34",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\14_doppelblock.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "2e1d334d34c7e70dd2c474e72be0b1b3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\15_easyas.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "903d328d380b6f212b4a934df6f44a33",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\16_fillomino.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3829a0aa5e0127696973489478dceb52",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\19_gokigen.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "8914204529cd1b080ac6d3390a71f541",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\1_sudoku.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "95f2e1956af1883a2f343a486a88e1ef",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\20_haisu.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "26ec9062f82aaeebc76f0d26a0584916",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\21_haisuslow.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "eefb038afdae8cd0fd00e79fa9d17b93",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\22_hamle.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3aabfefc16eff92a1ff497a5deee89dd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\23_hashi.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "138e617d5ce22bc72bf17316913a152a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\24_heteromino.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3d091ba04e38287a61409f140da074d5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\25_heyawake.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "59204c617e2dfa45363d7bed57714eec",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\26_hitori.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "4335a82bb68d038ac8fbb53e57609eb7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\27_hotaru.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3a4ef7e043171c0c024fac660d15caa1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\28_kakuro.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "95dcc1870d2ff57f50d50c36b318c4c2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\29_kuromasu.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "d4f0d857ba6b2c2acf7da59172142b89",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\2_Akari.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "78fbcfabfd7c19682e4b9c1326feefd3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\30_kurotto.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "571b6a7cc12a6825bb599e9e14f8765b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\31_lits.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "68c1dec38c4027fb348d8288053995ec",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\32_magnets.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "579291f50be85f318566a337aeebc839",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\33_masyu.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "75bb6908e1cf7c7a9acd0e08175736d1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\34_minesweeper.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "6dba782d6136d851092e0a64c141073b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\35_moonsun.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "70aebbc6cb82f84e87f221d5bc31e492",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\36_nagare.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "3c0a3e09d497542d8fc6ecc101056788",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\37_nanro.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "b94120958a1dea37e52e19756f35d885",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\38_ncells.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "a74b272ac46d44efcb15163449849347",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\39_nonogram.js": {
+    "mtime": 1779382491.4116933,
+    "ast_hash": "4215405873970f477fd7c6f82e454ee2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\3_Aqre.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "42ad15ed4f5c1ea8f481b8e727062c4b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\40_norinori.js": {
+    "mtime": 1779382889.6925728,
+    "ast_hash": "bca931c24e68d01476da998c0045d8d3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\41_numberlink.js": {
+    "mtime": 1779405300.9958806,
+    "ast_hash": "93c721aad6420ff854211b4fc8a515b2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\42_nuribou.js": {
+    "mtime": 1779457170.6972446,
+    "ast_hash": "004a9e0ead576cfffe1d621ee2171bc7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\43_nurikabe.js": {
+    "mtime": 1779460491.629133,
+    "ast_hash": "7f9ecf2b15aee8e6560691fa3d58fd4a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\44_nurimisaki.js": {
+    "mtime": 1779460798.0352094,
+    "ast_hash": "561b44288548087d072934e88a78738f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\45_onsen.js": {
+    "mtime": 1779466713.4852767,
+    "ast_hash": "bcb059a302b512e66d7d35c75d867f8a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\46_rippleeffect.js": {
+    "mtime": 1779540862.8894925,
+    "ast_hash": "b981054aff8e6de2a186b561549d1831",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\47_shakashaka.js": {
+    "mtime": 1779550970.3085241,
+    "ast_hash": "cad4836f639b9c9692b66d2ea6739ac7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\48_shikaku.js": {
+    "mtime": 1779542019.3158405,
+    "ast_hash": "4cfc02074e05e501cd90a99bf56aafee",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\49_shimaguni.js": {
+    "mtime": 1779544769.2308252,
+    "ast_hash": "bc5f744a243d400a36ff848dc959a860",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\4_aquapelago.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "9c1e9dc31f3367ce0779b3c8ab690232",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\50_skyscrapers.js": {
+    "mtime": 1779543419.0026157,
+    "ast_hash": "f307567e397d62f3ba02e3caa77c3ec1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\51_slitherlink.js": {
+    "mtime": 1779547820.4404986,
+    "ast_hash": "7bcce67e36962a9cae1ff22052d4cbd7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\52_spiralgalaxies.js": {
+    "mtime": 1779541987.5824893,
+    "ast_hash": "587fcec2c1a571cefa9680c225c2cef4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\53_starbattle.js": {
+    "mtime": 1779542045.6521535,
+    "ast_hash": "800033ed54f2f258bab03071a9592cc8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\54_statuepark.js": {
+    "mtime": 1779546886.0026114,
+    "ast_hash": "da8a1ec9343088a01062e2570df42f9e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\55_stostone.js": {
+    "mtime": 1779542542.8377964,
+    "ast_hash": "3893465e9d53fe098bfbfe920a09fbc8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\56_tapa.js": {
+    "mtime": 1779546095.3203835,
+    "ast_hash": "b8af7fe89f2d9ed8756bc356e8b150b5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\57_tatamibari.js": {
+    "mtime": 1779546148.7120018,
+    "ast_hash": "ed938b64e0cfc0f22adc6ca618aab130",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\58_tents.js": {
+    "mtime": 1779543321.4021034,
+    "ast_hash": "898acf6333763229f796bdb005ddb738",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\59_tll.js": {
+    "mtime": 1779542016.6925313,
+    "ast_hash": "e9e49a83678ce7d364b3de4a7a4f0832",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\5_aquarium.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "6a61ecc7afbf1d84260c02d0dda317f1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\60_tren.js": {
+    "mtime": 1779542447.6464949,
+    "ast_hash": "384643084e2fd3ab4b98cdecd81aab8b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\61_yajilin.js": {
+    "mtime": 1779545723.0885131,
+    "ast_hash": "709091600cf239004a08402ec52ed96a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\62_yajisankazusan.js": {
+    "mtime": 1779542883.1536598,
+    "ast_hash": "6041e9ab8ed59a48092ae09321286407",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\63_yinyang.js": {
+    "mtime": 1779547727.4365504,
+    "ast_hash": "b94c7a377d973ea0b828ae817e19781e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\6_balanceloop.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "fee3457470b23f12a068b4342d82828b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\7_battleship.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "bef3ee65f64ac22a30403edbfab84b67",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\8_binairo.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "785bd8428f543beb024fb9ced6eb9718",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\js\\9_castlewall.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "50a0171403d17d145fb2005663fd4a41",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\0_logic_ui.js": {
+    "mtime": 1779870251.16644,
+    "ast_hash": "542e65ffb2b6efb4140f579314b970f7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\10_cave_ui.js": {
+    "mtime": 1779714909.3179727,
+    "ast_hash": "489d429e3dd2488cc6b965e28943d55e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\11_chocobanana_ui.js": {
+    "mtime": 1779714909.3890786,
+    "ast_hash": "e6959bcc6944d9d77828ed3dddaaae69",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\12_chocona_ui.js": {
+    "mtime": 1779714909.390034,
+    "ast_hash": "316505e063122498f6b40266a541463a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\13_countryroad_ui.js": {
+    "mtime": 1779714909.3911493,
+    "ast_hash": "d114f7a0082b655844b7c1578bfe2c46",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\14_doppelblock_ui.js": {
+    "mtime": 1779714909.3916578,
+    "ast_hash": "2b2a11510123542b0b7359b396880603",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\15_easyas_ui.js": {
+    "mtime": 1779714909.3926792,
+    "ast_hash": "b9af9606e5789bdfb8ebd503ea5375f8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\16_fillomino_ui.js": {
+    "mtime": 1779714909.3935714,
+    "ast_hash": "fe5b75e5d36780d0d68d345c5abc9f15",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\19_gokigen_ui.js": {
+    "mtime": 1779714909.394591,
+    "ast_hash": "ccdddfd1e1cc819018747b4d00393ed8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\1_sudoku_ui.js": {
+    "mtime": 1779714270.325383,
+    "ast_hash": "914830d77d6861ac2bd19e662e581d0b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\20_haisu_ui.js": {
+    "mtime": 1779714909.3961275,
+    "ast_hash": "61b2115d9efb2c75b635b85a5f5e37ca",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\21_haisuslow_ui.js": {
+    "mtime": 1779714909.3972073,
+    "ast_hash": "1ee4158678f6e9b2c9aa7aa3fce2f802",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\22_hamle_ui.js": {
+    "mtime": 1779714909.3984094,
+    "ast_hash": "e2111980d8d169602542832688e2476b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\23_hashi_ui.js": {
+    "mtime": 1779714909.3984094,
+    "ast_hash": "a5dc49976ef19dc0a707633fc13ea269",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\24_heteromino_ui.js": {
+    "mtime": 1779714909.3984094,
+    "ast_hash": "6c0bd5aa6a59479dc9aa67fd3185cead",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\25_heyawake_ui.js": {
+    "mtime": 1779714909.4016178,
+    "ast_hash": "28b503b9de38f01c53493567793e478b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\26_hitori_ui.js": {
+    "mtime": 1779714909.4016178,
+    "ast_hash": "7035828e95213db23606b1e8d0f21188",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\27_hotaru_ui.js": {
+    "mtime": 1779714909.4026194,
+    "ast_hash": "1f99ce1a9c745c01a7ff4d1ac6e58dfe",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\28_kakuro_ui.js": {
+    "mtime": 1779714909.403618,
+    "ast_hash": "0fd00f84806a56fcc741684ade54e02b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\29_kuromasu_ui.js": {
+    "mtime": 1779714909.4046183,
+    "ast_hash": "ce41590e7338ccacadb3c58d5169f5b2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\2_akari_ui.js": {
+    "mtime": 1779714909.4055564,
+    "ast_hash": "96f8cd841d58a83f6109a089f2384716",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\30_kurotto_ui.js": {
+    "mtime": 1779714909.4064462,
+    "ast_hash": "35d86677ebb510657bbdd0744ab5b0d7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\31_lits_ui.js": {
+    "mtime": 1779714909.4074464,
+    "ast_hash": "b6553c7bb3253fc886bf9b7dc2fd79b9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\32_magnets_ui.js": {
+    "mtime": 1779714909.4084468,
+    "ast_hash": "087166af9aab31d52ffeffff268d990d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\33_masyu_ui.js": {
+    "mtime": 1779714909.4094465,
+    "ast_hash": "cd126d3233cb5b745da4a312155b9c03",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\34_minesweeper_ui.js": {
+    "mtime": 1779714909.4100592,
+    "ast_hash": "d3759117c4f42cf0452e55094071dad7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\35_moonsun_ui.js": {
+    "mtime": 1779714909.4100592,
+    "ast_hash": "b6ba9c87f611779ff35fe442359b4d18",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\36_nagare_ui.js": {
+    "mtime": 1779714909.4100592,
+    "ast_hash": "a6112c2082dc5d59205f069629c88ccb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\37_nanro_ui.js": {
+    "mtime": 1779714909.4100592,
+    "ast_hash": "47a4895356d3cda0fa717f10beab45d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\38_ncells_ui.js": {
+    "mtime": 1779714909.413581,
+    "ast_hash": "c47ab63a9029185838b3e4fe1e3e1655",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\39_nonogram_ui.js": {
+    "mtime": 1779714909.414404,
+    "ast_hash": "22fc7c1982e46131f7e81e457ee9ca75",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\3_aqre_ui.js": {
+    "mtime": 1779714909.415907,
+    "ast_hash": "59b8e319f71c2b72bf893943f5074172",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\40_norinori_ui.js": {
+    "mtime": 1779714909.4180107,
+    "ast_hash": "d511dd1ad1354f00c2237be135e7e147",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\41_numberlink_ui.js": {
+    "mtime": 1779871321.466275,
+    "ast_hash": "33dfcec45489aac6d344f57acc98f4c1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\42_nuribou_ui.js": {
+    "mtime": 1779871360.4882398,
+    "ast_hash": "cb6543693c3c5974658133d28ef33aeb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\43_nurikabe_ui.js": {
+    "mtime": 1779874073.1397772,
+    "ast_hash": "fd4355837119e0374dd8d20150096530",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\44_nurimisaki_ui.js": {
+    "mtime": 1779874097.0091133,
+    "ast_hash": "bf0fb50c9f2060024ea5c4be8bd499a4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\45_onsen_ui.js": {
+    "mtime": 1779714909.4224067,
+    "ast_hash": "397eb90ac472971857394e6c347a1d34",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\46_rippleeffect_ui.js": {
+    "mtime": 1779714909.4234066,
+    "ast_hash": "7980575e27645c89974e97b49adea23c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\47_shakashaka_ui.js": {
+    "mtime": 1779714909.4244075,
+    "ast_hash": "d812f02b1b4ead8c2a8b8d964bb01db5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\48_shikaku_ui.js": {
+    "mtime": 1779714909.4254074,
+    "ast_hash": "2eb3031b89b3384d6e04cb88f12418bd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\49_shimaguni_ui.js": {
+    "mtime": 1779714909.4254074,
+    "ast_hash": "5432a3eb5b7d721970fd33dbe80a6f64",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\4_aquapelago_ui.js": {
+    "mtime": 1779714909.426943,
+    "ast_hash": "941485b1770add7409326cfd41866d47",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\50_skyscrapers_ui.js": {
+    "mtime": 1779874115.1792495,
+    "ast_hash": "bcb8c3e171bbe5ef2050e126b27c965f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\51_slitherlink_ui.js": {
+    "mtime": 1779714909.426943,
+    "ast_hash": "1b19fb64c7d5f3b984fe8d8ea3432414",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\52_spiralgalaxies_ui.js": {
+    "mtime": 1779714909.426943,
+    "ast_hash": "1b519cd568e50c011171472f9853fec9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\53_starbattle_ui.js": {
+    "mtime": 1779714909.426943,
+    "ast_hash": "1de7e3bb25f2862eaa69b8dd6feff4fd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\54_statuepark_ui.js": {
+    "mtime": 1779714909.426943,
+    "ast_hash": "d7f8ec2b306ef59cf08ff50837ed62d3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\55_stostone_ui.js": {
+    "mtime": 1779714909.431946,
+    "ast_hash": "115715c0b3cdd048af5552ffcf3d695c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\56_tapa_ui.js": {
+    "mtime": 1779714909.431946,
+    "ast_hash": "383dc2f117d3d936c2eb0028a7ce79da",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\57_tatamibari_ui.js": {
+    "mtime": 1779714909.431946,
+    "ast_hash": "8b9c126f8fe9e44d198c0dfed38a1d14",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\58_tents_ui.js": {
+    "mtime": 1779714909.4346645,
+    "ast_hash": "85dca12445c5c864f270c3082d42e0ad",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\59_tll_ui.js": {
+    "mtime": 1779714909.434954,
+    "ast_hash": "f31554707a0e66778a6227296230b1ba",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\5_aquarium_ui.js": {
+    "mtime": 1779714909.4359553,
+    "ast_hash": "52bec1ee28c18f40fa56a6bcee1e7c88",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\60_tren_ui.js": {
+    "mtime": 1779714909.4369543,
+    "ast_hash": "ed117be07b2fd564dcb2e171cb9d2d35",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\61_yajilin_ui.js": {
+    "mtime": 1779714909.437954,
+    "ast_hash": "0bd36b1635e264f947174f68f0124aab",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\62_yajisankazusan_ui.js": {
+    "mtime": 1779714909.4388597,
+    "ast_hash": "ba2c46cc347fb52e1c3c622ff266bc24",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\63_yinyang_ui.js": {
+    "mtime": 1779714909.4408605,
+    "ast_hash": "c1e7b2da4e8859825b5efe900a889302",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\6_balanceloop_ui.js": {
+    "mtime": 1779870752.0034943,
+    "ast_hash": "0e2f66d152990416e20108e97970e44d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\7_battleship_ui.js": {
+    "mtime": 1779870676.128302,
+    "ast_hash": "f900b80e726338a86178437d926a5460",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\8_binairo_ui.js": {
+    "mtime": 1779714909.4428596,
+    "ast_hash": "44ba61708c26366bf0ca238783cf2028",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\9_castlewall_ui.js": {
+    "mtime": 1779714909.443861,
+    "ast_hash": "bbcea4caecbb2eedba9e7afd6ec54b8f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\logic\\logicdiv\\logic_module.js": {
+    "mtime": 1779958901.8447835,
+    "ast_hash": "6aacb3e681fd48e0656a161a716a9eb6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\loginsystem\\auth.js": {
+    "mtime": 1780007355.112767,
+    "ast_hash": "4521e92b1f6fe248614cc30d46e91f5d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\mcpskilllab\\mcpskilllab-config.js": {
+    "mtime": 1780007371.6615155,
+    "ast_hash": "7740649cf2c3438a801eb577b7f8b3d5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\mcpskilllab\\mcpskilllab-resources-mcp.js": {
+    "mtime": 1779994477.8316207,
+    "ast_hash": "f69d97637c8d13f4361d0ec27cf3852a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\mcpskilllab\\mcpskilllab-resources-skills.js": {
+    "mtime": 1779994487.458869,
+    "ast_hash": "266085ea6cd3d68451a03c81520966e7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\mcpskilllab\\mcpskilllab-resources.js": {
+    "mtime": 1779994230.0723777,
+    "ast_hash": "32f208e02a3f6ceca6099aaf105765ea",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\mcpskilllab\\mcpskilllab.js": {
+    "mtime": 1780007379.7350338,
+    "ast_hash": "50635d03dbca67412946457677279cf0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\AgentRuntime.js": {
+    "mtime": 1780099136.422146,
+    "ast_hash": "cefd2753bcd0e9045cf72896422227c6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\ChatUI.js": {
+    "mtime": 1780099125.998706,
+    "ast_hash": "b920a26e80a6056dc469fb90d6329ce5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\DeepSeekClient.js": {
+    "mtime": 1780004920.9133348,
+    "ast_hash": "8cfb28808bd80750f77f81444dbf1243",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\HistoryManager.js": {
+    "mtime": 1780099110.9578767,
+    "ast_hash": "77eccfa2c5ce2b8e72c778deb0bcc688",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\main.js": {
+    "mtime": 1780099098.7838337,
+    "ast_hash": "777861be5cb3e3bd677ddf9737daa9c2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\script.js": {
+    "mtime": 1779939776.2995727,
+    "ast_hash": "149529fb188271823ef0b5be9a351391",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\ToolRegistry.js": {
+    "mtime": 1780002578.490848,
+    "ast_hash": "7ab8b90634ccd5a42d277b39385f32b6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\model\\contracts\\AgentContract.js": {
+    "mtime": 1780002587.8678248,
+    "ast_hash": "36afa2b3686d93489fff77644979fe59",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\sendfeedback.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "bf6767d1e4f0fa213824e1f0480e7704",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\spacepuzzlebatch.js": {
+    "mtime": 1779853780.072956,
+    "ast_hash": "1f6b0ac5d215d0fdbb2dddc6f56ca57f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\spacepuzzle_ui.js": {
+    "mtime": 1779855570.0627751,
+    "ast_hash": "0a70d772601c163fa445eb0536268069",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\huarongdao\\huarongdao.js": {
+    "mtime": 1779897555.809278,
+    "ast_hash": "2fde81da3791a0ec57cc5bf6c4089601",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\jinzitamofang\\jinzitamofang.js": {
+    "mtime": 1779897555.809278,
+    "ast_hash": "c9052acf5aa4506a5f65ed785527bf28",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\Pentomino\\Pentomino.js": {
+    "mtime": 1779897555.809278,
+    "ast_hash": "570fd30afbd18a217766275501573249",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\qiqiaoban\\qiqiaoban.js": {
+    "mtime": 1779897555.809278,
+    "ast_hash": "8bdef738cc91e81bea71880fad1725f5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\rubiksclock\\rubiksclock.js": {
+    "mtime": 1779897555.8113065,
+    "ast_hash": "dcfd7b5169b46b5902203ff3ab26078d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\rubikscube\\nubikscube.js": {
+    "mtime": 1779855667.0687897,
+    "ast_hash": "34360170bdacef943d643176df08e2d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\skewbmofang\\skewbmofang.js": {
+    "mtime": 1779897555.8115606,
+    "ast_hash": "bba91cd7d1d2adc21494fcba77dfce0a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\spacepuzzle\\squreonemofang\\squreonemofang.js": {
+    "mtime": 1779897555.8115606,
+    "ast_hash": "7c9c732a46a746ffc2885d4dbe5f1906",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\wordsearch\\wordsearch.js": {
+    "mtime": 1779037460.0,
+    "ast_hash": "ed8f8e5f7d18bd3fe07f47f43dae8da6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\workflow\\workflow.js": {
+    "mtime": 1779803350.300295,
+    "ast_hash": "b84a70f6940801ac5743874bf73bd740",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\zhishitupu\\graphData.js": {
+    "mtime": 1779630372.614451,
+    "ast_hash": "dc88547351414c681c7e72b722cfb05a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\zhishitupu\\zhishitupu.js": {
+    "mtime": 1779963249.205635,
+    "ast_hash": "ef36518f7d9b0aea966a92319f1ed515",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\CLAUDE.md": {
+    "mtime": 1780118412.8404377,
+    "ast_hash": "ab8c365be3e8f982f77a21cb06a649c9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\README.md": {
+    "mtime": 1779985396.152893,
+    "ast_hash": "ee5d6669e7547fe28bbc1a87ae317251",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\README2.md": {
+    "mtime": 1779990458.497348,
+    "ast_hash": "9082d696c8492cbf92c9a44fffbe9f18",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\.github\\workflows\\deploy.yml": {
+    "mtime": 1779037460.0,
+    "ast_hash": "65f1caa87a1522b88f12877b6c4a93cb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\Agent\u804a\u5929\u8bb0\u5f55\\PzM-chat-export-20260526-165138.txt": {
+    "mtime": 1779785498.6945257,
+    "ast_hash": "5c98bb2719d7fcb88b053b8394fa093d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\Agent\u804a\u5929\u8bb0\u5f55\\PzM-chat-export-20260526-190402.txt": {
+    "mtime": 1779793442.1693473,
+    "ast_hash": "b78d1b5060b065f9e35f294a86d962c1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\Agent\u804a\u5929\u8bb0\u5f55\\PzM-chat-export-20260526-195240.txt": {
+    "mtime": 1779796360.0276303,
+    "ast_hash": "fddf345283f303f237d43916c4481071",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\Agent\u804a\u5929\u8bb0\u5f55\\PzM-chat-export-20260527-214923.txt": {
+    "mtime": 1779889763.0752056,
+    "ast_hash": "27ade634e606aa6e11bc7a2f536049c2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\Agent\u804a\u5929\u8bb0\u5f55\\PzM-chat-export-20260527-214937.txt": {
+    "mtime": 1779889777.5162807,
+    "ast_hash": "11fe86489e552b7495fe50e8f0f3e2a7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\README.md": {
+    "mtime": 1779985410.7941117,
+    "ast_hash": "c6567ec7eb494d0d8ea1a6bc2ea37009",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\Aliyunsmsmd\\AliyunsmsAI_PROMPT.md": {
+    "mtime": 1779037460.0,
+    "ast_hash": "275caf1fdf08f276ba3d891bccf3b9b1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\Aliyunsmsmd\\ALIYUNSMSbackend_PLAN.md": {
+    "mtime": 1779037460.0,
+    "ast_hash": "34604f962d96f957b0926b2736478da5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\Aliyunsmsmd\\\u77ed\u4fe1\u6536\u53d1\u540e\u7aef\u90e8\u7f72\u6307\u5357.md": {
+    "mtime": 1779037460.0,
+    "ast_hash": "d9119ab2ee7e880328286b29ddafbc93",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\application-dev.yml": {
+    "mtime": 1779037460.0,
+    "ast_hash": "87b19558116b9adf51cffad66cea9c4e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\backendcipher\\src\\main\\resources\\application.yml": {
+    "mtime": 1780007388.8802183,
+    "ast_hash": "82b397bca4f728773b0439207e08c1a3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\api-router-production-database.md": {
+    "mtime": 1779982517.7777827,
+    "ast_hash": "57fc8e3d734a01d7245392b05856cd45",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\mcp-skill-lab-local.md": {
+    "mtime": 1779985369.5299237,
+    "ast_hash": "ba7f38b579a5b2ca3261a4af25193b80",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\01-current-responsibilities.md": {
+    "mtime": 1779961405.7320437,
+    "ast_hash": "2212ef97d9967578ae66323c0ca2d240",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\02-agent-contract-v1.md": {
+    "mtime": 1779972740.526891,
+    "ast_hash": "86cb39d4b8e923ddb237ba75f143aaf6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\03-phase1-no-behavior-change-plan.md": {
+    "mtime": 1779963549.8928294,
+    "ast_hash": "bf555a4f6f7d3954a87982c7becb52c6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\04-smoke-regression-checklist.md": {
+    "mtime": 1779994986.7993245,
+    "ast_hash": "d5b702ee0ccbceb55ddeba0d362435b6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\05-phase2-approval-gate.md": {
+    "mtime": 1779965803.0375125,
+    "ast_hash": "943a07831649f2be61f7c3789cd936c2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\06-citation-verifier.md": {
+    "mtime": 1779971123.4222918,
+    "ast_hash": "e69a320f6b1583a4ee2f955c170c2392",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\07-context-memory.md": {
+    "mtime": 1779972740.4847078,
+    "ast_hash": "7307cf472cbd45e9f5fcab3b70100ddc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\docs\\agent\\08-export-import-agentrun-restore.md": {
+    "mtime": 1779974809.282923,
+    "ast_hash": "792565ab53e130933b399f38be2f2d81",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\index.html": {
+    "mtime": 1780007346.0841727,
+    "ast_hash": "3eb3530004f1669d64424024789c9ff8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\README.md": {
+    "mtime": 1779985424.2932248,
+    "ast_hash": "c1bfb3f0e32584125c5c621369421366",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\about.html": {
+    "mtime": 1765179488.0,
+    "ast_hash": "077bdf3d699b5e52f4e40d17d9a4143b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs.html": {
+    "mtime": 1779798692.1341634,
+    "ast_hash": "da516514207ee95cd0dd5ebe61874a53",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\iframe.html": {
+    "mtime": 1765239472.0,
+    "ast_hash": "daa944cd398ebff156c91489fc17c253",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\compilation-mappings.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "8a09db64f80996405a8ee4582fe37c27",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\locale_zh.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ff3e19fcd4c9091034513206f74dee7a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\setuplist.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "45729dd0fce84f66aaf251b83e2fb2e2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-cgand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "eb36ec8653e8c3ea5cf7f760411e0c3b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-cgor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "db49140154ba46d02a9f77f5f6f10447",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-f211.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d31dcac3234573512ca3dff1304d550c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-f220.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0a99ea52df6690c3221951f18bc77bd7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-f221.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9f4908c39d6247f2073c8acb9da66a0f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3-invert.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1cb6f602370495b55022b088a2a8564f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3motor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "97be92843eba19c4ae815ec7246afbf1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\3way.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "11c772abecda3f41f077f9099bbd0965",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\4way.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d00a95dd7e152232d4a5c147099ed900",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555int.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e3dbef85d528153e0c6eec80b90e3abd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555lowduty.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "8e487dce18f44238a18a4483b2044269",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555missing.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a272aaece5e77add10d6e87ae7624459",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555monostable.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "96d3c3db97ea96e353c3bdfc56af1d67",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555pulsemod.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ea2e6049f0c5480845e38f57a0786cca",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555saw.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b103beffc8b2c2ce304fb1bc7bbcffeb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555schmitt.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3f0cb2b14d01e814b0c0e16388ba28f8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555sequencer.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "463d806d403d14c97e793af875b95ba2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\555square.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4f791e294e6f0fba68db3394c543d237",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\7segdecoder.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d0f9da97ff2ed3d6e1ec3b6323e6f304",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\actbutterband.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9598230b93a417708e7236d31086d77a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\actbutterhi.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "37eb8198145f4e69b8086b6dde54bbec",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\actbutterlo.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d84157f12e404acc429ed2e7d2cced80",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\allpass1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a2443b45df030352c2123433cab6bdcc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\allpass2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3501afe6963687a8f6deee89b6863835",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\alu74181.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4eb03174df6a8fa63b437a46bea90e04",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amdetect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e51f97aa199029f166b65dfceee1e6b1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-dfdx.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "8129797066708ea13155f8d02970ec40",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-diff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "510bb8b978c05708714feec5698fa483",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-follower.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5b48d08b7cca45265c68f6aeeeb0ee5a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-fullrect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0615250bb2395c5a6c5d22cb86474658",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-integ.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2edecdbfbbde9afd53aae5ed11073d46",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-invert.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1e4a1aa3000f40c7d5db2badbca1bf65",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-noninvert.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4a372a9bc84968f462300aec749926b2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-rect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "542b68946fd2cc4d1709012631b23f23",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-schmitt.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5fcc7c77a650f1f1d2517060b8825d07",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\amp-sum.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2845c1487790bd284a8a419e41bd606e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\analogrecip.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "078f109adced21fde34225ec60c0219c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\avr8js-analog.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d57e8bf7ccd9a5dfa2d80a08a3487d13",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\avr8js-logic.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d22eacd77b5d879b90ec5fa8060fb5a3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\avr8js-strobe.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5158b25ca2fa90c3479e79f5492f8e7e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\bandnoise.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e5fad22a5e5709f539fd70721087410e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\bandpass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2bf575f32ab9c207cca813b986ece7f3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\besselbutter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2ef9194ed6bc1d94a6cf385baa95ac81",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\blank.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "bd2408475ed724e88f99c89b9e32154b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\brentkung.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a285432345f05b9ee879d0456f7f31b0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\butter10hi.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "55a8f4f5bc27c4e4b595f19768c674ca",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\butter10hiaud.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a55b50381c6717b150a3aea0ef0b713e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\butter10lo.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c3a8c2d2c883102d3ec5f103878fcb05",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\butter10loaud.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "03f5c4fe5e77837030026a4188bc02b6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\butterbandstop.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d259ae5c3d351387851dc23a5eb21195",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cap.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6c02a7aa5abe24e06bce7bedc80df98f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\capac.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f92ae8464c2efca36eefcc153b3dd41e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\capmult.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5eea0df4c4e339ee1c5715c4775139e4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\capmultcaps.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3f1918f4c8d149403989b668e3132547",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\capmultfreq.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "694d080f4f720e87a0d068897ac095e5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cappar.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "098f08df95a4d1d1db873af738aececc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\capseries.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fedbb5cca30265ef4de9b7e9a385508d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cc2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f7491e7f094753c581571d28d27c5996",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cc2imp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "693dd8b7c19c3f6644e6012e79606a84",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cc2impn.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0098b5952f19a0dbf80091b2fafc5c0d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cc2n.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a1f39bf4211fc26e7c8f30385ec0f8c2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ccdiff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c317611cdde6581856230032f238f868",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cciamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a6fc4ac7f9cc15a42162562d3e9f5c1a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ccinductor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0a87dbe7fd7d063f8d4893c0838fa9ba",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ccint.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d288d51c53a73eaa6ff287e2b1c3fc85",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ccitov.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5334481c2409e2dda4977fa4fc9b9f2f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ccvccs.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9b14ba9e0e372d5ff9f4de04a849a0f8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ceamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "984dd00488ba8c880c6203bc075aeed1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\chaos1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b3bfe88660a08202706fb8b48ff74f97",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\chaos2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a8ced66ab8155d6b05c0d304cd569a46",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\chua.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ce8a6b533df28fd6ee578c7fa50f4e06",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\classd.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "020c847e8c7215d129b9c7136509e8a4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\clockedsrff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "aca1fd02436a33e10729ef16138cf8a6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f18b327a55948bd827b44d2aa567e598",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosinverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cf97b8c93a6dcf528605106a93cd1f06",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosinvertercap.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6ddbbfd9cfb73cdbb627e0577db8ad33",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosinverterslow.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c617040846dcfd8490c0e7f66f694cfe",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosmsff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a36ba4b97f0579cf4850776cf28789ef",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosnand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d26f3be36a86335856f393e341e81ca7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosnor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "496c53b867f769bacbd0e6ed6e1cc307",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmostransgate.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c1ead31e99582fa2574c2eabbf2f6311",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cmosxor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e8bc59fd4301f9af2715f945564a3a62",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\colpitts.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a2c4e02f7ba735cf84f32c9e6d190389",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\comb.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "801e8353e1cecb9e453ee3bc7bebc162",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\conv-boost.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "83fdab5b86a79993d1585184cc3b651b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\conv-buck.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "aedf3cf420c23ccd1362358f0c564fab",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\conv-buckboost.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cb2e41626a75e09e044807025a1d799f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\conv-cuk.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0bd226cf79852ab7376cecaee3de81d4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\conv-sepic.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6ab79d9907557dcf68a0736a6fbc3748",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\counter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "61fc9c20dfdf665210ea356db88d34ed",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\counter8.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "7b03379272cb08ba056aa4c991a84bc0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\coupled1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2db00cf3a87a9ede73012bff9682df72",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\coupled2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d335dead9fe059b54538c7347baf180b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\coupled3.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "876a56e2339baec71d33da398cbc8b70",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\crossover.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "174847bc76810dc27bbde48049657693",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\crystalosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "47bad3c79a1ce02fc8df080540f67e3d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\crystalosc2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ff52e0d74955779e5620e91b50810911",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\cube.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "625d08b8a39757c0cf6757c90117e3ce",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\currentsrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "56e74c3d76f99d27b23a109a064879e4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\currentsrcelm.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d439445ad005f6f8291a71ead7871df9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\currentsrcramp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f9a756dcd6367da87f06bd0a151774c6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dac.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "7c340624e668073a03a59709ec66ce65",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\darlington.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2d7971936419b90784b076cf52c48546",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dcrestoration.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "7985a58fafde1fab10e6bdebf71ceac5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\deccounter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d4e47ec651016e988345517534f0bb09",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\decoder.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c1fd62da08f5072360f128f198ed42cc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\delayrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ca193744c2511afe4b96c660d392e078",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\delta-pwm.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "913c5e73613da73aabc2240d02d52749",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\deltasigma.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d8f8a69f495044b3a1b264b92f9ee7cc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\diff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "14f853cc5d330f4a177a6c729b28e4f1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\digcompare.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5e420ba6dcb2505273337c0e207fec07",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\digsine.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "99e1170185904fb3e377221a9d8a4add",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\diodeclip.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "12111942e0e0e26b116199644b67d242",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\diodecurve.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "df84851cc1fceefabbcdbb7b21bf74ba",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\diodelimit.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d6be18bbfa36b229c3732f0b81e9ed4f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\diodevar.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3cb3220a8582d2feafb7e5150b37ac60",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\divideby2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "297af251753de048ad3512f3138261a0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\divideby3.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6d24b92c1d2bcd72049279055dd428d0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dram.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4140cb1aec694d2a825a5e10f421070b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dtlinverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9ad6444de3303be2bb861753b40ab052",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dtlnand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b32812622c493474a640b88327547af5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\dtlnor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ce1aaaabca1a209b93a59fdc4c4706fa",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\early.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9451a9a73e15655db35bf932fd26932c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\eclnor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5a17f3ed738b2837524509ad29ec3ce0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\eclosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "36c2f3ef1c4fc0e5e28e2fba81c59a67",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\edgedff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "71323b9ab6e579904f102e5f11b56ff4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\fanout.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0a3fd5113d1676828c1f30a3a717bb9a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-hipass-l.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "7007b7c9c69350a78635deacc2980780",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-hipass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "93bb8fafa7ab041436cdbd2570c8eef7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-lopass-l.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "eed99123e97644610b27eee68bb73ba5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-lopass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1fb51f9615af7e44e127b014e0b6ff1d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-vcvs-hipass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "af10f24a6fd5e002142ae4249c03ffe0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\filt-vcvs-lopass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "625c225c581425ce73dd0d8872a4791a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\flashadc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5a82d7d701a1041a3625261b2fc28ac3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\follower.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9ca18f5fbdac267e91256e0c5b6d238c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\freqdouble.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c3501ce8b3795f830bdf6237d8f33a55",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\fulladd.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c5afe4bb558815ab1d418c6b33f06c8f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\fullrect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1daaec2373172d473c9d67864982e182",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\fullrectf.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "37c290c4b0c59e45f27f66d2804bc6d4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\gilbertcell.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3cdf05ef0ad78280ac66c76ea200ea48",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\graycode.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "36c7cf940df0850f795e249872a78170",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\grid.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "02468b3fb16ed2c8a414d19abdefdef4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\grid2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6d9aaaa71cb89557c58a678c802a3e18",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\gyrator.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "dd183e41fbc113449d42de2b8d93c76e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\halfadd.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d7a33b96ec597d6f1a567080b3da5fc3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\hartley.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ca3e3d87602624d5d6591c4a4003d91f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\hfadc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "781cff2f3e18395e3d3363723005c135",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\howland.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1a334aea660c9b8137f6abb873392667",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\impedance.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f7ebda08fe76e61270dae9c0ae6e3b4a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\indmultfreq.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b2295015b2e17185beb8566e08130a27",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\indmultind.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "23d9977eb1fdd0712994588ecdd94e79",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\indpar.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "82ea5348e77dd83f10bd3be580b5ef38",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\indseries.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "34d5100969ae4367f5d46d5a8dcf8ab9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\induct.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ebfea8c10ceb10bf0884dda9c30d5899",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\inductac.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "732aeecb80768b51e6601dade5e1f781",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\inductkick-block.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f245604e585cbccac2727138d6c99968",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\inductkick-snub.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2de995f1e9d02b69afe08be52a2f8dce",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\inductkick.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f97d3dbf0c9cbf98120fa5dc17b8d8b5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\inv-osc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "94d4df996763c7a2b8d3a50a8cd729a2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\invertamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5265f047affd165f9f21d28f45c3818e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\itov.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ade80b4e7fca8ac59817ae60199dec44",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jerk.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c67b0432178035b19965186a485ba8a5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jfetamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "dd4b8725ba5c116ab9bb6c449148c5d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jfetcurrentsrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ffd96719a6ff26986d25d3de934e23e1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jfetfollower-nooff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c7e033de3cc4eacd647dfe13584bba94",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jfetfollower.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "37010ca4ad13c0c244ac7b818dbb2802",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jkff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "71d8a6501a531d3b0b8e6d2e62726ee4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\johnsonctr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d7116355178d44b8d2d451c38fd355ed",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\joule-thief.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5f0c6597dfe54a31aa07be71e66e3e90",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\jsinterface.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e13cad6f380a8c5d825b6113f96fdc71",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ladder.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "04857e31f2e704dddec9184b4d19738d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ladderlh.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "97ee31f8197e589f70e66581d3b10e47",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lambda-diode-osc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "42f9f45c6226f80c1ce2bb51a74ab0ec",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lambda-diode.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d968d9f58e195bc6f7043871caee18b8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\latchingrelay.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a63debef30b439419c630cc4e6a2debd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\leadingedge.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0440c5857e4fd07efc2ff445e9b88bd7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ledarray.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "24ba86607b9780fa5944544bb6807008",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ledflasher.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "223698f87b666bce04dd0082d6d84647",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lightbulb.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "8eca9e5f8bacba9af291c43d9f5d63d6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lissa.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c5820b44aad03d036a679ce1b27f582c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\logconvert.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cb7f3bdd7f21b85b34f3fa1af18311b1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\longdist.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "557dca6fa9b86812a8a6e67a3438039a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lrc-critical.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "bb91e50f4b9c839b404555fc72df7d9c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\lrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "bc4a16980bd171fb5e535d3af7bfeb30",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\majority.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "daafd2a701af5adad893ec370ff51f60",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\masterslaveff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "320c9521844d235ab635992c7cc9b36b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mirror.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f5199b139548a165d88b7ca45f10baa0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\moscurrentramp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f12195de7a07f54003846b1a3a46d8d5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\moscurrentsrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0e16b0dd5d80e6447bfd5a3c85cda478",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mosfetamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c477504b6cff4cae91a61171ce6df03b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mosfollower.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "efbd450053d5387c398ae07ed576cbae",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mosmirror.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f8d3255a1922076a7eb5b4b9b493091e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mosswitch.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ea8a94e041c06f5fac40a17c994ea59e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\motorprotect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "149d1ddbfda39009f325e8b87850b8fd",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-crossbar.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4c7e01c819d08ddf744409fc43d38b0f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-sine.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e44e926695874bc375c0a8c680e4c100",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-sine2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9154edb566bcfd24c969a810ee81f4f7",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-sine3.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a0daa8a72a39970701b864aaac1575d3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-square.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f05ee45b98aa2a29bac8c92901dde977",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr-triangle.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "546eed407f75f1bcf4fd9fba4b72d4e5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e5d3094060399ba966aac94a78701e54",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\multivib-a.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a63f0abe58e84ddb5d2255042d8ab5a0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\multivib-bi.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "23f9f2bb61d74a28a1366aa572f8f7c0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\multivib-mono.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "27cbe5735477156c6b0ec0aed3794464",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mux.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cda8a33cc9684ccb85433c65510bbc80",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\mux3state.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3cb16dfc43fc13e92a9f817c407ecb9a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nandff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ff1fdcb99ca40655e61bf8e0fef1328f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nic-r.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ef7e898eb23d34d9341bf411dec34e47",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nmosfet.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a62d8baf170e7e35acc032f5cd197530",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nmosinverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4e76f0590a0012ccfb1702bc927dffa6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nmosinverter2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c6d561327542f6d3f4c2079f08fa8cb5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nmosinverter3.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "bf1dedf6c9625d961aedb59bada03dd5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\nmosnand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "34dbd1917a9887a489182731b2e1f2a6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\norton.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1500b0ade1de31f9d7a1403c61d09f41",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\notch.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "36fbdfeecb9975f5bde8f95259c9601e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\npn.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "af777232ac59c79407af43c85bd0d54a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ohms.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5dc158443eb41acce8100f17bf84659c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opamp-regulator.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2349791f04405e3a33f3b96fa2ee5384",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fd75cc9540f0830b51e9edc973c09a98",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opampfeedback.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "254858e3290b6c9a61051ecf17e129aa",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opint-current.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5b2df6f78749cb37c5d7d1c2ff9ada7d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opint-invert-amp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c58c0c9017b3a1bff39f8d37dbe17257",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opint-slew.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b26ef3eaf66f5e0c9b4f77a9e3efc3ef",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\opint.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1867eca5f7f9217f5fe3d9d7be0277be",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ota-gain.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d4b8261bf00ac702348e6b6156eb5bcc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ota-ringmod.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2f62bf535b8f3bb6ddb1cf8600a0891f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ota-vca.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "42e7e77ea9fcd039cb0cc95972eda030",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ota-vcf-single.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fc6bc8d76740d7054e01f059170fb7d1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\peak-detect.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e4832a1e00e8c7cc2da69fd7f8057bb9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\phasecomp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ccc4e6b695e9f3cd6bba2c51323d2754",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\phasecompint.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3645ce6d8198c54a5eb608d244028e24",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\phaseseq.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6dadd5dc63688254543f54a85c092a1e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\phaseshiftosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4578966092b86b25baa9c83253ee23e0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\phasesplit.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3f5a2628877843106fecbd3d558f2686",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\piso-sr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4fe275854904a0613448c27db3a4dfa9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pll.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b37de6407b7b2b5e3865b39051aba125",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pll2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f00dd5223ba3b4f60eec64f076d857b0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pll2a.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a213e8a5813dee78285d4895ff974d43",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pmosfet.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2b82d557e97496c63f8ecbf62109d354",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pnp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d3dafffe2320bcfb38098f4b77198915",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pot.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e9ed88ce976868fd5bdb0cb716864435",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\potdivide.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "50a7caa7e74831cd40da0f8362182ab2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\powerfactor1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5f1d7e8d3c5b2ae61358119533d59643",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\powerfactor2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5d35362bcfe57491f56349547981bdd5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\priencoder.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0b282ae3aab8bf26e837fea8c9ae290e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pushpull.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e6d67b4d51ce06259692dd1ef4320318",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pushpullxover.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1107e230ead23d789fe56e5b6f5a6db9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\qam-256.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5853bcc7c262ef77bc0191f2c2c25208",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\r2rladder.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "58715d78ac74ca5655dbfd2eff9f9f06",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rectify.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5384d58a5e60f53dae5ae8e6b73b81f6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relaxosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "46dca4b7df54e805e4feb3871baaa332",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relay.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ee0f35c2d7bc97d800d0a382aa66120f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "afcb93878e6e022b17eb47fbdf536a88",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayctr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6ef057c5e9ceaa7ae52bf9326f9fc358",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1b9566c61cbe1acfccb5093b114add9c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relaymux.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3fcfadb2fa67df86f127f8f37d244bee",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d7cb15f2f436772766b4edfde74e8e5a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "5b08e65622ee10ca385b93a17391ab8e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relays.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "84661ef07d2ead95908804c947536ff3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relaytff.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "381eba695eaca54a3a64f82a03079afa",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\relayxor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ca03f02bc6bf71e170069fd35e53c8c0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\res-par.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "10c12864f6bd5d171f683cbdd59b9b2e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\res-series.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0f5d4ef36eda0b0e3ae98a6ad04146b6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\resistors.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "144b9d8ac51c73ff8745655cfecd0265",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ringcascade.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "61abd0e6a73172236b74f6c788101381",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ringing.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "7ab413a3a4b8aa9f3e3e70fbc58c990f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ringmod.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fb90097544aff81d2d038ab1c805c47f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rmsconverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "66260c108aab699989f9fa0adc15b850",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rossler.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "61f90d172d37d153e1c1ad92433d492b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rtlinverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "81a04c26b14cd1e580034fd016b1facb",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rtlnand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d8d13c849e7cdda8f640b9cd5495bc3c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\rtlnor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "af5a8a3bbbf84f0af3e9f3b3756fb3d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\samplenhold.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "df0b04a6ce5703ecfd1f83dae7bc5f7e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\sawtooth.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "61cbfe2c23598648c1bb88e80ae77c82",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\schmitt.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2f7b104b970501024574467a2c929bad",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\scr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9fc854395b7720928f45496f9cafa19d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\scractrig.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "886eb2d7ec17dd671f65232db23467d4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\sine.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fd3bd86e54ce115b759630c2f5526467",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\sinediode.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "aa890fc6ecc566c08fc9c97b7da99c27",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\sipo-sr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "30560f9629a2cb5b99341d0932f25a10",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\spark-marx.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6866b86eff3b489484c6ff5ce722ad01",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\spark-sawtooth.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1513fd532966a95c5493564fde180113",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\spikegen.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6d4f3fd05983f58110dfce85bf37a063",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\sram.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0452758abf57129868ad0b078c541882",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\switchedcap.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "da1d7ba75c73f82565ed5f0eebff6ae6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\switchfilter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "528b0cb8f40c962b8e806a1a3fbb529d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\swtreedac.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "218367db248dec0de485d427206b3daf",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\synccounter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "61330176edb06af1c4f2744b747a377e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tdiode.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "16aeea293cb1c58654eabd970182f308",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tdosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "752a9bc12c5bd5bab59cb456e3b62db4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tdrelax.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f34430ce63298f582df89e2dcdc77608",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tesla.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e6d506b2876b522ff26ed3142412296f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\thevenin.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "a678afeff7d5947acd9500e5ea12bfd3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tl.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cb685b00b4446dc652e2feb5921e0107",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlfreq.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4d9e0734623d6cc02686b1e42d9756a0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tllight.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "4dbdb5c69f0cfd6e15b4f09fe37bde2c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tllopass.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cc6ad70080083f2c15af155a732a730c",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlmatch1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3d51c941b0a3bc374edcde1bbe44e102",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlmatch2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "c42e46b924cfb2ddc4e2b5d11f7dc79f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlmis1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cc0498b1419830f64fa518182ced383a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlmismatch.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "be7a5b3d933845c9b4808a7bdd39fd9b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlstand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "acc34b75b3148896ddb454df4092a98f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\tlterm.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6f4970aa709347faf3e89512b0346b77",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\traffic.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "877e3f776e15669982d820830f1d9cb3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\trans-diffamp-common.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ea841cd1225aac6843045da11b42dd53",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\trans-diffamp-cursrc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "37fc16145241c5b48dc6f9d2bf9c1e30",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\trans-diffamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "e4536e81c681ade8e3728228bde64f5b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transformer.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ee79f853426681c6d6c347cfd56dfac6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transformerdc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "77a267bf234326e80894b6995e2a71ed",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transformerdown.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "8dfa687779cb2c1d10eb1ec6d934e1ea",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transformerup.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "04a47f645a77fcae50f0e50e146a19b2",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transrectifier.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "111a2900876318e1e0f7b0dd3915e825",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\transswitch.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ab9cf4eb10902b67810f753437d1de67",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\triacdimmer.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b54c7a040ce1b26c59dc0afc23a8a943",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\triangle.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6094c2d75253f1d771ac7684e5641cd4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\trianglevco.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3b5ad510f5fbd174e57be0b9a12252d0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\triode.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "b33d82e2b65675f179a6de6da98fc372",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\triodeamp.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "937e08ea516cfaa17d1d5f08eaa543db",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ttlinverter.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "83fdc24af11caa7b319c1b6898f874d0",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ttlnand.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "af36308c0b006e6ce56b8a4ae93fccd3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ttlnor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9de66d54a31253cc629afcefb8b860f4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\twint.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "2eac5406275d924c7461a0d3dbcaff87",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\ujtosc.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "da60eb5a0c79b665075f3d112c06e2ac",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\unishiftreg.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6da90bf9e74067064412da9a4d64fd15",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\updownctr.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "13bd5f298a276f643c00b86b1c42cf36",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\varactor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0b9cc20c09506172c7ba16cb59322056",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\varactorvco.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0a7e2f90214668878a7f8ae05217f196",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\vco.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6c8d6bdcc9eb047bdd13ffe67a5936d9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\vilnius.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "11131443d73223f491bf1eb66a4066cc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\voltdivide.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "d31583005255b36e63308b226a684e0f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\voltdouble.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "70e450fae9478d135d11a3965b4ac1a4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\voltdouble2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3fdd3cf281e6ce9d78c370e5b6407b68",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\voltinvert.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "db97a24b2bcd730fdb9c24e2220b0a5a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\voltquad.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ac8e2fa0eb50f26da992c8755a4cc7a6",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\volttriple.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "74b4b9416559a95d6530cac5ac039192",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\volume.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1fbab9894e5eafad718c1288fd6e2ad8",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\wheatstone.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "caa672f38493b317c3379c91f4680d2b",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\wienbridge.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "107e4af32ad98dc80fa4e8858d6a0996",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\xor.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fac4326ed04b97a1f3dd921cf6dc6ed9",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\xorphasedet.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9a3827e08b6a2562b758fcbcd66c6350",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\zeneriv.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "9c9cf2c3f686afe3a1a0e0d2f5d27251",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\zenerref.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "81f619d8a9ec4619360accf31ba88f68",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\zenerreffollow.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "366b0c5d31d98862256e73e326be0c85",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\hitsound.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "eba313f740c0cedcd137a90bee051636",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\netonly.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6ed7156dba302247c5888d8b695fedfe",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\paddle1.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3c7377a9deec05d2793bafe7865e360e",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\paddles.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "cb4a4018ebcf933b1455b486946404bc",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\playfull2.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ea15d116b4d952ca84cd802496a596f3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\ponghfull.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "abce2209cfb0df412ed5c93a6222a54a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\ponghfullslow.txt": {
+    "mtime": 1740874294.0,
+    "ast_hash": "22bb08ddd954c18fd1fcb8bc2b8dbe42",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\circuits\\pong\\pongpad.html": {
+    "mtime": 1740874294.0,
+    "ast_hash": "fb2ce4e50c4edfbf5ad7b5ceb0be867a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\loginsystem\\loginsystemguide.md": {
+    "mtime": 1779037460.0,
+    "ast_hash": "c19814eaeeb36d6b617a985e29f4f89f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\caifangzuozhe.md": {
+    "mtime": 1779037460.0,
+    "ast_hash": "27cc492fe2dc22e0ad780bc92fd52fc1",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\favicon.svg": {
+    "mtime": 1779037460.0,
+    "ast_hash": "3bc6734b8d0c02971e8a0bc0f8dc6612",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\cipher\\shiyongshuoming111.png": {
+    "mtime": 1779037460.0,
+    "ast_hash": "ed05559f6d583e13cca08fc00c9f86f4",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\clear.cache.gif": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6d22e4f2d2057c6e8d6fab098e76e80f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\circles.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "730c7f99159e9cb15f3fb6d11bf09214",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\corner.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3ac059e965d091b3299e9688b32a9485",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\hborder.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "f62902daaa9778018c5ab0d83626ab97",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\thumb_horz.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "df006caa625e042722df8e2ef431b991",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\thumb_vertical.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "6066cb65f5990723ebd9857c05087a5f",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\gwt\\clean\\images\\vborder.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "ef1a987289be4373a85ccb9e9589f735",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\img\\subcircuits\\subcircuit-pins1.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "3099c0d18d1c36c45dc5f4b3a209a38a",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\circuitjs1\\img\\subcircuits\\subcircuit-pins2.png": {
+    "mtime": 1740874294.0,
+    "ast_hash": "0689eb00f73e46191eb6d6cf49f5f7a5",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\electronic\\war\\font\\fontello.svg": {
+    "mtime": 1740874294.0,
+    "ast_hash": "1577b1fbe89c52040d150a10f589965d",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\zuozhetupian\\zanshangzuozhe.jpg": {
+    "mtime": 1779037460.0,
+    "ast_hash": "b6fc1a56a2cb2d8fa3553b9517b993c3",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\zuozhetupian\\zuozhedeBilibili.jpg": {
+    "mtime": 1779037460.0,
+    "ast_hash": "828cb38d8b5cbada9caf6e9536edf955",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\zuozhetupian\\zuozhedegongzhonghao.jpg": {
+    "mtime": 1779037460.0,
+    "ast_hash": "2359aef14cc44fa81dfd4db17bd05f99",
+    "semantic_hash": ""
+  },
+  "D:\\10_Leochad\\PzMCiphertool-\\frontendciphertool\\sendfeedback\\zuozhetupian\\zuozhedezhihu.jpg": {
+    "mtime": 1779037460.0,
+    "ast_hash": "381d3f7aecdbb0275078c2c40863d3ee",
+    "semantic_hash": ""
+  }
+}

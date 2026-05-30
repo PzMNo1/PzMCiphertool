@@ -1,6 +1,12 @@
+
+
+
 # CipherTool 后端全新环境部署指南
 
 如果您正在一台全新的 Windows 电脑上部署并启动 CipherTool 的后端项目，请按照以下步骤配置环境和启动服务。
+
+重启后端指令：
+Get-Process -Name "java" -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep -Seconds 1; $env:JAVA_HOME = "C:\Program Files\Java\jdk-17.0.13+11"; $env:MAVEN_HOME = "C:\Program Files\apache-maven-3.9.6"; $env:PATH = "$env:JAVA_HOME\bin;$env:MAVEN_HOME\bin;$env:PATH"; cmd /c "c:\Users\Administrator\Desktop\PzMCiphertool-\backendcipher\start.bat"
 
 ## 1. 环境准备
 
@@ -67,3 +73,4 @@ set ALIYUN_SMS_TEMPLATE_CODE=您的模板代码
 
 **如何关闭服务？**
 如果需要停止服务，在运行服务主程序的命令行窗口中按下 `Ctrl + C`，选择 `Y` 终止批处理操作，或者直接关闭命令行窗口即可。相关的 Redis 服务可能仍在后台运行，如需关闭可在任务管理器中结束 `redis-server.exe` 进程。
+

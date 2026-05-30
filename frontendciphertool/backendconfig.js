@@ -16,4 +16,14 @@
     window.CIPHERTOOL_API_BASE = isLocal
         ? 'http://localhost:8080'
         : 'https://waiw.ozqmp.com';
+
+    window.DEEPSEEK_CONFIG = Object.assign({}, window.DEEPSEEK_CONFIG || {}, {
+        model: 'deepseek-v4-flash',
+        defaultModel: 'deepseek-v4-flash',
+        reasonerModel: 'deepseek-v4-flash'
+    });
+
+    window.AGENTMASTER_CONFIG = Object.assign({}, window.AGENTMASTER_CONFIG || {}, {
+        model: 'deepseek-v4-flash'
+    });
 })();

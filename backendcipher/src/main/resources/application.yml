@@ -68,8 +68,8 @@ auth:
 # OpenAI-compatible LLM Config
 llm:
   api-key: ${OPENAI_API_KEY:}
-  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-  model: ${OPENAI_MODEL:gpt-4.1-mini}
+  base-url: ${OPENAI_BASE_URL:https://api.deepseek.com/v1}
+  model: ${OPENAI_MODEL:deepseek-v4-flash}
 
 # API Router quota, rate limit and optional internal billing config
 api-router:

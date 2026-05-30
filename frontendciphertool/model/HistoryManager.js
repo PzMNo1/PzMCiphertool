@@ -16,7 +16,7 @@ class HistoryManager {
     }
 
     saveChatHistory(chatId, title, messages = []) {
-        window.agentRunStore?.indexChat?.(chatId, messages, 'saveChatHistory');
+
         const history = this.getChatHistory();
         history[chatId] = {
             id: chatId,
@@ -67,11 +67,7 @@ class HistoryManager {
         const messageIndex = history[chatId].messages.length - 1;
         if (message.agent_run?.runId) {
             message.agent_run_id = message.agent_run.runId;
-            window.agentRunStore?.saveRun?.(message.agent_run, {
-                chatId,
-                messageIndex,
-                source: 'history'
-            });
+
         }
         history[chatId].timestamp = Date.now();
 
@@ -99,7 +95,7 @@ class HistoryManager {
             }
             delete history[chatId];
         });
-        window.agentRunStore?.deleteRunsByChat?.(chatIds);
+
 
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
 
@@ -178,7 +174,7 @@ class HistoryManager {
                 imported_at: Date.now(),
                 imported_from: baseId || null
             };
-            window.agentRunStore?.indexChat?.(chatId, messages, 'import');
+
             importedIds.push(chatId);
         });
 

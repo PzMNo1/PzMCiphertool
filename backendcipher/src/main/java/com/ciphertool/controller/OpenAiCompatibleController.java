@@ -49,10 +49,10 @@ public class OpenAiCompatibleController {
     @Value("${llm.api-key:}")
     private String upstreamApiKey;
 
-    @Value("${llm.base-url:https://api.aisenyu.com/v1}")
+    @Value("${llm.base-url:https://api.deepseek.com/v1}")
     private String upstreamBaseUrl;
 
-    @Value("${llm.model:gpt-5.5}")
+    @Value("${llm.model:deepseek-v4-flash}")
     private String defaultModel;
 
     @Value("${api-router.routing.retry-statuses:429,500,502,503,504}")
@@ -223,7 +223,7 @@ public class OpenAiCompatibleController {
     private String normalizeModel(Map<String, Object> requestBody) {
         Object modelValue = requestBody.get("model");
         if (modelValue == null || String.valueOf(modelValue).isBlank()) {
-            String fallback = defaultModel == null || defaultModel.isBlank() ? "gpt-5.5" : defaultModel.trim();
+            String fallback = defaultModel == null || defaultModel.isBlank() ? "deepseek-v4-flash" : defaultModel.trim();
             requestBody.put("model", fallback);
             return fallback;
         }
@@ -232,7 +232,7 @@ public class OpenAiCompatibleController {
 
     private String resolveChatCompletionsUrl(String baseUrl) {
         String normalized = baseUrl == null || baseUrl.isBlank()
-                ? "https://api.aisenyu.com/v1"
+                ? "https://api.deepseek.com/v1"
                 : baseUrl.trim();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);

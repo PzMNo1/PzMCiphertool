@@ -455,9 +455,7 @@
 
     function resolveAgentRunForMessage(message) {
         if (!message || typeof message !== 'object') return null;
-        return window.agentRunStore?.resolveMessageRun?.(message)
-            || message.agent_run
-            || null;
+        return message.agent_run || null;
     }
 
     function summarizeAgentRunForContext(run, assistantContent) {
@@ -783,7 +781,7 @@
                 });
 
                 finalContent = response?.content || finalContent;
-                finalReasoning = response?.reasoning_content || finalReasoning;
+                finalReasoning = '';
                 collectedToolCalls = response?.agent_tool_calls || response?.tool_calls || collectedToolCalls;
                 agentRunSnapshot = response?.agent_run || null;
             } else if (isToolEnabled) {
@@ -1700,16 +1698,6 @@
             searchInput.addEventListener('input', (e) => searchHistory(e.target.value));
         }
 
-        window.agentWorkbench?.mount?.();
-        window.addEventListener('agent-workbench-open-chat', event => {
-            const chatId = event.detail?.chatId;
-            if (!chatId) return;
-            const history = window.historyManager.getChatHistory();
-            if (history[chatId]) {
-                loadChat(chatId);
-            }
-        });
-
         // 移动端侧边栏切换
         const sidebarToggle = document.getElementById('sidebar-toggle');
         if (sidebarToggle) {
@@ -1754,7 +1742,6 @@
         // 初始化 UI
         window.chatUI.init();
         window.chatUI.initMathJax();
-        window.agentWorkbench?.mount?.();
 
         // 绑定事件
         bindEvents();

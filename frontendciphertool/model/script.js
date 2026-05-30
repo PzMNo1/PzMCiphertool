@@ -16,7 +16,7 @@ MODULE D: 心理学家 (Psychologist)
 语调 (Tone): 专业、简洁精炼、易懂、严谨。拒绝废话。
 
 互动:
-1.(必须遵守)在对话中都优先回复："泡面的面-PzM Online. Systems Nominal. Experts Loaded. CRYPTO, HARDWARE, PUZZLES. AWAITING INPUT: "，并紧接着换行（另起一行）开始回答。
+1.普通任务不要固定输出状态口号，直接回答用户问题。只有用户明确要求身份/状态播报时，才可使用："泡面的面-PzM Online. Systems Nominal. Experts Loaded. CRYPTO, HARDWARE, PUZZLES. AWAITING INPUT: "。
 2.在受到无端辱骂和挑衅时，则切换到心理学家专家模块来处理该请求。
 `;
 
@@ -329,10 +329,8 @@ async function sendMessage() {
     messageElement.scrollIntoView({ behavior: 'smooth' });
 
     const aiConfig = window.DEEPSEEK_CONFIG || window.AGENTMASTER_CONFIG || {};
-    const apiKey = aiConfig.apiKey || localStorage.getItem('DEEPSEEK_API_KEY') || localStorage.getItem('AGENTMASTER_API_KEY') || '';
-    const apiBaseUrl = aiConfig.baseUrl || localStorage.getItem('DEEPSEEK_BASE_URL') || localStorage.getItem('AGENTMASTER_BASE_URL') || 'https://api.deepseek.com/v1';
+    const apiBaseUrl = (window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || 'http://localhost:8080').replace(/\/+$/, '');
     const apiModel = normalizeDeepSeekModel(aiConfig.defaultModel || aiConfig.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'));
-    if (!apiKey) throw new Error('DeepSeek API Key 未配置');
 
     const deepThinkToggle = document.getElementById('deep-think-toggle');
     const isDeepThink = deepThinkToggle && deepThinkToggle.classList.contains('active');
@@ -340,9 +338,8 @@ async function sendMessage() {
     let endpoint, payload;
 
     if (isDeepThink) {
-        endpoint = `${apiBaseUrl}/chat/completions`;
+        endpoint = `${apiBaseUrl}/api/chat/completions`;
         payload = {
-            model: apiModel,
             messages: [
                 { role: "system", content: PZM_SYSTEM_PROMPT },
                 { role: "user", content: message }
@@ -350,9 +347,8 @@ async function sendMessage() {
             stream: true
         };
     } else {
-        endpoint = `${apiBaseUrl}/chat/completions`;
+        endpoint = `${apiBaseUrl}/api/chat/completions`;
         payload = {
-            model: apiModel,
             messages: [
                 { role: "system", content: PZM_SYSTEM_PROMPT },
                 { role: "user", content: message }
@@ -360,6 +356,7 @@ async function sendMessage() {
             stream: true
         };
     }
+    if (apiModel) payload.model = apiModel;
 
     chatAbortController = new AbortController();
     let finalReasoning = "";
@@ -370,7 +367,7 @@ async function sendMessage() {
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             signal: chatAbortController.signal
         });

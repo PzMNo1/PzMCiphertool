@@ -275,9 +275,7 @@ const MODULES = {
                     <button id="export-chat-history" class="cyber-button">
                         <span class="cyber-button__tag">导出聊天</span>
                     </button>
-                    <button id="agent-workbench-open" class="cyber-button">
-                        <span class="cyber-button__tag">运行记录</span>
-                    </button>
+
                 </div>
                 <div class="search-container">
                     <input type="text" id="history-search" placeholder="搜索对话...">
@@ -376,14 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
         './0_sidebar_funtion.js',
 
         './model/contracts/AgentContract.js',
-        './model/AgentRunStore.js',
-        './model/AgentRunReplay.js',
-        './model/AgentRunQuality.js',
-        './model/AgentEvalSuite.js',
-        './model/AgentLiveEvalRunner.js',
-        './model/AgentEvalBatchStore.js',
-        './model/AgentEvalDiagnostics.js',
-        './model/AgentWorkbench.js',
         './model/DeepSeekClient.js',
         './model/ToolRegistry.js',
         './model/ChatUI.js',
