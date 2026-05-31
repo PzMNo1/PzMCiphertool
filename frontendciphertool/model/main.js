@@ -1672,6 +1672,7 @@
         // 深度思考开关
         const deepThinkToggle = document.getElementById('deep-think-toggle');
         if (deepThinkToggle) {
+            deepThinkToggle.classList.add('active');
             deepThinkToggle.addEventListener('click', () => {
                 deepThinkToggle.classList.toggle('active');
             });
@@ -1680,6 +1681,7 @@
         // 工具开关
         const toolToggle = document.getElementById('tool-toggle');
         if (toolToggle) {
+            toolToggle.classList.add('active');
             toolToggle.addEventListener('click', () => {
                 toolToggle.classList.toggle('active');
             });
@@ -1687,8 +1689,21 @@
 
         const imageModeToggle = document.getElementById('image-mode-toggle');
         if (imageModeToggle) {
+            const inputActions = imageModeToggle.closest('.input-actions');
+            const syncImageModeControls = enabled => {
+                imageModeToggle.classList.toggle('active', enabled);
+                inputActions?.classList.toggle('image-mode-only', enabled);
+                if (enabled) {
+                    toolToggle?.classList.remove('active');
+                    deepThinkToggle?.classList.remove('active');
+                } else {
+                    toolToggle?.classList.add('active');
+                    deepThinkToggle?.classList.add('active');
+                }
+            };
+            syncImageModeControls(imageModeToggle.classList.contains('active'));
             imageModeToggle.addEventListener('click', () => {
-                imageModeToggle.classList.toggle('active');
+                syncImageModeControls(!imageModeToggle.classList.contains('active'));
             });
         }
 

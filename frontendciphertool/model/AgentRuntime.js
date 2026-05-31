@@ -25,9 +25,11 @@ class AgentRuntime {
         const hasRecentResearchContext = /(web_research|read_webpage|search_urls|agent run 状态|["']?mode["']?\s*:\s*["']?(research|news_brief)|["']?researchprofile["']?\s*:\s*["']?news_brief|论文|研究|学术|来源|引用|检索|前沿|github trending|hacker news|product hunt|nature photonics|arxiv|doi|source ids?)/i.test(recentText);
         const hasRecentCommunityContext = /(社区|community|github trending|hacker news|product hunt|v2ex|reddit|lobsters|local llama|localllama)/i.test(recentText);
         const wantsCommunityScan = directCommunityScan || (terseResearchFollowUp && hasRecentCommunityContext);
-        const directAcademicResearch = !wantsCommunityScan && /(学术|论文|研究|研究进展|研究到了|前沿|前沿研究|综述|光学|光子|量子|物理|材料|生物|医学|化学|arxiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|review|benchmark|state of the art)/i.test(rawMessage);
-        const hasRecentAcademicContext = /(论文|学术|研究进展|前沿研究|arxiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|journal|conference|nature photonics)/i.test(recentText);
-        const wantsAcademicResearch = directAcademicResearch || (terseResearchFollowUp && hasRecentAcademicContext);
+        const directAcademicResearch = !wantsCommunityScan && /(学术|论文|期刊|会议|顶会|顶刊|同行评审|正式发表|预印本|研究|研究进展|研究到了|前沿|前沿研究|综述|光学|光子|量子|物理|材料|生物|医学|化学|arxiv|airxiv|aixiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|review|journal|conference|proceedings|peer[-\s]?reviewed|publication|preprint|benchmark|state of the art)/i.test(rawMessage);
+        const hasRecentAcademicContext = /(论文|学术|期刊|会议|研究进展|前沿研究|arxiv|airxiv|nature|science|optica|ieee|acm|pubmed|doi|paper|academic|literature|journal|conference|proceedings|peer[-\s]?reviewed|publication|preprint|nature photonics)/i.test(recentText);
+        const academicFollowUp = hasRecentAcademicContext
+            && /(全是|都是|还有|有没有|其它|其他|换成|不要|除了|正式|期刊|会议|顶会|顶刊|同行评审|发表|非\s*arxiv|非\s*airxiv|non[-\s]?arxiv|beyond\s+arxiv|journal|conference|proceedings|peer[-\s]?reviewed|publication|published|not\s+arxiv|instead\s+of\s+arxiv)/i.test(rawMessage);
+        const wantsAcademicResearch = directAcademicResearch || academicFollowUp || (terseResearchFollowUp && hasRecentAcademicContext);
         const wantsNewsBrief = directNewsBrief || (terseResearchFollowUp && /["']?mode["']?\s*:\s*["']?news_brief|["']?researchprofile["']?\s*:\s*["']?news_brief/i.test(recentText));
         const wantsFreshInfo = wantsNewsBrief || wantsAcademicResearch || directFreshInfo || (terseResearchFollowUp && hasRecentResearchContext);
         const newsBriefScope = wantsNewsBrief ? this.getNewsBriefScope(rawMessage) : null;
@@ -57,16 +59,20 @@ class AgentRuntime {
             wantsAcademicResearch,
             wantsNewsBrief
         });
+        const agentHasNetworkTools = mode === 'agent' && this.hasNetworkTools(selectedTools);
+        const agentSourceTarget = agentHasNetworkTools ? 36 : 0;
+        const agentCitationTarget = agentHasNetworkTools ? 20 : 0;
+        const agentIterations = agentHasNetworkTools ? 18 : 6;
 
         return {
             runId: `run-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
             mode,
-            researchProfile: wantsNewsBrief ? 'news_brief' : wantsAcademicResearch ? 'academic' : wantsFreshInfo ? 'general' : 'none',
+            researchProfile: wantsNewsBrief ? 'news_brief' : wantsAcademicResearch ? 'academic' : wantsFreshInfo ? 'general' : agentHasNetworkTools ? 'agentic' : 'none',
             newsBriefScope,
             selectedTools,
-            maxIterations: researchLike ? researchIterations : mode === 'agent' ? 4 : 1,
-            sourceTarget: researchLike ? researchSourceTarget : 0,
-            citationTarget: researchLike ? researchCitationTarget : 0,
+            maxIterations: researchLike ? researchIterations : mode === 'agent' ? agentIterations : 1,
+            sourceTarget: researchLike ? researchSourceTarget : agentSourceTarget,
+            citationTarget: researchLike ? researchCitationTarget : agentCitationTarget,
             stages: [
                 { id: 'plan', label: 'Plan' },
                 { id: 'route', label: 'Route' },
@@ -122,6 +128,24 @@ class AgentRuntime {
         return Array.from(selected).filter(name => this.registry.has(name));
     }
 
+    hasNetworkTools(toolNames = []) {
+        const networkTools = new Set([
+            'community_snapshot',
+            'web_research',
+            'search_urls',
+            'read_webpage',
+            'news_query',
+            'open_url',
+            'find_in_page',
+            'open',
+            'find',
+            'weather',
+            'get_weather',
+            'finance_query'
+        ]);
+        return (Array.isArray(toolNames) ? toolNames : []).some(name => networkTools.has(name));
+    }
+
     buildAgentSystemPrompt(plan, contextPack = null) {
         const sourceTarget = plan.sourceTarget || 28;
         const citationTarget = plan.citationTarget || 18;
@@ -132,7 +156,17 @@ class AgentRuntime {
                 '- Academic research mode: prefer primary sources over broad search. Go directly to arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journal/conference pages, or known project papers when the target source is obvious.',
                 '- For academic questions, use web_research depth="fast" at most once only as a map. For the evidence pass, use web_research depth="deep" read_top=true max_results=28-32, then pivot to site-targeted search_urls queries such as site:arxiv.org, site:nature.com, site:science.org, site:opg.optica.org, site:ieeexplore.ieee.org, and read_webpage on the best primary sources.',
                 `- Aim for at least ${sourceTarget} distinct primary or high-authority source URLs and cite at least ${citationTarget} useful sources when available. If the first pass is sparse, run one narrower targeted follow-up instead of synthesizing early.`,
+                '- Academic citation boundary: the final source list should be papers, preprints, proceedings, journal pages, DOI/PubMed records, standards, official lab/project pages, or official technical documentation. Do not use BBC/Reuters/AP/CNBC/Guardian/news homepages, search result pages, trending pages, or general media as academic evidence unless the user explicitly asks for media/industry coverage.',
+                '- Do not cite an ACM/IEEE/Nature/etc. homepage when the page read says no relevant paragraph was found; search for a specific paper title or DOI instead.',
+                '- If the user says the previous sources were all arXiv/airxiv or asks for other journals, prioritize non-arXiv peer-reviewed journal/conference sources such as Nature, Science, Optica/OSA, IEEE, ACM, PubMed, Springer, ScienceDirect, Wiley, Cell, and DOI pages.',
                 '- Do not spend repeated iterations on generic search once useful primary-source candidates exist.'
+            ]
+            : plan.researchProfile === 'agentic'
+            ? [
+                '- Agentic evidence mode: this is a general tool run with network-capable tools. Do not stop after a single fast lookup when the answer depends on external facts.',
+                '- Use web_research/search_urls/read_webpage as an evidence ladder: map the topic, open the most useful sources, then synthesize. Prefer direct readable pages over search result snippets.',
+                `- Aim for about ${sourceTarget} useful source candidates and cite about ${citationTarget} sources when the answer makes factual external claims. If fewer are available, say the coverage is limited instead of padding with weak sources.`,
+                '- After tool observations, first distill what the tools established, then write a user-facing answer with source-backed claims and a compact source list. Do not dump raw tool output.'
             ]
             : [
                 '- For broad community scans, call community_snapshot first. It has dedicated routes for Hacker News, GitHub Trending, V2EX, Reddit, Lobsters, and Product Hunt and should be preferred over generic page reads for those sites.',
@@ -143,9 +177,9 @@ class AgentRuntime {
                 '- The final answer should include findings, cross-source patterns, source notes, and uncertainty in a natural research-brief style. Do not add a forced closing summary or slogan unless the user explicitly asks for one.'
             ];
 
-        const finalAnswerStyle = this.isResearchLikeMode(plan.mode)
+        const finalAnswerStyle = this.isEvidenceSeekingPlan(plan)
             ? [
-                '- Final answer style contract for research/community scans:',
+                '- Final answer style contract for evidence-backed tool runs:',
                 '  - Use a natural research-brief structure with short named sections only where they help readability; avoid a rigid template if paragraphs plus grouped bullets read better.',
                 '  - Start with the most important findings and supporting context, not a terse verdict.',
                 '  - Prefer grouped evidence bullets or a compact table only when it improves clarity.',
@@ -175,9 +209,10 @@ class AgentRuntime {
             ...finalAnswerStyle,
             ...contextMemoryPolicy,
             '- Use one canonical tool for each action: community_snapshot for community dashboards, web_research for broad maps, search_urls for narrow targeted queries, read_webpage for opening URLs. Avoid duplicate alias tools and avoid looping over equivalent searches.',
-            `- For research/news brief runs, source collection target is ${sourceTarget}+ distinct sources and citation target is ${citationTarget}+ cited sources when available; do not finalize after only a handful of sources unless the user asked for a quick answer or the web tools clearly cannot retrieve more.`,
+            `- For research/news brief/agentic evidence runs, source collection target is ${sourceTarget}+ distinct sources and citation target is ${citationTarget}+ cited sources when available; do not finalize after only a handful of sources unless the user asked for a quick answer or the web tools clearly cannot retrieve more.`,
             '- Never use Baidu or Baidu-derived pages as evidence, search fallbacks, citations, or redirects. If other search engines are blocked, use non-Baidu direct sources, official/community pages, Jina search/reader, RSS/API endpoints, and site-targeted reads.',
             '- Prefer authoritative, primary, official, peer-reviewed, reputable media, or first-hand community sources over search result pages, SEO pages, mirrors, and encyclopedic summaries.',
+            '- Source policy is claim-dependent: if the user asks for papers, journals, peer-reviewed work, academic research, or formal publications, use academic citation standards even when the run mode is agent. Do not cite news/media pages as paper evidence.',
             '- Output wording guard: never use "**一句话总结：**", "一句话总结", or "一句话" as a closing label or phrase. If a summary is explicitly requested, label it only as "总结".',
             '- Cite source ids such as [1], [2] when tool results provide them.',
             '- Citation quality guard: when listing multiple separate facts, avoid reusing one citation id for unrelated bullets if specific source ids are available. Prefer direct article/item ids over news homepages or latest-news index pages.',
@@ -622,13 +657,15 @@ class AgentRuntime {
         const hasEvidence = Array.isArray(runState?.evidenceLedger) && runState.evidenceLedger.length > 0;
         const hasSourceSection = /(^|\n)\s*(\u6765\u6e90|\u53c2\u8003|Sources|References)\s*[:\uff1a]?/i.test(text);
         if (!text || (!this.isResearchLikeMode(plan?.mode) && !hasEvidence && !hasSourceSection)) return text;
-        return this.normalizeSourceSection(text, runState);
+        return this.normalizeSourceSection(text, runState, plan);
     }
 
-    normalizeSourceSection(text, runState = null) {
+    normalizeSourceSection(text, runState = null, plan = null) {
         const value = String(text || '').trimEnd();
         const matches = Array.from(value.matchAll(/(^|\n)\s*(来源|Sources|References|参考)\s*[:：]?\s*/gi));
         if (!matches.length) return value;
+        const sourcePolicyPlan = this.resolveSourcePolicyPlan(plan, runState, value);
+        const academicMode = this.isAcademicResearchPlan(sourcePolicyPlan);
 
         const match = matches[matches.length - 1];
         const headingStart = match.index + (match[1] ? match[1].length : 0);
@@ -647,9 +684,9 @@ class AgentRuntime {
             const body = this.cleanSourceEntryText(item[2]);
             if (body && !rawSourceMap.has(id)) rawSourceMap.set(id, body);
         });
-        const evidenceIndex = this.buildEvidenceSourceIndex(runState?.evidenceLedger || []);
-        const evidenceCatalog = this.buildEvidenceCitationCatalog(runState?.evidenceLedger || []);
-        const enriched = this.enrichCitationSpecificity(before, rawSourceMap, evidenceIndex, evidenceCatalog);
+        const evidenceIndex = this.buildEvidenceSourceIndex(runState?.evidenceLedger || [], sourcePolicyPlan);
+        const evidenceCatalog = this.buildEvidenceCitationCatalog(runState?.evidenceLedger || [], sourcePolicyPlan);
+        const enriched = this.enrichCitationSpecificity(before, rawSourceMap, evidenceIndex, evidenceCatalog, sourcePolicyPlan);
         enriched.extraSources.forEach((body, id) => {
             if (body && !rawSourceMap.has(id)) rawSourceMap.set(id, body);
         });
@@ -660,11 +697,19 @@ class AgentRuntime {
             : sourceMatches.map(item => String(item[1]));
 
         const idMap = new Map();
+        const droppedIds = new Set();
         const seenEntries = new Map();
         const entries = [];
         sourceOrder.forEach(oldId => {
-            const body = this.buildDetailedSourceBody(oldId, rawSourceMap, evidenceIndex);
-            if (!body) return;
+            const body = this.buildDetailedSourceBody(oldId, rawSourceMap, evidenceIndex, sourcePolicyPlan);
+            if (!body) {
+                droppedIds.add(String(oldId));
+                return;
+            }
+            if (academicMode && !this.isAllowedAcademicSourceBody(body)) {
+                droppedIds.add(String(oldId));
+                return;
+            }
             const dedupeKey = body.toLowerCase();
             if (seenEntries.has(dedupeKey)) {
                 if (!idMap.has(oldId)) idMap.set(oldId, seenEntries.get(dedupeKey));
@@ -675,17 +720,24 @@ class AgentRuntime {
             seenEntries.set(dedupeKey, newId);
             entries.push({ oldId, newId, body });
         });
-        if (!entries.length) return value;
+        if (!entries.length) {
+            const cleanedBodyWithoutMarkers = this.cleanRepeatedCitationMarkers(this.stripCitationMarkers(bodyForCitations)).trimEnd();
+            if (academicMode) {
+                return `${cleanedBodyWithoutMarkers}\n\n来源：\n未找到可用于学术引用的论文级来源。`;
+            }
+            return `${cleanedBodyWithoutMarkers}\n\n来源：\n未找到可用的来源详情。`;
+        }
 
-        const normalizedBody = bodyForCitations.replace(/\[(\d+)\]/g, (marker, id) => {
-            return idMap.has(id) ? `[${idMap.get(id)}]` : marker;
+        const normalizedBody = this.replaceCitationGroups(bodyForCitations, id => {
+            if (droppedIds.has(id)) return '';
+            return idMap.has(id) ? idMap.get(id) : id;
         });
         const cleanedBody = this.cleanRepeatedCitationMarkers(normalizedBody);
         const sourceLines = entries.map(entry => `[${entry.newId}] ${entry.body}`);
         return `${cleanedBody}\n\n来源：\n${sourceLines.join('\n')}`;
     }
 
-    enrichCitationSpecificity(body, rawSourceMap, evidenceIndex, evidenceCatalog) {
+    enrichCitationSpecificity(body, rawSourceMap, evidenceIndex, evidenceCatalog, plan = null) {
         const text = String(body || '');
         const catalog = Array.isArray(evidenceCatalog) ? evidenceCatalog : [];
         if (!text || catalog.length === 0) {
@@ -700,23 +752,34 @@ class AgentRuntime {
         const lines = text.split('\n').map(line => {
             const ids = this.extractCitationMarkers(line);
             if (!ids.length) return line;
-            const shouldImprove = ids.some(id => this.shouldImproveCitationSource(id, citationCounts, rawSourceMap, evidenceIndex));
-            if (!shouldImprove) return line;
+            const improvementIds = ids.filter(id => this.shouldImproveCitationSource(id, citationCounts, rawSourceMap, evidenceIndex, plan));
+            if (!improvementIds.length) return line;
 
-            const claimText = line.replace(/\[(\d+)\]/g, ' ');
-            const match = this.findBestEvidenceForClaim(claimText, catalog, usedEvidenceKeys);
-            if (!match || match.score < 8) return line;
+            const claimText = this.stripCitationMarkers(line);
+            const missingSource = improvementIds.some(id => this.isMissingCitationSource(id, rawSourceMap, evidenceIndex));
+            const targetMatches = Math.min(3, Math.max(1, improvementIds.length));
+            const matches = this.findBestEvidenceMatchesForClaim(claimText, catalog, usedEvidenceKeys, targetMatches);
+            const minScore = missingSource ? 5 : 8;
+            const replacementIds = [];
+            matches.forEach(match => {
+                if (!match || match.score < minScore) return;
+                const sourceBody = this.formatEvidenceSource(match.entry);
+                if (!sourceBody) return;
+                const sourceId = String(nextSourceId++);
+                extraSources.set(sourceId, sourceBody);
+                usedEvidenceKeys.add(this.getEvidenceCandidateKey(match.entry));
+                replacementIds.push(sourceId);
+            });
+            if (!replacementIds.length) return line;
+            const retainedIds = ids.filter(id => !improvementIds.includes(id)
+                && this.buildDetailedSourceBody(id, rawSourceMap, evidenceIndex, plan));
+            const replacement = [...retainedIds, ...replacementIds].map(id => `[${id}]`).join(' ');
 
-            const sourceBody = this.formatEvidenceSource(match.entry);
-            if (!sourceBody) return line;
-            const sourceId = String(nextSourceId++);
-            extraSources.set(sourceId, sourceBody);
-            usedEvidenceKeys.add(this.getEvidenceCandidateKey(match.entry));
-
-            if (/(?:\s*\[\d+\])+\s*$/.test(line)) {
-                return line.replace(/(?:\s*\[\d+\])+\s*$/, ` [${sourceId}]`);
+            const trailingCitationPattern = /(?:\s*\[(?:\d+\s*(?:[,，]\s*\d+\s*)*)\])+\s*$/;
+            if (trailingCitationPattern.test(line)) {
+                return line.replace(trailingCitationPattern, ` ${replacement}`);
             }
-            return `${line} [${sourceId}]`;
+            return `${line} ${replacement}`;
         });
 
         return { text: lines.join('\n'), extraSources };
@@ -724,11 +787,38 @@ class AgentRuntime {
 
     countCitationMarkers(text) {
         const counts = new Map();
-        Array.from(String(text || '').matchAll(/\[(\d+)\]/g)).forEach(match => {
-            const id = String(match[1]);
+        this.extractCitationMarkersWithDuplicates(text).forEach(id => {
             counts.set(id, (counts.get(id) || 0) + 1);
         });
         return counts;
+    }
+
+    extractCitationMarkersWithDuplicates(text) {
+        const markers = [];
+        Array.from(String(text || '').matchAll(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g)).forEach(match => {
+            this.parseCitationGroup(match[1]).forEach(id => markers.push(id));
+        });
+        return markers;
+    }
+
+    parseCitationGroup(value) {
+        return String(value || '')
+            .split(/[,，]/)
+            .map(item => item.trim())
+            .filter(item => /^\d+$/.test(item));
+    }
+
+    stripCitationMarkers(value) {
+        return String(value || '').replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, ' ');
+    }
+
+    replaceCitationGroups(value, mapper) {
+        return String(value || '').replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, (marker, group) => {
+            const mapped = this.parseCitationGroup(group)
+                .map(id => mapper(id))
+                .filter(Boolean);
+            return mapped.length ? `[${mapped.join(',')}]` : '';
+        });
     }
 
     getNextCitationSourceId(rawSourceMap, evidenceIndex) {
@@ -741,12 +831,26 @@ class AgentRuntime {
         return Math.max(1000, ...ids) + 1;
     }
 
-    shouldImproveCitationSource(sourceId, citationCounts, rawSourceMap, evidenceIndex) {
+    shouldImproveCitationSource(sourceId, citationCounts, rawSourceMap, evidenceIndex, plan = null) {
         const id = String(sourceId);
         const repeated = (citationCounts.get(id) || 0) >= 3;
-        const body = this.buildDetailedSourceBody(id, rawSourceMap, evidenceIndex);
-        if (!body) return repeated;
-        return repeated || this.isGenericSourceReference(body);
+        if (this.isMissingCitationSource(id, rawSourceMap, evidenceIndex)) return true;
+        const body = this.buildDetailedSourceBody(id, rawSourceMap, evidenceIndex, plan);
+        if (!body) return true;
+        return repeated
+            || this.isFallbackSourceReference(body)
+            || this.isGenericSourceReference(body)
+            || (this.isAcademicResearchPlan(plan) && !this.isAllowedAcademicSourceBody(body));
+    }
+
+    isMissingCitationSource(sourceId, rawSourceMap, evidenceIndex) {
+        const id = String(sourceId);
+        return !rawSourceMap?.has?.(id) && !evidenceIndex?.has?.(id);
+    }
+
+    isFallbackSourceReference(body) {
+        const text = this.cleanOneLine(body || '').toLowerCase();
+        return /工具来源\s*id|详情未返回|details?\s+not\s+returned|missing\s+source|source\s+id\s+\d+/i.test(text);
     }
 
     isGenericSourceReference(body) {
@@ -756,10 +860,108 @@ class AgentRuntime {
             || /^(bbc news|bbc world|reuters|ap news|associated press|guardian|cnbc|sina news|netease news|source|sources|references|来源|参考)/i.test(text);
     }
 
-    buildEvidenceCitationCatalog(evidence = []) {
+    resolveSourcePolicyPlan(plan = null, runState = null, finalText = '') {
+        if (this.isAcademicResearchPlan(plan)) return plan;
+        const evidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
+        const usableEvidence = evidence.filter(entry => entry && !entry.error && (entry.title || entry.url));
+        const academicEvidenceCount = evidence.filter(entry => this.isAllowedAcademicEvidence(entry)).length;
+        const academicEvidenceDominant = academicEvidenceCount >= 4
+            && academicEvidenceCount >= Math.ceil(Math.max(usableEvidence.length, 1) * 0.65);
+        if ((this.hasAcademicCitationSignal(finalText) && academicEvidenceCount >= 2) || academicEvidenceDominant) {
+            return { ...(plan || {}), researchProfile: 'academic', inferredResearchProfile: 'academic' };
+        }
+        return plan;
+    }
+
+    isAcademicResearchPlan(plan = null) {
+        return plan?.researchProfile === 'academic' || plan?.inferredResearchProfile === 'academic';
+    }
+
+    hasAcademicCitationSignal(value) {
+        const text = String(value || '');
+        return /(学术|论文|期刊|会议|同行评审|正式发表|文献综述|只要论文|不要新闻|非新闻|academic|literature\s+review|peer[-\s]?reviewed|journal\s+article|conference\s+paper|conference\s+proceedings|formal\s+publication|published\s+paper|research\s+paper)/i.test(text);
+    }
+
+    isAllowedAcademicEvidence(entry) {
+        if (!entry || entry.error) return false;
+        const title = this.cleanOneLine(entry.title || '');
+        const url = this.cleanUrl(entry.url || '');
+        const snippet = this.cleanOneLine(entry.snippet || entry.content_preview || '');
+        const combined = `${title} ${url} ${snippet}`;
+        if (!title && !url) return false;
+        if (this.isFailedAcademicReadText(combined)) return false;
+        if (this.isDisallowedAcademicMediaSource(combined)) return false;
+        if (url) return this.isAcademicSourceUrl(url, title);
+        if (/\b(arxiv|doi|pubmed|pmid|journal|proceedings|conference|preprint|paper|publication|nature|science|ieee|acm|optica|osa|springer|elsevier|sciencedirect|wiley|frontiers|plos|cell|lancet|nejm|bmj)\b/i.test(combined)) {
+            return true;
+        }
+        return /\.(edu|gov)(\/|$)/i.test(url) || /\.ac\.[a-z]{2,}(\/|$)/i.test(url);
+    }
+
+    isAllowedAcademicSourceBody(body) {
+        const text = this.cleanOneLine(body || '');
+        if (!text) return false;
+        if (this.isFailedAcademicReadText(text)) return false;
+        if (this.isDisallowedAcademicMediaSource(text)) return false;
+        const url = this.extractFirstUrlFromText(text);
+        if (url) return this.isAcademicSourceUrl(url, text);
+        return /\b(arxiv|doi|pubmed|pmid|journal|proceedings|conference|preprint|paper|publication|nature|science|ieee|acm|optica|osa|springer|elsevier|sciencedirect|wiley|frontiers|plos|cell|lancet|nejm|bmj)\b/i.test(text);
+    }
+
+    isAcademicSourceUrl(url, title = '') {
+        const cleanUrl = this.cleanUrl(url || '');
+        const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
+        if (!cleanUrl) return false;
+        let parsed = null;
+        try {
+            parsed = new URL(/^https?:\/\//i.test(cleanUrl) ? cleanUrl : `https://${cleanUrl}`);
+        } catch (e) {
+            return false;
+        }
+        const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+        const path = parsed.pathname.toLowerCase();
+        if (this.isDisallowedAcademicMediaSource(`${host}${path} ${cleanTitle}`)) return false;
+        if (host === 'arxiv.org') return /^\/(abs|pdf)\//.test(path);
+        if (host === 'doi.org' || host.endsWith('.doi.org')) return path.length > 1;
+        if (host === 'pubmed.ncbi.nlm.nih.gov') return /^\/\d+/.test(path);
+        if (host === 'dl.acm.org') return /^\/doi\//.test(path);
+        if (host === 'ieeexplore.ieee.org') return /^\/(document|abstract)\//.test(path);
+        if (host === 'science.org') return /^\/doi\//.test(path);
+        if (host.endsWith('nature.com')) return /^\/articles\//.test(path);
+        if (host === 'link.springer.com') return /^\/(article|chapter|book)\//.test(path);
+        if (host.endsWith('sciencedirect.com')) return /^\/science\/article\//.test(path);
+        if (host.endsWith('wiley.com')) return /\/doi\//.test(path);
+        if (host.endsWith('tandfonline.com')) return /\/doi\//.test(path);
+        if (host.endsWith('optica.org') || host.endsWith('osa.org')) return /\/(abstract|articles|doi|fulltext)\//.test(path) || /doi|abstract|article/.test(cleanTitle);
+        if (/(frontiersin\.org|plos\.org|cell\.com|thelancet\.com|nejm\.org|bmj\.com|mdpi\.com)$/.test(host)) return path.length > 1;
+        if (/\.(edu|gov)$/.test(host) || /\.ac\.[a-z]{2,}$/.test(host)) return path.length > 1;
+        return false;
+    }
+
+    isDisallowedAcademicMediaSource(value) {
+        const text = String(value || '').toLowerCase();
+        return /(bbc\.com|reuters\.com|apnews\.com|cnbc\.com|theguardian\.com|cnn\.com|nytimes\.com|washingtonpost\.com|bloomberg\.com|forbes\.com|news\.sina\.com\.cn|news\.163\.com|people\.com\.cn|nbd\.com\.cn|paperswithcode\.com|huggingface\.co|medium\.com|substack\.com)/i.test(text);
+    }
+
+    isFailedAcademicReadText(value) {
+        const text = String(value || '').toLowerCase();
+        return /(\u672a\u627e\u5230|\u8bf7\u5c1d\u8bd5\u66f4\u6362\u5173\u952e\u8bcd|no relevant|not relevant|not found|no matching|focus_keyword|focus_k)/i.test(text);
+    }
+
+    extractFirstUrlFromText(value) {
+        const text = String(value || '');
+        const fullUrl = (text.match(/https?:\/\/[^\s"'<>]+/i) || [])[0];
+        if (fullUrl) return fullUrl;
+        const domain = (text.match(/\b(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|ai|cn|uk|de|jp|fr|au|ca)(?:\/[^\s"'<>]*)?/i) || [])[0];
+        return domain || '';
+    }
+
+    buildEvidenceCitationCatalog(evidence = [], plan = null) {
+        const academicMode = this.isAcademicResearchPlan(plan);
         const seen = new Set();
         return (Array.isArray(evidence) ? evidence : [])
             .filter(entry => entry && !entry.error && (entry.title || entry.url))
+            .filter(entry => !academicMode || this.isAllowedAcademicEvidence(entry))
             .filter(entry => !this.isGenericSourceHomepage(entry.title || '', entry.url || ''))
             .map(entry => ({ ...entry, _candidateKey: this.getEvidenceCandidateKey(entry) }))
             .filter(entry => {
@@ -791,11 +993,28 @@ class AgentRuntime {
         return best;
     }
 
+    findBestEvidenceMatchesForClaim(claimText, catalog, usedEvidenceKeys = new Set(), limit = 1) {
+        const claim = this.cleanClaimForCitationMatch(claimText);
+        if (!claim) return [];
+        return (Array.isArray(catalog) ? catalog : [])
+            .map(entry => {
+                const key = this.getEvidenceCandidateKey(entry);
+                return {
+                    entry,
+                    key,
+                    score: this.scoreEvidenceClaimMatch(claim, entry) - (usedEvidenceKeys.has(key) ? 3 : 0)
+                };
+            })
+            .filter(item => item.key)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, Math.max(1, limit));
+    }
+
     cleanClaimForCitationMatch(value) {
         return this.cleanOneLine(value || '')
             .replace(/^#+\s*/, '')
             .replace(/^\s*[\d一二三四五六七八九十]+[.)、\s-]+/, '')
-            .replace(/\[(\d+)\]/g, ' ')
+            .replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, ' ')
             .trim();
     }
 
@@ -849,22 +1068,39 @@ class AgentRuntime {
         return tokens;
     }
 
-    buildDetailedSourceBody(sourceId, rawSourceMap, evidenceIndex) {
+    buildDetailedSourceBody(sourceId, rawSourceMap, evidenceIndex, plan = null) {
+        const body = rawSourceMap.get(String(sourceId));
+        if (this.isAcademicResearchPlan(plan) && body && !this.isAllowedAcademicSourceBody(body)) return '';
+        if (body) return body;
         const evidence = evidenceIndex.get(String(sourceId));
         if (evidence) return this.formatEvidenceSource(evidence);
-        return rawSourceMap.get(String(sourceId)) || `工具来源 ID ${sourceId} — 详情未返回`;
+        return '';
     }
 
-    buildEvidenceSourceIndex(evidence = []) {
-        const index = new Map();
+    buildEvidenceSourceIndex(evidence = [], plan = null) {
+        const academicMode = this.isAcademicResearchPlan(plan);
+        const buckets = new Map();
         (Array.isArray(evidence) ? evidence : []).forEach(entry => {
+            if (academicMode && !this.isAllowedAcademicEvidence(entry)) return;
             const sourceId = String(entry?.source_id ?? '').trim();
             if (!sourceId) return;
             if (!entry?.title && !entry?.url) return;
-            const existing = index.get(sourceId);
-            if (!existing || this.scoreEvidenceSource(entry) > this.scoreEvidenceSource(existing)) {
-                index.set(sourceId, entry);
-            }
+            this.pushMapValue(buckets, sourceId, entry);
+        });
+        const index = new Map();
+        buckets.forEach((entries, sourceId) => {
+            const byCandidate = new Map();
+            entries.forEach(entry => {
+                const key = this.getEvidenceCandidateKey(entry);
+                if (!key) return;
+                const existing = byCandidate.get(key);
+                if (!existing || this.scoreEvidenceSource(entry) > this.scoreEvidenceSource(existing)) {
+                    byCandidate.set(key, entry);
+                }
+            });
+            const candidates = Array.from(byCandidate.values());
+            if (candidates.length !== 1) return;
+            index.set(sourceId, candidates[0]);
         });
         return index;
     }
@@ -924,7 +1160,8 @@ class AgentRuntime {
     buildForcedResearchFollowUp(plan, runState, userMessage, forcedCount = 0) {
         const isNewsBriefRun = plan?.researchProfile === 'news_brief' || plan?.mode === 'news_brief';
         if (!isNewsBriefRun && !this.isBroadDailyNewsRequest(userMessage)) {
-            if (!this.isResearchLikeMode(plan?.mode) || forcedCount >= 3) return null;
+            const maxForcedFollowups = plan?.mode === 'agent' ? 2 : 3;
+            if (!this.isEvidenceSeekingPlan(plan) || forcedCount >= maxForcedFollowups) return null;
             return this.buildGenericResearchFollowUp(plan, runState, userMessage);
         }
         if (forcedCount >= 2) return null;
@@ -978,26 +1215,33 @@ class AgentRuntime {
     }
 
     buildGenericResearchFollowUp(plan, runState, userMessage) {
-        const evidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
-        const stats = this.getResearchEvidenceStats(evidence);
         const profile = plan?.researchProfile || 'general';
+        const rawEvidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
+        const evidence = profile === 'academic'
+            ? rawEvidence.filter(entry => this.isAllowedAcademicEvidence(entry))
+            : rawEvidence;
+        const stats = this.getResearchEvidenceStats(evidence);
         const sourceTarget = Number(plan?.sourceTarget) || 28;
         const minUrls = profile === 'academic'
-            ? Math.min(14, Math.max(10, Math.floor(sourceTarget * 0.45)))
+            ? Math.min(28, Math.max(18, Math.floor(sourceTarget * 0.45)))
+            : profile === 'agentic'
+            ? Math.min(22, Math.max(12, Math.floor(sourceTarget * 0.5)))
             : Math.min(20, Math.max(14, Math.floor(sourceTarget * 0.6)));
-        const minReadable = profile === 'academic' ? 4 : 6;
+        const minReadable = profile === 'academic' ? 8 : profile === 'agentic' ? 6 : 6;
 
         if (stats.uniqueUrls >= minUrls && stats.readableCount >= minReadable) return null;
 
         const profileHint = profile === 'academic'
-            ? 'Use targeted primary-source searches and direct reads: arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journal/conference pages, and known project pages.'
+            ? 'Use targeted primary-source searches and direct reads: arXiv abs pages, DOI pages, PubMed records, Nature/Science/Optica/IEEE/ACM paper pages, official journal/conference pages, and known project pages. Do not count BBC/Reuters/AP/CNBC/Guardian/news homepages, Papers with Code, Hugging Face trending pages, or failed homepage reads as academic evidence.'
+            : profile === 'agentic'
+            ? 'Use web_research depth="deep" read_top=true when broad context is needed, then open/read the most relevant sources with search_urls/read_webpage. Distill observations before final synthesis; do not rely only on fast snippets.'
             : 'Use web_research depth="deep" read_top=true max_results=28-32, then follow with search_urls/read_webpage for weak or missing angles.';
         const queryHint = this.previewValue(userMessage, 260).replace(/\s+/g, ' ');
 
         return [
             'Evidence gate: do not finalize yet. Continue using tools.',
             `The current research evidence is still shallow for this request. Query: ${queryHint}`,
-            `Current evidence: ${stats.uniqueUrls} unique URLs, ${stats.hosts.size} unique hosts, ${stats.readableCount} readable evidence items, ${stats.candidateCount} search/community candidates, ${stats.errorCount} read errors.`,
+            `Current qualifying evidence: ${stats.uniqueUrls} unique URLs, ${stats.hosts.size} unique hosts, ${stats.readableCount} readable evidence items, ${stats.candidateCount} search/community candidates, ${stats.errorCount} read errors.`,
             `Minimum before final synthesis for this run: about ${minUrls}+ unique URLs and ${minReadable}+ readable evidence items, unless the web is clearly blocked.`,
             profileHint,
             'After the next tool pass, synthesize only if the important claims can be backed by inline numeric citations and a clean final source list.'
@@ -1080,6 +1324,11 @@ class AgentRuntime {
 
     isResearchLikeMode(mode) {
         return mode === 'research' || mode === 'news_brief';
+    }
+
+    isEvidenceSeekingPlan(plan = null) {
+        return this.isResearchLikeMode(plan?.mode)
+            || (plan?.mode === 'agent' && Number(plan?.sourceTarget || 0) > 0);
     }
 
     getEvidenceDomains(evidence = []) {
@@ -1474,7 +1723,7 @@ class AgentRuntime {
     }
 
     extractCitationMarkers(text) {
-        return Array.from(new Set(Array.from(String(text || '').matchAll(/\[(\d+)\]/g)).map(match => String(match[1]))));
+        return Array.from(new Set(this.extractCitationMarkersWithDuplicates(text)));
     }
 
     verifyCitations(runState, finalContent, citationMarkers) {
@@ -1712,16 +1961,28 @@ class AgentRuntime {
             });
         }
 
-        return entries.filter(Boolean);
+        return entries
+            .filter(Boolean)
+            .sort((a, b) => this.scoreEvidenceSource(b) - this.scoreEvidenceSource(a));
     }
 
     addEvidenceEntry(runState, entry) {
-        if (!entry || runState.evidenceLedger.length >= 80) return;
+        if (!entry) return;
         const normalizedEntry = window.AgentContract?.normalizeEvidenceEntry
             ? window.AgentContract.normalizeEvidenceEntry(entry, { runId: runState.runId })
             : { ...entry, id: `evd-${Date.now().toString(36)}-${runState.evidenceLedger.length + 1}`, runId: runState.runId };
         const key = [normalizedEntry.kind, normalizedEntry.source_id, normalizedEntry.url, normalizedEntry.title].filter(Boolean).join('|').toLowerCase();
-        if (runState.evidenceLedger.some(existing => existing.dedupe_key === key)) return;
+        const existingIndex = runState.evidenceLedger.findIndex(existing => existing.dedupe_key === key);
+        if (existingIndex >= 0) {
+            if (this.scoreEvidenceSource(normalizedEntry) <= this.scoreEvidenceSource(runState.evidenceLedger[existingIndex])) return;
+            runState.evidenceLedger.splice(existingIndex, 1);
+        }
+        const maxEvidenceItems = 160;
+        if (runState.evidenceLedger.length >= maxEvidenceItems) {
+            const weakestIndex = this.findWeakestEvidenceIndex(runState.evidenceLedger);
+            if (weakestIndex < 0 || this.scoreEvidenceSource(normalizedEntry) <= this.scoreEvidenceSource(runState.evidenceLedger[weakestIndex])) return;
+            runState.evidenceLedger.splice(weakestIndex, 1);
+        }
         const stored = { ...normalizedEntry, dedupe_key: key };
         runState.evidenceLedger.push(stored);
         runState.metrics.evidence_items = runState.evidenceLedger.length;
@@ -1737,6 +1998,20 @@ class AgentRuntime {
             trustReason: stored.trustReason,
             contentHash: stored.contentHash
         }, { stage: 'observe', visibility: 'history' });
+    }
+
+    findWeakestEvidenceIndex(evidence = []) {
+        if (!Array.isArray(evidence) || !evidence.length) return -1;
+        let weakestIndex = 0;
+        let weakestScore = this.scoreEvidenceSource(evidence[0]);
+        evidence.forEach((entry, index) => {
+            const score = this.scoreEvidenceSource(entry);
+            if (score < weakestScore) {
+                weakestScore = score;
+                weakestIndex = index;
+            }
+        });
+        return weakestIndex;
     }
 
     normalizeEvidenceEntry(entry) {

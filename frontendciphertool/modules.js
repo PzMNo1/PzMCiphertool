@@ -231,10 +231,7 @@ const MODULES = {
                 
                 <div class="input-container">
                     <div class="attachment-controls">
-                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
-                            <span class="cyber-button__tag">作图模式</span>
-                        </button>
-                        <button id="attachment-add-btn" class="attachment-add-btn" title="导入文件或目录" aria-label="导入文件或目录" type="button">+</button>
+                        <button id="attachment-add-btn" class="attachment-add-btn" title="导入文件或目录" aria-label="导入文件或目录" type="button"></button>
                         <div id="attachment-menu" class="attachment-menu" aria-hidden="true">
                             <button id="attachment-file-btn" type="button">导入文件</button>
                             <button id="attachment-folder-btn" type="button">导入目录</button>
@@ -250,10 +247,13 @@ const MODULES = {
                         <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
                     </div>
                     <div class="input-actions">
-                        <button id="tool-toggle" class="cyber-button" title="启用工具">
+                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
+                            <span class="cyber-button__tag">作图模式</span>
+                        </button>
+                        <button id="tool-toggle" class="cyber-button active" title="启用工具">
                             <span class="cyber-button__tag">🔧 工具</span>
                         </button>
-                        <button id="deep-think-toggle" class="cyber-button" title="深度思考">
+                        <button id="deep-think-toggle" class="cyber-button active" title="深度思考">
                             <span class="cyber-button__tag">深度思考</span>
                         </button>
                         <button id="send-message" class="cyber-button">
