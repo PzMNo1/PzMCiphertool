@@ -271,6 +271,8 @@ function initWorkflowCoze() {
     let selectedConn = null;
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
+    let connectionsFrame = null;
+    let gridFrame = null;
 
     // === DOM refs ===
     const canvas = document.getElementById('wf-canvas');
@@ -278,11 +280,34 @@ function initWorkflowCoze() {
     const svg = document.getElementById('wf-svg');
     const tempLine = document.getElementById('wf-temp-line');
     const searchInput = document.getElementById('wf-search');
-    const ctxMenu = document.getElementById('wf-context-menu');
     if (!canvas) return;
 
     // Hidden input for sync with cipher/999_funtion.js
     const hiddenInput = document.getElementById('mainInputCoze');
+
+    function requestRenderConnections() {
+        if (connectionsFrame) return;
+        connectionsFrame = requestAnimationFrame(() => {
+            connectionsFrame = null;
+            renderConnections();
+        });
+    }
+
+    function requestDrawGrid() {
+        if (gridFrame) return;
+        gridFrame = requestAnimationFrame(() => {
+            gridFrame = null;
+            drawGrid();
+        });
+    }
+
+    function getNodeNaturalHeight(el) {
+        const previousHeight = el.style.height;
+        el.style.height = 'auto';
+        const height = Math.ceil(el.getBoundingClientRect().height);
+        el.style.height = previousHeight;
+        return height;
+    }
 
     // === 坐标转换 ===
     function screenToCanvas(sx, sy) {
@@ -309,25 +334,39 @@ function initWorkflowCoze() {
 
     // === 渲染所有连线 ===
     function renderConnections() {
-        svg.querySelectorAll('.wf-connection').forEach(p => p.remove());
+        const existing = new Map(
+            Array.from(svg.querySelectorAll('.wf-connection')).map(path => [Number(path.dataset.id), path])
+        );
+        const active = new Set();
+
         connections.forEach(c => {
             const p1 = getPortPos(c.from, 'out', c.fromPort || 'result');
             const p2 = getPortPos(c.to, 'in');
             const dx = Math.abs(p2.x - p1.x) * 0.5;
             const d = `M${p1.x},${p1.y} C${p1.x + dx},${p1.y} ${p2.x - dx},${p2.y} ${p2.x},${p2.y}`;
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+            let path = existing.get(c.id);
+            if (!path) {
+                path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.dataset.id = c.id;
+                path.style.pointerEvents = 'stroke';
+                path.addEventListener('click', e => {
+                    e.stopPropagation();
+                    selectedConn = Number(path.dataset.id);
+                    selectedNode = null;
+                    deselectAll();
+                    renderConnections();
+                });
+                svg.appendChild(path);
+            }
+
             path.setAttribute('d', d);
             path.setAttribute('class', 'wf-connection' + (selectedConn === c.id ? ' selected' : ''));
-            path.setAttribute('data-id', c.id);
-            path.style.pointerEvents = 'stroke';
-            path.addEventListener('click', e => {
-                e.stopPropagation();
-                selectedConn = c.id;
-                selectedNode = null;
-                deselectAll();
-                renderConnections();
-            });
-            svg.appendChild(path);
+            active.add(c.id);
+        });
+
+        existing.forEach((path, id) => {
+            if (!active.has(id)) path.remove();
         });
     }
 
@@ -411,7 +450,7 @@ function initWorkflowCoze() {
     // === 创建节点 DOM ===
     function createNodeEl(n) {
         const el = document.createElement('div');
-        el.className = 'wf-node';
+        el.className = 'wf-node card';
         el.id = 'node-' + n.id;
         el.style.left = n.x + 'px';
         el.style.top = n.y + 'px';
@@ -433,7 +472,7 @@ function initWorkflowCoze() {
                 }</select></div>`
                 : '';
             const paramHTML = cfg.pType && cfg.pType !== 'none'
-                ? `<div class="wf-node-field"><label>${cfg.enigma ? '转子参数' : '参数'}</label><input type="${cfg.pType === 'number' ? 'number' : 'text'}" value="${escapeHTML(n.param ?? cfg.def ?? '')}" class="wf-cipher-param" placeholder="${cfg.enigma ? '反射器|转子|位置|环|插板' : '参数'}"></div>`
+                ? `<div class="wf-node-field"><input type="${cfg.pType === 'number' ? 'number' : 'text'}" value="${escapeHTML(n.param ?? cfg.def ?? '')}" class="wf-cipher-param" placeholder="${cfg.enigma ? '反射器|转子|位置|环|插板' : '参数'}"></div>`
                 : '';
             const hmacHTML = cfg.hmac
                 ? `<div class="wf-hmac-panel">
@@ -659,7 +698,7 @@ function initWorkflowCoze() {
     function applyTransform() {
         nodesLayer.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${zoom})`;
         svg.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${zoom})`;
-        renderConnections();
+        requestDrawGrid();
     }
 
     // === 画布事件 ===
@@ -687,7 +726,7 @@ function initWorkflowCoze() {
                 const dx = (e.clientX - resizeStart.x) / zoom;
                 const dy = (e.clientY - resizeStart.y) / zoom;
                 if (resizeStart.dir.includes('e')) {
-                    n.w = Math.max(170, Math.min(520, resizeStart.w + dx));
+                    n.w = Math.max(190, Math.min(520, resizeStart.w + dx));
                     el.style.width = n.w + 'px';
                     el.querySelectorAll('.wf-node-input').forEach(input => {
                         input.style.height = 'auto';
@@ -695,10 +734,11 @@ function initWorkflowCoze() {
                     });
                 }
                 if (resizeStart.dir.includes('s')) {
-                    n.h = Math.max(140, Math.min(620, resizeStart.h + dy));
+                    const minHeight = getNodeNaturalHeight(el);
+                    n.h = Math.max(minHeight, Math.min(620, resizeStart.h + dy));
                     el.style.height = n.h + 'px';
                 }
-                renderConnections();
+                requestRenderConnections();
             }
         }
         if (draggingNode) {
@@ -709,7 +749,7 @@ function initWorkflowCoze() {
             const el = document.getElementById('node-' + draggingNode);
             el.style.left = n.x + 'px';
             el.style.top = n.y + 'px';
-            renderConnections();
+            requestRenderConnections();
         }
         if (connecting) {
             const mp = screenToCanvas(e.clientX, e.clientY);
@@ -766,44 +806,9 @@ function initWorkflowCoze() {
         }
     });
 
-    // Right-click context menu
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
-        const cp = screenToCanvas(e.clientX, e.clientY);
-        showContextMenu(e.clientX, e.clientY, cp.x, cp.y);
     });
-
-    function showContextMenu(sx, sy, cx, cy) {
-        ctxMenu.innerHTML = '';
-        const items = [];
-        // Top 8 ciphers for quick add
-        const quickCiphers = Object.keys(cipherMap).slice(0, 8);
-        quickCiphers.forEach(name => {
-            items.push({ label: '🔐 ' + name, action: () => addNode('cipher', cx, cy, name) });
-        });
-        items.push({ sep: true });
-        items.push({ label: '🗑 清空画布', action: clearCanvas, cls: 'danger' });
-
-        items.forEach(it => {
-            if (it.sep) {
-                const sep = document.createElement('div');
-                sep.className = 'wf-context-menu-separator';
-                ctxMenu.appendChild(sep);
-            } else {
-                const div = document.createElement('div');
-                div.className = 'wf-context-menu-item' + (it.cls ? ' ' + it.cls : '');
-                div.textContent = it.label;
-                div.addEventListener('click', () => { it.action(); hideContextMenu(); });
-                ctxMenu.appendChild(div);
-            }
-        });
-        ctxMenu.style.left = sx + 'px';
-        ctxMenu.style.top = sy + 'px';
-        ctxMenu.classList.add('active');
-    }
-
-    function hideContextMenu() { ctxMenu.classList.remove('active'); }
-    document.addEventListener('click', hideContextMenu);
 
     function clearCanvas() {
         Object.keys(nodes).forEach(id => {
@@ -880,25 +885,25 @@ function initWorkflowCoze() {
         gridCanvas.width = w;
         gridCanvas.height = h;
         ctx.clearRect(0, 0, w, h);
-        const step = 30 * zoom;
+        const step = Math.max(14, 32 * zoom);
         const ox = pan.x % step;
         const oy = pan.y % step;
-        ctx.strokeStyle = 'rgba(64, 224, 255, 0.06)';
+        ctx.strokeStyle = 'rgba(99, 235, 255, 0.085)';
         ctx.lineWidth = 1;
         for (let x = ox; x < w; x += step) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            const crispX = Math.round(x) + 0.5;
+            ctx.beginPath(); ctx.moveTo(crispX, 0); ctx.lineTo(crispX, h); ctx.stroke();
         }
         for (let y = oy; y < h; y += step) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            const crispY = Math.round(y) + 0.5;
+            ctx.beginPath(); ctx.moveTo(0, crispY); ctx.lineTo(w, crispY); ctx.stroke();
         }
     }
 
-    // Redraw grid on transform
-    const origApply = applyTransform;
-    const applyWithGrid = () => { origApply(); drawGrid(); };
-    // Replace
-    canvas.addEventListener('mousemove', drawGrid);
-    window.addEventListener('resize', () => { drawGrid(); renderConnections(); });
+    window.addEventListener('resize', () => {
+        requestDrawGrid();
+        requestRenderConnections();
+    });
 
     // Clear button
     document.getElementById('wf-clear-btn')?.addEventListener('click', clearCanvas);

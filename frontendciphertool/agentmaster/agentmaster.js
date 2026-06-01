@@ -159,24 +159,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // MathJax
-    if (!window.MathJax) {
+    let mathJaxPromise = null;
+    function hasMathSyntax(value) {
+        const text = String(value || '');
+        return text.includes('$$') ||
+            text.includes('\\[') ||
+            text.includes('\\(') ||
+            /\$(?![\s$])(?:[^$]*\S)?\$/.test(text);
+    }
+    function ensureMathJax() {
+        if (window.MathJax?.typesetPromise) return Promise.resolve(window.MathJax);
+        if (window.__cipherToolMathJaxPromise) return window.__cipherToolMathJaxPromise;
+        if (mathJaxPromise) return mathJaxPromise;
         window.MathJax = {
             tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
             svg: { fontCache: 'global' }
         };
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-        s.async = true;
-        s.onload = () => window.MathJax?.typesetPromise?.([history]).catch(() => { });
-        document.head.appendChild(s);
+        mathJaxPromise = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+            s.async = true;
+            s.onload = () => resolve(window.MathJax);
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+        window.__cipherToolMathJaxPromise = mathJaxPromise;
+        return mathJaxPromise;
     }
-
     let mjBusy = false, mjLast = 0;
-    function renderMath(el) {
-        if (window.MathJax?.typesetPromise && !mjBusy && Date.now() - mjLast > 250) {
+    function renderMath(el, force = false) {
+        if (!hasMathSyntax(el?.textContent)) return;
+        if (!mjBusy && (force || Date.now() - mjLast > 250)) {
             mjBusy = true; mjLast = Date.now();
-            window.MathJax.typesetPromise([el]).finally(() => { mjBusy = false; });
+            ensureMathJax()
+                .then(() => window.MathJax?.typesetPromise?.([el]))
+                .catch(() => { })
+                .finally(() => { mjBusy = false; });
         }
     }
 
@@ -405,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const parsed = allowInlineActions ? extractInlineActions(reply) : { text: reply, actions: [] };
         msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : (allowInlineActions ? '<p>正在操作页面...</p>' : '<p>我理解这是普通问题，但没有生成回答。</p>');
-        window.MathJax?.typesetPromise?.([msgDiv]);
+        renderMath(msgDiv, true);
         return {
             reply: parsed.text,
             toolCalls: compactToolCalls(toolCalls),

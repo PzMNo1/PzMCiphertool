@@ -16,7 +16,7 @@
         if (el) el.textContent = text;
     }
 
-    function loadScripts(list, version = new Date().getTime()) {
+    function loadScripts(list, version = window.CIPHERTOOL_ASSET_VERSION || '20260531') {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
             s.src = src + '?v=' + version;

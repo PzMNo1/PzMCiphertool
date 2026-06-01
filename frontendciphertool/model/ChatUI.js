@@ -8,6 +8,7 @@ class ChatUI {
         this.messagesContainer = null;
         this.mathJaxRendering = false;
         this.lastMathJaxRenderTime = 0;
+        this.mathJaxPromise = null;
         this.toolCallNames = new Map();
     }
 
@@ -221,15 +222,24 @@ class ChatUI {
      * 防抖的 MathJax 渲染
      * @param {HTMLElement} element
      */
-    debouncedMathJax(element) {
-        if (window.MathJax && window.MathJax.typesetPromise && !this.mathJaxRendering &&
-            (Date.now() - this.lastMathJaxRenderTime > 250)) {
+    debouncedMathJax(element, force = false) {
+        if (!this.hasMathSyntax(element?.textContent)) return;
+        if (!this.mathJaxRendering && (force || Date.now() - this.lastMathJaxRenderTime > 250)) {
             this.mathJaxRendering = true;
             this.lastMathJaxRenderTime = Date.now();
-            window.MathJax.typesetPromise([element])
+            this.initMathJax()
+                .then(() => window.MathJax?.typesetPromise?.([element]))
                 .then(() => { this.mathJaxRendering = false; })
                 .catch(() => { this.mathJaxRendering = false; });
         }
+    }
+
+    hasMathSyntax(value) {
+        const text = String(value || '');
+        return text.includes('$$') ||
+            text.includes('\\[') ||
+            text.includes('\\(') ||
+            /\$(?![\s$])(?:[^$]*\S)?\$/.test(text);
     }
 
     escapeHtml(value) {
@@ -924,10 +934,7 @@ class ChatUI {
         }
         this.hideEmptyReasoning(container);
 
-        // 最终 MathJax 渲染
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([container.contentDiv]).catch(err => console.log('MathJax error:', err));
-        }
+        this.debouncedMathJax(container.contentDiv, true);
     }
 
     /**
@@ -1031,10 +1038,7 @@ class ChatUI {
 
         this.messagesContainer.appendChild(messageElement);
 
-        // MathJax 渲染
-        if (window.MathJax && window.MathJax.typesetPromise && msg.role !== 'user') {
-            window.MathJax.typesetPromise([messageContent]).catch(err => console.log('MathJax error:', err));
-        }
+        if (msg.role !== 'user') this.debouncedMathJax(messageContent);
     }
 
     /**
@@ -1099,7 +1103,9 @@ class ChatUI {
      * 初始化 MathJax
      */
     initMathJax() {
-        if (window.MathJax) return;
+        if (window.MathJax && window.MathJax.typesetPromise) return Promise.resolve(window.MathJax);
+        if (window.__cipherToolMathJaxPromise) return window.__cipherToolMathJaxPromise;
+        if (this.mathJaxPromise) return this.mathJaxPromise;
 
         window.MathJax = {
             tex: {
@@ -1111,21 +1117,18 @@ class ChatUI {
             }
         };
 
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-        script.async = true;
-        script.id = 'MathJax-script';
+        this.mathJaxPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+            script.async = true;
+            script.id = 'MathJax-script';
+            script.onload = () => resolve(window.MathJax);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        window.__cipherToolMathJaxPromise = this.mathJaxPromise;
 
-        script.onload = () => {
-            if (window.MathJax && window.MathJax.typesetPromise) {
-                const chatMessages = document.getElementById('chat-messages');
-                if (chatMessages) {
-                    window.MathJax.typesetPromise([chatMessages]).catch(err => console.log('MathJax error:', err));
-                }
-            }
-        };
-
-        document.head.appendChild(script);
+        return this.mathJaxPromise;
     }
 }
 

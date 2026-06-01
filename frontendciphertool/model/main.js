@@ -1756,7 +1756,6 @@
     function initChatFunctions() {
         // 初始化 UI
         window.chatUI.init();
-        window.chatUI.initMathJax();
 
         // 绑定事件
         bindEvents();

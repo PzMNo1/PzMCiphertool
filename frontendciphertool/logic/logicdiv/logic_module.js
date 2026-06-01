@@ -64,9 +64,7 @@ function getLogicHTML() {
             <button class="logic-btn" onclick="document.querySelectorAll('#logic-workspace-container > div').forEach(el => { if(el.id && el.id.endsWith('-workspace')) el.style.display='none'; }); document.getElementById('logic-list-container').style.display='none'; document.getElementById('logic-workspace-container').style.display='block'; document.getElementById('yinyang-workspace').style.display='flex'; window.initYinyangGrid && window.initYinyangGrid();">Yin Yang</button>
         </div>
         
-        <div id="logic-workspace-container" style="display: none; padding-top: 4rem; margin-top: 2rem;">
-            ${(window.logicWorkspaceHTMLs || []).join('\n')}
-        </div>
+        <div id="logic-workspace-container" style="display: none; padding-top: 4rem; margin-top: 2rem;"></div>
     </div>`;
 }
 
@@ -80,6 +78,21 @@ function hydrateLogicPuzzleTargets(root = document) {
         const target = workspaceMatch[1];
         btn.dataset.target = target;
         btn.dataset.workspace = `${target}-workspace`;
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', async event => {
+            event.preventDefault();
+            if (btn.dataset.loading === 'true') return;
+            btn.dataset.loading = 'true';
+            btn.setAttribute('aria-busy', 'true');
+            try {
+                if (typeof window.openLogicPuzzle === 'function') {
+                    await window.openLogicPuzzle(target);
+                }
+            } finally {
+                btn.dataset.loading = 'false';
+                btn.removeAttribute('aria-busy');
+            }
+        });
         if (!btn.getAttribute('aria-label')) {
             btn.setAttribute('aria-label', `打开逻辑谜题 ${btn.textContent.trim() || target}`);
         }

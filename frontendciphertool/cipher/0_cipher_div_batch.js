@@ -13,9 +13,8 @@
 
     window.loadCipherScriptBatch = function (loadBatch) {
         if (typeof loadBatch !== 'function') return Promise.resolve([]);
-        return window.CIPHER_SCRIPT_BATCH.reduce(
-            (chain, src) => chain.then(() => loadBatch([src])),
-            Promise.resolve()
-        );
+        const setupScript = './cipher/999_funtion.js';
+        const dependencyScripts = window.CIPHER_SCRIPT_BATCH.filter(src => src !== setupScript);
+        return loadBatch(dependencyScripts).then(() => loadBatch([setupScript]));
     };
 })();

@@ -496,7 +496,7 @@ textarea {
       rgba(64, 224, 255, 0.4) 50%,
       transparent 60%);
   opacity: 0;
-  animation: quantumStream 3s linear infinite;
+  animation: none;
   pointer-events: none;
 }
 
@@ -550,6 +550,16 @@ textarea {
   animation: stargate 3s linear infinite;
   filter: drop-shadow(0 0 6px #40e0ff);
   pointer-events: none;
+}
+
+#jiamishiyanshi-content .submodule-btn::after {
+  opacity: 0;
+  animation: none;
+}
+
+#jiamishiyanshi-content .submodule-btn.active::after {
+  opacity: 1;
+  animation: stargate 3s linear infinite;
 }
 
 @keyframes quantumStream {
@@ -641,8 +651,6 @@ body::before {
   pointer-events: none;
   z-index: -2;
   opacity: 0.55;
-  will-change: transform;
-  animation: holoSpin 90s linear infinite;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0%25' stop-color='%2300ffd2' stop-opacity='0.07'/%3E%3Cstop offset='100%25' stop-color='transparent' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='200' cy='200' r='180' fill='url(%23g)'/%3E%3Ccircle cx='200' cy='200' r='180' fill='none' stroke='%2300ffd2' stroke-width='1' opacity='0.35'/%3E%3Ccircle cx='200' cy='200' r='179' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='200' rx='180' ry='22' fill='none' stroke='%2300ffd2' stroke-width='0.8' opacity='0.3'/%3E%3Cellipse cx='200' cy='150' rx='158' ry='16' fill='none' stroke='%2300e0ff' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='250' rx='158' ry='16' fill='none' stroke='%2300e0ff' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='105' rx='110' ry='10' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='295' rx='110' ry='10' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='200' rx='22' ry='180' fill='none' stroke='%2300ffd2' stroke-width='0.8' opacity='0.28'/%3E%3Cellipse cx='200' cy='200' rx='90' ry='180' fill='none' stroke='%2300ffd2' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='200' rx='140' ry='180' fill='none' stroke='%2300e0ff' stroke-width='0.6' opacity='0.18'/%3E%3Cellipse cx='200' cy='200' rx='168' ry='180' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.12'/%3E%3Ccircle cx='155' cy='155' r='3' fill='%2300ffd2' opacity='0.4'/%3E%3Ccircle cx='235' cy='170' r='2.5' fill='%2300c8ff' opacity='0.35'/%3E%3Ccircle cx='250' cy='215' r='2' fill='%2364c8ff' opacity='0.3'/%3E%3Ccircle cx='165' cy='240' r='2.5' fill='%2300ffdc' opacity='0.3'/%3E%3Ccircle cx='210' cy='145' r='2' fill='%2300ffd2' opacity='0.35'/%3E%3Ccircle cx='180' cy='200' r='1.8' fill='%2300e0ff' opacity='0.25'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
@@ -660,14 +668,6 @@ body::after {
   background: radial-gradient(circle, rgba(0, 255, 210, 0.04) 0%, rgba(0, 200, 255, 0.02) 40%, transparent 70%);
   box-shadow: 0 0 80px 20px rgba(0, 255, 210, 0.03), 0 0 160px 60px rgba(0, 180, 255, 0.02);
 }
-
-@keyframes holoSpin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-
 
 .card:hover {
   transform: translateY(-5px);

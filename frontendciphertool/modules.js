@@ -74,7 +74,7 @@ const MODULES = {
         <textarea id="mainInputCoze" style="display:none"></textarea>
 
         <div class="wf-container">
-            <div class="wf-toolbar">
+            <div class="wf-toolbar card">
                 <div class="wf-toolbar-search"><input type="text" id="wf-search" placeholder="搜索算法..."></div>
                 <div class="wf-toolbar-list">
                     <div class="wf-toolbar-category">
@@ -135,7 +135,10 @@ const MODULES = {
                     </div>
                 </div>
                 <div class="wf-toolbar-actions">
-                    <button class="cyber-button" id="wf-clear-btn"><span class="cyber-button__tag">🗑 清空画布</span></button>
+                    <button type="button" class="cyber-button" id="wf-clear-btn">
+                        <span class="cyber-button__glitch"></span>
+                        <span class="cyber-button__tag">清空画布</span>
+                    </button>
                 </div>
             </div>
 
@@ -313,22 +316,22 @@ const MODULES = {
             <div class="container">
                 <!-- Bilibili -->
                 <a href="https://space.bilibili.com/262497072?spm_id_from=333.337.0.0" target="_blank" class="author-image-link">
-                    <img src="./sendfeedback/zuozhetupian/zuozhedeBilibili.jpg" alt="Bilibili">
+                    <img data-src="./sendfeedback/zuozhetupian/zuozhedeBilibili.jpg" alt="Bilibili" loading="lazy">
                 </a>
 
                 <!-- 公众号 -->
                 <a href="https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=MzI3NTI2MTE4OA==&scene=110#wechat_redirect" target="_blank" class="author-image-link">
-                    <img src="./sendfeedback/zuozhetupian/zuozhedegongzhonghao.jpg" alt="公众号">
+                    <img data-src="./sendfeedback/zuozhetupian/zuozhedegongzhonghao.jpg" alt="公众号" loading="lazy">
                 </a>
 
                 <!-- 知乎 -->
                 <a href="https://www.zhihu.com/people/lei-shen-45-3" target="_blank" class="author-image-link">
-                    <img src="./sendfeedback/zuozhetupian/zuozhedezhihu.jpg" alt="知乎">
+                    <img data-src="./sendfeedback/zuozhetupian/zuozhedezhihu.jpg" alt="知乎" loading="lazy">
                 </a>
 
                 <!-- 赞赏 -->
                 <div class="author-image-link" id="rewardCard" style="cursor: pointer;">
-                    <img src="./sendfeedback/zuozhetupian/zanshangzuozhe.jpg" alt="赞赏作者">
+                    <img data-src="./sendfeedback/zuozhetupian/zanshangzuozhe.jpg" alt="赞赏作者" loading="lazy">
                 </div>
             </div>
         </div>
@@ -388,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
         './sendfeedback/sendfeedback.js',
     ];
 
-    const loadVersion = new Date().getTime();
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20260531';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -398,6 +401,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(s);
         })));
     }
+
+    function loadLazyImages(root = document) {
+        root.querySelectorAll('img[data-src]').forEach(img => {
+            if (!img.getAttribute('src')) {
+                img.setAttribute('src', img.dataset.src);
+            }
+        });
+    }
+    window.loadLazyImages = loadLazyImages;
 
     // ===== 并行加载：核心区 + 逻辑区（互不阻塞）=====
     // 核心区：加载完立即初始化页面
@@ -439,6 +451,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetContainer = document.getElementById(id + '-container');
         if (targetContainer) {
             targetContainer.style.display = 'block';
+            loadLazyImages(targetContainer);
+        }
+
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        const targetSection = document.getElementById(id + '-content');
+        if (targetSection) {
+            targetSection.style.display = (id === 'workflow') ? 'flex' : 'block';
         }
 
         // 电子实验室懒加载

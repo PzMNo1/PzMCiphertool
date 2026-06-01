@@ -825,7 +825,7 @@ function initEnigmaUI() {
   
   updateEnigmaLayout();
   enigmaModelSelect.addEventListener('change', updateEnigmaLayout);
-  const mainInput = document.getElementById('mainInput');
+  const mainInput = document.querySelector('#xiandaiqu #mainInput');
   if (mainInput && !mainInput._enigmaListenerAdded) {
     mainInput.addEventListener('input', processEnigma);
     mainInput._enigmaListenerAdded = true;
@@ -955,7 +955,7 @@ function updateEnigmaLayout() {
 }
 
 function processEnigma() {
-  const inputText = document.getElementById('mainInput').value.toLowerCase();
+  const inputText = (document.querySelector('#xiandaiqu #mainInput')?.value || '').toLowerCase();
   const result = document.getElementById('EnigmaResult');
   const modelSelect = document.getElementById('enigmaModel');
   if (!inputText) {result.textContent = ''; return;}
@@ -1031,4 +1031,3 @@ const StringUtil = {
 
 window.EnigmaEncoder = EnigmaEncoder
 window.models = Enigmamodels
-

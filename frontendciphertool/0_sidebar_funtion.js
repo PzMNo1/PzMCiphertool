@@ -1,18 +1,5 @@
-// 这是侧边栏选项的交互作用函数
-function hideAllSections() {document.querySelectorAll('.content-section').forEach(section => {section.style.display = 'none';});}
-function showSection(sectionId) {
-    const section = document.getElementById(sectionId + '-content'); 
-    if (section) { section.style.display = (sectionId === 'workflow') ? 'flex' : 'block'; }
-}
-document.querySelectorAll('.menu-item').forEach(menuItem => {
-    menuItem.addEventListener('click', function(event) {
-        event.preventDefault(); 
-        hideAllSections(); 
-        showSection(this.dataset.target); 
-    });
-});
-hideAllSections();
-showSection('jiamishiyanshi'); 
+// 侧边栏菜单切换由 modules.js 的 showModule 统一处理。
+// 本文件只保留侧边栏 pin、搜索、子模块滑动和卡片置顶等交互。
 
 const sidebar = document.getElementById('sidebar');
 const sidebarPinBtn = document.getElementById('sidebar-pin-btn');
@@ -451,5 +438,4 @@ function initAuthorPage() {
         });
     }
 }
-
 

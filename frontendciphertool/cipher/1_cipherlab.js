@@ -591,20 +591,33 @@ function convertKnownChars(text, lookup) {
 
 const CCCHandler = {
   codeTable: CCC_TABLE || [],
+  codeToChar: null,
+  charToCode: null,
+  ensureMaps() {
+    if (this.codeToChar && this.charToCode) return;
+    this.codeToChar = new Map();
+    this.charToCode = new Map();
+    this.codeTable.forEach(item => {
+      this.codeToChar.set(item.CCCnumber, item.CCCCharacter);
+      this.charToCode.set(item.CCCCharacter, item.CCCnumber);
+    });
+  },
   convert(text) {
     if (!text.trim()) return "";
     return /^[\d\s]+$/.test(text.trim()) ? this.d(text) : this.e(text);
   },
   d(text) {
+    this.ensureMaps();
     return text.trim().split(/\s+/).map(c => {
       const codeNum = parseInt(c.replace(/^0+/, '') || '0', 10);
-      return this.codeTable.find(i => i.CCCnumber === codeNum)?.CCCCharacter || c;
+      return this.codeToChar.get(codeNum) || c;
     }).join("");
   },
   e(text) {
+    this.ensureMaps();
     return convertKnownChars(text, c => {
-      const e = this.codeTable.find(i => i.CCCCharacter === c);
-      return e ? e.CCCnumber.toString().padStart(4, '0') : null;
+      const code = this.charToCode.get(c);
+      return code != null ? code.toString().padStart(4, '0') : null;
     });
   }
 };
@@ -612,19 +625,33 @@ const CCCHandler = {
 // 四角号码处理函数
 const fourCCCHandler = {
   codeTable: fourCCC_TABLE || [],
+  codeToChar: null,
+  charToCode: null,
+  ensureMaps() {
+    if (this.codeToChar && this.charToCode) return;
+    this.codeToChar = new Map();
+    this.charToCode = new Map();
+    this.codeTable.forEach(item => {
+      const code = parseInt(item.fourCCCnumber, 10);
+      this.codeToChar.set(code, item.fourCCCCharacter);
+      this.charToCode.set(item.fourCCCCharacter, item.fourCCCnumber);
+    });
+  },
   convert(text) {
     if (!text.trim()) return "";
     return /^[\d\s]+$/.test(text.trim()) ? this.d(text) : this.e(text);
   },
   d(text) {
+    this.ensureMaps();
     return text.trim().split(/\s+/).map(c =>
-      this.codeTable.find(i => i.fourCCCnumber === parseInt(c, 10))?.fourCCCCharacter || c
+      this.codeToChar.get(parseInt(c, 10)) || c
     ).join("");
   },
   e(text) {
+    this.ensureMaps();
     return convertKnownChars(text, c => {
-      const e = this.codeTable.find(i => i.fourCCCCharacter === c);
-      return e ? e.fourCCCnumber : null;
+      const code = this.charToCode.get(c);
+      return code != null ? code : null;
     });
   }
 };
@@ -1272,4 +1299,3 @@ const SHA1Cipher = createHashCipher('SHA-1')
 const SHA256Cipher = createHashCipher('SHA-256')
 const SHA384Cipher = createHashCipher('SHA-384')
 const SHA512Cipher = createHashCipher('SHA-512')
-
