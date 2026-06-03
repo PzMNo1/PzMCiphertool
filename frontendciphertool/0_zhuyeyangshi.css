@@ -235,13 +235,6 @@ textarea {
   z-index: 1;
 }
 
-@media (min-width: 769px) {
-  .sidebar:hover+.container1,
-  .sidebar.sidebar-pinned+.container1 {
-    padding-left: 110px;
-  }
-}
-
 .sidebar-pin-btn {
   position: absolute;
   top: 8px;
@@ -401,7 +394,6 @@ textarea {
   gap: 0rem;
   padding-top: 0rem;
   padding-left: 0;
-  transition: padding-left 0.3s linear;
 }
 
 
@@ -552,16 +544,6 @@ textarea {
   pointer-events: none;
 }
 
-#jiamishiyanshi-content .submodule-btn::after {
-  opacity: 0;
-  animation: none;
-}
-
-#jiamishiyanshi-content .submodule-btn.active::after {
-  opacity: 1;
-  animation: stargate 3s linear infinite;
-}
-
 @keyframes quantumStream {
   0% {
     transform: translate(-100%, -100%) rotate(45deg);
@@ -573,7 +555,7 @@ textarea {
 }
 
 
-/* 子模块切换样式 */
+/* 联系我们子模块切换样式 */
 .submodule-nav {
   position: sticky;
   z-index: 2;
@@ -619,11 +601,310 @@ textarea {
   padding: 0 1.5rem;
 }
 
-.submodule-btn.active {
-  background: linear-gradient(145deg,
-      rgba(64, 224, 255, 0.3) 20%,
-      rgba(179, 136, 255, 0.2) 80%) !important;
-  box-shadow: 0 0 15px var(--secondary) !important;
+#jiamishiyanshi-container {
+  --cipher-lab-shell-width: min(1440px, calc(100vw - 48px));
+  width: var(--cipher-lab-shell-width);
+  justify-self: center;
+}
+
+#jiamishiyanshi-content {
+  --cipher-lab-nav-fixed-top: 132px;
+  --cipher-lab-input-sticky-top: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 1.4rem 1rem 7rem;
+}
+
+.cipher-lab-shell {
+  color: var(--text);
+}
+
+.cipher-lab-header {
+  margin-bottom: 2rem;
+}
+
+.cipher-lab-console-layout {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  padding-top: .75rem;
+}
+
+.cipher-lab-console-main {
+  grid-column: 2;
+  min-width: 0;
+}
+
+#jiamishiyanshi-content .cipher-lab-panel-stack {
+  min-width: 0;
+  overflow: visible;
+}
+
+#jiamishiyanshi-content .cipher-lab-panel-stack>.submodule {
+  display: none;
+  width: 100%;
+  min-height: auto;
+  padding: 0;
+  overflow: visible;
+}
+
+#jiamishiyanshi-content .cipher-lab-panel-stack>.submodule.active {
+  display: block;
+}
+
+#jiamishiyanshi-content .submodule>.container,
+#jiamishiyanshi-content #spacepuzzle>.container {
+  padding-top: 0 !important;
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav {
+  position: fixed;
+  top: 104px !important;
+  left: 24px;
+  width: 184px;
+  display: grid;
+  gap: .35rem;
+  padding: .55rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  counter-reset: logic-counter;
+  z-index: 35;
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+  position: relative;
+  height: 60px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid rgba(64, 224, 255, 0.15);
+  background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  backdrop-filter: blur(4px);
+  clip-path: polygon(15px 0, 100% 0,
+      100% calc(100% - 15px), calc(100% - 15px) 100%,
+      0 100%, 0 15px);
+  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::after {
+  counter-increment: logic-counter;
+  content: "NO." counter(logic-counter, decimal-leading-zero);
+  position: absolute;
+  right: 20px;
+  bottom: 6px;
+  color: rgba(64, 224, 255, 0.3);
+  font-family: monospace;
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 15px;
+  height: 15px;
+  border-top: 2px solid rgba(64, 224, 255, 0.5);
+  border-left: 2px solid rgba(64, 224, 255, 0.5);
+  transition: all 0.4s ease;
+  opacity: 0.6;
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover {
+  transform: translateY(-5px) scale(1.02);
+  background: rgba(64, 224, 255, 0.1);
+  border-color: rgba(64, 224, 255, 0.6);
+  color: #fff;
+  text-shadow: 0 0 15px rgba(64, 224, 255, 0.8);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 243, 255, 0.2),
+    inset 0 0 20px rgba(64, 224, 255, 0.15);
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover::before {
+  width: 100%;
+  height: 95%;
+  border-color: #fff;
+  opacity: 1;
+  box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+}
+
+#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn.active {
+  background: rgba(64, 224, 255, 0.14);
+  border-color: rgba(64, 224, 255, 0.72);
+  color: #fff;
+  text-shadow: 0 0 15px rgba(64, 224, 255, 0.85);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 243, 255, 0.24),
+    inset 0 0 22px rgba(64, 224, 255, 0.18);
+}
+
+@media (max-width: 1100px) {
+  #jiamishiyanshi-container {
+    width: min(100%, calc(100vw - 20px));
+  }
+
+  #jiamishiyanshi-content {
+    padding: 1.4rem .6rem 9.5rem;
+  }
+
+  .cipher-lab-console-layout {
+    grid-template-columns: 1fr;
+    padding-top: .25rem;
+  }
+
+  .cipher-lab-console-main {
+    grid-column: 1;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav {
+    position: fixed;
+    top: auto !important;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    transform: translateX(-50%);
+    width: min(94vw, 390px);
+    min-height: 94px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: clamp(.2rem, 1.3vw, .55rem);
+    padding: .7rem .75rem .55rem;
+    border: 1px solid rgba(64, 224, 255, .16);
+    border-radius: 999px 999px 30px 30px;
+    background: rgba(0, 20, 40, .22);
+    box-shadow: inset 0 0 22px rgba(64, 224, 255, .08), 0 14px 40px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    overflow: visible;
+    z-index: 9990;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+    --dial-y: 0px;
+    --dial-r: 0deg;
+    flex: 0 0 clamp(52px, 15vw, 60px);
+    width: clamp(52px, 15vw, 60px);
+    height: clamp(52px, 15vw, 60px);
+    min-width: 0;
+    justify-content: center;
+    padding: .35rem .2rem;
+    border-radius: 50%;
+    clip-path: none;
+    font-size: clamp(.68rem, 2.6vw, .82rem);
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: normal;
+    word-break: keep-all;
+    transform: translateY(var(--dial-y)) rotate(var(--dial-r));
+    transition: transform .24s ease, border-color .24s ease, background .24s ease, color .24s ease, box-shadow .24s ease;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(1) {
+    --dial-y: 14px;
+    --dial-r: -15deg;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(2) {
+    --dial-y: 4px;
+    --dial-r: -8deg;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(3) {
+    --dial-y: -4px;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(4) {
+    --dial-y: 4px;
+    --dial-r: 8deg;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(5) {
+    --dial-y: 14px;
+    --dial-r: 15deg;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::before {
+    inset: 7px;
+    width: auto;
+    height: auto;
+    border: 1px solid rgba(64, 224, 255, .22);
+    border-radius: 50%;
+    opacity: .42;
+    box-shadow: none;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::after {
+    right: auto;
+    left: 50%;
+    bottom: 6px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(64, 224, 255, .38);
+    color: transparent;
+    font-size: 0;
+    letter-spacing: 0;
+    transform: translateX(-50%);
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover {
+    transform: translateY(calc(var(--dial-y) - 4px)) rotate(var(--dial-r)) scale(1.04);
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover::before {
+    width: auto;
+    height: auto;
+    border-color: rgba(255, 255, 255, .6);
+    box-shadow: none;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:active {
+    transform: translateY(var(--dial-y)) rotate(var(--dial-r)) scale(.96);
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn.active {
+    transform: translateY(calc(var(--dial-y) - 6px)) rotate(var(--dial-r)) scale(1.06);
+  }
+}
+
+@media (max-width: 430px) {
+  #jiamishiyanshi-content .cipher-lab-console-nav {
+    width: min(96vw, 350px);
+    gap: .16rem;
+    padding-inline: .45rem;
+  }
+
+  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+    flex-basis: clamp(48px, 16vw, 56px);
+    width: clamp(48px, 16vw, 56px);
+    height: clamp(48px, 16vw, 56px);
+    font-size: .68rem;
+  }
 }
 
 /* 半透明地球全息投影背景 */
@@ -1067,6 +1348,41 @@ body::after {
   width: 100%;
 }
 
+#jiamishiyanshi-content #mimaqu .main-input,
+#jiamishiyanshi-content #xiandaiqu .main-input {
+  position: sticky;
+  top: var(--cipher-lab-input-sticky-top);
+  z-index: 30;
+  scroll-margin-top: calc(var(--cipher-lab-input-sticky-top) + 16px);
+}
+
+#jiamishiyanshi-content #mimaqu .main-input.cipher-stuck,
+#jiamishiyanshi-content #xiandaiqu .main-input.cipher-stuck {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+#jiamishiyanshi-content #mimaqu .main-input .pin-toggle-btn,
+#jiamishiyanshi-content #xiandaiqu .main-input .pin-toggle-btn {
+  display: none;
+}
+
+#jiamishiyanshi-content #yuliu {
+  padding-bottom: 24rem;
+}
+
+#jiamishiyanshi-content #logic-workspace-container,
+#jiamishiyanshi-content #space-workspace-container {
+  padding-top: .75rem !important;
+  margin-top: 0 !important;
+}
+
+#jiamishiyanshi-content #spacepuzzle,
+#jiamishiyanshi-content #space-workspace-container,
+#jiamishiyanshi-content .space-workspace {
+  overflow: visible;
+}
+
 
 
 
@@ -1238,7 +1554,6 @@ body::after {
     padding: 0.5rem;
   }
 
-  .submodule-btn,
   .contact-submodule-btn {
     flex: 1 1 30%;
     min-width: 80px;
@@ -1328,4 +1643,3 @@ body::after {
     0 0 40px rgba(255, 255, 255, 0.3),
     inset 0 0 30px rgba(255, 255, 255, 0.2);
 }
-

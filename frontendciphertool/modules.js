@@ -3,20 +3,26 @@ const MODULES = {
     // 加密实验室模块
     jiamishiyanshi: `<div id="jiamishiyanshi-content" class="content-section">
 
-    <div class="module-header">
-        <h2 class="neon-title" data-text="CIPHER LABORATORY">CIPHER LABORATORY</h2>
-    </div>
+    <section class="cipher-lab-shell apizz-shell">
+        <div class="apizz-header cipher-lab-header">
+            <div>
+                <div class="module-header">
+                    <h2 class="neon-title" data-text="CIPHER LABORATORY">CIPHER LABORATORY</h2>
+                </div>
+            </div>
+        </div>
 
-    <div class="submodule-nav" style="margin-top: 2rem;">
-        <button class="btn back-btn submodule-btn active" data-target="mimaqu">经典区</button>
-        <button class="btn back-btn submodule-btn" data-target="xiandaiqu">现代区</button>
-        <button class="btn back-btn submodule-btn" data-target="luojimiti">逻辑区</button>
-        <button class="btn back-btn submodule-btn" data-target="cihuiqu">词汇区</button>
-        <button class="btn back-btn submodule-btn" data-target="yuliu">空间类</button>
-    </div>
+        <div class="apizz-console-layout cipher-lab-console-layout">
+            <aside class="apizz-console-nav cipher-lab-console-nav" aria-label="加密实验室导航">
+                <button type="button" class="submodule-btn active" data-target="mimaqu">经典区</button>
+                <button type="button" class="submodule-btn" data-target="xiandaiqu">现代区</button>
+                <button type="button" class="submodule-btn" data-target="luojimiti">逻辑区</button>
+                <button type="button" class="submodule-btn" data-target="cihuiqu">词汇区</button>
+                <button type="button" class="submodule-btn" data-target="yuliu">空间类</button>
+            </aside>
 
-    <div class="cipher-swiper-container">
-        <div class="cipher-swiper-wrapper">
+            <main class="apizz-console-main cipher-lab-console-main">
+                <div class="cipher-lab-panel-stack">
 
     ${window.CIPHER_CLASSIC_MODERN_DIV_BATCH || ''}
 
@@ -35,8 +41,10 @@ const MODULES = {
         <div id="spacepuzzle"></div>
     </div>
 
+                </div>
+            </main>
         </div>
-    </div>
+    </section>
 
 </div>`,
 
@@ -44,7 +52,7 @@ const MODULES = {
     electroniclab: `
     <div id="electroniclab-content" class="content-section">
         <div class="module-header">
-            <h2 class="neon-title" data-text="CIPHER LABORATORY">ELECTRONIC LABORATORY</h2>
+            <h2 class="neon-title" data-text="ELECTRONIC LABORATORY">ELECTRONIC LABORATORY</h2>
             <div class="source-selector-container">
                 <select id="circuit-source-select" class="circuit-source-select">
                     <option value="./electronic/war/circuitjs.html">线路1: 本地源 (Local)</option>
@@ -421,18 +429,18 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
         .then(() => Promise.resolve(window.spacePuzzleBatchReady))
         .then(() => {
-        if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
-        if (typeof initSearchFunction === 'function') initSearchFunction();
-        if (typeof initWordSearch === 'function') initWordSearch();
-        if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
-        if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
-        if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
-        if (typeof initSendFeedback === 'function') initSendFeedback();
-        if (typeof initChatFunctions === 'function') initChatFunctions();
-        initWorkflowCoze();
-        if (typeof initElectronicLab === 'function') initElectronicLab();
-        if (typeof initAuthorPage === 'function') initAuthorPage();
-    });
+            if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
+            if (typeof initSearchFunction === 'function') initSearchFunction();
+            if (typeof initWordSearch === 'function') initWordSearch();
+            if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
+            if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
+            if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
+            if (typeof initSendFeedback === 'function') initSendFeedback();
+            if (typeof initChatFunctions === 'function') initChatFunctions();
+            initWorkflowCoze();
+            if (typeof initElectronicLab === 'function') initElectronicLab();
+            if (typeof initAuthorPage === 'function') initAuthorPage();
+        });
 
     // 逻辑区：由 logicbatch.js 独立管理分批加载和初始化
     loadBatch(['./logic/logicbatch.js']);

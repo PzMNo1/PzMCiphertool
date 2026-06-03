@@ -167,10 +167,63 @@ class CipherSwiper {
     }
 }
 
+class CipherTabs {
+    constructor(containerSelector, slideSelector, btnSelector, contextId) {
+        this.container = document.querySelector(containerSelector);
+        if (!this.container) return;
+        this.slides = Array.from(document.querySelectorAll(slideSelector));
+        this.navBtns = Array.from(document.querySelectorAll(btnSelector));
+        this.contextId = contextId;
+        this.currentIndex = Math.max(0, this.slides.findIndex(slide => slide.classList.contains('active')));
+        this.init();
+    }
+
+    init() {
+        this.navBtns.forEach((btn, index) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.currentIndex = index;
+                this.setPositionByIndex();
+            });
+        });
+        this.setPositionByIndex(false);
+        if (!window.cipherSwipers) window.cipherSwipers = [];
+        window.cipherSwipers.push(this);
+    }
+
+    updateNavButtons() {
+        this.navBtns.forEach((btn, index) => btn.classList.toggle('active', index === this.currentIndex));
+    }
+
+    setPositionByIndex() {
+        if (!this.slides.length) return;
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        if (this.currentIndex >= this.slides.length) this.currentIndex = this.slides.length - 1;
+
+        this.updateNavButtons();
+        this.slides.forEach((slide, index) => slide.classList.toggle('active', index === this.currentIndex));
+
+        const activeSlide = this.slides[this.currentIndex];
+        if (this.contextId === 'jiamishiyanshi-content') {
+            if (typeof scheduleUpdateAll === 'function') scheduleUpdateAll();
+            if (activeSlide?.id === 'xiandaiqu' && typeof processEnigma === 'function') {
+                requestAnimationFrame(processEnigma);
+            }
+        }
+
+        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    }
+
+    slideToIndex(index) {
+        this.currentIndex = index;
+        this.setPositionByIndex();
+    }
+}
+
 
 
 // 这是加密实验室和意见反馈模块的子模块滑动切换的容器支持
-const swiper1 = new CipherSwiper('#jiamishiyanshi-content .cipher-swiper-container', '.cipher-swiper-wrapper .submodule', '.submodule-btn', 'jiamishiyanshi-content');
+const swiper1 = new CipherTabs('#jiamishiyanshi-content .cipher-lab-panel-stack', '#jiamishiyanshi-content .submodule', '#jiamishiyanshi-content .submodule-btn', 'jiamishiyanshi-content');
 const swiper2 = new CipherSwiper('#yijianfankui-content .cipher-swiper-container', '.cipher-swiper-wrapper .lianxiwomen-submodule', '.contact-submodule-btn', 'yijianfankui-content');
 
 
@@ -223,6 +276,46 @@ function initSearchFunction() {
     }
     initQuickNav('mimaqu');
     initQuickNav('xiandaiqu');
+    initCipherStickyInputMask();
+}
+
+function initCipherStickyInputMask() {
+    if (window.cipherStickyInputMaskReady) return;
+    window.cipherStickyInputMaskReady = true;
+
+    const cards = Array.from(document.querySelectorAll(
+        '#jiamishiyanshi-content #mimaqu .main-input, #jiamishiyanshi-content #xiandaiqu .main-input'
+    ));
+    if (!cards.length) return;
+
+    let ticking = false;
+    const getStickyTop = () => {
+        const section = document.getElementById('jiamishiyanshi-content');
+        const value = section ? getComputedStyle(section).getPropertyValue('--cipher-lab-input-sticky-top') : '0';
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const update = () => {
+        ticking = false;
+        const stickyTop = getStickyTop();
+        cards.forEach(card => {
+            const submodule = card.closest('.submodule');
+            const active = !submodule || submodule.classList.contains('active');
+            const stuck = active && card.getBoundingClientRect().top <= stickyTop + 1;
+            card.classList.toggle('cipher-stuck', stuck);
+        });
+    };
+
+    const requestUpdate = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(update);
+    };
+
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    requestUpdate();
 }
 
 
@@ -438,4 +531,3 @@ function initAuthorPage() {
         });
     }
 }
-

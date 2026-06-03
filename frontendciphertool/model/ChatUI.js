@@ -390,13 +390,15 @@ class ChatUI {
         const messageElement = document.createElement('div');
         messageElement.className = 'message assistant-message';
 
-        // 思维链区域
-        const reasoningDetails = document.createElement('details');
-        reasoningDetails.className = 'reasoning-details thinking-state';
-        reasoningDetails.open = true;
+        // 推理内容只作为内部流式缓冲，不渲染思维链窗口。
+        const reasoningDetails = document.createElement('div');
+        reasoningDetails.className = 'thinking-state';
+        reasoningDetails.hidden = true;
 
-        const reasoningSummary = document.createElement('summary');
-        reasoningSummary.innerHTML = `<span>正在分析问题</span> <span class="status-dot"></span>`;
+        const agentRunStatus = this.createAgentRunStatusElement('正在分析问题', {
+            running: true,
+            elapsedMs: 0
+        });
 
         const reasoningContent = document.createElement('div');
         reasoningContent.className = 'reasoning-content';
@@ -405,26 +407,28 @@ class ChatUI {
         cursorSpan.className = 'cursor-blink';
         reasoningContent.appendChild(cursorSpan);
 
-        reasoningDetails.appendChild(reasoningSummary);
         reasoningDetails.appendChild(reasoningContent);
 
         // 内容区域
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content message-text';
 
-        messageElement.appendChild(reasoningDetails);
+        messageElement.appendChild(agentRunStatus);
         messageElement.appendChild(contentDiv);
         this.messagesContainer.appendChild(messageElement);
         messageElement.scrollIntoView({ behavior: 'smooth' });
 
-        return {
+        const container = {
             element: messageElement,
             reasoningDetails,
-            reasoningSummary,
+            reasoningSummary: agentRunStatus,
             reasoningContent,
             contentDiv,
-            cursorSpan
+            cursorSpan,
+            agentRunStatus
         };
+        this.startRuntimeTimer(container);
+        return container;
     }
 
     /**
@@ -435,6 +439,9 @@ class ChatUI {
     appendReasoningContent(container, text) {
         if (container?.reasoningDetails) {
             container.reasoningDetails.hidden = false;
+        }
+        if (container?.reasoningContent) {
+            container.reasoningContent.hidden = false;
         }
         const textNode = document.createTextNode(text);
         const cursorIsAttached = container.cursorSpan
@@ -448,8 +455,96 @@ class ChatUI {
     }
 
     setReasoningStatus(container, status) {
-        if (!container?.reasoningSummary) return;
-        container.reasoningSummary.innerHTML = `<span>${this.escapeHtml(status)}</span> <span class="status-dot"></span>`;
+        const statusElement = this.getAgentRunStatusElement(container);
+        if (!statusElement) return;
+        const running = !container.runtimeStopped;
+        statusElement.classList.toggle('thinking-state', running);
+        statusElement.innerHTML = this.createAgentRunStatusHtml(status, {
+            running,
+            elapsedMs: this.getRuntimeElapsedMs(container)
+        });
+    }
+
+    getAgentRunStatusElement(container) {
+        return container?.agentRunStatus || container?.reasoningSummary || null;
+    }
+
+    createAgentRunStatusElement(status, options = {}) {
+        const statusElement = document.createElement('div');
+        statusElement.className = `agent-run-status${options.running ? ' thinking-state' : ''}`;
+        statusElement.innerHTML = this.createAgentRunStatusHtml(status, options);
+        return statusElement;
+    }
+
+    createAgentRunStatusHtml(status, options = {}) {
+        const elapsedMs = Math.max(0, Number(options.elapsedMs) || 0);
+        const showRuntime = options.showRuntime !== false;
+        const loadingDots = options.running
+            ? `<span class="agent-run-loading-dots" aria-label="模型运行中">
+                <span class="agent-run-loading-dot"></span>
+                <span class="agent-run-loading-dot"></span>
+                <span class="agent-run-loading-dot"></span>
+            </span>`
+            : '';
+        const runtime = showRuntime
+            ? `<span class="agent-run-runtime">${this.formatRuntimeDuration(elapsedMs)}</span>`
+            : '';
+        return `<span class="agent-run-status-text">${this.escapeHtml(status)}</span>${loadingDots}${runtime}<span class="status-dot"></span>`;
+    }
+
+    formatRuntimeDuration(ms = 0) {
+        const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes} min ${seconds} s`;
+    }
+
+    getRuntimeElapsedMs(container) {
+        if (!container) return 0;
+        if (container.runtimeStopped) {
+            return Math.max(0, Number(container.runtimeElapsedMs) || 0);
+        }
+        if (container.runtimeStartTime) {
+            return Math.max(0, Date.now() - container.runtimeStartTime);
+        }
+        return Math.max(0, Number(container.runtimeElapsedMs) || 0);
+    }
+
+    startRuntimeTimer(container, startTime = Date.now()) {
+        const statusElement = this.getAgentRunStatusElement(container);
+        if (!statusElement) return;
+        if (container.runtimeTimerId) {
+            window.clearInterval(container.runtimeTimerId);
+        }
+        container.runtimeStartTime = Number(startTime) || Date.now();
+        container.runtimeStopped = false;
+
+        const updateRuntime = () => {
+            container.runtimeElapsedMs = this.getRuntimeElapsedMs(container);
+            const runtime = this.getAgentRunStatusElement(container)?.querySelector('.agent-run-runtime');
+            if (runtime) {
+                runtime.textContent = this.formatRuntimeDuration(container.runtimeElapsedMs);
+            }
+        };
+
+        updateRuntime();
+        container.runtimeTimerId = window.setInterval(updateRuntime, 1000);
+    }
+
+    stopRuntimeTimer(container) {
+        if (!container) return;
+        const elapsedMs = this.getRuntimeElapsedMs(container);
+        if (container.runtimeTimerId) {
+            window.clearInterval(container.runtimeTimerId);
+            container.runtimeTimerId = null;
+        }
+        container.runtimeElapsedMs = elapsedMs;
+        container.runtimeStopped = true;
+
+        const runtime = this.getAgentRunStatusElement(container)?.querySelector('.agent-run-runtime');
+        if (runtime) {
+            runtime.textContent = this.formatRuntimeDuration(elapsedMs);
+        }
     }
 
     appendReasoningEvent(container, message) {
@@ -460,9 +555,9 @@ class ChatUI {
      * @param {Object} container
      */
     finishReasoning(container) {
-        container.reasoningDetails.classList.remove('thinking-state');
+        container.reasoningDetails?.classList.remove('thinking-state');
         this.setReasoningStatus(container, '正在整理回答');
-        if (container.cursorSpan.parentNode) {
+        if (container.cursorSpan?.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
         this.hideEmptyReasoning(container);
@@ -471,6 +566,7 @@ class ChatUI {
     hideEmptyReasoning(container) {
         if (!container?.reasoningDetails || !container?.reasoningContent) return;
         if (!String(container.reasoningContent.textContent || '').trim()) {
+            container.reasoningContent.hidden = true;
             container.reasoningDetails.hidden = true;
         }
     }
@@ -1209,9 +1305,10 @@ class ChatUI {
      * @param {Object} container
      */
     finalizeMessage(container) {
-        container.reasoningDetails.classList.remove('thinking-state');
-        this.setReasoningStatus(container, '已完成思考');
-        if (container.cursorSpan.parentNode) {
+        this.stopRuntimeTimer(container);
+        container.reasoningDetails?.classList.remove('thinking-state');
+        this.setReasoningStatus(container, '运行完成');
+        if (container.cursorSpan?.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
         this.hideEmptyReasoning(container);
@@ -1224,11 +1321,13 @@ class ChatUI {
      * @param {Object} container
      */
     showInterrupted(container) {
-        container.reasoningDetails.classList.remove('thinking-state');
-        container.reasoningSummary.innerHTML = `<span>ANALYSIS INTERRUPTED</span> <span class="status-dot"></span>`;
-        if (container.cursorSpan.parentNode) {
+        this.stopRuntimeTimer(container);
+        container.reasoningDetails?.classList.remove('thinking-state');
+        this.setReasoningStatus(container, 'ANALYSIS INTERRUPTED');
+        if (container.cursorSpan?.parentNode) {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
+        this.hideEmptyReasoning(container);
     }
 
     /**
@@ -1237,6 +1336,12 @@ class ChatUI {
      * @param {string} errorMessage
      */
     showError(container, errorMessage) {
+        this.stopRuntimeTimer(container);
+        if (container?.reasoningDetails) {
+            container.reasoningDetails.classList.remove('thinking-state');
+            this.setReasoningStatus(container, '运行出错');
+            this.hideEmptyReasoning(container);
+        }
         container.contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${errorMessage}</span>`;
     }
 
@@ -1253,16 +1358,13 @@ class ChatUI {
         let reasoningSummary = null;
         let reasoningContentDiv = null;
         let cursorSpan = null;
+        let agentRunStatus = null;
 
-        // 显示思维链
+        // 历史推理内容只作为内部缓冲，不渲染思维链窗口。
         if (msg.reasoning_content || msg.reasoning || isRunning) {
-            reasoningDetails = document.createElement('details');
-            reasoningDetails.className = `reasoning-details${isRunning ? ' thinking-state' : ''}`;
-            reasoningDetails.open = isRunning;
-
-            reasoningSummary = document.createElement('summary');
-            reasoningSummary.innerHTML = `<span>${isRunning ? '正在分析问题' : '已完成思考'}</span> <span class="status-dot"></span>`;
-
+            reasoningDetails = document.createElement('div');
+            reasoningDetails.className = isRunning ? 'thinking-state' : '';
+            reasoningDetails.hidden = true;
             reasoningContentDiv = document.createElement('div');
             reasoningContentDiv.className = 'reasoning-content';
             reasoningContentDiv.textContent = msg.reasoning_content || msg.reasoning || '';
@@ -1273,9 +1375,7 @@ class ChatUI {
                 reasoningContentDiv.appendChild(cursorSpan);
             }
 
-            reasoningDetails.appendChild(reasoningSummary);
             reasoningDetails.appendChild(reasoningContentDiv);
-            messageElement.appendChild(reasoningDetails);
         }
 
         // 显示工具调用
@@ -1316,6 +1416,14 @@ class ChatUI {
         // 必须先将 messageContent 添加到 messageElement，
         // 然后再调用 restoreAgentRunPanel（它内部使用 insertBefore 需要 contentDiv 已经是子节点）
         messageElement.appendChild(messageContent);
+        if (isRunning) {
+            agentRunStatus = this.createAgentRunStatusElement('正在分析问题', {
+                running: true,
+                elapsedMs: Date.now() - (Number(msg.created_at) || Date.now())
+            });
+            reasoningSummary = agentRunStatus;
+            messageElement.insertBefore(agentRunStatus, messageContent);
+        }
         if (msg.role === 'user') {
             this.appendAttachmentSummary(messageElement, msg.attachments || []);
         }
@@ -1337,13 +1445,14 @@ class ChatUI {
         if (!isAssistant) {
             return { element: messageElement, contentDiv: messageContent };
         }
-        return {
+        const rendered = {
             element: messageElement,
             reasoningDetails,
             reasoningSummary,
             reasoningContent: reasoningContentDiv,
             contentDiv: messageContent,
             cursorSpan,
+            agentRunStatus,
             agentRunPanel: messageElement.querySelector('.agent-run-panel'),
             agentStages: messageElement.querySelector('.agent-stage-strip'),
             agentApprovalDeck: messageElement.querySelector('.agent-approval-deck'),
@@ -1353,6 +1462,10 @@ class ChatUI {
             agentEventLog: messageElement.querySelector('.agent-event-log'),
             agentEventCount: messageElement.querySelector('.agent-event-count')
         };
+        if (isRunning && rendered.reasoningSummary) {
+            this.startRuntimeTimer(rendered, Number(msg.created_at) || Date.now());
+        }
+        return rendered;
     }
 
     /**

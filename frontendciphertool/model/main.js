@@ -675,6 +675,7 @@
             'reasoningContent',
             'contentDiv',
             'cursorSpan',
+            'agentRunStatus',
             'agentRunPanel',
             'agentStages',
             'agentApprovalDeck',
@@ -682,9 +683,13 @@
             'agentTrace',
             'agentEventTimeline',
             'agentEventLog',
-            'agentEventCount'
+            'agentEventCount',
+            'runtimeStartTime',
+            'runtimeElapsedMs',
+            'runtimeTimerId',
+            'runtimeStopped'
         ].forEach(key => {
-            if (source[key]) target[key] = source[key];
+            if (source[key] !== undefined && source[key] !== null) target[key] = source[key];
         });
         return target;
     }

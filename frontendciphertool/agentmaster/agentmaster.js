@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!chatWindow || !collapseBtn || !history || !textarea || !submitBtn) return;
 
+    const mobileAgentMedia = window.matchMedia('(max-width: 1100px)');
     const windowAgent = createBrowserWorkspaceAgent();
     let isChatActive = false;
     let isDocked = false;
@@ -265,6 +266,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.agent-suggestion-btn').forEach(btn => {
         btn.addEventListener('click', () => { textarea.value = btn.textContent; send(); });
     });
+    if (mobileAgentMedia.matches) {
+        dockAgent({ immediate: true, preserveChat: false });
+    }
+    const handleAgentViewportChange = event => {
+        if (event.matches && !isDocked && !isChatActive && messages.length <= 1) {
+            dockAgent({ immediate: true, preserveChat: false });
+            return;
+        }
+        if (isDocked) applyOrbPosition();
+    };
+    if (mobileAgentMedia.addEventListener) {
+        mobileAgentMedia.addEventListener('change', handleAgentViewportChange);
+    } else if (mobileAgentMedia.addListener) {
+        mobileAgentMedia.addListener(handleAgentViewportChange);
+    }
 
     const scrollDown = () => setTimeout(() => history.scrollTo({ top: history.scrollHeight, behavior: 'smooth' }), 10);
 
@@ -1286,20 +1302,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return button;
     }
 
-    function dockAgent() {
+    function dockAgent(options = {}) {
         if (isDocked || dockTimer) return;
-        wasChatActiveBeforeDock = isChatActive;
+        const immediate = Boolean(options.immediate);
+        wasChatActiveBeforeDock = options.preserveChat === false ? false : isChatActive;
         chatWindow.classList.remove('active');
         suggestions?.classList.add('hidden');
         isChatActive = false;
-        orb.parentElement.classList.add('agent-docking');
-        dockTimer = setTimeout(() => {
+        const finishDock = () => {
             dockTimer = null;
             isDocked = true;
             applyOrbPosition();
             orb.parentElement.classList.remove('agent-docking');
             orb.parentElement.classList.add('agent-docked');
-        }, 240);
+        };
+        if (immediate) {
+            finishDock();
+            return;
+        }
+        orb.parentElement.classList.add('agent-docking');
+        dockTimer = setTimeout(finishDock, 240);
     }
 
     function closeChatWindow() {
@@ -1335,8 +1357,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyOrbPosition() {
         const saved = readOrbPosition();
-        const pos = saved || { left: window.innerWidth - 82, top: window.innerHeight - 82 };
+        const pos = saved || getDefaultOrbPosition();
         moveOrbTo(pos.left, pos.top);
+    }
+
+    function getDefaultOrbPosition() {
+        const topOffset = isMobileAgentViewport() ? 176 : 82;
+        return { left: window.innerWidth - 82, top: window.innerHeight - topOffset };
     }
 
     function enableOrbDrag(button) {
@@ -1379,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function moveOrbTo(left, top) {
         const wrapper = orb.parentElement;
         const maxLeft = Math.max(10, window.innerWidth - 68);
-        const maxTop = Math.max(10, window.innerHeight - 68);
+        const maxTop = Math.max(10, window.innerHeight - (isMobileAgentViewport() ? 176 : 68));
         const clampedLeft = Math.min(Math.max(10, left), maxLeft);
         const clampedTop = Math.min(Math.max(10, top), maxTop);
         wrapper.style.left = `${clampedLeft}px`;
@@ -1403,6 +1430,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveOrbPosition(left, top) {
         localStorage.setItem('AGENTMASTER_ORB_POSITION', JSON.stringify({ left, top }));
+    }
+
+    function isMobileAgentViewport() {
+        return mobileAgentMedia.matches;
     }
 
     function shouldAllowAgentTools(text) {
