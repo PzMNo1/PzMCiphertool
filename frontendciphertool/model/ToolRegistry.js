@@ -6,6 +6,8 @@
 class ToolRegistry {
     constructor() {
         this.tools = new Map();
+        this.dynamicAvailability = new Map();
+        this.agentEarthStatusCheckedAt = 0;
 
         // 动态获取后端 API 基础路径
         this.getApiBase = () => {
@@ -16,7 +18,12 @@ class ToolRegistry {
             return `${this.getLocalBackendBase()}/api/project`;
         };
 
+        this.getAgentEarthApiBase = () => {
+            return `${this.getLocalBackendBase()}/api/agent-earth`;
+        };
+
         this.registerBuiltinTools();
+        this.refreshAgentEarthAvailability({ timeoutMs: 900 }).catch(() => {});
     }
 
     getLocalBackendBase() {
@@ -29,6 +36,38 @@ class ToolRegistry {
             // Fall through to the local default.
         }
         return 'http://localhost:8080';
+    }
+
+    isToolAvailable(name) {
+        if (!this.has(name)) return false;
+        if (name === 'agent_earth_run') {
+            return this.dynamicAvailability.get(name) === true;
+        }
+        return true;
+    }
+
+    async refreshAgentEarthAvailability(options = {}) {
+        const timeoutMs = Number(options.timeoutMs) || 1200;
+        const ttlMs = Number(options.ttlMs) || 60000;
+        const now = Date.now();
+        if (!options.force && now - this.agentEarthStatusCheckedAt < ttlMs) {
+            return this.dynamicAvailability.get('agent_earth_run') === true;
+        }
+
+        this.agentEarthStatusCheckedAt = now;
+        try {
+            const { response, result } = await this.fetchJson(`${this.getAgentEarthApiBase()}/status`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            }, timeoutMs);
+            const data = result?.data || result || {};
+            const available = Boolean(response.ok && result?.success !== false && data.available === true);
+            this.dynamicAvailability.set('agent_earth_run', available);
+            return available;
+        } catch (error) {
+            this.dynamicAvailability.set('agent_earth_run', false);
+            return false;
+        }
     }
 
     async fetchJson(url, options = {}, timeoutMs = 30000) {
@@ -768,7 +807,7 @@ class ToolRegistry {
 
         this.register({
             name: 'web_research',
-            description: 'Grok/Gemini-style web research. Use depth="fast" only for a quick source map when the source landscape is unclear, and depth="deep" read_top=true for research-grade final evidence. For broad daily news briefings, use mode="news_brief", request max_results 28-32, and cover domestic, international, finance/markets, technology/science, and society/sports/culture. Never use Baidu. For academic/paper questions, prefer primary-source queries targeting arXiv, Nature, Science, Optica/OSA, IEEE, ACM, PubMed, official journals, and then read the best sources directly.',
+            description: 'Grok/Gemini-style web research with first-hand source expansion. Search query variants run in bounded parallel batches; each query fans out to search engines in parallel, then top pages are deep-read in parallel. Use depth="fast" only for a quick source map, and depth="deep" read_top=true for research-grade final evidence. For any current information, market, policy, report, or news question, prefer first_hand_news, official_policy, institution_report, academic_primary, and community_original evidence over section_fallback pages. Never use Baidu. Treat HTTP 451/403/429 as source access-blocked, not as absence of evidence; when blocked, continue with site: search snippets, alternate first-hand reports, official sources, or community originals before finalizing.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -793,7 +832,7 @@ class ToolRegistry {
                     },
                     max_results: {
                         type: 'integer',
-                        description: 'Maximum deduplicated sources to return. Use 28-32 for broad research and evidence-heavy answers.'
+                        description: 'Maximum deduplicated sources to return. Use 32-40 for broad research and evidence-heavy answers.'
                     },
                     read_top: {
                         type: 'boolean',
@@ -812,7 +851,7 @@ class ToolRegistry {
                 sideEffect: false,
                 requiresApproval: false,
                 timeoutMs: 120000,
-                maxOutputChars: 60000,
+                maxOutputChars: 80000,
                 cachePolicy: 'per_run',
                 retryPolicy: 'once',
                 networkAccess: true,
@@ -821,15 +860,15 @@ class ToolRegistry {
                 sourceKind: 'search_and_optional_read',
                 tags: ['research', 'search', 'evidence']
             },
-            execute: async ({ query, queries = [], mode = 'auto', depth = 'deep', max_results = 32, read_top, focus_keyword = '' }) => {
+            execute: async ({ query, queries = [], mode = 'auto', depth = 'deep', max_results = 40, read_top, focus_keyword = '' }) => {
                 try {
                     const normalizedDepth = depth === 'deep' ? 'deep' : 'fast';
                     const effectiveReadTop = typeof read_top === 'boolean' ? read_top : normalizedDepth === 'deep';
                     const parsedMaxResults = Number(max_results);
-                    const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 32;
+                    const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 40;
                     const effectiveMaxResults = effectiveReadTop
-                        ? Math.max(28, Math.min(requestedMaxResults, 32))
-                        : Math.max(16, Math.min(requestedMaxResults, 32));
+                        ? Math.max(32, Math.min(requestedMaxResults, 40))
+                        : Math.max(16, Math.min(requestedMaxResults, 40));
                     const endpoint = effectiveReadTop ? '/research/deep' : '/research/fast';
                     const response = await this.fetchWithAbort(`${this.getApiBase()}${endpoint}`, {
                         method: 'POST',
@@ -855,7 +894,7 @@ class ToolRegistry {
         // 搜索引擎搜索 (多步搜索第一步)
         this.register({
             name: 'search_urls',
-            description: '使用搜索引擎获取相关网页链接。用于补充 web_research 的第二轮精确查询，或执行 site:arxiv.org / site:nature.com / site:opg.optica.org 等权威源定向检索。',
+            description: '使用搜索引擎获取相关网页链接。用于补充 web_research 的第二轮精确查询，尤其适合 site:reuters.com、site:bloomberg.com、site:cnbc.com、site:cls.cn、site:sec.gov、site:pbc.gov.cn、site:coinshares.com、site:glassnode.com、site:reddit.com 等一手源/政策/研报/社区定向检索。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -872,7 +911,7 @@ class ToolRegistry {
                 sideEffect: false,
                 requiresApproval: false,
                 timeoutMs: 45000,
-                maxOutputChars: 32000,
+                maxOutputChars: 40000,
                 cachePolicy: 'per_run',
                 retryPolicy: 'once',
                 networkAccess: true,
@@ -899,7 +938,7 @@ class ToolRegistry {
         // 深度读取网页全文 (多步搜索第二步)
         this.register({
             name: 'read_webpage',
-            description: '深度抓取指定网页并返回结构化的 Markdown 格式全文。可直接打开已知权威源 URL，例如 arXiv、Nature、Science、Optica、IEEE、ACM、PubMed、官方文档或论文页面；长文章支持切片与语义过滤。',
+            description: '深度抓取指定网页并返回结构化正文与读取状态。可直接打开 Reuters/AP/CNBC/Bloomberg/财联社/政策页/研报/论文/社区原帖等权威 URL；返回 read_method、source_tier、article_like、section_fallback、blocked、http_status 等字段。HTTP 451/403/429 表示访问受限，需要继续用搜索结果、官方公告、替代一手源或社区原帖交叉验证。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -924,7 +963,7 @@ class ToolRegistry {
                 sideEffect: false,
                 requiresApproval: false,
                 timeoutMs: 45000,
-                maxOutputChars: 24000,
+                maxOutputChars: 32000,
                 cachePolicy: 'per_run',
                 retryPolicy: 'once',
                 networkAccess: true,
@@ -1362,6 +1401,71 @@ class ToolRegistry {
         });
 
         this.register({
+            name: 'agent_earth_run',
+            description: [
+                'Run AgentEarth as a professional external tool aggregator inside the same AgentRun.',
+                'Use it together with local/web/market tools for live external data, local services, travel, multimedia creation, business intelligence, and broad specialist-tool tasks.',
+                'The backend handles AgentEarth recommend -> execute ordering and returns the selected professional tool result.'
+            ].join(' '),
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'Natural-language task for AgentEarth. Keep it specific and include user constraints.'
+                    },
+                    task_context: {
+                        type: 'string',
+                        description: 'Optional compact context from attachments or prior AgentRun state. Omit unless relevant.'
+                    },
+                    preferred_tool_name: {
+                        type: 'string',
+                        description: 'Optional preferred recommended tool name when the task clearly calls for one.'
+                    },
+                    arguments: {
+                        type: 'object',
+                        description: 'Optional params to pass to the selected AgentEarth tool when obvious from the user request.'
+                    },
+                    max_attempts: {
+                        type: 'integer',
+                        description: 'How many recommended AgentEarth candidates to try. Default 1.'
+                    }
+                },
+                required: ['query']
+            },
+            metadata: {
+                package: 'agent_earth_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 70000,
+                maxOutputChars: 24000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'none',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'external_tool_result',
+                tags: ['agentearth', 'external', 'specialist-tools']
+            },
+            execute: async ({ query, task_context = '', preferred_tool_name = '', arguments: args = {}, max_attempts = 1 }) => {
+                const response = await this.fetchWithAbort(`${this.getAgentEarthApiBase()}/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query,
+                        task_context,
+                        preferred_tool_name,
+                        arguments: args,
+                        max_attempts
+                    })
+                }, 70000);
+                const result = await response.json();
+                return result.success ? result.data : `AgentEarth run failed: ${result.message}`;
+            }
+        });
+
+        this.register({
             name: 'run_tests',
             description: 'Run the backend Maven test command from a fixed whitelist.',
             parameters: { type: 'object', properties: {} },
@@ -1597,7 +1701,8 @@ class ToolRegistry {
             'find',
             'weather',
             'news_query',
-            'finance_query'
+            'finance_query',
+            'agent_earth_run'
         ]);
         const metadata = {
             package: projectExec.has(tool.name)

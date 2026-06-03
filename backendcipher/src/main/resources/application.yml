@@ -71,6 +71,18 @@ llm:
   base-url: ${OPENAI_BASE_URL:https://api.deepseek.com/v1}
   model: ${OPENAI_MODEL:deepseek-v4-flash}
 
+# AgentEarth professional tool aggregator.
+# Disabled by default so existing Agent behavior stays unchanged until configured.
+agent-earth:
+  enabled: ${AGENT_EARTH_ENABLED:false}
+  api-key: ${AGENT_EARTH_API_KEY:}
+  base-url: ${AGENT_EARTH_BASE_URL:https://agentearth.ai/agent-api/v1}
+  recommend-path: ${AGENT_EARTH_RECOMMEND_PATH:/tool/recommend}
+  timeout-seconds: ${AGENT_EARTH_TIMEOUT_SECONDS:60}
+  max-context-chars: ${AGENT_EARTH_MAX_CONTEXT_CHARS:8000}
+  max-response-chars: ${AGENT_EARTH_MAX_RESPONSE_CHARS:24000}
+  allow-any-execute-url: ${AGENT_EARTH_ALLOW_ANY_EXECUTE_URL:true}
+
 # API Router quota, rate limit and optional internal billing config
 api-router:
   admin-emails: ${API_ROUTER_ADMIN_EMAILS:}

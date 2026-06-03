@@ -28,17 +28,48 @@ class ChatUI {
         if (!text) return '';
 
         const lines = text.split('\n');
-        let html = '';
+        const newsBriefFormatting = this.shouldUseNewsBriefFormatting(text);
+        const blocks = [];
         let inMathBlock = false;
         let mathBuffer = [];
+        let inCodeBlock = false;
+        let codeBuffer = [];
+        let codeLanguage = '';
 
-        const processInline = (str) => {
-            return str.replace(/\*\*(.*?)\*\*/g, '<span class="bold-text">$1</span>');
+        const flushMath = () => {
+            if (!mathBuffer.length) return;
+            blocks.push(`<div class="math-block">${this.escapeHtml(mathBuffer.join('\n'))}</div>`);
+            mathBuffer = [];
+        };
+
+        const flushCode = () => {
+            if (!codeBuffer.length && !codeLanguage) return;
+            const languageClass = codeLanguage ? ` language-${this.escapeHtml(codeLanguage)}` : '';
+            blocks.push(`<pre class="markdown-code-block${languageClass}"><code>${this.escapeHtml(codeBuffer.join('\n'))}</code></pre>`);
+            codeBuffer = [];
+            codeLanguage = '';
         };
 
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
-            let trimmed = line.trim();
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('```')) {
+                if (inCodeBlock) {
+                    inCodeBlock = false;
+                    flushCode();
+                } else {
+                    inCodeBlock = true;
+                    codeLanguage = trimmed.replace(/^```/, '').trim().replace(/[^\w-]/g, '');
+                }
+                continue;
+            }
+
+            if (inCodeBlock) {
+                codeBuffer.push(line);
+                continue;
+            }
+
             if (!trimmed && !inMathBlock) continue;
 
             if (!inMathBlock && (trimmed.startsWith('\\[') || trimmed.startsWith('$$'))) {
@@ -46,8 +77,7 @@ class ChatUI {
                 mathBuffer.push(line);
                 if ((trimmed.endsWith('\\]') || trimmed.endsWith('$$')) && trimmed.length > 2) {
                     inMathBlock = false;
-                    html += `<div class="math-block">${mathBuffer.join('\n')}</div>`;
-                    mathBuffer = [];
+                    flushMath();
                 }
                 continue;
             }
@@ -56,33 +86,282 @@ class ChatUI {
                 mathBuffer.push(line);
                 if (trimmed.endsWith('\\]') || trimmed.endsWith('$$')) {
                     inMathBlock = false;
-                    html += `<div class="math-block">${mathBuffer.join('\n')}</div>`;
-                    mathBuffer = [];
+                    flushMath();
                 }
                 continue;
             }
 
-            if (trimmed.startsWith('###')) {
-                html += `<h3 class="section-header">${processInline(trimmed.replace(/^###+/, '').trim())}</h3>`;
-            } else if (/^\d+\./.test(trimmed)) {
-                html += `<p class="section-title">${processInline(line)}</p>`;
-            } else if (trimmed.startsWith('- ')) {
-                html += `<p class="subsection"><span class="bold-text">${processInline(trimmed.replace(/^-/, '').trim())}</span></p>`;
-            } else if (trimmed.includes(':') && trimmed.length < 100 && !trimmed.includes('http') && !trimmed.includes('//')) {
-                let firstColon = trimmed.indexOf(':');
-                let subtitle = trimmed.substring(0, firstColon).trim();
-                let content = trimmed.substring(firstColon + 1).trim();
-                html += `<p><span class="subtitle">${processInline(subtitle)}</span>: ${processInline(content)}</p>`;
-            } else {
-                html += `<p>${processInline(line)}</p>`;
+            if (this.isMarkdownTableAt(lines, i)) {
+                const table = this.consumeMarkdownTable(lines, i);
+                blocks.push(table.html);
+                i = table.nextIndex - 1;
+                continue;
+            }
+
+            if (/^#{1,3}\s+/.test(trimmed)) {
+                const level = Math.min(3, trimmed.match(/^#+/)[0].length);
+                const content = trimmed.replace(/^#{1,3}\s+/, '').trim();
+                const newsStory = newsBriefFormatting ? this.parseNewsStoryHeading(content) : null;
+                if (newsStory) {
+                    blocks.push(this.formatNewsStoryHeading(newsStory));
+                    continue;
+                }
+                blocks.push(`<h${level} class="markdown-heading markdown-heading-${level}">${this.formatInline(content)}</h${level}>`);
+                continue;
+            }
+
+            if (/^[-*_]{3,}$/.test(trimmed)) {
+                blocks.push('<hr class="markdown-divider">');
+                continue;
+            }
+
+            if (this.isListLine(trimmed)) {
+                const list = this.consumeMarkdownList(lines, i, { newsBrief: newsBriefFormatting });
+                blocks.push(list.html);
+                i = list.nextIndex - 1;
+                continue;
+            }
+
+            if (/^>\s+/.test(trimmed)) {
+                const quote = this.consumeBlockquote(lines, i);
+                blocks.push(quote.html);
+                i = quote.nextIndex - 1;
+                continue;
+            }
+
+            const newsStory = this.parseNewsStoryHeading(trimmed);
+            if (newsStory) {
+                blocks.push(`<p class="news-story-heading"><span class="news-story-index">${this.escapeHtml(newsStory.index)}</span><span class="news-story-title">${this.formatInline(newsStory.title)}</span></p>`);
+                continue;
+            }
+
+            const leadCallout = this.parseNewsLeadCallout(trimmed, {
+                allowImplicit: newsBriefFormatting && this.canUseImplicitNewsLead(blocks)
+            });
+            if (leadCallout) {
+                blocks.push(`<div class="news-brief-lead"><span class="news-brief-lead-label">${this.formatInline(leadCallout.label)}</span><span class="news-brief-lead-text">${this.formatInline(leadCallout.text)}</span></div>`);
+                continue;
+            }
+
+            if (trimmed.includes(':') && trimmed.length < 100 && !trimmed.includes('http') && !trimmed.includes('//')) {
+                const firstColon = trimmed.indexOf(':');
+                const subtitle = trimmed.substring(0, firstColon).trim();
+                const content = trimmed.substring(firstColon + 1).trim();
+                blocks.push(`<p class="markdown-key-value"><span class="subtitle">${this.formatInline(subtitle)}</span>: ${this.formatInline(content)}</p>`);
+                continue;
+            }
+
+            blocks.push(`<p>${this.formatInline(line)}</p>`);
+        }
+
+        flushMath();
+        flushCode();
+
+        return blocks.join('');
+    }
+
+    formatInline(value) {
+        let text = this.escapeHtml(value);
+        const tokens = [];
+        const stash = html => {
+            const token = `\uE000${tokens.length}\uE000`;
+            tokens.push(html);
+            return token;
+        };
+
+        text = text.replace(/`([^`]+)`/g, (_, code) => stash(`<code>${code}</code>`));
+        text = text.replace(/\[([^\]]+)]\((https?:\/\/[^)\s]+)\)/g, (_, label, url) => {
+            const href = this.sanitizeUrl(url);
+            if (!href) return label;
+            return stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+        });
+        text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+        text = text.replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+        text = text.replace(/(^|[\s(])_([^_\n]+)_/g, '$1<em>$2</em>');
+        text = text.replace(/(^|[\s>])(https?:\/\/[^\s<)]+[^\s<).,;:])/g, (match, prefix, url) => {
+            const trimmed = this.trimAutoLinkUrl(url);
+            const href = this.sanitizeUrl(trimmed.url);
+            return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
+        });
+        text = text.replace(/(^|[\s>—-])((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi, (match, prefix, url) => {
+            if (/^(?:https?:\/\/|mailto:)/i.test(url)) return match;
+            const trimmed = this.trimAutoLinkUrl(url);
+            const href = this.sanitizeUrl(`https://${trimmed.url.replace(/^www\./i, 'www.')}`);
+            return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
+        });
+
+        return text.replace(/\uE000(\d+)\uE000/g, (_, index) => tokens[Number(index)] || '');
+    }
+
+    sanitizeUrl(value) {
+        const url = this.trimAutoLinkUrl(String(value || '').trim()).url;
+        return /^https?:\/\//i.test(url) ? url : '';
+    }
+
+    trimAutoLinkUrl(value) {
+        const raw = String(value || '');
+        const trailingMatch = raw.match(/[)\]\}，。！？；：、》」』）】]+$/);
+        if (!trailingMatch) return { url: raw, trailing: '' };
+        return {
+            url: raw.slice(0, trailingMatch.index),
+            trailing: trailingMatch[0]
+        };
+    }
+
+    isMarkdownTableAt(lines, index) {
+        const current = String(lines[index] || '').trim();
+        const next = String(lines[index + 1] || '').trim();
+        return current.includes('|') && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(next);
+    }
+
+    consumeMarkdownTable(lines, startIndex) {
+        const headers = this.splitMarkdownTableRow(lines[startIndex]);
+        const rows = [];
+        let index = startIndex + 2;
+        while (index < lines.length) {
+            const line = String(lines[index] || '').trim();
+            if (!line || !line.includes('|')) break;
+            rows.push(this.splitMarkdownTableRow(line));
+            index++;
+        }
+
+        const head = headers.map(cell => `<th>${this.formatInline(cell)}</th>`).join('');
+        const body = rows.map(row => {
+            const cells = headers.map((_, cellIndex) => `<td>${this.formatInline(row[cellIndex] || '')}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+        return {
+            html: `<div class="markdown-table-wrap"><table class="markdown-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`,
+            nextIndex: index
+        };
+    }
+
+    splitMarkdownTableRow(line) {
+        return String(line || '')
+            .trim()
+            .replace(/^\|/, '')
+            .replace(/\|$/, '')
+            .split('|')
+            .map(cell => cell.trim());
+    }
+
+    isListLine(trimmed) {
+        return /^[-*+]\s+/.test(trimmed) || /^\d+[.)、）]\s+/.test(trimmed);
+    }
+
+    consumeMarkdownList(lines, startIndex, options = {}) {
+        const first = String(lines[startIndex] || '').trim();
+        const ordered = /^\d+[.)、）]\s+/.test(first);
+        const tag = ordered ? 'ol' : 'ul';
+        const items = [];
+        let index = startIndex;
+        while (index < lines.length) {
+            const trimmed = String(lines[index] || '').trim();
+            const matches = ordered ? trimmed.match(/^(\d+)[.)、）]\s+(.*)$/) : trimmed.match(/^[-*+]\s+(.*)$/);
+            if (!matches) break;
+            const itemText = ordered ? matches[2] : matches[1];
+            const candidateText = ordered ? `${matches[1]}丨${itemText}` : itemText;
+            const newsStory = options.newsBrief ? this.parseNewsStoryHeading(candidateText) : this.parseNewsStoryHeading(itemText);
+            items.push(newsStory
+                ? `<li>${this.formatNewsStoryHeading(newsStory, { inline: true })}</li>`
+                : `<li>${this.formatInline(itemText)}</li>`);
+            index++;
+        }
+        return {
+            html: `<${tag} class="markdown-list">${items.join('')}</${tag}>`,
+            nextIndex: index
+        };
+    }
+
+    consumeBlockquote(lines, startIndex) {
+        const parts = [];
+        let index = startIndex;
+        while (index < lines.length) {
+            const trimmed = String(lines[index] || '').trim();
+            if (!/^>\s+/.test(trimmed)) break;
+            parts.push(this.formatInline(trimmed.replace(/^>\s+/, '')));
+            index++;
+        }
+        return {
+            html: `<blockquote class="markdown-blockquote">${parts.map(part => `<p>${part}</p>`).join('')}</blockquote>`,
+            nextIndex: index
+        };
+    }
+
+    parseNewsLeadCallout(value, options = {}) {
+        const text = String(value || '').trim().replace(/^\*\*(.*)\*\*$/, '$1').trim();
+        const match = text.match(/^(今日重磅|今日关键词|今日要点|今日摘要|今日概览|今日新闻|新闻导读|简报导读|导读|总览|摘要|重点|要点|关键点|主线|焦点)\s*[:：]\s*(.+)$/);
+        if (match) {
+            return {
+                label: `${match[1]}：`,
+                text: match[2].trim()
+            };
+        }
+        if (!options.allowImplicit) return null;
+        if (text.length < 16 || text.length > 260) return null;
+        if (/^(来源|参考|引用|Sources|References)\s*[:：]?/i.test(text)) return null;
+        if (!/(今天|今日|截至|这份|本简报|新闻|要闻|值得关注|主线|焦点|变化|影响|brief|headlines|today)/i.test(text)) return null;
+        return {
+            label: '导读：',
+            text
+        };
+    }
+
+    canUseImplicitNewsLead(blocks = []) {
+        if (!Array.isArray(blocks) || blocks.length === 0) return true;
+        if (blocks.length !== 1) return false;
+        return /^<h[12]\s+class="markdown-heading/.test(String(blocks[0] || ''));
+    }
+
+    parseNewsStoryHeading(value) {
+        const text = String(value || '')
+            .trim()
+            .replace(/^#{1,3}\s+/, '')
+            .replace(/^\*\*(.*)\*\*$/, '$1')
+            .trim();
+        const match = text.match(/^【\s*(\d{1,3})\s*】\s*(.+)$/)
+            || text.match(/^(\d{1,3})\s*[|丨、.)）]\s*(.+)$/);
+        if (!match) return null;
+        const split = this.splitNewsStoryTitle(match[2].trim());
+        return {
+            index: match[1],
+            title: split.title,
+            detail: split.detail
+        };
+    }
+
+    splitNewsStoryTitle(value) {
+        const text = String(value || '').trim();
+        const separators = ['——', '--', ' - ', '：', ':'];
+        for (const separator of separators) {
+            const position = text.indexOf(separator);
+            if (position > 0 && position <= 48) {
+                return {
+                    title: text.slice(0, position).trim(),
+                    detail: text.slice(position).trim()
+                };
             }
         }
+        return { title: text, detail: '' };
+    }
 
-        if (mathBuffer.length > 0) {
-            html += `<div class="math-block">${mathBuffer.join('\n')}</div>`;
-        }
+    formatNewsStoryHeading(newsStory, options = {}) {
+        const tagOpen = options.inline ? '<span class="news-story-heading inline">' : '<p class="news-story-heading">';
+        const tagClose = options.inline ? '</span>' : '</p>';
+        const detail = newsStory.detail
+            ? `<span class="news-story-detail">${this.formatInline(newsStory.detail)}</span>`
+            : '';
+        return `${tagOpen}<span class="news-story-index">${this.escapeHtml(newsStory.index)}</span><span class="news-story-title">${this.formatInline(newsStory.title)}</span>${detail}${tagClose}`;
+    }
 
-        return html;
+    shouldUseNewsBriefFormatting(value) {
+        const text = String(value || '');
+        if (!text.trim()) return false;
+        const hasNewsSignal = /(新闻|简报|今日|今天|要闻|国际|国内|财经|科技|社会|民生|体育|文娱|来源|headline|brief|today|news)/i.test(text);
+        const hasSourceSignal = /(^|\n)\s*(来源|Sources|References|参考)\s*[:：]?/i.test(text) || /\[\d+]/.test(text);
+        const hasStorySignal = /(^|\n)\s*(?:#{1,3}\s*)?\d{1,3}\s*(?:[|丨、.)）])\s+/.test(text);
+        return hasNewsSignal && (hasSourceSignal || hasStorySignal);
     }
 
     /**
@@ -407,6 +686,8 @@ class ChatUI {
 
         const events = Array.isArray(snapshot.events) ? snapshot.events : [];
         const approvalDeck = this.createAgentApprovalDeck(events);
+        const toolDeck = document.createElement('div');
+        toolDeck.className = 'agent-tool-deck';
 
         const trace = document.createElement('div');
         trace.className = 'agent-trace-log';
@@ -422,6 +703,7 @@ class ChatUI {
 
         body.appendChild(stages);
         body.appendChild(approvalDeck);
+        body.appendChild(toolDeck);
         body.appendChild(trace);
         const eventTimeline = this.createAgentEventTimeline(events);
         if (eventTimeline.panel) {
@@ -965,19 +1247,31 @@ class ChatUI {
     displayMessageFromHistory(msg) {
         const messageElement = document.createElement('div');
         messageElement.className = `message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`;
+        const isAssistant = msg.role !== 'user';
+        const isRunning = isAssistant && msg.status === 'running';
+        let reasoningDetails = null;
+        let reasoningSummary = null;
+        let reasoningContentDiv = null;
+        let cursorSpan = null;
 
         // 显示思维链
-        if (msg.reasoning_content || msg.reasoning) {
-            const reasoningDetails = document.createElement('details');
-            reasoningDetails.className = 'reasoning-details';
-            reasoningDetails.open = false;
+        if (msg.reasoning_content || msg.reasoning || isRunning) {
+            reasoningDetails = document.createElement('details');
+            reasoningDetails.className = `reasoning-details${isRunning ? ' thinking-state' : ''}`;
+            reasoningDetails.open = isRunning;
 
-            const reasoningSummary = document.createElement('summary');
-            reasoningSummary.innerHTML = `<span>已完成思考</span> <span class="status-dot"></span>`;
+            reasoningSummary = document.createElement('summary');
+            reasoningSummary.innerHTML = `<span>${isRunning ? '正在分析问题' : '已完成思考'}</span> <span class="status-dot"></span>`;
 
-            const reasoningContentDiv = document.createElement('div');
+            reasoningContentDiv = document.createElement('div');
             reasoningContentDiv.className = 'reasoning-content';
-            reasoningContentDiv.textContent = msg.reasoning_content || msg.reasoning;
+            reasoningContentDiv.textContent = msg.reasoning_content || msg.reasoning || '';
+
+            if (isRunning) {
+                cursorSpan = document.createElement('span');
+                cursorSpan.className = 'cursor-blink';
+                reasoningContentDiv.appendChild(cursorSpan);
+            }
 
             reasoningDetails.appendChild(reasoningSummary);
             reasoningDetails.appendChild(reasoningContentDiv);
@@ -1027,7 +1321,8 @@ class ChatUI {
         }
         const restoredAgentRun = msg.role !== 'user' ? msg.agent_run : null;
         if (restoredAgentRun) {
-            this.restoreAgentRunPanel(messageElement, messageContent, restoredAgentRun);
+            const panel = this.restoreAgentRunPanel(messageElement, messageContent, restoredAgentRun);
+            if (panel && isRunning) panel.open = true;
         }
         if (msg.role !== 'user' && Array.isArray(msg.images) && msg.images.length) {
             const grid = document.createElement('div');
@@ -1039,6 +1334,25 @@ class ChatUI {
         this.messagesContainer.appendChild(messageElement);
 
         if (msg.role !== 'user') this.debouncedMathJax(messageContent);
+        if (!isAssistant) {
+            return { element: messageElement, contentDiv: messageContent };
+        }
+        return {
+            element: messageElement,
+            reasoningDetails,
+            reasoningSummary,
+            reasoningContent: reasoningContentDiv,
+            contentDiv: messageContent,
+            cursorSpan,
+            agentRunPanel: messageElement.querySelector('.agent-run-panel'),
+            agentStages: messageElement.querySelector('.agent-stage-strip'),
+            agentApprovalDeck: messageElement.querySelector('.agent-approval-deck'),
+            toolDeck: messageElement.querySelector('.agent-tool-deck'),
+            agentTrace: messageElement.querySelector('.agent-trace-log'),
+            agentEventTimeline: messageElement.querySelector('.agent-event-panel'),
+            agentEventLog: messageElement.querySelector('.agent-event-log'),
+            agentEventCount: messageElement.querySelector('.agent-event-count')
+        };
     }
 
     /**

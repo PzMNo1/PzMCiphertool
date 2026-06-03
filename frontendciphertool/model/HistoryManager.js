@@ -9,7 +9,7 @@ class HistoryManager {
         this.CURRENT_CHAT_KEY = 'currentChatId';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
-        this.MAX_AGENT_EVENTS = 80;
+        this.MAX_AGENT_EVENTS = 240;
         this.MAX_AGENT_EVIDENCE = 64;
         this.MAX_AGENT_TOOL_RESULTS = 36;
         this.MAX_STORED_CONTENT_CHARS = 260000;
@@ -56,6 +56,11 @@ class HistoryManager {
         return chatId;
     }
 
+    createMessageId(role = 'message') {
+        const prefix = String(role || 'message').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'message';
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    }
+
     getMessages(chatId) {
         const history = this.getChatHistory();
         return history[chatId]?.messages || [];
@@ -99,6 +104,42 @@ class HistoryManager {
         }
 
         return this.persistHistory(history);
+    }
+
+    getMessage(chatId, messageId) {
+        const messages = this.getMessages(chatId);
+        const key = String(messageId || '');
+        return messages.find(message => String(message?.message_id || message?.id || '') === key) || null;
+    }
+
+    updateMessage(chatId, messageId, patch = {}) {
+        if (!chatId || !messageId) return null;
+        const history = this.getChatHistory();
+        const chat = history[chatId];
+        if (!chat || !Array.isArray(chat.messages)) return null;
+
+        const key = String(messageId);
+        const index = chat.messages.findIndex(message => String(message?.message_id || message?.id || '') === key);
+        if (index < 0) return null;
+
+        const existing = chat.messages[index] || {};
+        const merged = {
+            ...existing,
+            ...(patch || {}),
+            id: existing.id || patch.id || key,
+            message_id: existing.message_id || patch.message_id || key,
+            role: patch.role || existing.role || 'assistant',
+            created_at: existing.created_at || patch.created_at || Date.now(),
+            updated_at: Date.now()
+        };
+        const storedMessage = this.prepareMessageForStorage(merged);
+        chat.messages[index] = storedMessage;
+        if (storedMessage.agent_run?.runId) {
+            storedMessage.agent_run_id = storedMessage.agent_run.runId;
+        }
+        chat.timestamp = Date.now();
+        this.persistHistory(history);
+        return storedMessage;
     }
 
     deleteChats(chatIds) {
@@ -280,11 +321,24 @@ class HistoryManager {
 
     prepareMessageForStorage(message, level = 'normal') {
         const source = message && typeof message === 'object' ? message : {};
+        const messageId = source.message_id || source.id || this.createMessageId(source.role || 'assistant');
         const stored = {
+            id: messageId,
+            message_id: messageId,
             role: source.role || 'assistant',
-            content: this.compactMessageContent(source.content, level)
+            content: this.compactMessageContent(source.content, level),
+            status: source.status || 'completed',
+            created_at: source.created_at || Date.now(),
+            updated_at: source.updated_at || source.created_at || Date.now()
         };
 
+        if (source.owner_id || source.user_id || source.account_id) {
+            stored.owner_id = source.owner_id || source.user_id || source.account_id;
+        }
+        if (source.run_id) stored.run_id = source.run_id;
+        if (source.error_message || source.error) {
+            stored.error_message = this.truncateText(source.error_message || source.error || '', 1200);
+        }
         if (source.agent_run_id) stored.agent_run_id = source.agent_run_id;
         if (source.reasoning_content || source.reasoning) {
             const max = level === 'normal' ? this.MAX_REASONING_CHARS : level === 'tight' ? 2400 : 0;
@@ -374,7 +428,7 @@ class HistoryManager {
 
     compactAgentRunForStorage(run, level = 'normal') {
         if (!run || typeof run !== 'object') return null;
-        const eventLimit = level === 'normal' ? this.MAX_AGENT_EVENTS : level === 'tight' ? 40 : 12;
+        const eventLimit = level === 'normal' ? this.MAX_AGENT_EVENTS : level === 'tight' ? 120 : 40;
         const evidenceLimit = level === 'normal' ? this.MAX_AGENT_EVIDENCE : level === 'tight' ? 44 : 20;
         const toolResultLimit = level === 'normal' ? this.MAX_AGENT_TOOL_RESULTS : level === 'tight' ? 16 : 0;
         return {
@@ -384,6 +438,7 @@ class HistoryManager {
             researchProfile: run.researchProfile || '',
             newsBriefScope: run.newsBriefScope || null,
             selectedTools: Array.isArray(run.selectedTools) ? run.selectedTools.slice(0, 24) : [],
+            agentEarthTargetCalls: run.agentEarthTargetCalls || 0,
             maxIterations: run.maxIterations ?? '',
             stages: this.compactAgentStages(run.stages),
             traces: this.compactAgentTraces(run.traces, level === 'normal' ? 28 : 10),

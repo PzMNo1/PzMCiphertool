@@ -4,13 +4,6 @@
     const FAVORITES_KEY = config.favoritesKey || 'MCPSKILLLAB_FAVORITES';
     const BACKLOG_META_KEY = config.backlogMetaKey || 'MCPSKILLLAB_BACKLOG_META';
     const CUSTOM_RESOURCES_KEY = config.customResourcesKey || 'MCPSKILLLAB_CUSTOM_RESOURCES';
-    const CHECK_CACHE_KEY = config.checkCacheKey || 'MCPSKILLLAB_CHECK_CACHE';
-    const CHECK_API_PATH = config.checkApiPath || '/check-resource';
-    const HEALTH_API_PATH = config.healthApiPath || '/health';
-    const LOCAL_API_BASE = config.localApiBase || window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
-    const BATCH_CHECK_DELAY_MS = config.batchCheckDelayMs || 350;
-    const REVIEW_HIGH_RISK_PERMISSIONS = config.reviewHighRiskPermissions || ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
-    const REVIEW_ITEM_LIMIT = config.reviewItemLimit || 8;
     const fallbackResources = config.fallbackResources || [];
     const templates = config.templates || [];
     const auditItems = config.auditItems || [];
@@ -27,8 +20,6 @@
     const MAX_IMPORT_BYTES = config.maxImportBytes || 200 * 1024;
     const MAX_CUSTOM_RESOURCES = config.maxCustomResources || 200;
     const MAX_FAVORITES = config.maxFavorites || 500;
-    const MAX_CHECK_RESULTS = config.maxCheckResults || 300;
-    const CHECK_CACHE_TTL_MS = config.checkCacheTtlMs || 14 * 24 * 60 * 60 * 1000;
     const wizardPlatforms = config.wizardPlatforms || [];
     const wizardModes = config.wizardModes || [];
     const displayText = config.displayText || {};
@@ -169,8 +160,7 @@
     }
 
     const builtInResources = normalizeResources(window.MCPSKILLLAB_RESOURCES || fallbackResources);
-    let resources = mergeResources();
-
+    let resources;
     let activeCategory = 'mcp';
     let activeRisk = 'all';
     let activePermission = 'all';
@@ -183,24 +173,6 @@
     let wizardResourceId = '';
     let wizardPlatform = 'generic';
     let wizardMode = 'local';
-    let checkingResourceId = '';
-    let checkResults = {};
-    let backendHealth = {
-        loading: false,
-        checkedAt: '',
-        data: null,
-        error: ''
-    };
-    let batchCheckState = {
-        running: false,
-        total: 0,
-        done: 0,
-        success: 0,
-        failed: 0,
-        currentId: '',
-        mode: '',
-        stopRequested: false
-    };
 
     function injectStyles() {
         if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
@@ -1475,8 +1447,7 @@
             exportedAt: new Date().toISOString(),
             favorites: Array.from(getFavorites()),
             backlogMeta: getBacklogMeta(),
-            customResources: getCustomResources(),
-            checkResults: getCheckCache()
+            customResources: getCustomResources()
         };
         downloadText(`mcpskilllab-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2));
     }
@@ -1512,10 +1483,6 @@
             });
             saveBacklogMeta(meta);
         }
-
-        if (payload.checkResults && typeof payload.checkResults === 'object' && !Array.isArray(payload.checkResults)) {
-            saveCheckCache({ ...getCheckCache(), ...payload.checkResults });
-        }
     }
 
     function downloadText(fileName, content) {
@@ -1540,133 +1507,6 @@
         const meta = getBacklogMeta();
         delete meta[normalizedId];
         saveBacklogMeta(meta);
-        const cache = getCheckCache();
-        delete cache[normalizedId];
-        saveCheckCache(cache);
-    }
-
-    function normalizeUrlCheck(value) {
-        const raw = value && typeof value === 'object' ? value : {};
-        return {
-            role: clipText(raw.role, 40, 'url'),
-            url: sanitizeExternalUrl(raw.url),
-            checked: Boolean(raw.checked),
-            reachable: Boolean(raw.reachable),
-            statusCode: Number.isFinite(Number(raw.statusCode)) ? Number(raw.statusCode) : 0,
-            method: clipText(raw.method, 12),
-            contentType: clipText(raw.contentType, 120),
-            finalUrl: sanitizeExternalUrl(raw.finalUrl) || sanitizeExternalUrl(raw.url),
-            latencyMs: Number.isFinite(Number(raw.latencyMs)) ? Math.max(0, Math.round(Number(raw.latencyMs))) : 0,
-            errorCode: clipText(raw.errorCode, 80),
-            error: clipText(raw.error, 240),
-            recommendation: clipText(raw.recommendation, 240)
-        };
-    }
-
-    function normalizeGithubInfo(value) {
-        const raw = value && typeof value === 'object' ? value : {};
-        return {
-            checked: Boolean(raw.checked),
-            found: Boolean(raw.found),
-            repository: clipText(raw.repository, 160),
-            apiUrl: sanitizeExternalUrl(raw.apiUrl),
-            htmlUrl: sanitizeExternalUrl(raw.htmlUrl),
-            description: clipText(raw.description, 280),
-            stars: Number.isFinite(Number(raw.stars)) ? Math.max(0, Math.round(Number(raw.stars))) : 0,
-            forks: Number.isFinite(Number(raw.forks)) ? Math.max(0, Math.round(Number(raw.forks))) : 0,
-            openIssues: Number.isFinite(Number(raw.openIssues)) ? Math.max(0, Math.round(Number(raw.openIssues))) : 0,
-            defaultBranch: clipText(raw.defaultBranch, 80),
-            license: clipText(raw.license, 120),
-            pushedAt: clipText(raw.pushedAt, 40),
-            updatedAt: clipText(raw.updatedAt, 40),
-            archived: Boolean(raw.archived),
-            disabled: Boolean(raw.disabled),
-            visibility: clipText(raw.visibility, 40),
-            errorCode: clipText(raw.errorCode, 80),
-            error: clipText(raw.error, 240),
-            recommendation: clipText(raw.recommendation, 240)
-        };
-    }
-
-    function normalizeCheckData(value) {
-        const raw = value && typeof value === 'object' ? value : {};
-        return {
-            id: normalizeResourceId(raw.id),
-            name: clipText(raw.name, 120),
-            checkedAt: clipText(raw.checkedAt, 40, new Date().toISOString()),
-            status: normalizeChoice(raw.status, ['healthy', 'review', 'risk'], 'review'),
-            score: clampScore(raw.score),
-            warnings: normalizeListValue(raw.warnings, [], null, { maxItems: 20, maxLength: 240 }),
-            urls: Array.isArray(raw.urls) ? raw.urls.slice(0, 4).map(normalizeUrlCheck) : [],
-            github: raw.github && typeof raw.github === 'object' ? normalizeGithubInfo(raw.github) : undefined
-        };
-    }
-
-    function normalizeCheckState(value) {
-        const raw = value && typeof value === 'object' ? value : {};
-        const data = raw.data && typeof raw.data === 'object' ? normalizeCheckData(raw.data) : undefined;
-        const error = clipText(raw.error, 240);
-        const checkedAt = clipText(raw.checkedAt || (data && data.checkedAt), 40, new Date().toISOString());
-        if (!data && !error) return null;
-        return {
-            loading: false,
-            checkedAt,
-            data,
-            error
-        };
-    }
-
-    function getCheckCache() {
-        const saved = readJson(CHECK_CACHE_KEY, {});
-        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
-        return Object.fromEntries(Object.entries(saved)
-            .slice(0, MAX_CHECK_RESULTS)
-            .map(([id, value]) => [normalizeResourceId(id), normalizeCheckState(value)])
-            .filter(([id, value]) => id && value));
-    }
-
-    function saveCheckCache(cache) {
-        const source = cache && typeof cache === 'object' && !Array.isArray(cache) ? cache : {};
-        const cleaned = Object.fromEntries(Object.entries(source)
-            .map(([id, value]) => [normalizeResourceId(id), normalizeCheckState(value)])
-            .filter(([id, value]) => id && value)
-            .slice(0, MAX_CHECK_RESULTS));
-        checkResults = cleaned;
-        writeJson(CHECK_CACHE_KEY, cleaned);
-    }
-
-    function updateCheckCache(id, state) {
-        const normalizedId = normalizeResourceId(id);
-        if (!normalizedId) return;
-        const normalized = normalizeCheckState(state);
-        if (!normalized) return;
-        checkResults = {
-            ...checkResults,
-            [normalizedId]: normalized
-        };
-        saveCheckCache(checkResults);
-    }
-
-    function clearCheckCache() {
-        checkResults = {};
-        saveCheckCache({});
-    }
-
-    function getCheckState(item) {
-        return item && item.id ? checkResults[item.id] || null : null;
-    }
-
-    function isCheckStateFresh(state) {
-        if (!state || !state.checkedAt) return false;
-        const time = Date.parse(state.checkedAt);
-        return Number.isFinite(time) && Date.now() - time <= CHECK_CACHE_TTL_MS;
-    }
-
-    function formatCheckDate(value) {
-        if (!value) return '未检测';
-        const time = Date.parse(value);
-        if (!Number.isFinite(time)) return value;
-        return new Date(time).toLocaleString('zh-CN', { hour12: false });
     }
 
     function getWizardAvailableModes(resource) {
@@ -1684,400 +1524,6 @@
         const platformTemplates = templates[platformId] || templates.generic;
         if (!platformTemplates || typeof platformTemplates !== 'object') return '';
         return platformTemplates[modeId] || platformTemplates.default || '';
-    }
-
-    function getMcpLabApiBase() {
-        return `${getLocalApiBase()}/api/mcp-lab`;
-    }
-
-    function getLocalApiBase() {
-        let override = '';
-        try {
-            override = (typeof window !== 'undefined' && window.CIPHERTOOL_API_BASE)
-                || localStorage.getItem('CIPHERTOOL_API_BASE')
-                || '';
-        } catch (error) {
-            override = '';
-        }
-        const safeOverride = sanitizeExternalUrl(override);
-        return (safeOverride || LOCAL_API_BASE).replace(/\/+$/, '');
-    }
-
-    function normalizeBackendHealthData(value) {
-        const raw = value && typeof value === 'object' ? value : {};
-        return {
-            status: clipText(raw.status, 40, 'unknown'),
-            checkedAt: clipText(raw.checkedAt, 40),
-            checker: clipText(raw.checker, 80),
-            version: clipText(raw.version, 40),
-            safety: clipText(raw.safety, 160),
-            connectTimeoutMs: Number.isFinite(Number(raw.connectTimeoutMs)) ? Math.max(0, Math.round(Number(raw.connectTimeoutMs))) : 0,
-            requestTimeoutMs: Number.isFinite(Number(raw.requestTimeoutMs)) ? Math.max(0, Math.round(Number(raw.requestTimeoutMs))) : 0,
-            maxRedirects: Number.isFinite(Number(raw.maxRedirects)) ? Math.max(0, Math.round(Number(raw.maxRedirects))) : 0
-        };
-    }
-
-    async function runBackendHealthCheck(options = {}) {
-        const silent = Boolean(options.silent);
-        if (backendHealth.loading) return;
-        backendHealth = {
-            ...backendHealth,
-            loading: true,
-            error: ''
-        };
-        if (!silent) render();
-        try {
-            if (typeof fetch !== 'function') throw new Error('当前环境不支持 fetch。');
-            const response = await fetch(`${getMcpLabApiBase()}${HEALTH_API_PATH}`, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.message || `HTTP ${response.status}`);
-            }
-            backendHealth = {
-                loading: false,
-                checkedAt: new Date().toISOString(),
-                data: normalizeBackendHealthData(payload.data),
-                error: ''
-            };
-        } catch (error) {
-            backendHealth = {
-                loading: false,
-                checkedAt: new Date().toISOString(),
-                data: null,
-                error: clipText(error.message || '后端健康检查失败', 240)
-            };
-        }
-        render();
-    }
-
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    function setResourceCheckLoading(resourceId) {
-        const id = normalizeResourceId(resourceId);
-        if (!id) return;
-        checkResults = {
-            ...checkResults,
-            [id]: {
-                loading: true,
-                checkedAt: new Date().toISOString()
-            }
-        };
-    }
-
-    async function requestResourceCheck(resource) {
-        if (!resource) throw new Error('资源不存在');
-        if (typeof fetch !== 'function') throw new Error('当前环境不支持 fetch，无法调用后端检测。');
-        const response = await fetch(`${getMcpLabApiBase()}${CHECK_API_PATH}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                id: resource.id,
-                name: resource.name,
-                url: resource.url,
-                docs: resource.docs,
-                checkGithub: true
-            })
-        });
-
-        let payload = {};
-        try {
-            payload = await response.json();
-        } catch (error) {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            throw new Error('后端响应不是有效 JSON');
-        }
-
-        if (!response.ok || !payload.success) {
-            throw new Error(payload.message || `HTTP ${response.status}`);
-        }
-
-        return normalizeCheckState({
-            loading: false,
-            data: payload.data,
-            checkedAt: new Date().toISOString()
-        });
-    }
-
-    async function runResourceCheck(resourceId) {
-        const resource = getResourceById(resourceId);
-        if (!resource) return;
-        if (batchCheckState.running) return;
-        checkingResourceId = resource.id;
-        setResourceCheckLoading(resource.id);
-        render();
-        try {
-            const result = await requestResourceCheck(resource);
-            updateCheckCache(resource.id, result);
-        } catch (error) {
-            updateCheckCache(resource.id, {
-                loading: false,
-                error: error.message || '检测失败',
-                checkedAt: new Date().toISOString()
-            });
-        } finally {
-            checkingResourceId = '';
-            render();
-        }
-    }
-
-    function isFailedCheckCandidate(item) {
-        const state = getCheckState(item);
-        return Boolean(state && state.error);
-    }
-
-    function isRefreshCheckCandidate(item) {
-        const state = getCheckState(item);
-        return !state || Boolean(state.error) || !isCheckStateFresh(state);
-    }
-
-    function getBatchPriority(item) {
-        const state = getCheckState(item);
-        const highRiskPermissions = ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
-        const permissionWeight = (item.permissions || [])
-            .filter(permission => highRiskPermissions.includes(permission))
-            .length * 6;
-        let score = permissionWeight;
-        if (state && state.error) score += 80;
-        if (!state) score += 55;
-        else if (!isCheckStateFresh(state)) score += 45;
-        if (item.risk === 'Medium') score += 24;
-        if (item.authRequired === 'true') score += 8;
-        score += Math.max(0, 70 - getTrustScore(item)) / 2;
-        return score;
-    }
-
-    function sortBatchTargets(list) {
-        return [...list].sort((a, b) => {
-            const priority = getBatchPriority(b) - getBatchPriority(a);
-            if (priority) return priority;
-            return String(a.name).localeCompare(String(b.name));
-        });
-    }
-
-    function getBatchTargets(mode) {
-        const favorites = getFavorites();
-        const source = mode === 'favorites'
-            ? resources.filter(item => favorites.has(item.id))
-            : getFilteredResources();
-        const seen = new Set();
-        const candidates = source.filter(item => {
-            if (!item || !item.id || seen.has(item.id)) return false;
-            seen.add(item.id);
-            return Boolean(item.url || item.docs);
-        });
-        if (mode === 'refresh') return sortBatchTargets(candidates.filter(isRefreshCheckCandidate));
-        if (mode === 'failed') return sortBatchTargets(candidates.filter(isFailedCheckCandidate));
-        return sortBatchTargets(candidates);
-    }
-
-    function getBatchModeLabel(mode) {
-        const labels = {
-            filtered: '当前结果',
-            favorites: '待接入',
-            refresh: '需更新',
-            failed: '失败重试'
-        };
-        return labels[mode] || labels.filtered;
-    }
-
-    function getReviewSeverityRank(severity) {
-        return { high: 3, medium: 2, low: 1 }[severity] || 0;
-    }
-
-    function getReviewChipClass(severity) {
-        return severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : 'low';
-    }
-
-    function hasHighRiskPermissions(item) {
-        return (item.permissions || []).some(permission => REVIEW_HIGH_RISK_PERMISSIONS.includes(permission));
-    }
-
-    function isStaleCheckedResource(item) {
-        const state = getCheckState(item);
-        return Boolean(state && !state.loading && !state.error && !isCheckStateFresh(state));
-    }
-
-    function getCheckReviewIssues(item) {
-        const issues = [];
-        const state = getCheckState(item);
-        const trustScore = getTrustScore(item);
-        const highRiskPermissions = (item.permissions || [])
-            .filter(permission => REVIEW_HIGH_RISK_PERMISSIONS.includes(permission))
-            .map(permission => localize('permission', permission));
-
-        if (state && state.error) {
-            issues.push({
-                severity: 'high',
-                label: '检测失败',
-                detail: state.error
-            });
-        } else if (state && !state.loading && !isCheckStateFresh(state)) {
-            issues.push({
-                severity: 'medium',
-                label: '缓存过期',
-                detail: `最近检测：${formatCheckDate(state.checkedAt)}`
-            });
-        }
-
-        if (state && state.data) {
-            const data = state.data;
-            if (data.score < 60) {
-                issues.push({ severity: 'high', label: '后端低分', detail: `${data.score} 分，需要优先复核。` });
-            } else if (data.score < 75) {
-                issues.push({ severity: 'medium', label: '后端需复核', detail: `${data.score} 分，建议确认链接和仓库状态。` });
-            }
-
-            const unreachable = (data.urls || []).filter(url => url.checked && !url.reachable).length;
-            if (unreachable) {
-                const firstFailure = (data.urls || []).find(url => url.checked && !url.reachable);
-                issues.push({
-                    severity: unreachable > 1 ? 'high' : 'medium',
-                    label: '链接不可达',
-                    detail: `${unreachable} 个检测链接不可达。${firstFailure && firstFailure.error ? firstFailure.error : ''}${firstFailure && firstFailure.recommendation ? ` 建议：${firstFailure.recommendation}` : ''}`
-                });
-            }
-
-            const warningCount = (data.warnings || []).length;
-            if (warningCount) {
-                issues.push({
-                    severity: warningCount > 2 ? 'high' : 'medium',
-                    label: '检测警告',
-                    detail: `${warningCount} 条后端检测警告。`
-                });
-            }
-
-            const github = data.github || {};
-            if (github.checked && github.found && (github.archived || github.disabled)) {
-                issues.push({
-                    severity: 'high',
-                    label: '仓库状态异常',
-                    detail: github.disabled ? 'GitHub 仓库已禁用。' : 'GitHub 仓库已归档。'
-                });
-            }
-            if (github.checked && !github.found && github.error) {
-                issues.push({
-                    severity: 'medium',
-                    label: 'GitHub 未确认',
-                    detail: `${github.error}${github.recommendation ? ` 建议：${github.recommendation}` : ''}`
-                });
-            }
-        }
-
-        if (trustScore < 60) {
-            issues.push({ severity: 'high', label: '可信分偏低', detail: `当前可信分 ${trustScore}，不建议直接接入。` });
-        } else if (trustScore < 70) {
-            issues.push({ severity: 'medium', label: '可信分偏低', detail: `当前可信分 ${trustScore}，需要人工审查。` });
-        }
-
-        if (highRiskPermissions.length) {
-            issues.push({
-                severity: 'high',
-                label: '高风险权限',
-                detail: highRiskPermissions.join(' / ')
-            });
-        }
-
-        return issues.sort((a, b) => getReviewSeverityRank(b.severity) - getReviewSeverityRank(a.severity));
-    }
-
-    function getCheckReviewItems(list) {
-        return (Array.isArray(list) ? list : [])
-            .map(item => {
-                const issues = getCheckReviewIssues(item);
-                const severity = issues[0] ? issues[0].severity : 'low';
-                return { item, issues, severity };
-            })
-            .filter(entry => entry.issues.length)
-            .sort((a, b) => {
-                const severityDiff = getReviewSeverityRank(b.severity) - getReviewSeverityRank(a.severity);
-                if (severityDiff) return severityDiff;
-                const priorityDiff = getBatchPriority(b.item) - getBatchPriority(a.item);
-                if (priorityDiff) return priorityDiff;
-                return String(a.item.name).localeCompare(String(b.item.name));
-            });
-    }
-
-    function getCheckReviewStats(list) {
-        const source = Array.isArray(list) ? list : [];
-        return {
-            failed: source.filter(isFailedCheckCandidate).length,
-            stale: source.filter(isStaleCheckedResource).length,
-            lowScore: source.filter(item => getTrustScore(item) < 70).length,
-            highPermission: source.filter(hasHighRiskPermissions).length
-        };
-    }
-
-    async function runBatchCheck(mode) {
-        if (batchCheckState.running) return;
-        const targets = getBatchTargets(mode);
-        if (!targets.length) {
-            if (typeof window !== 'undefined' && window.alert) window.alert('当前没有可检测资源。');
-            return;
-        }
-
-        batchCheckState = {
-            running: true,
-            total: targets.length,
-            done: 0,
-            success: 0,
-            failed: 0,
-            currentId: '',
-            mode,
-            stopRequested: false
-        };
-        render();
-
-        for (const resource of targets) {
-            if (batchCheckState.stopRequested) break;
-            batchCheckState.currentId = resource.id;
-            checkingResourceId = resource.id;
-            setResourceCheckLoading(resource.id);
-            render();
-
-            try {
-                const result = await requestResourceCheck(resource);
-                updateCheckCache(resource.id, result);
-                batchCheckState.success += 1;
-            } catch (error) {
-                updateCheckCache(resource.id, {
-                    loading: false,
-                    error: error.message || '检测失败',
-                    checkedAt: new Date().toISOString()
-                });
-                batchCheckState.failed += 1;
-            }
-
-            batchCheckState.done += 1;
-            batchCheckState.currentId = '';
-            checkingResourceId = '';
-            render();
-
-            if (!batchCheckState.stopRequested && batchCheckState.done < batchCheckState.total) {
-                await sleep(BATCH_CHECK_DELAY_MS);
-            }
-        }
-
-        checkingResourceId = '';
-        batchCheckState = {
-            ...batchCheckState,
-            running: false,
-            currentId: ''
-        };
-        render();
-    }
-
-    function stopBatchCheck() {
-        if (!batchCheckState.running) return;
-        batchCheckState = {
-            ...batchCheckState,
-            stopRequested: true
-        };
-        render();
     }
 
     function generateWizardConfig(resource, platformId, modeId) {
@@ -2188,7 +1634,6 @@
                 <div class="mcpskilllab-wizard-resource">
                     <span class="mcpskilllab-chip ${resource.source === 'Official' ? 'official' : ''}">${escapeHtml(localize('source', resource.source))}</span>
                     <span class="mcpskilllab-chip ${resource.risk.toLowerCase()}">风险：${escapeHtml(localize('risk', resource.risk))}</span>
-                    ${renderTrustScoreChip(resource)}
                 </div>
 
                 <div class="mcpskilllab-wizard-step">
@@ -2334,8 +1779,6 @@
     function getTrustBreakdown(item) {
         const permissions = new Set(item.permissions || []);
         const installModes = new Set(item.installModes || []);
-        const checkState = getCheckState(item);
-        const checkData = checkState && checkState.data && isCheckStateFresh(checkState) ? checkState.data : null;
 
         const sourceScore = item.source === 'Official' ? 20 : 12;
         const sourceHint = item.source === 'Official' ? '官方来源，默认可信度较高。' : '社区来源，需要额外看仓库、维护和权限。';
@@ -2409,223 +1852,18 @@
             { id: 'auth', label: '密钥', score: authScore, max: 10, hint: authHint }
         ];
         const baseTotal = Math.round(components.reduce((sum, item) => sum + item.score, 0));
-        const checkImpact = getCheckImpact(checkData);
-        const total = Math.max(0, Math.min(100, baseTotal + checkImpact.adjustment));
+        const total = Math.max(0, Math.min(100, baseTotal));
         const level = total >= 85 ? 'high' : total >= 70 ? 'medium' : 'low';
         return {
             total,
             baseTotal,
             level,
-            components,
-            checkImpact,
-            checkState,
-            checkFresh: Boolean(checkData)
-        };
-    }
-
-    function getCheckImpact(data) {
-        if (!data) {
-            return {
-                adjustment: 0,
-                hint: '暂无新鲜后端检测结果，可信分仅使用本地元数据。'
-            };
-        }
-        let adjustment = 0;
-        const hints = [];
-        if (data.score >= 85) {
-            adjustment += 4;
-            hints.push('后端检测健康。');
-        } else if (data.score < 60) {
-            adjustment -= 15;
-            hints.push('后端检测分较低。');
-        } else if (data.score < 75) {
-            adjustment -= 6;
-            hints.push('后端检测需要复核。');
-        }
-
-        const unreachable = (data.urls || []).filter(url => url.checked && !url.reachable).length;
-        if (unreachable) {
-            adjustment -= Math.min(16, unreachable * 8);
-            hints.push(`${unreachable} 个链接不可达。`);
-        }
-
-        const warningCount = (data.warnings || []).length;
-        if (warningCount) {
-            adjustment -= Math.min(8, warningCount * 2);
-            hints.push(`${warningCount} 条检测警告。`);
-        }
-
-        const github = data.github || {};
-        if (github.checked && github.found) {
-            if (github.archived) {
-                adjustment -= 15;
-                hints.push('GitHub 仓库已归档。');
-            }
-            if (github.disabled) {
-                adjustment -= 25;
-                hints.push('GitHub 仓库已禁用。');
-            }
-            if (!github.license) {
-                adjustment -= 4;
-                hints.push('未识别到许可证。');
-            }
-            if (github.stars >= 1000) {
-                adjustment += 3;
-                hints.push('仓库关注度较高。');
-            } else if (github.stars >= 100) {
-                adjustment += 1;
-                hints.push('仓库有一定关注度。');
-            }
-        }
-
-        return {
-            adjustment: Math.max(-30, Math.min(8, adjustment)),
-            hint: hints.length ? hints.join(' ') : '后端检测无额外扣分。'
+            components
         };
     }
 
     function getTrustScore(item) {
         return getTrustBreakdown(item).total;
-    }
-
-    function renderTrustScoreChip(item) {
-        const trust = getTrustBreakdown(item);
-        return `<span class="mcpskilllab-chip">可信分：<span class="mcpskilllab-score">${escapeHtml(trust.total)}</span></span>`;
-    }
-
-    function renderCheckSummaryChip(item) {
-        const state = getCheckState(item);
-        if (!state) return '<span class="mcpskilllab-chip">后端检测：未检测</span>';
-        if (state.loading) return '<span class="mcpskilllab-chip medium">后端检测：检测中</span>';
-        const fresh = isCheckStateFresh(state);
-        if (state.data) {
-            return `<span class="mcpskilllab-chip ${fresh ? 'official' : 'medium'}">后端检测：${escapeHtml(state.data.score)}${fresh ? '' : ' · 过期'}</span>`;
-        }
-        return `<span class="mcpskilllab-chip medium">后端检测：失败</span>`;
-    }
-
-    function renderTrustBreakdown(item) {
-        const trust = getTrustBreakdown(item);
-        return `
-            <div class="mcpskilllab-trust-panel">
-                <div class="mcpskilllab-trust-head">
-                    <div>
-                        <div class="mcpskilllab-trust-kicker">可信分拆解</div>
-                        <div class="mcpskilllab-trust-title">${trust.level === 'high' ? '可优先评估' : trust.level === 'medium' ? '需要常规审查' : '需要谨慎审查'}</div>
-                    </div>
-                    <div class="mcpskilllab-trust-total">${escapeHtml(trust.total)}</div>
-                </div>
-                <div class="mcpskilllab-trust-grid">
-                    ${trust.components.map(component => {
-                        const width = Math.round((component.score / component.max) * 100);
-                        return `
-                            <div>
-                                <div class="mcpskilllab-trust-row">
-                                    <div class="mcpskilllab-trust-label">${escapeHtml(component.label)}</div>
-                                    <div class="mcpskilllab-trust-bar"><div class="mcpskilllab-trust-fill" style="width:${escapeHtml(width)}%"></div></div>
-                                    <div class="mcpskilllab-trust-value">${escapeHtml(component.score)} / ${escapeHtml(component.max)}</div>
-                                </div>
-                                <div class="mcpskilllab-trust-hint">${escapeHtml(component.hint)}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                <div class="mcpskilllab-trust-note">
-                    基础分：${escapeHtml(trust.baseTotal)}；后端检测调整：${trust.checkImpact.adjustment > 0 ? '+' : ''}${escapeHtml(trust.checkImpact.adjustment)}。
-                    ${escapeHtml(trust.checkImpact.hint)}
-                    目录原始分：${escapeHtml(item.trustScore)}。
-                </div>
-            </div>
-        `;
-    }
-
-    function renderReadOnlyCheck(item) {
-        const state = checkResults[item.id];
-        if (!state) {
-            return `
-                <div class="mcpskilllab-check-panel">
-                    <div class="mcpskilllab-check-head">
-                        <div>
-                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
-                            <div class="mcpskilllab-check-title">尚未检测</div>
-                        </div>
-                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">只读检测</span></button>
-                    </div>
-                    <div class="mcpskilllab-trust-note">检测只做链接可达性和 GitHub 公开元信息读取，不执行安装命令，也不连接 MCP Server。</div>
-                </div>
-            `;
-        }
-        if (state.loading) {
-            return `
-                <div class="mcpskilllab-check-panel">
-                    <div class="mcpskilllab-check-head">
-                        <div>
-                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
-                            <div class="mcpskilllab-check-title">检测中...</div>
-                        </div>
-                    </div>
-                    <div class="mcpskilllab-trust-note">正在请求后端检测链接和公开仓库元信息。</div>
-                </div>
-            `;
-        }
-        if (state.error) {
-            return `
-                <div class="mcpskilllab-check-panel">
-                    <div class="mcpskilllab-check-head">
-                        <div>
-                            <div class="mcpskilllab-trust-kicker">后端只读检测</div>
-                            <div class="mcpskilllab-check-title">检测失败</div>
-                        </div>
-                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">重试</span></button>
-                    </div>
-                    <div class="mcpskilllab-check-warning">${escapeHtml(state.error)}</div>
-                </div>
-            `;
-        }
-
-        const data = state.data || {};
-        const github = data.github || {};
-        const fresh = isCheckStateFresh(state);
-        return `
-            <div class="mcpskilllab-check-panel">
-                <div class="mcpskilllab-check-head">
-                    <div>
-                        <div class="mcpskilllab-trust-kicker">后端只读检测</div>
-                        <div class="mcpskilllab-check-title">${escapeHtml(data.status || 'unknown')} · ${escapeHtml(data.score || 0)} 分${fresh ? '' : ' · 已过期'}</div>
-                    </div>
-                    <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">重新检测</span></button>
-                </div>
-                <div class="mcpskilllab-trust-note">最近检测：${escapeHtml(formatCheckDate(state.checkedAt || data.checkedAt))}。${fresh ? '该结果正在参与可信分。' : '该结果只展示，不参与可信分。'}</div>
-                <div class="mcpskilllab-check-grid">
-                    ${(data.urls || []).map(url => `
-                        <div class="mcpskilllab-check-row">
-                            <span class="mcpskilllab-chip ${url.reachable ? 'low' : 'medium'}">${escapeHtml(url.role || 'url')}</span>
-                            <span>${escapeHtml(url.method || 'HTTP')} ${escapeHtml(url.statusCode || 0)} · ${escapeHtml(url.latencyMs || 0)}ms</span>
-                            <span class="mcpskilllab-check-url">
-                                ${escapeHtml(url.finalUrl || url.url || '')}
-                                ${url.error ? `<br>${escapeHtml(url.errorCode ? `[${url.errorCode}] ${url.error}` : url.error)}` : ''}
-                                ${url.recommendation ? `<br>建议：${escapeHtml(url.recommendation)}` : ''}
-                            </span>
-                        </div>
-                    `).join('')}
-                </div>
-                ${github.checked ? `
-                    <div class="mcpskilllab-meta">
-                        <span class="mcpskilllab-chip ${github.found ? 'official' : 'medium'}">GitHub：${github.found ? '已确认' : '未确认'}</span>
-                        ${github.repository ? `<span class="mcpskilllab-chip">${escapeHtml(github.repository)}</span>` : ''}
-                        ${github.stars !== undefined ? `<span class="mcpskilllab-chip">Stars：${escapeHtml(github.stars)}</span>` : ''}
-                        ${github.license ? `<span class="mcpskilllab-chip">License：${escapeHtml(github.license)}</span>` : ''}
-                        ${github.pushedAt ? `<span class="mcpskilllab-chip">Pushed：${escapeHtml(github.pushedAt)}</span>` : ''}
-                    </div>
-                    ${github.error ? `<div class="mcpskilllab-check-warning">${escapeHtml(github.errorCode ? `[${github.errorCode}] ${github.error}` : github.error)}${github.recommendation ? `；建议：${escapeHtml(github.recommendation)}` : ''}</div>` : ''}
-                ` : ''}
-                ${(data.warnings || []).length ? `
-                    <div class="mcpskilllab-check-warnings">
-                        ${data.warnings.map(warning => `<div class="mcpskilllab-check-warning">${escapeHtml(warning)}</div>`).join('')}
-                    </div>
-                ` : '<div class="mcpskilllab-trust-note">没有后端检测警告。</div>'}
-            </div>
-        `;
     }
 
     function renderSortOptions() {
@@ -2681,9 +1919,7 @@
                 <div class="mcpskilllab-meta">
                     <span class="mcpskilllab-chip">密钥：${escapeHtml(localize('auth', item.authRequired))}</span>
                     <span class="mcpskilllab-chip">${escapeHtml(localize('maintenance', item.maintenance))}</span>
-                    ${renderTrustScoreChip(item)}
                     <span class="mcpskilllab-chip">检查：${escapeHtml(item.lastChecked)}</span>
-                    ${renderCheckSummaryChip(item)}
                 </div>
             </div>
         `;
@@ -2747,8 +1983,6 @@
         return `
             <div class="mcpskilllab-top-actions">
                 <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="add">添加技能</button>
-                <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="batchReview">批量审查</button>
-                <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="review">审查技能</button>
                 <button class="mcpskilllab-lab-btn mcpskilllab-modal-open" type="button" data-dialog="templates">配置模板</button>
             </div>
         `;
@@ -2779,150 +2013,6 @@
                     <span class="mcpskilllab-chip">分类资源：${escapeHtml(getCategoryResources(activeCategory).length)}</span>
                     ${hiddenEmptyCount ? `<span class="mcpskilllab-chip">已隐藏空分类：${escapeHtml(hiddenEmptyCount)}</span>` : ''}
                 </div>
-            </div>
-        `;
-    }
-
-    function renderBackendHealth() {
-        const data = backendHealth.data || {};
-        const status = backendHealth.loading
-            ? '检测中'
-            : backendHealth.error
-                ? '不可用'
-                : data.status === 'ready'
-                    ? '可用'
-                    : '未检测';
-        const chipClass = backendHealth.error ? 'high' : data.status === 'ready' ? 'official' : 'medium';
-        const checkedAt = backendHealth.checkedAt || data.checkedAt || '';
-        const note = backendHealth.error
-            ? backendHealth.error
-            : data.status === 'ready'
-                ? `接口：${getMcpLabApiBase()}；超时 ${data.requestTimeoutMs || 0}ms；重定向 ${data.maxRedirects || 0} 跳。`
-                : `接口：${getMcpLabApiBase()}`;
-        return `
-            <div class="mcpskilllab-health-card">
-                <div class="mcpskilllab-health-row">
-                    <div class="mcpskilllab-meta">
-                        <span class="mcpskilllab-chip ${chipClass}">后端状态：${escapeHtml(status)}</span>
-                        ${data.version ? `<span class="mcpskilllab-chip">Checker：${escapeHtml(data.version)}</span>` : ''}
-                        ${checkedAt ? `<span class="mcpskilllab-chip">检查：${escapeHtml(formatCheckDate(checkedAt))}</span>` : ''}
-                    </div>
-                    <button class="cyber-button" id="mcpskilllab-refresh-health" type="button"><span class="cyber-button__tag">${backendHealth.loading ? '检查中' : '刷新状态'}</span></button>
-                </div>
-                <div class="mcpskilllab-health-note">${escapeHtml(note)}</div>
-            </div>
-        `;
-    }
-
-    function renderBatchCheckPanel(filtered, favorites) {
-        const favoriteCount = resources.filter(item => favorites.has(item.id)).length;
-        const cacheCount = Object.keys(checkResults).length;
-        const freshCount = resources.filter(item => isCheckStateFresh(getCheckState(item))).length;
-        const refreshCount = filtered.filter(isRefreshCheckCandidate).length;
-        const failedCount = filtered.filter(isFailedCheckCandidate).length;
-        const total = Math.max(0, batchCheckState.total);
-        const done = Math.min(total, Math.max(0, batchCheckState.done));
-        const progress = total ? Math.round((done / total) * 100) : 0;
-        const currentResource = getResourceById(batchCheckState.currentId);
-        const currentLabel = currentResource ? currentResource.name : '无';
-        const modeLabel = batchCheckState.mode ? getBatchModeLabel(batchCheckState.mode) : '未开始';
-        const statusText = batchCheckState.running
-            ? `正在检测${modeLabel}：${done} / ${total}，当前：${currentLabel}`
-            : total
-                ? `${batchCheckState.stopRequested ? '已停止' : '已完成'}${modeLabel}检测：成功 ${batchCheckState.success}，失败 ${batchCheckState.failed}`
-                : '批量检测空闲。';
-        const filteredDisabled = batchCheckState.running || !filtered.length ? ' disabled' : '';
-        const favoritesDisabled = batchCheckState.running || !favoriteCount ? ' disabled' : '';
-        const refreshDisabled = batchCheckState.running || !refreshCount ? ' disabled' : '';
-        const failedDisabled = batchCheckState.running || !failedCount ? ' disabled' : '';
-
-        return `
-            <div class="mcpskilllab-batch-panel">
-                <div class="mcpskilllab-batch-top">
-                    <div>
-                        <div class="mcpskilllab-batch-title">批量只读检测</div>
-                        <div class="mcpskilllab-batch-hint">按风险优先队列调用后端检测链接可达性和 GitHub 公开元信息，不执行安装命令，不连接 MCP Server。</div>
-                    </div>
-                    <div class="mcpskilllab-batch-controls">
-                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="refresh"${refreshDisabled}><span class="cyber-button__tag">检测需更新</span></button>
-                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="failed"${failedDisabled}><span class="cyber-button__tag">重试失败</span></button>
-                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="filtered"${filteredDisabled}><span class="cyber-button__tag">检测当前结果</span></button>
-                        <button class="cyber-button mcpskilllab-batch-check" type="button" data-mode="favorites"${favoritesDisabled}><span class="cyber-button__tag">检测待接入</span></button>
-                        ${batchCheckState.running ? '<button class="cyber-button" id="mcpskilllab-stop-batch-check" type="button"><span class="cyber-button__tag">停止检测</span></button>' : ''}
-                    </div>
-                </div>
-                <div class="mcpskilllab-meta">
-                    <span class="mcpskilllab-chip">当前结果：${escapeHtml(filtered.length)}</span>
-                    <span class="mcpskilllab-chip">需更新：${escapeHtml(refreshCount)}</span>
-                    <span class="mcpskilllab-chip">失败：${escapeHtml(failedCount)}</span>
-                    <span class="mcpskilllab-chip">待接入：${escapeHtml(favoriteCount)}</span>
-                    <span class="mcpskilllab-chip">新鲜缓存：${escapeHtml(freshCount)}</span>
-                    <span class="mcpskilllab-chip">总缓存：${escapeHtml(cacheCount)}</span>
-                </div>
-                ${renderBackendHealth()}
-                <div class="mcpskilllab-batch-progress" aria-label="批量检测进度">
-                    <div class="mcpskilllab-batch-fill" style="width:${escapeHtml(progress)}%"></div>
-                </div>
-                <div class="mcpskilllab-batch-status">${escapeHtml(statusText)}</div>
-            </div>
-        `;
-    }
-
-    function renderCheckReviewPanel(filtered, favorites) {
-        const stats = getCheckReviewStats(filtered);
-        const reviewItems = getCheckReviewItems(filtered);
-        const visibleItems = reviewItems.slice(0, REVIEW_ITEM_LIMIT);
-        const hiddenCount = Math.max(0, reviewItems.length - visibleItems.length);
-        const checkDisabled = batchCheckState.running ? ' disabled' : '';
-
-        return `
-            <div class="mcpskilllab-review-panel">
-                <div class="mcpskilllab-review-head">
-                    <div>
-                        <div class="mcpskilllab-review-title">检测结果审查</div>
-                        <div class="mcpskilllab-review-hint">聚合当前筛选结果里的失败、过期、低分和高风险权限资源，用于批量检测后的接入前复核。</div>
-                    </div>
-                    <div class="mcpskilllab-meta">
-                        <span class="mcpskilllab-chip high">失败：${escapeHtml(stats.failed)}</span>
-                        <span class="mcpskilllab-chip medium">过期：${escapeHtml(stats.stale)}</span>
-                        <span class="mcpskilllab-chip medium">低分：${escapeHtml(stats.lowScore)}</span>
-                        <span class="mcpskilllab-chip high">高权限：${escapeHtml(stats.highPermission)}</span>
-                    </div>
-                </div>
-                ${visibleItems.length ? `
-                    <div class="mcpskilllab-review-list">
-                        ${visibleItems.map(entry => {
-                            const item = entry.item;
-                            const isFavorite = favorites.has(item.id);
-                            return `
-                                <div class="mcpskilllab-review-item">
-                                    <div>
-                                        <div class="mcpskilllab-review-resource">${escapeHtml(item.name)}</div>
-                                        <div class="mcpskilllab-meta">
-                                            <span class="mcpskilllab-chip ${getReviewChipClass(entry.severity)}">${escapeHtml(entry.severity === 'high' ? '优先处理' : entry.severity === 'medium' ? '需要复核' : '留意')}</span>
-                                            ${renderTrustScoreChip(item)}
-                                            ${renderCheckSummaryChip(item)}
-                                        </div>
-                                        <div class="mcpskilllab-review-issues">
-                                            ${entry.issues.slice(0, 4).map(issue => `
-                                                <div class="mcpskilllab-review-issue">
-                                                    <span class="mcpskilllab-chip ${getReviewChipClass(issue.severity)}">${escapeHtml(issue.label)}</span>
-                                                    ${escapeHtml(issue.detail)}
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </div>
-                                    <div class="mcpskilllab-review-actions">
-                                        <button class="cyber-button mcpskilllab-select" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">查看</span></button>
-                                        <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"${checkDisabled}><span class="cyber-button__tag">${isFailedCheckCandidate(item) ? '重试' : '检测'}</span></button>
-                                        <button class="cyber-button mcpskilllab-favorite" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${isFavorite ? '已待接入' : '加入待接入'}</span></button>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    ${hiddenCount ? `<div class="mcpskilllab-review-hint">还有 ${escapeHtml(hiddenCount)} 个问题资源未展开，可缩小筛选条件或先处理上方高优先级条目。</div>` : ''}
-                ` : '<div class="mcpskilllab-review-hint">当前筛选结果没有需要优先处理的检测问题。</div>'}
             </div>
         `;
     }
@@ -2984,14 +2074,11 @@
                 </div>
                 <div class="mcpskilllab-desc">${escapeHtml(localize('scenario', item.scenario))}</div>
                 ${renderStructuredInfo(item)}
-                ${renderTrustBreakdown(item)}
-                ${renderReadOnlyCheck(item)}
                 <div class="result">${escapeHtml(item.template)}</div>
                 <div class="mcpskilllab-actions">
                     <button class="cyber-button mcpskilllab-open" type="button" data-url="${escapeHtml(item.url)}"><span class="cyber-button__tag">官网</span></button>
                     <button class="cyber-button mcpskilllab-open" type="button" data-url="${escapeHtml(item.docs)}"><span class="cyber-button__tag">文档</span></button>
                     <button class="cyber-button mcpskilllab-copy" type="button" data-copy="${escapeHtml(item.template)}"><span class="cyber-button__tag">复制配置</span></button>
-                    <button class="cyber-button mcpskilllab-check-resource" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${checkingResourceId === item.id ? '检测中' : '只读检测'}</span></button>
                     <button class="cyber-button mcpskilllab-favorite" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">${isFavorite ? '已收藏' : '加入待接入'}</span></button>
                     <button class="cyber-button mcpskilllab-wizard-open" type="button" data-id="${escapeHtml(item.id)}"><span class="cyber-button__tag">安装向导</span></button>
                 </div>
@@ -3074,8 +2161,6 @@
                     <div class="mcpskilllab-meta">
                         <span class="mcpskilllab-chip">${escapeHtml(localize('type', item.type))}</span>
                         <span class="mcpskilllab-chip">${escapeHtml(getCategoryMeta(getResourceCategory(item)).label)}</span>
-                        ${renderTrustScoreChip(item)}
-                        ${renderCheckSummaryChip(item)}
                     </div>
                 </div>
                 <div class="mcpskilllab-inline-actions">
@@ -3089,8 +2174,6 @@
 
     function renderHubPanel(favorites) {
         const customResources = getCustomResources();
-        const checkCache = getCheckCache();
-        const checkCount = Object.keys(checkCache).length;
         return `
             <div class="mcpskilllab-hub-grid">
                 <div class="card mcpskilllab-hub-card">
@@ -3116,10 +2199,9 @@
                     <div class="mcpskilllab-inline-actions">
                         <button class="cyber-button" id="mcpskilllab-export" type="button"><span class="cyber-button__tag">导出JSON</span></button>
                         <button class="cyber-button" id="mcpskilllab-import" type="button"><span class="cyber-button__tag">导入JSON</span></button>
-                        <button class="cyber-button" id="mcpskilllab-clear-check-cache" type="button"><span class="cyber-button__tag">清除检测缓存</span></button>
                         <input id="mcpskilllab-import-file" type="file" accept="application/json,.json" hidden>
                     </div>
-                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个，自定义资源 ${customResources.length} 个，检测缓存 ${checkCount} 条。</div>
+                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个，自定义资源 ${customResources.length} 个。</div>
                 </div>
 
                 <div class="card mcpskilllab-hub-card">
@@ -3221,8 +2303,6 @@
                 <div class="mcpskilllab-meta">
                     <span class="mcpskilllab-chip">平台：${escapeHtml(item.platforms.slice(0, 2).join(' / '))}${item.platforms.length > 2 ? '...' : ''}</span>
                     <span class="mcpskilllab-chip">权限：${escapeHtml(item.permissions.map(value => localize('permission', value)).slice(0, 2).join(' / '))}${item.permissions.length > 2 ? '...' : ''}</span>
-                    ${renderTrustScoreChip(item)}
-                    ${renderCheckSummaryChip(item)}
                 </div>
                 <div class="mcpskilllab-tags">
                     ${item.tags.map(tag => `<span class="mcpskilllab-chip">#${escapeHtml(tag)}</span>`).join('')}
@@ -3251,27 +2331,6 @@
         `).join('');
     }
 
-    function renderReviewPanel(selectedResource, favorites) {
-        return `
-            <div class="mcpskilllab-workbench">
-                ${renderResourceDetail(selectedResource, selectedResource ? favorites.has(selectedResource.id) : false)}
-                <div class="mcpskilllab-side-stack">
-                    ${renderAuditPanel()}
-                    ${renderBacklog(favorites)}
-                </div>
-            </div>
-        `;
-    }
-
-    function renderBatchReviewDialog(filtered, favorites) {
-        return `
-            <div class="mcpskilllab-side-stack">
-                ${renderBatchCheckPanel(filtered, favorites)}
-                ${renderCheckReviewPanel(filtered, favorites)}
-            </div>
-        `;
-    }
-
     function renderDialog(selectedResource, favorites, filtered) {
         if (!activeDialog) return '';
 
@@ -3279,14 +2338,6 @@
             add: {
                 title: '添加技能',
                 body: renderHubPanel(favorites)
-            },
-            batchReview: {
-                title: '批量审查',
-                body: renderBatchReviewDialog(filtered, favorites)
-            },
-            review: {
-                title: '审查技能',
-                body: renderReviewPanel(selectedResource, favorites)
             },
             templates: {
                 title: '配置模板',
@@ -3493,7 +2544,6 @@
         root.querySelectorAll('.mcpskilllab-select').forEach(button => {
             button.addEventListener('click', () => {
                 activeResourceId = button.getAttribute('data-id') || activeResourceId;
-                activeDialog = 'review';
                 render();
             });
         });
@@ -3518,33 +2568,6 @@
             });
         });
 
-        root.querySelectorAll('.mcpskilllab-check-resource').forEach(button => {
-            button.addEventListener('click', () => {
-                const id = button.getAttribute('data-id');
-                if (id && checkingResourceId !== id && !batchCheckState.running) {
-                    runResourceCheck(id);
-                }
-            });
-        });
-
-        root.querySelectorAll('.mcpskilllab-batch-check').forEach(button => {
-            if (button.disabled) return;
-            button.addEventListener('click', () => {
-                const mode = button.getAttribute('data-mode') || 'filtered';
-                runBatchCheck(mode);
-            });
-        });
-
-        const stopBatchButton = root.querySelector('#mcpskilllab-stop-batch-check');
-        if (stopBatchButton) {
-            stopBatchButton.addEventListener('click', stopBatchCheck);
-        }
-
-        const refreshHealthButton = root.querySelector('#mcpskilllab-refresh-health');
-        if (refreshHealthButton) {
-            refreshHealthButton.addEventListener('click', () => runBackendHealthCheck());
-        }
-
         root.querySelectorAll('.mcpskilllab-backlog-status').forEach(select => {
             select.addEventListener('change', () => {
                 updateBacklogMeta(select.getAttribute('data-id'), { status: select.value });
@@ -3561,15 +2584,6 @@
         const exportButton = root.querySelector('#mcpskilllab-export');
         if (exportButton) {
             exportButton.addEventListener('click', exportHubData);
-        }
-
-        const clearCheckCacheButton = root.querySelector('#mcpskilllab-clear-check-cache');
-        if (clearCheckCacheButton) {
-            clearCheckCacheButton.addEventListener('click', () => {
-                if (window.confirm && !window.confirm('确定清除所有后端检测缓存吗？')) return;
-                clearCheckCache();
-                render();
-            });
         }
 
         const importButton = root.querySelector('#mcpskilllab-import');
@@ -3617,7 +2631,6 @@
                 }
                 activeResourceId = resource.id;
                 activeCategory = getResourceCategory(resource);
-                activeDialog = 'review';
                 query = '';
                 render();
             });
@@ -3686,9 +2699,7 @@
     }
 
     window.initMcpSkillLab = function () {
-        checkResults = getCheckCache();
         injectStyles();
         render();
-        runBackendHealthCheck({ silent: true });
     };
 })();

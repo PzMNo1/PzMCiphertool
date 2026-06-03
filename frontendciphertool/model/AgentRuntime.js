@@ -38,7 +38,20 @@ class AgentRuntime {
         const wantsMath = /(计算|换算|单位|随机|calculate|convert|math|sqrt|sin|cos|\d+\s*[+\-*/%]\s*\d+)/i.test(userMessage);
         const wantsProject = !hasAttachments && /(代码|项目|文件|目录|读取|搜索文件|构建|测试|补丁|修改|java|javascript|css|html|read file|search files|build|test|patch|code|project|workspace)/i.test(userMessage);
         const wantsMarket = /(股票|行情|股价|币价|金融|财经|stock|quote|price|finance|crypto|ticker)/i.test(userMessage);
-        const wantsTools = Boolean(options.toolEnabled || wantsFreshInfo || wantsCrypto || wantsMath || wantsProject || wantsMarket);
+        const wantsLocalService = /(餐厅|咖啡|咖啡店|酒店|民宿|景点|附近|本地|评分|点评|路线|旅行|旅游|行程|地图|local|nearby|restaurant|coffee|hotel|attraction|rating|reviews|travel|trip|itinerary|map)/i.test(userMessage);
+        const wantsMediaCreation = /(作图|生成|创作|海报|图片|图像|插画|视频|音频|音乐|封面|poster|image|picture|illustration|video|audio|music|cover|generate|create)/i.test(userMessage);
+        const wantsBusinessIntel = /(公司|企业|商业|竞品|市场|行业|融资|财报|产品分析|business|company|market intelligence|competitor|industry|funding|earnings|product analysis)/i.test(userMessage);
+        const agentEarthExcluded = wantsCrypto || wantsMath || wantsProject;
+        const agentEarthRelevant = wantsFreshInfo
+            || wantsMarket
+            || wantsNewsBrief
+            || wantsLocalService
+            || wantsMediaCreation
+            || wantsBusinessIntel
+            || hasAttachments
+            || Boolean(options.toolEnabled);
+        const wantsAgentEarth = !agentEarthExcluded && agentEarthRelevant;
+        const wantsTools = Boolean(options.toolEnabled || wantsFreshInfo || wantsCrypto || wantsMath || wantsProject || wantsMarket || wantsAgentEarth || hasAttachments);
         const mode = wantsNewsBrief ? 'news_brief' : wantsFreshInfo ? 'research' : wantsTools ? 'agent' : 'chat';
         const researchLike = this.isResearchLikeMode(mode);
         const baseResearchSourceTarget = wantsNewsBrief ? (focusedNewsBrief ? 24 : 32) : 28;
@@ -54,11 +67,19 @@ class AgentRuntime {
             wantsMath,
             wantsProject,
             wantsMarket,
+            wantsAgentEarth,
             wantsTools,
             hasAttachments,
             wantsAcademicResearch,
-            wantsNewsBrief
+            wantsNewsBrief,
+            wantsLocalService,
+            wantsMediaCreation,
+            wantsBusinessIntel
         });
+        const agentEarthSelected = selectedTools.includes('agent_earth_run');
+        const agentEarthTargetCalls = agentEarthSelected
+            ? (wantsNewsBrief || wantsFreshInfo || wantsBusinessIntel ? 10 : 8)
+            : 0;
         const agentHasNetworkTools = mode === 'agent' && this.hasNetworkTools(selectedTools);
         const agentSourceTarget = agentHasNetworkTools ? 36 : 0;
         const agentCitationTarget = agentHasNetworkTools ? 20 : 0;
@@ -70,6 +91,7 @@ class AgentRuntime {
             researchProfile: wantsNewsBrief ? 'news_brief' : wantsAcademicResearch ? 'academic' : wantsFreshInfo ? 'general' : agentHasNetworkTools ? 'agentic' : 'none',
             newsBriefScope,
             selectedTools,
+            agentEarthTargetCalls,
             maxIterations: researchLike ? researchIterations : mode === 'agent' ? agentIterations : 1,
             sourceTarget: researchLike ? researchSourceTarget : agentSourceTarget,
             citationTarget: researchLike ? researchCitationTarget : agentCitationTarget,
@@ -113,6 +135,7 @@ class AgentRuntime {
         const codeOps = ['propose_patch', 'run_tests', 'run_build'];
         const market = ['finance_query'];
         const utility = ['random_number', 'uuid_generate', 'unit_convert'];
+        const agentEarth = ['agent_earth_run'];
 
         const selected = new Set(core);
         if (intent.wantsCrypto) crypto.forEach(name => selected.add(name));
@@ -121,11 +144,33 @@ class AgentRuntime {
         if (intent.wantsMath) utility.forEach(name => selected.add(name));
         if (intent.wantsProject) [...project, ...codeOps].forEach(name => selected.add(name));
         if (intent.wantsMarket) [...market, 'news_query'].forEach(name => selected.add(name));
-        if (!intent.wantsCrypto && !intent.wantsFreshInfo && !intent.wantsMath && !intent.wantsProject && !intent.wantsMarket && !intent.hasAttachments) {
+        if (intent.wantsLocalService) ['web_research', 'search_urls', 'read_webpage', 'get_weather'].forEach(name => selected.add(name));
+        if (intent.wantsBusinessIntel) ['web_research', 'search_urls', 'read_webpage', 'news_query'].forEach(name => selected.add(name));
+        if (intent.wantsAgentEarth) {
+            agentEarth.forEach(name => selected.add(name));
+            if (!intent.wantsFreshInfo && !intent.wantsNewsBrief && !intent.wantsMarket) {
+                ['web_research', 'search_urls', 'read_webpage'].forEach(name => selected.add(name));
+            }
+        }
+        if (!intent.wantsCrypto && !intent.wantsFreshInfo && !intent.wantsMath && !intent.wantsProject && !intent.wantsMarket && !intent.wantsAgentEarth && !intent.hasAttachments) {
             [...crypto, ...research, ...codexWeb, ...project, ...utility].forEach(name => selected.add(name));
         }
 
-        return Array.from(selected).filter(name => this.registry.has(name));
+        return Array.from(selected).filter(name => this.isRoutableTool(name));
+    }
+
+    isRoutableTool(name) {
+        if (!this.registry?.has?.(name)) return false;
+        if (typeof this.registry.isToolAvailable === 'function') {
+            return this.registry.isToolAvailable(name);
+        }
+        return true;
+    }
+
+    async refreshDynamicToolAvailability() {
+        if (typeof this.registry?.refreshAgentEarthAvailability === 'function') {
+            await this.registry.refreshAgentEarthAvailability({ timeoutMs: 900, force: true });
+        }
     }
 
     hasNetworkTools(toolNames = []) {
@@ -141,7 +186,8 @@ class AgentRuntime {
             'find',
             'weather',
             'get_weather',
-            'finance_query'
+            'finance_query',
+            'agent_earth_run'
         ]);
         return (Array.isArray(toolNames) ? toolNames : []).some(name => networkTools.has(name));
     }
@@ -170,7 +216,7 @@ class AgentRuntime {
             ]
             : [
                 '- For broad community scans, call community_snapshot first. It has dedicated routes for Hacker News, GitHub Trending, V2EX, Reddit, Lobsters, and Product Hunt and should be preferred over generic page reads for those sites.',
-                '- For news, communities, products, and current events, use web_research depth="deep" read_top=true max_results=28-32 for the main evidence pass. Use depth="fast" only for a preliminary map when the source landscape is unclear.',
+                '- For news, communities, products, and current events, use web_research depth="deep" read_top=true max_results=28-40 for the main evidence pass. Use depth="fast" only for a preliminary map when the source landscape is unclear.',
                 '- For broad daily news briefs, cover domestic, international, finance/markets, technology, and society/sports/culture before final synthesis. Use general news home/rolling pages first; do not substitute AI company blogs unless the user asked for AI/technology news.',
                 '- For broad community scans, preserve breadth before synthesis: cover several distinct communities when relevant, such as Hacker News, GitHub Trending, Product Hunt, V2EX, Reddit/Lobsters, official blogs, or security/news sources. Do not collapse the answer into a shallow daily digest if the user asked for research.',
                 `- Aim for at least ${sourceTarget} distinct source URLs or community items and cite at least ${citationTarget} useful sources when available. If fewer than 28 distinct sources or fewer than 12 readable evidence items are available, run narrower follow-ups with web_research/search_urls/read_webpage before final synthesis.`,
@@ -199,6 +245,21 @@ class AgentRuntime {
                 '- When the answer depends on external facts, cite source ids such as [1], [2] and include a compact Sources/来源 section.'
             ];
 
+        const agentEarthPolicy = plan.selectedTools.includes('agent_earth_run')
+            ? [
+                '- AgentEarth collaboration policy:',
+                '  - agent_earth_run is a professional external tool aggregator. It must be used as a cooperating tool when selected, not only after other tools fail.',
+                '  - Keep AgentEarth inside the normal model tool loop. Before the tool calls in a turn, stream one short natural progress sentence to the user, then request the tools.',
+                `  - Target at least ${plan.agentEarthTargetCalls || 8} AgentEarth calls for broad research/news/specialist tasks when available. Batch multiple agent_earth_run calls in the first or second tool turn, and continue in the middle of the run if needed. Do not save it for the final gate.`,
+                '  - Let AgentEarth choose suitable resources freely. Do not over-constrain it with a preferred_tool_name unless the user explicitly names a specific AgentEarth tool.',
+                '  - Use agent_earth_run together with relevant local/web/market tools for local services, travel, multimedia creation, business intelligence, live external data, and specialist-tool tasks.',
+                '  - The backend wrapper already performs AgentEarth Recommend before Execute. Do not try to call hidden recommend/execute endpoints manually.',
+                '  - Provide agent_earth_run with a concise query and only relevant task_context. Do not dump unrelated full chat history.',
+                '  - If attachment context is relevant, rely on the runtime-injected task_context rather than copying large attachment text into the query.',
+                '  - When AgentEarth and existing tools both return useful results, synthesize them together. Do not present AgentEarth output as raw JSON.'
+            ]
+            : [];
+
         const contextMemoryPolicy = this.buildContextMemoryPolicy(contextPack);
 
         return [
@@ -206,6 +267,7 @@ class AgentRuntime {
             '- Treat the conversation as a bounded run with these phases: plan, route, act, observe, synthesize.',
             '- For current, external, fast-changing, recommended, price/policy/version/news, or citation-sensitive claims, do not answer from memory.',
             ...researchPolicy,
+            ...agentEarthPolicy,
             ...finalAnswerStyle,
             ...contextMemoryPolicy,
             '- Use one canonical tool for each action: community_snapshot for community dashboards, web_research for broad maps, search_urls for narrow targeted queries, read_webpage for opening URLs. Avoid duplicate alias tools and avoid looping over equivalent searches.',
@@ -239,6 +301,7 @@ class AgentRuntime {
                 '- If Reuters/AP or other sources return 451/429, skip them and continue with accessible reputable sources such as BBC, Guardian, Sina, Chinanews, NetEase, CNBC, NBD, CCTV, People, or other readable outlets.',
                 '- Do not use OpenAI, Anthropic, DeepMind, Google AI, Microsoft AI, Hugging Face, GitHub AI, The Batch, or AI-only sections as dominant sources unless the user explicitly asked for AI/technology news.',
                 `- Aim for ${sourceTarget}+ distinct source URLs and cite ${citationTarget}+ useful sources when available, but prioritize on-topic source diversity over unrelated breadth.`,
+                '- Final density: provide at least 10 well-supported items for the requested category when evidence allows. Each important item should include what happened and why it matters, not just a headline.',
                 `- Final format should read like a ${label} news brief: start with a short lead, then group important stories by theme or region. Keep the vivid, plain-language one-line interpretation style when evidence supports it, and answer in the user language.`
             ];
         }
@@ -251,7 +314,8 @@ class AgentRuntime {
             '- Do not use OpenAI, Anthropic, DeepMind, Google AI, Microsoft AI, Hugging Face, GitHub AI, The Batch, or AI-only sections as dominant sources unless the user explicitly asked for AI/technology news.',
             '- Coverage gate before synthesis: include at least domestic, international, finance/markets, technology/science, and society/sports/culture. If one section is weak, explicitly say so and explain the retrieval gap.',
             `- Aim for ${sourceTarget}+ distinct source URLs and cite ${citationTarget}+ useful sources when available, but prioritize category breadth over repeating similar AI/company sources.`,
-            '- Final format should read like a daily news brief: start with a short lead, then grouped sections such as \u56fd\u9645, \u56fd\u5185, \u79d1\u6280, \u8d22\u7ecf, \u4f53\u80b2/\u6587\u5a31/\u793e\u4f1a. Keep the vivid, plain-language one-line interpretation style when evidence supports it, and answer in the user language.'
+            '- Final density: for a broad daily brief, aim for 40-60 well-supported items across 6-8 sections. Each major item should include what happened plus why it matters or what changed. Avoid single-line headline dumps.',
+            '- Final format should read like a daily news brief: start with a short lead, then grouped sections such as \u56fd\u9645, \u56fd\u5185, \u79d1\u6280, \u8d22\u7ecf, \u793e\u4f1a/\u6c11\u751f, \u4f53\u80b2/\u6587\u5a31, \u79d1\u5b66/\u5065\u5eb7 when evidence supports them. Keep the vivid, plain-language one-line interpretation style when evidence supports it, and answer in the user language.'
         ];
     }
 
@@ -267,10 +331,12 @@ class AgentRuntime {
         ];
     }
 
-    async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null }) {
+    async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null, toolContext = null, onRunSnapshot = null }) {
+        await this.refreshDynamicToolAvailability();
         const plan = this.createPlan(userMessage, { toolEnabled, hasAttachments, messages });
-        const runState = this.createRunState(plan, contextPack);
+        const runState = this.createRunState(plan, contextPack, toolContext);
         runState.uiContainer = container;
+        runState.onSnapshot = typeof onRunSnapshot === 'function' ? onRunSnapshot : null;
         this.emitEvent(runState, 'run.started', {
             mode: plan.mode,
             researchProfile: plan.researchProfile,
@@ -292,6 +358,7 @@ class AgentRuntime {
         this.ui.createAgentRunPanel(container, plan);
         this.ui.setAgentStage(container, 'plan', 'active', '解析任务目标');
         this.ui.addAgentTrace(container, 'plan', `Run ${plan.runId} initialized in ${plan.mode} mode.`);
+        this.notifyRunSnapshot(runState, 'panel.created');
 
         const agentSystemMessage = { role: 'system', content: this.buildAgentSystemPrompt(plan, contextPack) };
         const agentMessages = [
@@ -327,6 +394,7 @@ class AgentRuntime {
                     }
                     this.ui.updateContent(container, full);
                     this.recordModelDelta(runState, delta, full, 'synthesize');
+                    this.notifyRunSnapshot(runState, 'content.updated', { content: full || '' });
                 }
             });
             this.ui.setAgentStage(container, 'synthesize', 'done', '完成');
@@ -343,6 +411,7 @@ class AgentRuntime {
                 response.reasoning_content = null;
             }
             response.agent_run = this.snapshotRun(container, plan, runState);
+            this.notifyRunSnapshot(runState, 'run.completed', { content: response?.content || '' });
             return response;
         }
 
@@ -352,6 +421,8 @@ class AgentRuntime {
         let hasDisplayedContent = false;
         let hasSuppressedToolIterationContent = false;
         let shouldReplayFinalContent = false;
+        let forcedAgentEarthFollowups = 0;
+        let forcedNewsBriefDensityFollowups = 0;
         let forcedCoverageFollowups = 0;
         const collectedToolCalls = [];
         const progressLines = [];
@@ -366,6 +437,7 @@ class AgentRuntime {
             }
             progressDisplayed = true;
             this.ui.updateContent(container, progressContent);
+            this.notifyRunSnapshot(runState, 'progress.updated', { content: progressContent });
         };
         this.ui.setAgentStage(container, 'act', 'active', '等待模型选择工具');
 
@@ -410,6 +482,7 @@ class AgentRuntime {
                 latestProgressContent = '';
                 draftPlaceholderDisplayed = false;
                 this.ui.updateContent(container, latestStreamedContent);
+                this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
             },
             onIterationStart: iteration => {
                 this.recordIteration(runState, iteration);
@@ -449,7 +522,29 @@ class AgentRuntime {
                 }, { stage: count ? 'observe' : 'synthesize', visibility: 'history' });
                 this.ui.addAgentTrace(container, 'observe', `Iteration ${iteration}: ${count} tool call(s) observed.`);
             },
-            shouldContinueAfterFinal: ({ iteration }) => {
+            shouldContinueAfterFinal: ({ iteration, response }) => {
+                const agentEarthFollowUp = this.buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedAgentEarthFollowups);
+                if (agentEarthFollowUp) {
+                    forcedAgentEarthFollowups += 1;
+                    this.ui.setAgentStage(container, 'act', 'active', 'AgentEarth collaboration');
+                    this.ui.addAgentTrace(container, 'act', `AgentEarth collaboration gate requested a tool call at iteration ${iteration}.`);
+                    this.emitEvent(runState, 'agent_earth.collaboration_required', {
+                        iteration,
+                        forcedFollowups: forcedAgentEarthFollowups
+                    }, { stage: 'act', visibility: 'history' });
+                    return { continue: true, message: agentEarthFollowUp };
+                }
+                const densityFollowUp = this.buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedNewsBriefDensityFollowups);
+                if (densityFollowUp) {
+                    forcedNewsBriefDensityFollowups += 1;
+                    this.ui.setAgentStage(container, 'act', 'active', `News brief expansion ${forcedNewsBriefDensityFollowups}`);
+                    this.ui.addAgentTrace(container, 'act', `News brief density gate requested a fuller answer at iteration ${iteration}.`);
+                    this.emitEvent(runState, 'research.answer_density_gap', {
+                        iteration,
+                        forcedFollowups: forcedNewsBriefDensityFollowups
+                    }, { stage: 'act', visibility: 'history' });
+                    return { continue: true, message: densityFollowUp };
+                }
                 const followUp = this.buildForcedResearchFollowUp(plan, runState, userMessage, forcedCoverageFollowups);
                 if (!followUp) return null;
                 forcedCoverageFollowups += 1;
@@ -511,8 +606,10 @@ class AgentRuntime {
                 latestProgressContent = '';
                 draftPlaceholderDisplayed = false;
                 latestStreamedContent = finalResponse.content;
+                this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
             } else if (normalizedFinalContentChanged || finalResponse.content !== latestStreamedContent) {
                 this.ui.updateContent(container, finalResponse.content);
+                this.notifyRunSnapshot(runState, 'content.updated', { content: finalResponse.content || '' });
             }
         }
 
@@ -527,8 +624,16 @@ class AgentRuntime {
             }, { stage: 'synthesize', visibility: 'history' });
             finalResponse.agent_tool_calls = collectedToolCalls;
             finalResponse.agent_run = this.snapshotRun(container, plan, runState);
+            this.notifyRunSnapshot(runState, 'run.completed', { content: finalResponse.content || latestStreamedContent || '' });
         }
         return finalResponse;
+    }
+
+    getAgentEarthTargetCalls(plan = null) {
+        const configured = Number(plan?.agentEarthTargetCalls || 0);
+        if (configured > 0) return Math.min(10, Math.max(8, configured));
+        if (Array.isArray(plan?.selectedTools) && plan.selectedTools.includes('agent_earth_run')) return 8;
+        return 0;
     }
 
     buildAgentProgressContent(progressLines = [], latestProgressContent = '') {
@@ -643,11 +748,11 @@ class AgentRuntime {
             return;
         }
 
-        const frameCount = Math.min(140, Math.max(24, Math.ceil(text.length / 48)));
-        const chunkSize = Math.max(16, Math.ceil(text.length / frameCount));
+        const frameCount = Math.min(72, Math.max(12, Math.ceil(text.length / 120)));
+        const chunkSize = Math.max(48, Math.ceil(text.length / frameCount));
         for (let index = chunkSize; index < text.length; index += chunkSize) {
             this.ui.updateContent(container, text.slice(0, index));
-            await new Promise(resolve => setTimeout(resolve, 16));
+            await new Promise(resolve => setTimeout(resolve, 8));
         }
         this.ui.updateContent(container, text);
     }
@@ -1152,19 +1257,105 @@ class AgentRuntime {
 
     cleanSourceEntryText(value) {
         return String(value || '')
+            .replace(/\s+—\s+\.\.\.\s*\{[\s\S]*$/g, '')
+            .replace(/\s+\.\.\.\s*\{[\s\S]*$/g, '')
+            .replace(/\s*\[preview truncated]\s*$/i, '')
             .replace(/\s+/g, ' ')
             .replace(/^[\-—–:：]\s*/, '')
             .trim();
     }
 
+    buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedCount = 0) {
+        if (!Array.isArray(plan?.selectedTools) || !plan.selectedTools.includes('agent_earth_run')) return null;
+        if (forcedCount >= 1) return null;
+        const calls = Array.isArray(runState?.toolCalls) ? runState.toolCalls : [];
+        const agentEarthCalls = calls.filter(call => call.name === 'agent_earth_run');
+        const targetCalls = this.getAgentEarthTargetCalls(plan);
+        if (agentEarthCalls.length >= targetCalls) return null;
+        const remaining = Math.max(1, targetCalls - agentEarthCalls.length);
+
+        return [
+            'AgentEarth collaboration gate: agent_earth_run was routed for this run and has not reached the target cooperating-call count.',
+            `Call agent_earth_run ${remaining} more time(s), preferably as a batched tool turn, before final synthesis.`,
+            'Let AgentEarth freely choose suitable resources; do not set preferred_tool_name unless the user explicitly named one.',
+            'Use diverse concise queries for resource discovery, verification, primary sources, community signals, data/comparison, and missing angles. Include only relevant task_context if available.',
+            'If another existing tool is relevant, use it too, then synthesize all observations without dumping raw JSON.',
+            `User task: ${this.previewValue(userMessage, 1200)}`
+        ].join('\n');
+    }
+
+    buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedCount = 0) {
+        const isNewsBriefRun = plan?.researchProfile === 'news_brief' || plan?.mode === 'news_brief';
+        if (!isNewsBriefRun || forcedCount >= 1) return null;
+
+        const content = String(response?.content || '').trim();
+        if (!content) return null;
+
+        const scope = plan?.newsBriefScope || this.getNewsBriefScope(userMessage);
+        const focused = scope?.focus && scope.focus !== 'broad';
+        const stats = this.analyzeNewsBriefAnswer(content, scope);
+        const evidenceStats = this.getResearchEvidenceStats(Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : []);
+        const minimums = focused
+            ? { sections: 1, stories: 10, citations: 8, chars: 3600 }
+            : { sections: 5, stories: 42, citations: 24, chars: 9000 };
+
+        const gaps = [];
+        if (stats.sectionCount < minimums.sections) gaps.push(`sections ${stats.sectionCount}/${minimums.sections}`);
+        if (stats.storyCount < minimums.stories) gaps.push(`items ${stats.storyCount}/${minimums.stories}`);
+        if (stats.citationCount < minimums.citations && evidenceStats.uniqueUrls >= minimums.citations) {
+            gaps.push(`citations ${stats.citationCount}/${minimums.citations}`);
+        }
+        if (stats.contentChars < minimums.chars) gaps.push(`detail ${stats.contentChars}/${minimums.chars} chars`);
+        if (!gaps.length) return null;
+
+        const label = this.getNewsBriefScopeLabel(scope);
+        return [
+            'Answer density gate: do not finalize this news brief yet.',
+            `The current draft is too thin for ${label}: ${gaps.join(', ')}.`,
+            focused
+                ? 'Rewrite or expand the final brief with at least 10 substantial items in the requested category. Each major item needs what happened, why it matters, and one source marker when available.'
+                : 'Rewrite or expand the final brief into a fuller cross-category briefing with 40-60 substantial items across international, domestic, finance/markets, technology/science, society/livelihood, sports/culture/entertainment, and health/science when evidence supports them.',
+            'Do not dump raw source JSON. Do not add decorative divider lines. Keep the answer readable with clear sections, short paragraphs, and compact but information-rich story bullets.',
+            'Use the existing tool evidence first. Call more tools only for categories or source coverage that are still weak.'
+        ].join('\n');
+    }
+
+    analyzeNewsBriefAnswer(content, scope = null) {
+        const text = String(content || '');
+        const body = text.split(/(^|\n)\s*(来源|Sources|References|参考)\s*[:：]?/i)[0] || text;
+        const citationCount = new Set(Array.from(body.matchAll(/\[(\d+)]/g)).map(match => match[1])).size;
+        const storyCount = (body.match(/(^|\n)\s*(?:#{3,}\s+|\d+[.)]\s+|[-*+]\s+)/g) || []).length;
+        const sectionPatterns = scope?.focus && scope.focus !== 'broad'
+            ? [new RegExp(this.escapeRegex(this.getNewsBriefCoverageLabel(scope.focus)), 'i')]
+            : [
+                /(国际|世界|全球|冲突|外交|world|international|global)/i,
+                /(国内|中国|政策|治理|民生|china|domestic)/i,
+                /(财经|经济|市场|金融|投资|股市|finance|market|economy|business)/i,
+                /(科技|科学|AI|芯片|technology|tech|science)/i,
+                /(社会|民生|体育|文娱|文化|娱乐|society|sports|culture|entertainment)/i,
+                /(健康|医疗|气候|教育|health|climate|education)/i
+            ];
+        const sectionCount = sectionPatterns.filter(pattern => pattern.test(body)).length;
+        return {
+            citationCount,
+            storyCount,
+            sectionCount,
+            contentChars: body.trim().length
+        };
+    }
+
+    escapeRegex(value) {
+        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     buildForcedResearchFollowUp(plan, runState, userMessage, forcedCount = 0) {
         const isNewsBriefRun = plan?.researchProfile === 'news_brief' || plan?.mode === 'news_brief';
         if (!isNewsBriefRun && !this.isBroadDailyNewsRequest(userMessage)) {
-            const maxForcedFollowups = plan?.mode === 'agent' ? 2 : 3;
+            const maxForcedFollowups = plan?.researchProfile === 'academic' ? 2 : 1;
             if (!this.isEvidenceSeekingPlan(plan) || forcedCount >= maxForcedFollowups) return null;
             return this.buildGenericResearchFollowUp(plan, runState, userMessage);
         }
-        if (forcedCount >= 2) return null;
+        if (forcedCount >= 1) return null;
 
         const evidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
         const stats = this.getResearchEvidenceStats(evidence);
@@ -1176,8 +1367,8 @@ class AgentRuntime {
         const focusedNewsBrief = scope?.focus && scope.focus !== 'broad';
         const hasCoreSections = requiredCoverage.every(key => coverage[key]);
         const hasEnoughBreadth = focusedNewsBrief
-            ? domains.size >= 6 && readableCount >= 3
-            : domains.size >= 18 && readableCount >= 8;
+            ? stats.uniqueUrls >= 10 && domains.size >= 5 && readableCount >= 4
+            : stats.uniqueUrls >= 32 && domains.size >= 12 && readableCount >= 10;
 
         if (hasCoreSections && hasEnoughBreadth) return null;
 
@@ -1191,7 +1382,7 @@ class AgentRuntime {
             return [
                 'Coverage gate: do not finalize yet. Continue using tools.',
                 `This is a focused ${label} news brief. Add more on-topic evidence before synthesis; do not broaden into unrelated categories.`,
-                `Current readable source count: ${readableCount}; unique source domains/URLs: ${domains.size}; missing coverage: ${missing.join(', ') || label}.`,
+                `Current source coverage: ${stats.uniqueUrls} unique URLs, ${domains.size} hosts, ${readableCount} readable items; missing coverage: ${missing.join(', ') || label}.`,
                 `Next pass: use web_research mode="news_brief" with query variants for ${label}, then use read_webpage on readable sources from multiple reputable outlets.`,
                 'If Reuters/AP return 451, skip them and continue with accessible reputable sources. The final answer must stay scoped to the requested news category and remain in the user language.'
             ].join('\n');
@@ -1200,7 +1391,7 @@ class AgentRuntime {
         return [
             'Coverage gate: do not finalize yet. Continue using tools.',
             'This is a broad daily news brief, not an AI/technology-only topic. Add general news coverage before synthesis.',
-            `Current readable source count: ${readableCount}; unique source domains/URLs: ${domains.size}; missing coverage: ${missing.join(', ') || 'overall news breadth'}.`,
+            `Current source coverage: ${stats.uniqueUrls} unique URLs, ${domains.size} hosts, ${readableCount} readable items; missing coverage: ${missing.join(', ') || 'overall news breadth'}.`,
             'Next pass: use web_research mode="news_brief" with separate queries for domestic China, international/world, finance/markets, technology/science, and society/sports/culture, then use read_webpage on readable general sources.',
             'Prefer direct reads from these accessible general sources when search results are thin:',
             '- https://news.sina.com.cn/',
@@ -1399,6 +1590,7 @@ class AgentRuntime {
             researchProfile: plan.researchProfile,
             newsBriefScope: plan.newsBriefScope || null,
             selectedTools: plan.selectedTools,
+            agentEarthTargetCalls: plan.agentEarthTargetCalls || 0,
             maxIterations: plan.maxIterations,
             stages,
             traces,
@@ -1414,13 +1606,15 @@ class AgentRuntime {
         };
     }
 
-    createRunState(plan, contextPack = null) {
+    createRunState(plan, contextPack = null, toolContext = null) {
         return {
             contract_version: window.AgentContract?.CONTRACT_VERSION || 'agent-contract-v1',
             runId: plan.runId,
+            plan,
             startedAt: new Date().toISOString(),
             finishedAt: null,
             contextPack,
+            toolContext,
             metrics: {
                 iterations: 0,
                 tool_calls: 0,
@@ -1444,12 +1638,28 @@ class AgentRuntime {
             events: [],
             eventSeq: 0,
             modelDeltaEvents: 0,
-            warnings: []
+            warnings: [],
+            onSnapshot: null
         };
     }
 
+    notifyRunSnapshot(runState, reason = 'update', meta = {}) {
+        if (!runState?.onSnapshot || !runState?.plan || !runState?.uiContainer) return;
+        try {
+            const snapshot = this.snapshotRun(runState.uiContainer, runState.plan, runState);
+            runState.onSnapshot(snapshot, {
+                reason,
+                runId: runState.runId,
+                ...(meta || {})
+            });
+        } catch (error) {
+            console.warn('Failed to publish AgentRun snapshot.', error);
+        }
+    }
+
     emitEvent(runState, type, payload = {}, options = {}) {
-        if (!runState || runState.events.length >= 220) return null;
+        if (!runState) return null;
+        if (type !== 'model.delta' && runState.events.length >= 3000) return null;
         runState.eventSeq += 1;
         const factory = window.AgentContract?.createAgentEvent;
         const event = factory
@@ -1472,8 +1682,13 @@ class AgentRuntime {
                 payload,
                 visibility: options.visibility || 'history'
         };
-        runState.events.push(event);
+        if (type !== 'model.delta') {
+            runState.events.push(event);
+        }
         this.ui?.appendAgentEvent?.(runState.uiContainer, event);
+        if (type !== 'model.delta') {
+            this.notifyRunSnapshot(runState, type, { event });
+        }
 
         return event;
     }
@@ -1481,7 +1696,7 @@ class AgentRuntime {
     recordModelDelta(runState, delta, full, stage) {
         if (!runState) return;
         runState.modelDeltaEvents += 1;
-        if (runState.modelDeltaEvents > 80) return;
+        if (runState.modelDeltaEvents > 12) return;
         this.emitEvent(runState, 'model.delta', {
             delta_chars: String(delta || '').length,
             content_chars: String(full || '').length
@@ -1529,12 +1744,67 @@ class AgentRuntime {
         const metadata = this.registry?.getToolMetadata?.(name) || null;
         const call = this.findToolCallRecord(runState, name, toolCall);
         let executableArgs = args || {};
+        if (name === 'agent_earth_run') {
+            executableArgs = this.enrichAgentEarthArgs(runState, executableArgs);
+        }
         if (metadata?.requiresApproval) {
             const approval = await this.requestToolApproval(runState, name, executableArgs, metadata, call, container);
             executableArgs = approval.args || {};
         }
         this.recordToolStarted(runState, name, executableArgs, metadata, call);
         return { args: executableArgs, metadata, call };
+    }
+
+    enrichAgentEarthArgs(runState, args = {}) {
+        const enriched = { ...(args || {}) };
+        const taskText = String(runState?.contextPack?.task?.text || '').trim();
+        if (!String(enriched.query || '').trim() && taskText) {
+            enriched.query = taskText;
+        }
+        const taskContext = this.buildAgentEarthTaskContext(runState, enriched.task_context);
+        if (taskContext) {
+            enriched.task_context = taskContext;
+        }
+        if (!Number.isFinite(Number(enriched.max_attempts))) {
+            enriched.max_attempts = 1;
+        }
+        return enriched;
+    }
+
+    buildAgentEarthTaskContext(runState, existingContext = '') {
+        const parts = [];
+        const existing = String(existingContext || '').trim();
+        if (existing) parts.push(existing);
+
+        const attachmentContext = String(runState?.toolContext?.attachmentContext || '').trim();
+        if (attachmentContext) {
+            parts.push([
+                'Relevant attachment context prepared by the host:',
+                this.previewValue(attachmentContext, 7000)
+            ].join('\n'));
+        }
+
+        const manifest = Array.isArray(runState?.toolContext?.attachmentManifest)
+            ? runState.toolContext.attachmentManifest
+            : [];
+        if (manifest.length && !attachmentContext) {
+            parts.push([
+                'Attachment manifest:',
+                this.previewValue(JSON.stringify(manifest, null, 2), 1800)
+            ].join('\n'));
+        }
+
+        const priorRuns = Array.isArray(runState?.toolContext?.priorAgentRuns)
+            ? runState.toolContext.priorAgentRuns.slice(-2)
+            : [];
+        if (priorRuns.length) {
+            parts.push([
+                'Recent AgentRun summaries:',
+                this.previewValue(JSON.stringify(priorRuns, null, 2), 2200)
+            ].join('\n'));
+        }
+
+        return this.previewValue(parts.filter(Boolean).join('\n\n'), 9000);
     }
 
     findToolCallRecord(runState, name, toolCall = null) {
@@ -1920,6 +2190,21 @@ class AgentRuntime {
             });
         }
 
+        if (parsed && parsed.provider === 'AgentEarth') {
+            const selectedTool = parsed.recommend?.selected_tool || {};
+            const title = selectedTool.tool_name || selectedTool.name || 'AgentEarth professional tool result';
+            const executeText = this.extractAgentEarthText(parsed.execute);
+            entries.push(this.normalizeEvidenceEntry({
+                kind: 'external_tool_result',
+                tool: toolName,
+                source_id: 'agent-earth',
+                title,
+                url: selectedTool.tool_url || '',
+                content_preview: executeText || this.previewValue(parsed.execute, 500),
+                observed_at: now
+            }));
+        }
+
         if (parsed && parsed.url && (parsed.content || parsed.error)) {
             entries.push(this.normalizeEvidenceEntry({
                 kind: parsed.error ? 'page_read_error' : 'opened_page',
@@ -1964,6 +2249,25 @@ class AgentRuntime {
         return entries
             .filter(Boolean)
             .sort((a, b) => this.scoreEvidenceSource(b) - this.scoreEvidenceSource(a));
+    }
+
+    extractAgentEarthText(executeResponse) {
+        if (!executeResponse || typeof executeResponse !== 'object') return '';
+        if (executeResponse.result_preview) return String(executeResponse.result_preview);
+        const result = executeResponse.result;
+        if (Array.isArray(result)) {
+            return result
+                .map(item => {
+                    if (typeof item === 'string') return item;
+                    if (item && typeof item === 'object') return item.text || item.content || item.url || JSON.stringify(item);
+                    return '';
+                })
+                .filter(Boolean)
+                .join('\n');
+        }
+        if (typeof result === 'string') return result;
+        if (result && typeof result === 'object') return result.text || result.content || JSON.stringify(result);
+        return '';
     }
 
     addEvidenceEntry(runState, entry) {
@@ -2049,7 +2353,7 @@ class AgentRuntime {
     }
 
     cleanUrl(url) {
-        return String(url || '').trim().replace(/[.,;]+$/, '');
+        return String(url || '').trim().replace(/[.,;，。！？；：、）】》」』]+$/, '');
     }
 
     cleanOneLine(value) {
@@ -2073,7 +2377,7 @@ class AgentRuntime {
         const text = String(result ?? '');
         const configured = Number(this.registry?.getToolMetadata?.(toolName)?.maxOutputChars);
         const cap = Number.isFinite(configured) && configured > 0
-            ? Math.min(Math.max(configured, 4000), 64000)
+            ? Math.min(Math.max(configured, 4000), 96000)
             : 12000;
         if (text.length <= cap) return text;
         return `${text.slice(0, cap)}\n\n[Tool result truncated to ${cap} characters by AgentRuntime]`;

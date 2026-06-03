@@ -3,13 +3,7 @@
     const FAVORITES_KEY = 'MCPSKILLLAB_FAVORITES';
     const BACKLOG_META_KEY = 'MCPSKILLLAB_BACKLOG_META';
     const CUSTOM_RESOURCES_KEY = 'MCPSKILLLAB_CUSTOM_RESOURCES';
-    const CHECK_CACHE_KEY = 'MCPSKILLLAB_CHECK_CACHE';
-    const CHECK_API_PATH = '/check-resource';
-    const HEALTH_API_PATH = '/health';
     const LOCAL_API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
-    const BATCH_CHECK_DELAY_MS = 350;
-    const REVIEW_HIGH_RISK_PERMISSIONS = ['shell', 'filesWrite', 'browser', 'database', 'docker', 'installScript', 'scripts'];
-    const REVIEW_ITEM_LIMIT = 8;
 
     const fallbackResources = [
         {
@@ -127,8 +121,6 @@
     const MAX_IMPORT_BYTES = 200 * 1024;
     const MAX_CUSTOM_RESOURCES = 200;
     const MAX_FAVORITES = 500;
-    const MAX_CHECK_RESULTS = 300;
-    const CHECK_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
     const wizardPlatforms = [
         { id: 'codex', label: 'Codex', configPath: '.codex/skills/', format: 'folder', hint: '在项目 .codex/skills/ 文件夹下创建 Skill 目录' },
@@ -247,13 +239,7 @@
         favoritesKey: FAVORITES_KEY,
         backlogMetaKey: BACKLOG_META_KEY,
         customResourcesKey: CUSTOM_RESOURCES_KEY,
-        checkCacheKey: CHECK_CACHE_KEY,
-        checkApiPath: CHECK_API_PATH,
-        healthApiPath: HEALTH_API_PATH,
         localApiBase: LOCAL_API_BASE,
-        batchCheckDelayMs: BATCH_CHECK_DELAY_MS,
-        reviewHighRiskPermissions: REVIEW_HIGH_RISK_PERMISSIONS,
-        reviewItemLimit: REVIEW_ITEM_LIMIT,
         fallbackResources,
         templates,
         auditItems,
@@ -270,8 +256,6 @@
         maxImportBytes: MAX_IMPORT_BYTES,
         maxCustomResources: MAX_CUSTOM_RESOURCES,
         maxFavorites: MAX_FAVORITES,
-        maxCheckResults: MAX_CHECK_RESULTS,
-        checkCacheTtlMs: CHECK_CACHE_TTL_MS,
         wizardPlatforms,
         wizardModes,
         displayText

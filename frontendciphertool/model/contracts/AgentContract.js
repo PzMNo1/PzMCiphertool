@@ -63,6 +63,7 @@
         'patch_proposal_tools',
         'image_tools',
         'page_control_tools',
+        'agent_earth_tools',
         'api_router_tools'
     ]);
 
@@ -112,6 +113,8 @@
         find: 'research_tools',
 
         finance_query: 'market_tools',
+
+        agent_earth_run: 'agent_earth_tools',
 
         list_files: 'project_read_tools',
         read_file: 'project_read_tools',
@@ -280,6 +283,19 @@
             networkAccess: false,
             projectAccess: 'none',
             owner: 'agentmaster',
+            enabledByDefault: true
+        },
+        agent_earth_tools: {
+            risk: 'network_read',
+            sideEffect: false,
+            requiresApproval: false,
+            timeoutMs: 70000,
+            maxOutputChars: 24000,
+            cachePolicy: 'per_run',
+            retryPolicy: 'none',
+            networkAccess: true,
+            projectAccess: 'none',
+            owner: 'backend',
             enabledByDefault: true
         },
         api_router_tools: {

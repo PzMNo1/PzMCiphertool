@@ -36,6 +36,9 @@ node_modules/
 __pycache__/
 *.pyc
 
+# Graphify output
+graphify-out/
+
 # Logs
 *.log
 

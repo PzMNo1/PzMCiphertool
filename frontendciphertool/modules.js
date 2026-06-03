@@ -369,6 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const coreScripts = [
         './electronic/electronic_lab.js',
         './apizhongzhuanzhan/apizhongzhuanzhan.js',
+        './apizhongzhuanzhan/apizz-overview.js',
+        './apizhongzhuanzhan/apizz-keys.js',
+        './apizhongzhuanzhan/apizz-usage.js',
+        './apizhongzhuanzhan/apizz-billing.js',
+        './apizhongzhuanzhan/apizz-ops.js',
         './mcpskilllab/mcpskilllab-config.js',
         './mcpskilllab/mcpskilllab-resources-mcp.js',
         './mcpskilllab/mcpskilllab-resources-skills.js',

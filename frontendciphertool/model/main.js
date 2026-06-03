@@ -14,6 +14,7 @@
     let eventsInitialized = false;
     let attachments = [];
     const selectedChatIds = new Set();
+    const activeRunRegistry = new Map();
 
     const MAX_ATTACHMENTS = 80;
     const MAX_TEXT_BYTES_PER_FILE = 512 * 1024;
@@ -644,6 +645,153 @@
         return client;
     }
 
+    function getRunKey(chatId, messageId) {
+        return `${chatId || ''}:${messageId || ''}`;
+    }
+
+    function createAssistantMessageId() {
+        if (window.historyManager?.createMessageId) {
+            return window.historyManager.createMessageId('assistant');
+        }
+        return `assistant_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    }
+
+    function getCurrentAccountId() {
+        try {
+            const auth = window.CipherAuth || window.cipherAuth || null;
+            const user = auth?.getCurrentUser?.() || auth?.currentUser || window.currentUser || null;
+            return user?.id || user?.user_id || user?.account_id || user?.username || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function copyContainerRefs(target, source) {
+        if (!target || !source) return target;
+        [
+            'element',
+            'reasoningDetails',
+            'reasoningSummary',
+            'reasoningContent',
+            'contentDiv',
+            'cursorSpan',
+            'agentRunPanel',
+            'agentStages',
+            'agentApprovalDeck',
+            'toolDeck',
+            'agentTrace',
+            'agentEventTimeline',
+            'agentEventLog',
+            'agentEventCount'
+        ].forEach(key => {
+            if (source[key]) target[key] = source[key];
+        });
+        return target;
+    }
+
+    function registerActiveRun(chatId, messageId, container, initial = {}) {
+        const entry = {
+            chatId,
+            messageId,
+            container,
+            status: initial.status || 'running',
+            latestContent: initial.content || '',
+            latestReasoning: initial.reasoning_content || '',
+            latestAgentRun: initial.agent_run || null,
+            latestToolCalls: initial.tool_calls || null,
+            latestImages: initial.images || null,
+            lastPersistAt: 0,
+            pendingPersistTimer: null
+        };
+        activeRunRegistry.set(getRunKey(chatId, messageId), entry);
+        return entry;
+    }
+
+    function getActiveRun(chatId, messageId) {
+        return activeRunRegistry.get(getRunKey(chatId, messageId));
+    }
+
+    function buildAssistantPatch(entry, patch = {}) {
+        const next = {
+            role: 'assistant',
+            id: entry.messageId,
+            message_id: entry.messageId,
+            status: patch.status || entry.status || 'running',
+            content: patch.content ?? entry.latestContent ?? '',
+            reasoning_content: patch.reasoning_content ?? entry.latestReasoning ?? null,
+            tool_calls: patch.tool_calls ?? entry.latestToolCalls ?? null,
+            agent_run: patch.agent_run ?? entry.latestAgentRun ?? null,
+            images: patch.images ?? entry.latestImages ?? null,
+            error_message: patch.error_message || null,
+            owner_id: getCurrentAccountId()
+        };
+        return next;
+    }
+
+    function persistActiveRun(entry, patch = {}, options = {}) {
+        if (!entry) return null;
+        if (patch.status) entry.status = patch.status;
+        if (patch.content !== undefined) entry.latestContent = patch.content || '';
+        if (patch.reasoning_content !== undefined) entry.latestReasoning = patch.reasoning_content || '';
+        if (patch.agent_run !== undefined) entry.latestAgentRun = patch.agent_run || null;
+        if (patch.tool_calls !== undefined) entry.latestToolCalls = patch.tool_calls || null;
+        if (patch.images !== undefined) entry.latestImages = patch.images || null;
+
+        const save = () => {
+            entry.lastPersistAt = Date.now();
+            entry.pendingPersistTimer = null;
+            return window.historyManager.updateMessage(entry.chatId, entry.messageId, buildAssistantPatch(entry, patch));
+        };
+
+        if (options.immediate) {
+            if (entry.pendingPersistTimer) {
+                clearTimeout(entry.pendingPersistTimer);
+                entry.pendingPersistTimer = null;
+            }
+            return save();
+        }
+
+        const elapsed = Date.now() - entry.lastPersistAt;
+        if (elapsed > 900) return save();
+        if (!entry.pendingPersistTimer) {
+            entry.pendingPersistTimer = setTimeout(save, 900 - elapsed);
+        }
+        return null;
+    }
+
+    function completeActiveRun(entry, patch = {}) {
+        if (!entry) return;
+        persistActiveRun(entry, { ...patch, status: patch.status || 'completed' }, { immediate: true });
+        activeRunRegistry.delete(getRunKey(entry.chatId, entry.messageId));
+    }
+
+    function bindActiveRunContainer(chatId, messageId, restoredContainer) {
+        const entry = getActiveRun(chatId, messageId);
+        if (!entry || !restoredContainer) return;
+        copyContainerRefs(entry.container, restoredContainer);
+        const panelAttached = entry.container?.agentRunPanel && entry.container?.element?.contains(entry.container.agentRunPanel);
+        if (!panelAttached && entry.latestAgentRun && entry.container?.element && entry.container?.contentDiv) {
+            const panel = window.chatUI.restoreAgentRunPanel(entry.container.element, entry.container.contentDiv, entry.latestAgentRun);
+            if (panel) panel.open = true;
+            copyContainerRefs(entry.container, {
+                agentRunPanel: entry.container.element.querySelector('.agent-run-panel'),
+                agentStages: entry.container.element.querySelector('.agent-stage-strip'),
+                agentApprovalDeck: entry.container.element.querySelector('.agent-approval-deck'),
+                toolDeck: entry.container.element.querySelector('.agent-tool-deck'),
+                agentTrace: entry.container.element.querySelector('.agent-trace-log'),
+                agentEventTimeline: entry.container.element.querySelector('.agent-event-panel'),
+                agentEventLog: entry.container.element.querySelector('.agent-event-log'),
+                agentEventCount: entry.container.element.querySelector('.agent-event-count')
+            });
+        }
+        if (entry.latestContent && entry.container?.contentDiv) {
+            window.chatUI.updateContent(entry.container, entry.latestContent);
+        }
+        if (entry.status && entry.status !== 'running' && entry.container?.reasoningDetails) {
+            window.chatUI.finalizeMessage(entry.container);
+        }
+    }
+
     /**
      * 发送消息
      */
@@ -720,6 +868,16 @@
 
         // 创建助手消息容器
         const container = window.chatUI.createAssistantMessageContainer();
+        const assistantMessageId = createAssistantMessageId();
+        const activeRun = registerActiveRun(chatId, assistantMessageId, container, { status: 'running' });
+        window.historyManager.addMessage(chatId, {
+            role: 'assistant',
+            id: assistantMessageId,
+            message_id: assistantMessageId,
+            status: 'running',
+            content: '',
+            owner_id: getCurrentAccountId()
+        });
 
         // 获取状态
         const deepThinkToggle = document.getElementById('deep-think-toggle');
@@ -763,8 +921,7 @@
                 window.chatUI.displayGeneratedImages(container, imageResponse.images, finalContent);
                 window.chatUI.finalizeMessage(container);
 
-                window.historyManager.addMessage(chatId, {
-                    role: 'assistant',
+                completeActiveRun(activeRun, {
                     content: finalContent,
                     images: getPersistableImages(imageResponse.images)
                 });
@@ -777,7 +934,22 @@
                     toolEnabled: isToolEnabled,
                     hasAttachments: preparedAttachments.historyAttachments.length > 0,
                     contextPack,
-                    container
+                    toolContext: {
+                        attachmentContext: preparedAttachments.contextText || '',
+                        attachmentManifest: preparedAttachments.historyAttachments || [],
+                        priorAgentRuns
+                    },
+                    container,
+                    onRunSnapshot: (snapshot, meta = {}) => {
+                        agentRunSnapshot = snapshot || agentRunSnapshot;
+                        if (meta.content !== undefined) {
+                            finalContent = meta.content || finalContent;
+                        }
+                        persistActiveRun(activeRun, {
+                            content: finalContent,
+                            agent_run: agentRunSnapshot
+                        }, { immediate: meta.reason === 'panel.created' || meta.reason === 'run.completed' });
+                    }
                 });
 
                 finalContent = response?.content || finalContent;
@@ -795,6 +967,7 @@
                     onReasoning: (text) => {
                         finalReasoning += text;
                         window.chatUI.appendReasoningContent(container, text);
+                        persistActiveRun(activeRun, { reasoning_content: finalReasoning });
                     },
                     onContent: (delta, full) => {
                         if (container.reasoningDetails.classList.contains('thinking-state')) {
@@ -802,6 +975,10 @@
                         }
                         finalContent = full;
                         window.chatUI.updateContent(container, full);
+                        persistActiveRun(activeRun, {
+                            content: finalContent,
+                            reasoning_content: finalReasoning || null
+                        });
                     },
                     onToolCall: (toolCall) => {
                         // 收集工具调用信息用于保存到历史
@@ -814,6 +991,7 @@
                             }
                         });
                         window.chatUI.displayToolCall(container, toolCall);
+                        persistActiveRun(activeRun, { tool_calls: collectedToolCalls }, { immediate: true });
                     },
                     onToolResult: (toolCallId, result, success) => {
                         window.chatUI.updateToolResult(toolCallId, result, success);
@@ -834,6 +1012,7 @@
                     onReasoning: (text) => {
                         finalReasoning += text;
                         window.chatUI.appendReasoningContent(container, text);
+                        persistActiveRun(activeRun, { reasoning_content: finalReasoning });
                     },
                     onContent: (delta, full) => {
                         if (container.reasoningDetails.classList.contains('thinking-state')) {
@@ -841,6 +1020,10 @@
                         }
                         finalContent = full;
                         window.chatUI.updateContent(container, full);
+                        persistActiveRun(activeRun, {
+                            content: finalContent,
+                            reasoning_content: finalReasoning || null
+                        });
                     },
                     onToolCall: () => { }
                 });
@@ -853,8 +1036,7 @@
             window.chatUI.finalizeMessage(container);
 
             // 保存助手消息到历史（包含工具调用信息）
-            window.historyManager.addMessage(chatId, {
-                role: 'assistant',
+            completeActiveRun(activeRun, {
                 content: finalContent,
                 reasoning_content: finalReasoning || null,
                 tool_calls: collectedToolCalls.length > 0 ? collectedToolCalls : null,
@@ -867,13 +1049,20 @@
                 finalContent += '\n[TRANSMISSION INTERRUPTED]';
                 window.chatUI.updateContent(container, finalContent);
 
-                window.historyManager.addMessage(chatId, {
-                    role: 'assistant',
+                completeActiveRun(activeRun, {
+                    status: 'interrupted',
                     content: finalContent,
                     reasoning_content: finalReasoning || null
                 });
             } else {
                 window.chatUI.showError(container, error.message);
+                completeActiveRun(activeRun, {
+                    status: 'error',
+                    content: finalContent || `[SYSTEM FAILURE]: ${error.message}`,
+                    reasoning_content: finalReasoning || null,
+                    agent_run: agentRunSnapshot,
+                    error_message: error.message
+                });
                 console.error('Chat error:', error);
             }
         } finally {
@@ -903,7 +1092,10 @@
                 messages.forEach(msg => {
                     if (msg.role !== 'tool' && msg.role !== 'system') {
                         try {
-                            window.chatUI.displayMessageFromHistory(msg);
+                            const rendered = window.chatUI.displayMessageFromHistory(msg);
+                            if (msg.role === 'assistant' && msg.status === 'running') {
+                                bindActiveRunContainer(chatId, msg.message_id || msg.id, rendered);
+                            }
                         } catch (e) {
                             console.warn('Failed to render history message:', e, msg);
                         }
@@ -1180,6 +1372,7 @@
             `runId: ${run.runId || ''}`,
             `mode: ${run.mode || ''}`,
             `researchProfile: ${run.researchProfile || ''}`,
+            `agentEarthTargetCalls: ${run.agentEarthTargetCalls || 0}`,
             `maxIterations: ${run.maxIterations ?? ''}`
         ];
         if (Array.isArray(run.selectedTools) && run.selectedTools.length) {
@@ -1190,7 +1383,7 @@
             lines.push(indentText(JSON.stringify(run.tool_contracts, null, 2), '  '));
         }
         if (Array.isArray(run.events) && run.events.length) {
-            const exportableEvents = run.events.filter(event => event?.type !== 'model.delta').slice(0, 160);
+            const exportableEvents = run.events.filter(event => event?.type !== 'model.delta').slice(0, 3000);
             lines.push('events:');
             lines.push(indentText(JSON.stringify(exportableEvents, null, 2), '  '));
         }
@@ -1433,6 +1626,7 @@
         const runId = matchLine(text, /^runId:\s*(.*)$/m);
         const mode = matchLine(text, /^mode:\s*(.*)$/m);
         const researchProfile = matchLine(text, /^researchProfile:\s*(.*)$/m);
+        const agentEarthTargetCallsText = matchLine(text, /^agentEarthTargetCalls:\s*(.*)$/m);
         const maxIterationsText = matchLine(text, /^maxIterations:\s*(.*)$/m);
         const selectedToolsText = matchLine(text, /^selectedTools:\s*(.*)$/m);
         const toolContracts = parseIndentedJsonField(text, 'tool_contracts') || [];
@@ -1465,6 +1659,7 @@
         }
 
         const maxIterations = Number(maxIterationsText);
+        const agentEarthTargetCalls = Number(agentEarthTargetCallsText);
         return {
             contract_version: contractVersion,
             runId,
@@ -1473,6 +1668,7 @@
             selectedTools: selectedToolsText
                 ? selectedToolsText.split(',').map(item => item.trim()).filter(Boolean)
                 : [],
+            agentEarthTargetCalls: Number.isFinite(agentEarthTargetCalls) ? agentEarthTargetCalls : 0,
             maxIterations: Number.isFinite(maxIterations) ? maxIterations : '',
             stages,
             traces,

@@ -38,11 +38,13 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private String tavilyApiKey;
     
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-    private static final int DEEP_READ_LIMIT = 16;
+    private static final int DEEP_READ_LIMIT = 24;
     private static final int DEEP_READ_REQUEST_TIMEOUT_SECONDS = 18;
     private static final int DEEP_READ_FUTURE_TIMEOUT_SECONDS = 22;
     private static final int SEARCH_REQUEST_TIMEOUT_SECONDS = 6;
     private static final int SEARCH_FUTURE_TIMEOUT_SECONDS = 8;
+    private static final int RESEARCH_QUERY_BATCH_PARALLELISM = 4;
+    private static final int RESEARCH_QUERY_FUTURE_TIMEOUT_SECONDS = 18;
     private static final int NEWS_RESULT_LIMIT = 8;
     private static final int NEWS_CANDIDATE_LIMIT = 64;
     private static final int NEWS_PER_DOMAIN_LIMIT = 2;
@@ -52,15 +54,22 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     // 新闻源定义
     private static final String[] TECH_SITES = {"site:36kr.com", "site:qbitai.com", "site:ifanr.com", "site:ithome.com"};
-    private static final String[] FINANCE_SITES = {"site:caixin.com", "site:jiemian.com", "site:wallstreetcn.com"};
-    private static final String[] OFFICIAL_SITES = {"site:xinhuanet.com", "site:people.com.cn", "site:thepaper.cn"};
+    private static final String[] FINANCE_SITES = {
+            "site:caixin.com", "site:jiemian.com", "site:wallstreetcn.com", "site:cls.cn",
+            "site:yicai.com", "site:stcn.com", "site:21jingji.com", "site:cs.com.cn",
+            "site:cnstock.com", "site:nbd.com.cn"
+    };
+    private static final String[] OFFICIAL_SITES = {
+            "site:xinhuanet.com", "site:people.com.cn", "site:thepaper.cn",
+            "site:pbc.gov.cn", "site:csrc.gov.cn", "site:ndrc.gov.cn", "site:mof.gov.cn"
+    };
 
     public WebCrawlerServiceImpl() {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-        this.researchExecutor = Executors.newFixedThreadPool(16);
+        this.researchExecutor = Executors.newFixedThreadPool(24);
     }
 
     @PreDestroy
@@ -433,7 +442,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         if (containsAny(d, "bbc.com", "bbc.co.uk", "wsj.com", "ft.com", "bloomberg.com")) return 20;
         if (containsAny(d, "cnbc.com", "nytimes.com", "washingtonpost.com", "theguardian.com", "scmp.com")) return 18;
         if (containsAny(d, "techcrunch.com", "theverge.com", "arstechnica.com", "wired.com", "theregister.com")) return 16;
-        if (containsAny(d, "caixin.com", "wallstreetcn.com", "xinhuanet.com", "people.com.cn", "thepaper.cn",
+        if (containsAny(d, "caixin.com", "wallstreetcn.com", "cls.cn", "yicai.com", "stcn.com", "21jingji.com",
+                "cs.com.cn", "cnstock.com", "xinhuanet.com", "people.com.cn", "thepaper.cn",
                 "chinanews.com.cn", "news.sina.com.cn", "sina.com.cn", "news.163.com", "cctv.com", "cctv.cn", "nbd.com.cn")) return 14;
         if (containsAny(d, "ithome.com", "36kr.com", "qbitai.com", "ifanr.com", "livemint.com", "timesnownews.com")) return 10;
         return 0;
@@ -446,7 +456,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                     || Pattern.compile("\\bai\\b").matcher(haystack).find() ? 10 : 0;
         }
         if (category.contains("finance")) {
-            return containsAny(haystack, "finance", "market", "stock", "fed", "economy", "inflation", "rates", "earnings", "bank") ? 10 : 0;
+            return containsAny(haystack, "finance", "market", "stock", "fed", "economy", "inflation", "rates", "earnings", "bank",
+                    "crypto", "bitcoin", "btc", "etf", "yield", "liquidity", "央行", "证监会", "财联社", "比特币", "加密货币", "行情") ? 10 : 0;
         }
         if (category.contains("politics")) {
             if (containsAny(haystack, "sports", "world cup", "tennis", "boxing", "football", "artanddesign")) return 0;
@@ -1048,33 +1059,27 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     @Override
     public String webResearch(String query, List<String> queries, String mode, Integer maxResults, Boolean readTop, String focusKeyword) {
-        int max = Math.max(16, Math.min(maxResults == null ? 32 : maxResults, 32));
+        int max = Math.max(16, Math.min(maxResults == null ? 32 : maxResults, 40));
         boolean shouldReadTop = readTop == null || readTop;
         List<String> queryPlan = buildResearchQueries(query, queries, mode);
+        List<String> executedQueryPlan = selectResearchQueryPlan(queryPlan, mode, shouldReadTop);
 
         JSONArray sources = new JSONArray();
         JSONArray evidence = new JSONArray();
-        Set<String> seen = new LinkedHashSet<>();
-        int sourceId = 1;
 
         try {
-            for (String q : queryPlan) {
-                List<JSONObject> items = searchUrlsAsList(q, max);
-                for (JSONObject item : items) {
-                    String url = item.getString("url");
-                    String dedupeKey = normalizeUrlForDedup(url);
-                    if (dedupeKey.isBlank() || seen.contains(dedupeKey)) continue;
-                    seen.add(dedupeKey);
-                    item.put("id", sourceId++);
-                    item.put("query", q);
-                    sources.add(item);
-                    if (sources.size() >= max) break;
-                }
+            List<JSONObject> collected = collectResearchSourcesInParallel(executedQueryPlan, query, max, shouldReadTop);
+
+            collected.sort((a, b) -> Integer.compare(scoreSearchResult(b, query), scoreSearchResult(a, query)));
+            int sourceId = 1;
+            for (JSONObject item : collected) {
+                item.put("id", sourceId++);
+                sources.add(item);
                 if (sources.size() >= max) break;
             }
 
             if (shouldReadTop) {
-                evidence.addAll(readTopEvidenceInParallel(sources, query, focusKeyword));
+                evidence.addAll(readTopEvidenceInParallel(sources, query, focusKeyword, mode));
             }
 
             JSONObject result = new JSONObject();
@@ -1082,11 +1087,15 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             result.put("mode", mode == null ? "auto" : mode);
             result.put("read_top", shouldReadTop);
             result.put("read_mode", shouldReadTop ? "deep_parallel" : "fast_sources_only");
-            result.put("query_plan", queryPlan);
+            result.put("query_plan", executedQueryPlan);
+            if (queryPlan.size() > executedQueryPlan.size()) {
+                result.put("query_plan_full", queryPlan);
+            }
             result.put("sources", sources);
             result.put("evidence", evidence);
-            result.put("source_policy", "Default search fanout uses Bing CN, Bing Global, DuckDuckGo, Jina Search, Tavily when configured, and direct official/community fallback sources. Baidu is disabled completely.");
-            result.put("guidance", "Use source ids like [1], [2] in the final answer. Research-grade answers should aim for 28+ distinct sources and cite 18+ when available; community research should aim for 20+ citations. If evidence is sparse or contradictory, call search_urls/read_webpage again with narrower queries or direct source URLs.");
+            result.put("execution_policy", "Search query plan runs in bounded parallel batches of " + RESEARCH_QUERY_BATCH_PARALLELISM + "; each query fans out to search engines in parallel, then top sources are deep-read in parallel.");
+            result.put("source_policy", "Default search fanout uses Bing CN, Bing Global, DuckDuckGo, Jina Search, Tavily when configured, plus direct first-hand/news/policy/report/community fallback sources. Baidu is disabled completely. Reuters/AP/CNBC/Bloomberg/财联社/official-policy/institution-report targets are searched as article/report queries before section fallbacks are used.");
+            result.put("guidance", "Use source ids like [1], [2] in the final answer. Prefer first_hand_news, official_policy, institution_report, specialist_news, academic_primary, community_original and article/report-like URLs over section_fallback sources. Treat HTTP 451/403/429 as access-blocked evidence, not as absence of evidence; if blocked or sparse, call search_urls/read_webpage again with site: queries, official reports, RSS/search-result snippets, or alternate syndication/community originals before finalizing.");
             return result.toJSONString();
         } catch (Exception e) {
             log.error("webResearch failed: {}", e.getMessage(), e);
@@ -1094,25 +1103,103 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
     }
 
-    private JSONArray readTopEvidenceInParallel(JSONArray sources, String query, String focusKeyword) {
-        int readCount = Math.min(DEEP_READ_LIMIT, sources.size());
+    private List<String> selectResearchQueryPlan(List<String> queryPlan, String mode, boolean shouldReadTop) {
+        List<String> plan = queryPlan == null ? List.of() : queryPlan;
+        if (plan.isEmpty()) return plan;
+        String lowerMode = mode == null ? "auto" : mode.toLowerCase(Locale.ROOT);
+        boolean newsLike = lowerMode.contains("news");
+        boolean academicLike = lowerMode.contains("academic");
+        int limit = shouldReadTop
+                ? (newsLike ? 18 : academicLike ? 16 : 16)
+                : 18;
+        if (plan.size() <= limit) return plan;
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        int headCount = Math.min(8, limit);
+        for (int i = 0; i < headCount && i < plan.size(); i++) {
+            selected.add(plan.get(i));
+        }
+
+        String[] priorityNeedles = {
+                "site:cnbc.com/crypto", "site:bloomberg.com/crypto", "site:coindesk.com", "site:theblock.co",
+                "site:coinshares.com", "site:glassnode.com", "site:coinmetrics.io", "site:sec.gov",
+                "site:cls.cn", "site:stcn.com", "site:yicai.com", "site:reuters.com/markets",
+                "site:cnbc.com/markets", "site:bloomberg.com/markets", "site:pbc.gov.cn", "site:csrc.gov.cn",
+                "site:nature.com", "site:science.org", "site:arxiv.org", "site:ieeexplore.ieee.org", "site:dl.acm.org"
+        };
+        for (String needle : priorityNeedles) {
+            if (selected.size() >= limit) break;
+            for (String candidate : plan) {
+                if (candidate.toLowerCase(Locale.ROOT).contains(needle)) {
+                    selected.add(candidate);
+                    break;
+                }
+            }
+        }
+
+        for (String candidate : plan) {
+            if (selected.size() >= limit) break;
+            selected.add(candidate);
+        }
+        return new ArrayList<>(selected);
+    }
+
+    private List<JSONObject> collectResearchSourcesInParallel(List<String> queryPlan, String query, int max, boolean shouldReadTop) {
+        List<JSONObject> collected = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> plan = queryPlan == null ? List.of() : queryPlan;
+        int perQueryMax = max >= 32 ? (shouldReadTop ? 16 : 20) : Math.min(max, 16);
+        int collectionLimit = Math.max(max * 6, max + 48);
+
+        for (int start = 0; start < plan.size(); start += RESEARCH_QUERY_BATCH_PARALLELISM) {
+            List<String> batch = plan.subList(start, Math.min(start + RESEARCH_QUERY_BATCH_PARALLELISM, plan.size()));
+            List<CompletableFuture<List<JSONObject>>> futures = new ArrayList<>();
+            for (String q : batch) {
+                futures.add(CompletableFuture
+                        .supplyAsync(() -> {
+                            List<JSONObject> items = searchUrlsAsList(q, perQueryMax);
+                            for (JSONObject item : items) {
+                                item.put("query", q);
+                                enrichSearchResultMetadata(item);
+                            }
+                            return items;
+                        }, researchExecutor)
+                        .completeOnTimeout(List.<JSONObject>of(), RESEARCH_QUERY_FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .exceptionally(error -> {
+                            log.debug("Research query failed [{}]: {}", trimTo(q, 80), rootMessage(error));
+                            return List.of();
+                        }));
+            }
+            for (CompletableFuture<List<JSONObject>> future : futures) {
+                for (JSONObject item : future.join()) {
+                    String url = item.getString("url");
+                    String dedupeKey = normalizeUrlForDedup(url);
+                    if (dedupeKey.isBlank() || seen.contains(dedupeKey)) continue;
+                    seen.add(dedupeKey);
+                    collected.add(item);
+                    if (collected.size() >= collectionLimit) return collected;
+                }
+            }
+        }
+        return collected;
+    }
+
+    private JSONArray readTopEvidenceInParallel(JSONArray sources, String query, String focusKeyword, String mode) {
+        int readCount = Math.min(getDeepReadLimitForMode(mode), sources.size());
         String focus = focusKeyword == null || focusKeyword.isBlank() ? query : focusKeyword;
         List<CompletableFuture<JSONObject>> futures = new ArrayList<>();
 
         for (int i = 0; i < readCount; i++) {
             JSONObject source = sources.getJSONObject(i);
-            Integer sourceId = source.getInteger("id");
-            String title = source.getString("title");
-            String url = source.getString("url");
 
             CompletableFuture<JSONObject> future = CompletableFuture
-                    .supplyAsync(() -> readEvidenceItem(sourceId, title, url, focus), researchExecutor)
+                    .supplyAsync(() -> readEvidenceItem(source, focus), researchExecutor)
                     .completeOnTimeout(
-                            buildEvidenceErrorItem(sourceId, title, url, "read_timeout_after_" + DEEP_READ_FUTURE_TIMEOUT_SECONDS + "s"),
+                            buildEvidenceErrorItem(source, "read_timeout_after_" + DEEP_READ_FUTURE_TIMEOUT_SECONDS + "s"),
                             DEEP_READ_FUTURE_TIMEOUT_SECONDS,
                             TimeUnit.SECONDS
                     )
-                    .exceptionally(error -> buildEvidenceErrorItem(sourceId, title, url, "read_failed: " + rootMessage(error)));
+                    .exceptionally(error -> buildEvidenceErrorItem(source, "read_failed: " + rootMessage(error)));
             futures.add(future);
         }
 
@@ -1123,8 +1210,16 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         return evidence;
     }
 
-    private JSONObject readEvidenceItem(Integer sourceId, String title, String url, String focus) {
-        JSONObject item = baseEvidenceItem(sourceId, title, url);
+    private int getDeepReadLimitForMode(String mode) {
+        String lowerMode = mode == null ? "auto" : mode.toLowerCase(Locale.ROOT);
+        if (lowerMode.contains("news")) return DEEP_READ_LIMIT;
+        if (lowerMode.contains("academic")) return DEEP_READ_LIMIT;
+        return Math.min(20, DEEP_READ_LIMIT);
+    }
+
+    private JSONObject readEvidenceItem(JSONObject source, String focus) {
+        JSONObject item = baseEvidenceItem(source);
+        String url = source.getString("url");
         try {
             JSONObject page = JSON.parseObject(readWebpageInternal(
                     url,
@@ -1136,6 +1231,13 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             if (error != null && !error.isBlank()) {
                 item.put("error", error);
             }
+            copyIfPresent(page, item, "read_method");
+            copyIfPresent(page, item, "http_status");
+            copyIfPresent(page, item, "jina_status");
+            copyIfPresent(page, item, "blocked");
+            copyIfPresent(page, item, "filter_warning");
+            copyIfPresent(page, item, "read_attempts");
+            copyIfPresent(page, item, "canonical_url");
             String content = page.getString("content");
             if (content == null) content = page.toJSONString();
             item.put("content", trimTo(content, 3000));
@@ -1146,18 +1248,29 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         return item;
     }
 
-    private JSONObject buildEvidenceErrorItem(Integer sourceId, String title, String url, String error) {
-        JSONObject item = baseEvidenceItem(sourceId, title, url);
+    private JSONObject buildEvidenceErrorItem(JSONObject source, String error) {
+        JSONObject item = baseEvidenceItem(source);
         item.put("error", error);
         return item;
     }
 
-    private JSONObject baseEvidenceItem(Integer sourceId, String title, String url) {
+    private JSONObject baseEvidenceItem(JSONObject source) {
         JSONObject item = new JSONObject();
-        item.put("source_id", sourceId);
-        item.put("title", title);
-        item.put("url", url);
+        item.put("source_id", source.getInteger("id"));
+        item.put("title", source.getString("title"));
+        item.put("url", source.getString("url"));
+        copyIfPresent(source, item, "source_tier");
+        copyIfPresent(source, item, "source_type");
+        copyIfPresent(source, item, "domain");
+        copyIfPresent(source, item, "article_like");
+        copyIfPresent(source, item, "section_fallback");
         return item;
+    }
+
+    private void copyIfPresent(JSONObject source, JSONObject target, String key) {
+        if (source != null && source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
     }
 
     private String rootMessage(Throwable error) {
@@ -1175,140 +1288,37 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     private String readWebpageInternal(String url, String focusKeyword, Integer chunkIndex, Duration requestTimeout) {
         try {
-            // Using Jina Reader API for deep, clean markdown fetching
-            String jinaUrl = "https://r.jina.ai/" + url;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(jinaUrl))
-                    .header("User-Agent", USER_AGENT)
-                    .header("Accept", "application/json") // Requesting JSON for better structure from Jina if we want, or text/event-stream
-                     // "X-Return-Format": "markdown" is default for Jina Reader
-                    .timeout(requestTimeout)
-                    .GET()
-                    .build();
+            List<JSONObject> attempts = new ArrayList<>();
+            JSONObject page = fetchJinaReaderPage(url, "application/json", "jina_json", capTimeout(requestTimeout, 12));
+            attempts.add(readAttemptSummary(page));
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            
-            if (response.statusCode() != 200) {
-                return JSON.toJSONString(Map.of("error", "抓取网页失败，HTTP状态码: " + response.statusCode()));
+            if (shouldRetryRead(page)) {
+                JSONObject markdownPage = fetchJinaReaderPage(url, "text/plain,text/markdown,*/*", "jina_markdown", capTimeout(requestTimeout, 8));
+                attempts.add(readAttemptSummary(markdownPage));
+                if (isBetterReadPage(markdownPage, page)) {
+                    page = markdownPage;
+                }
             }
-            
-            String markdownContent = response.body();
-            
-            // Chunking & Semantic Ranking Logic (Local RAG)
-            int maxReturnChars = 8000; // Limit returned context to ~8000 chars to avoid overwhelming LLM
-            
-            if (focusKeyword != null && !focusKeyword.trim().isEmpty()) {
-                // Split markdown into logical chunks (blocks separated by newlines or headers)
-                String[] rawChunks = markdownContent.split("\\n\\s*\\n|(?=\\n#)");
-                List<String> validChunks = new ArrayList<>();
-                
-                for (String chunk : rawChunks) {
-                    chunk = chunk.trim();
-                    if (chunk.length() > 50) { // Ignore extremely short fragments
-                        validChunks.add(chunk);
-                    }
-                }
-                
-                // Extract keywords from focusKeyword (simple tokenization)
-                List<String> keywords = Arrays.stream(focusKeyword.split("[\\s,]+"))
-                                              .map(String::toLowerCase)
-                                              .filter(k -> k.length() > 1) // Ignore single chars
-                                              .collect(Collectors.toList());
-                
-                // If no valid keywords, fallback to returning top
-                if (keywords.isEmpty()) {
-                    keywords.add(focusKeyword.toLowerCase());
-                }
 
-                // Rank chunks using a simple TF (Term Frequency) & Density scoring
-                Map<String, Double> chunkScores = new HashMap<>();
-                
-                for (String chunk : validChunks) {
-                    String chunkLower = chunk.toLowerCase();
-                    double score = 0.0;
-                    
-                    for (String kw : keywords) {
-                        int count = 0;
-                        int lastIndex = 0;
-                        while ((lastIndex = chunkLower.indexOf(kw, lastIndex)) != -1) {
-                            count++;
-                            lastIndex += kw.length();
-                        }
-                        
-                        // Score calculation: Frequency * (Keyword Length) / log(Chunk Length + 10)
-                        // This rewards chunks with dense, repeated keywords without overly favoring huge chunks
-                        if (count > 0) {
-                            score += (count * kw.length()) / Math.log(chunk.length() + 10);
-                            
-                            // Boost if keyword appears in a markdown header within the chunk
-                            if (chunkLower.contains("# ") && chunkLower.substring(0, Math.min(chunkLower.length(), 200)).contains(kw)) {
-                                score += 5.0; 
-                            }
-                        }
-                    }
-                    if (score > 0) {
-                        chunkScores.put(chunk, score);
-                    }
+            if (shouldRetryRead(page) || isBlockedPage(page)) {
+                JSONObject directPage = fetchDirectHtmlPage(url, capTimeout(requestTimeout, 8));
+                attempts.add(readAttemptSummary(directPage));
+                if (isBetterReadPage(directPage, page)) {
+                    page = directPage;
                 }
-                
-                // Sort chunks by score descending
-                List<Map.Entry<String, Double>> sortedScores = new ArrayList<>(chunkScores.entrySet());
-                sortedScores.sort((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()));
-                
-                StringBuilder finalRankedContent = new StringBuilder();
-                int currentCharCount = 0;
-                
-                // Take top scoring chunks until we hit the char limit
-                for (Map.Entry<String, Double> entry : sortedScores) {
-                    String chunk = entry.getKey();
-                    if (currentCharCount + chunk.length() > maxReturnChars && currentCharCount > 0) {
-                        break; // Stop if adding this chunk exceeds limit (unless it's the very first chunk)
-                    }
-                    
-                    finalRankedContent.append("... ").append(chunk).append(" ...\n\n");
-                    currentCharCount += chunk.length();
-                    
-                    if (currentCharCount >= maxReturnChars) break;
-                }
-                
-                String finalContent = finalRankedContent.toString().trim();
-                
-                if (finalContent.isEmpty()) {
-                     finalContent = "网页全文中未找到与关键词/意图: '" + focusKeyword + "' 高度相关的段落。请尝试更换关键词，或者直接不带 focus_keyword 读取全文的前面部分。";
-                }
-                 
+            }
+
+            if (!hasUsablePageContent(page)) {
                 JSONObject result = new JSONObject();
                 result.put("url", url);
-                result.put("content", finalContent);
-                result.put("filter_applied", "Semantic Chunk Ranking (Local RAG)");
-                result.put("focus_keyword_used", focusKeyword);
-                result.put("chunks_analyzed", validChunks.size());
-                return JSON.toJSONString(result);
-                
-            } else {
-                // Legacy / fallback behavior: Return by chunkIndex (simple pagination)
-                int chunkSize = 6000;
-
-                int totalLength = markdownContent.length();
-                int idx = (chunkIndex != null && chunkIndex >= 0) ? chunkIndex : 0;
-                int start = idx * chunkSize;
-                int end = Math.min(start + chunkSize, totalLength);
-                
-                String chunkContent = "";
-                if (start < totalLength) {
-                    chunkContent = markdownContent.substring(start, end);
-                } else {
-                    chunkContent = "已到达文档末尾。";
-                }
-                
-                JSONObject result = new JSONObject();
-                result.put("url", url);
-                result.put("content", chunkContent);
-                result.put("chunk_index", idx);
-                result.put("total_chunks", Math.ceil((double)totalLength / chunkSize));
-                result.put("total_length", totalLength);
-                return JSON.toJSONString(result);
+                result.put("error", "读取网页失败: 无可用正文。可能是访问限制、反爬、付费墙、动态渲染或目标源临时不可用。");
+                result.put("blocked", attempts.stream().anyMatch(attempt ->
+                        attempt instanceof JSONObject && Boolean.TRUE.equals(((JSONObject) attempt).getBoolean("blocked"))));
+                result.put("read_attempts", attempts);
+                return result.toJSONString();
             }
+
+            return buildReadWebpageResult(url, page, focusKeyword, chunkIndex, attempts).toJSONString();
 
         } catch (Exception e) {
             log.error("readWebpage failed: {}", e.getMessage());
@@ -1316,12 +1326,351 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
     }
 
+    private JSONObject fetchJinaReaderPage(String url, String accept, String readMethod, Duration requestTimeout) {
+        JSONObject result = new JSONObject();
+        result.put("read_method", readMethod);
+        try {
+            String jinaUrl = "https://r.jina.ai/" + url;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(jinaUrl))
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept", accept)
+                    .header("X-Return-Format", "markdown")
+                    .timeout(requestTimeout)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            result.put("http_status", response.statusCode());
+            result.put("blocked", isBlockedStatus(response.statusCode()));
+
+            if (response.statusCode() != 200) {
+                result.put("error", "HTTP " + response.statusCode());
+                result.put("error_detail", trimTo(cleanText(response.body()), 320));
+                return result;
+            }
+
+            JSONObject parsed = parseJinaReaderBody(response.body());
+            for (Map.Entry<String, Object> entry : parsed.entrySet()) {
+                result.put(entry.getKey(), entry.getValue());
+            }
+            return result;
+        } catch (Exception e) {
+            result.put("error", rootMessage(e));
+            return result;
+        }
+    }
+
+    private JSONObject parseJinaReaderBody(String body) {
+        JSONObject result = new JSONObject();
+        String value = body == null ? "" : body.trim();
+        if (value.startsWith("{")) {
+            try {
+                JSONObject root = JSON.parseObject(value);
+                Integer jinaStatus = Optional.ofNullable(root.getInteger("status")).orElse(root.getInteger("code"));
+                if (jinaStatus != null) {
+                    result.put("jina_status", jinaStatus);
+                    result.put("blocked", isBlockedStatus(jinaStatus));
+                }
+                String message = root.getString("message");
+                if (message != null && !message.isBlank()) {
+                    result.put("error", message);
+                }
+                JSONObject data = root.getJSONObject("data");
+                if (data != null) {
+                    result.put("title", firstNonBlank(data.getString("title"), root.getString("title")));
+                    result.put("canonical_url", firstNonBlank(data.getString("url"), root.getString("url")));
+                    result.put("content", firstNonBlank(
+                            data.getString("content"),
+                            data.getString("markdown"),
+                            data.getString("text"),
+                            root.getString("content")
+                    ));
+                    result.put("parsed_json", true);
+                    return result;
+                }
+                result.put("title", root.getString("title"));
+                result.put("canonical_url", root.getString("url"));
+                result.put("content", firstNonBlank(root.getString("content"), root.getString("markdown"), root.getString("text")));
+                result.put("parsed_json", true);
+                return result;
+            } catch (Exception e) {
+                result.put("parse_warning", "jina_json_parse_failed: " + rootMessage(e));
+            }
+        }
+        result.put("content", body == null ? "" : body);
+        return result;
+    }
+
+    private JSONObject fetchDirectHtmlPage(String url, Duration requestTimeout) {
+        JSONObject result = new JSONObject();
+        result.put("read_method", "direct_html");
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                    .timeout(requestTimeout)
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            result.put("http_status", response.statusCode());
+            result.put("blocked", isBlockedStatus(response.statusCode()));
+            if (response.statusCode() != 200) {
+                result.put("error", "HTTP " + response.statusCode());
+                result.put("error_detail", trimTo(cleanText(response.body()), 320));
+                return result;
+            }
+            result.put("content", extractMainContent(response.body(), true));
+            result.put("canonical_url", response.uri() == null ? url : response.uri().toString());
+            return result;
+        } catch (Exception e) {
+            result.put("error", rootMessage(e));
+            return result;
+        }
+    }
+
+    private JSONObject buildReadWebpageResult(String url, JSONObject page, String focusKeyword, Integer chunkIndex, List<JSONObject> attempts) {
+        String content = Optional.ofNullable(page.getString("content")).orElse("");
+        JSONObject result = new JSONObject();
+        result.put("url", url);
+        result.put("canonical_url", firstNonBlank(page.getString("canonical_url"), url));
+        result.put("title", page.getString("title"));
+        result.put("content", selectReadContent(content, focusKeyword, chunkIndex, result));
+        result.put("read_method", page.getString("read_method"));
+        result.put("http_status", page.get("http_status"));
+        result.put("jina_status", page.get("jina_status"));
+        result.put("blocked", isBlockedPage(page));
+        result.put("source_tier", classifySourceTier(url));
+        result.put("source_type", classifySourceType(url));
+        result.put("article_like", isArticleLikeUrl(url));
+        result.put("section_fallback", isLikelySectionUrl(url));
+        result.put("read_attempts", attempts);
+        return result;
+    }
+
+    private String selectReadContent(String content, String focusKeyword, Integer chunkIndex, JSONObject result) {
+        int maxReturnChars = 10000;
+        if (focusKeyword != null && !focusKeyword.trim().isEmpty()) {
+            List<String> validChunks = splitContentChunks(content);
+            List<String> keywords = extractFocusTerms(focusKeyword);
+            Map<String, Double> chunkScores = new HashMap<>();
+
+            for (String chunk : validChunks) {
+                String chunkLower = chunk.toLowerCase(Locale.ROOT);
+                double score = 0.0;
+                for (String kw : keywords) {
+                    int count = countOccurrences(chunkLower, kw.toLowerCase(Locale.ROOT));
+                    if (count > 0) {
+                        score += (count * Math.max(2, kw.length())) / Math.log(chunk.length() + 10);
+                        if (chunkLower.substring(0, Math.min(chunkLower.length(), 220)).contains(kw.toLowerCase(Locale.ROOT))) {
+                            score += 3.0;
+                        }
+                    }
+                }
+                if (score > 0) {
+                    chunkScores.put(chunk, score);
+                }
+            }
+
+            List<Map.Entry<String, Double>> sortedScores = new ArrayList<>(chunkScores.entrySet());
+            sortedScores.sort((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()));
+
+            StringBuilder selected = new StringBuilder();
+            int currentCharCount = 0;
+            for (Map.Entry<String, Double> entry : sortedScores) {
+                String chunk = entry.getKey();
+                if (currentCharCount + chunk.length() > maxReturnChars && currentCharCount > 0) break;
+                selected.append("... ").append(chunk).append(" ...\n\n");
+                currentCharCount += chunk.length();
+                if (currentCharCount >= maxReturnChars) break;
+            }
+
+            result.put("filter_applied", "Semantic Chunk Ranking (Local RAG)");
+            result.put("focus_keyword_used", focusKeyword);
+            result.put("focus_terms", keywords);
+            result.put("chunks_analyzed", validChunks.size());
+
+            String selectedContent = selected.toString().trim();
+            if (selectedContent.isEmpty()) {
+                result.put("filter_warning", "No high-scoring paragraph matched focus_keyword; returned leading excerpt instead of hiding the page.");
+                return trimTo(content, maxReturnChars);
+            }
+            return selectedContent;
+        }
+
+        int chunkSize = 8000;
+        int totalLength = content.length();
+        int idx = (chunkIndex != null && chunkIndex >= 0) ? chunkIndex : 0;
+        int start = idx * chunkSize;
+        int end = Math.min(start + chunkSize, totalLength);
+
+        result.put("chunk_index", idx);
+        result.put("total_chunks", Math.ceil((double) totalLength / chunkSize));
+        result.put("total_length", totalLength);
+        return start < totalLength ? content.substring(start, end) : "已到达文档末尾。";
+    }
+
+    private List<String> splitContentChunks(String content) {
+        String[] rawChunks = Optional.ofNullable(content).orElse("").split("\\n\\s*\\n|(?=\\n#)|(?<=。)|(?<=\\.)\\s+");
+        List<String> validChunks = new ArrayList<>();
+        for (String chunk : rawChunks) {
+            String cleaned = chunk.trim();
+            if (cleaned.length() > 50) {
+                validChunks.add(cleaned);
+            }
+        }
+        return validChunks;
+    }
+
+    private List<String> extractFocusTerms(String focusKeyword) {
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        String lower = focusKeyword == null ? "" : focusKeyword.toLowerCase(Locale.ROOT);
+        Matcher matcher = Pattern.compile("[\\p{IsHan}]{2,}|[a-z0-9][a-z0-9._+-]{1,}").matcher(lower);
+        while (matcher.find()) {
+            String token = matcher.group();
+            if (!isLowValueFocusTerm(token)) {
+                terms.add(token);
+            }
+            if (token.matches("[\\p{IsHan}]{5,}")) {
+                for (int i = 0; i + 2 <= token.length(); i++) {
+                    String shingle = token.substring(i, i + 2);
+                    if (!isLowValueFocusTerm(shingle)) {
+                        terms.add(shingle);
+                    }
+                }
+            }
+        }
+        if (containsAny(lower, "btc", "bitcoin", "比特币")) {
+            terms.add("btc");
+            terms.add("bitcoin");
+            terms.add("比特币");
+        }
+        if (containsAny(lower, "price", "价格", "行情", "走势", "涨", "跌")) {
+            terms.add("price");
+            terms.add("close");
+            terms.add("open");
+            terms.add("high");
+            terms.add("low");
+            terms.add("价格");
+            terms.add("收盘");
+            terms.add("开盘");
+            terms.add("最高");
+            terms.add("最低");
+        }
+        if (containsAny(lower, "policy", "regulation", "政策", "监管")) {
+            terms.add("policy");
+            terms.add("regulator");
+            terms.add("sec");
+            terms.add("federal reserve");
+            terms.add("政策");
+            terms.add("监管");
+            terms.add("央行");
+            terms.add("证监会");
+        }
+        if (containsAny(lower, "report", "research", "研报", "报告", "机构")) {
+            terms.add("report");
+            terms.add("research");
+            terms.add("outlook");
+            terms.add("报告");
+            terms.add("研报");
+        }
+        if (terms.isEmpty() && focusKeyword != null && !focusKeyword.isBlank()) {
+            terms.add(focusKeyword.toLowerCase(Locale.ROOT));
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private boolean isLowValueFocusTerm(String token) {
+        return containsAny(token, "这个", "一个", "一些", "每天", "这个月", "本月", "今天", "最新", "新闻", "情况");
+    }
+
+    private int countOccurrences(String value, String term) {
+        if (value == null || term == null || term.isBlank()) return 0;
+        int count = 0;
+        int index = 0;
+        while ((index = value.indexOf(term, index)) >= 0) {
+            count++;
+            index += Math.max(1, term.length());
+        }
+        return count;
+    }
+
+    private boolean shouldRetryRead(JSONObject page) {
+        return page == null || !hasUsablePageContent(page) || isBlockedPage(page);
+    }
+
+    private boolean hasUsablePageContent(JSONObject page) {
+        if (page == null) return false;
+        String content = Optional.ofNullable(page.getString("content")).orElse("").trim();
+        if (content.length() < 220) return false;
+        String lower = content.toLowerCase(Locale.ROOT);
+        return !containsAny(lower,
+                "enable javascript",
+                "checking your browser",
+                "access denied",
+                "you are being redirected",
+                "subscribe to continue",
+                "robot check",
+                "captcha");
+    }
+
+    private boolean isBetterReadPage(JSONObject candidate, JSONObject current) {
+        if (!hasUsablePageContent(candidate)) return false;
+        if (!hasUsablePageContent(current)) return true;
+        return contentLength(candidate) > contentLength(current) + 200;
+    }
+
+    private int contentLength(JSONObject page) {
+        return Optional.ofNullable(page).map(p -> Optional.ofNullable(p.getString("content")).orElse("").length()).orElse(0);
+    }
+
+    private boolean isBlockedPage(JSONObject page) {
+        if (page == null) return false;
+        Boolean blocked = page.getBoolean("blocked");
+        if (Boolean.TRUE.equals(blocked)) return true;
+        Integer status = page.getInteger("http_status");
+        if (status != null && isBlockedStatus(status)) return true;
+        Integer jinaStatus = page.getInteger("jina_status");
+        return jinaStatus != null && isBlockedStatus(jinaStatus);
+    }
+
+    private boolean isBlockedStatus(int status) {
+        return status == 401 || status == 403 || status == 429 || status == 451;
+    }
+
+    private JSONObject readAttemptSummary(JSONObject page) {
+        JSONObject summary = new JSONObject();
+        if (page == null) return summary;
+        copyIfPresent(page, summary, "read_method");
+        copyIfPresent(page, summary, "http_status");
+        copyIfPresent(page, summary, "jina_status");
+        copyIfPresent(page, summary, "blocked");
+        copyIfPresent(page, summary, "error");
+        summary.put("content_length", contentLength(page));
+        return summary;
+    }
+
+    private Duration capTimeout(Duration requested, int maxSeconds) {
+        long requestedSeconds = requested == null ? maxSeconds : requested.getSeconds();
+        return Duration.ofSeconds(Math.max(2, Math.min(requestedSeconds, maxSeconds)));
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return "";
+    }
+
     private List<JSONObject> searchUrlsAsList(String query, int maxResults) {
         return searchUrlsAsList(query, maxResults, false);
     }
 
     private List<JSONObject> searchUrlsAsList(String query, int maxResults, boolean includeBaidu) {
-        int limit = Math.max(1, Math.min(maxResults, 32));
+        int limit = Math.max(1, Math.min(maxResults, 40));
         List<JSONObject> combined = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         List<CompletableFuture<List<JSONObject>>> futures = new ArrayList<>();
@@ -1332,10 +1681,10 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         futures.add(searchSourceFuture("bing-cn", () -> fetchBingResults(query, "cn.bing.com", "bing-cn")));
         futures.add(searchSourceFuture("bing-global", () -> fetchBingResults(query, "www.bing.com", "bing-global")));
         futures.add(searchSourceFuture("duckduckgo", () -> fetchDuckDuckGoResults(query)));
-        futures.add(searchSourceFuture("jina-search", () -> fetchJinaSearchResults(query, Math.min(limit, 16))));
+        futures.add(searchSourceFuture("jina-search", () -> fetchJinaSearchResults(query, Math.min(limit, 20))));
 
         if (tavilyApiKey != null && !tavilyApiKey.isBlank()) {
-            futures.add(searchSourceFuture("tavily", () -> fetchTavilyResults(query, Math.min(limit, 12))));
+            futures.add(searchSourceFuture("tavily", () -> fetchTavilyResults(query, Math.min(limit, 16))));
         }
 
         for (CompletableFuture<List<JSONObject>> future : futures) {
@@ -1373,7 +1722,64 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         if (!q.isBlank()) {
             plan.add(q);
             String lowerMode = mode == null ? "auto" : mode.toLowerCase(Locale.ROOT);
-            if (lowerMode.contains("news") || q.matches(".*(最新|今天|新闻|current|latest|today|202[0-9]).*")) {
+            String qLower = q.toLowerCase(Locale.ROOT);
+            boolean currentLike = lowerMode.contains("news")
+                    || q.matches(".*(最新|今天|新闻|current|latest|today|202[0-9]).*");
+            boolean cryptoLike = containsAny(qLower,
+                    "btc", "bitcoin", "比特币", "crypto", "cryptocurrency", "加密货币", "数字货币", "eth", "ethereum", "以太坊");
+            boolean marketLike = lowerMode.contains("market") || cryptoLike || containsAny(qLower,
+                    "finance", "financial", "market", "markets", "stock", "stocks", "bond", "yield", "rate", "rates",
+                    "commodity", "oil", "gold", "etf", "price", "economy", "macro", "fed", "inflation",
+                    "财经", "金融", "市场", "股市", "股票", "美股", "a股", "港股", "债券", "利率", "汇率", "期货", "价格", "行情", "经济", "通胀");
+            boolean policyLike = containsAny(qLower,
+                    "policy", "regulation", "regulator", "government", "official", "sec", "fed", "treasury",
+                    "政策", "监管", "官方", "央行", "证监会", "财政部", "发改委", "政府");
+            boolean reportLike = containsAny(qLower,
+                    "report", "research", "white paper", "whitepaper", "outlook", "analysis",
+                    "研报", "研究", "报告", "白皮书", "机构", "投行", "券商");
+            boolean communityLike = lowerMode.contains("community") || containsAny(qLower,
+                    "社区", "reddit", "hacker news", "github", "v2ex", "product hunt", "lobsters", "前沿", "讨论", "实践", "经验");
+
+            if (currentLike || marketLike || policyLike || reportLike) {
+                plan.add(q + " Reuters Bloomberg AP CNBC 财联社");
+                plan.add("site:reuters.com " + q);
+                plan.add("site:apnews.com " + q);
+                plan.add("site:cnbc.com " + q);
+                plan.add("site:bloomberg.com " + q);
+                plan.add(q + " 财联社 第一财经 证券时报 21财经");
+                plan.add(q + " official policy regulator announcement report");
+            }
+            if (cryptoLike) {
+                String cryptoIntent = buildCryptoSearchIntent(q);
+                plan.add("site:cnbc.com/crypto " + cryptoIntent);
+                plan.add("site:bloomberg.com/crypto " + cryptoIntent);
+                plan.add("site:coindesk.com " + cryptoIntent);
+                plan.add("site:theblock.co " + cryptoIntent);
+                plan.add("site:cointelegraph.com " + cryptoIntent);
+                plan.add("site:coinshares.com " + cryptoIntent + " report");
+                plan.add("site:glassnode.com " + cryptoIntent + " report");
+                plan.add("site:coinmetrics.io " + cryptoIntent + " market");
+                plan.add("site:sec.gov bitcoin crypto ETF");
+            }
+            if (marketLike) {
+                String marketIntent = buildMarketSearchIntent(q);
+                plan.add(marketIntent + " Reuters markets Bloomberg CNBC");
+                plan.add("site:reuters.com/markets " + marketIntent);
+                plan.add("site:cnbc.com/markets " + marketIntent);
+                plan.add("site:bloomberg.com/markets " + marketIntent);
+                plan.add("site:cls.cn " + q);
+                plan.add("site:stcn.com " + q);
+                plan.add("site:yicai.com " + q);
+            }
+            if (policyLike) {
+                plan.add(q + " site:sec.gov OR site:federalreserve.gov OR site:treasury.gov");
+                plan.add(q + " site:pbc.gov.cn OR site:csrc.gov.cn OR site:ndrc.gov.cn OR site:mof.gov.cn");
+            }
+            if (reportLike || marketLike) {
+                plan.add(q + " institution report research outlook pdf");
+                plan.add(q + " 券商研报 机构报告 深度研究");
+            }
+            if (lowerMode.contains("news") || currentLike) {
                 plan.add(q + " 最新 新闻");
                 plan.add(q + " official announcement OR press release");
             }
@@ -1383,11 +1789,39 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             if (lowerMode.contains("technical") || q.matches(".*(API|文档|框架|模型|代码|GitHub|docs|release|版本|库).*")) {
                 plan.add(q + " official docs GitHub release");
             }
-            if (lowerMode.contains("community") || q.matches(".*(社区|实践|最佳实践|建议|方案|reddit|hacker news|经验).*")) {
+            if (communityLike || q.matches(".*(社区|实践|最佳实践|建议|方案|reddit|hacker news|经验).*")) {
                 plan.add(q + " best practices community discussion");
+                plan.add("site:news.ycombinator.com " + q);
+                plan.add("site:reddit.com " + q);
+                plan.add("site:github.com " + q);
+                plan.add("site:v2ex.com " + q);
             }
         }
-        return plan.stream().limit(6).collect(Collectors.toList());
+        return plan.stream().limit(18).collect(Collectors.toList());
+    }
+
+    private String buildMarketSearchIntent(String query) {
+        String q = query == null ? "" : query.trim();
+        String lower = q.toLowerCase(Locale.ROOT);
+        if (containsAny(lower, "btc", "bitcoin", "比特币")) {
+            return "bitcoin BTC price market daily volatility ETF flows liquidation";
+        }
+        if (containsAny(lower, "eth", "ethereum", "以太坊")) {
+            return "ethereum ETH price market daily volatility ETF flows";
+        }
+        return q + " market price economy policy research";
+    }
+
+    private String buildCryptoSearchIntent(String query) {
+        String q = query == null ? "" : query.trim();
+        String lower = q.toLowerCase(Locale.ROOT);
+        if (containsAny(lower, "btc", "bitcoin", "比特币")) {
+            return "bitcoin BTC price drop market ETF flows liquidation";
+        }
+        if (containsAny(lower, "eth", "ethereum", "以太坊")) {
+            return "ethereum ETH price market ETF flows";
+        }
+        return q + " crypto market price";
     }
 
     private List<JSONObject> buildDirectResearchFallbackSources(String query, int maxResults) {
@@ -1403,10 +1837,39 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                 || Pattern.compile("(^|[^a-z])ai([^a-z]|$)").matcher(q).find();
         boolean academicLike = containsAny(q, "paper", "research", "benchmark", "arxiv", "论文", "学术", "研究", "评测");
         boolean newsLike = containsAny(q, "latest", "today", "news", "current", "最新", "今天", "新闻", "趋势", "前沿");
+        boolean cryptoLike = containsAny(q, "btc", "bitcoin", "比特币", "crypto", "cryptocurrency", "加密货币", "数字货币", "eth", "ethereum", "以太坊");
+        boolean marketLike = cryptoLike || containsAny(q,
+                "finance", "financial", "market", "markets", "stock", "stocks", "bond", "yield", "rate", "rates",
+                "commodity", "oil", "gold", "etf", "price", "economy", "macro", "fed", "inflation",
+                "财经", "金融", "市场", "股市", "股票", "美股", "a股", "港股", "债券", "利率", "汇率", "期货", "价格", "行情", "经济", "通胀");
+        boolean policyLike = containsAny(q,
+                "policy", "regulation", "regulator", "government", "official", "sec", "treasury",
+                "政策", "监管", "官方", "央行", "证监会", "财政部", "发改委", "政府");
+        boolean reportLike = containsAny(q,
+                "report", "research", "white paper", "whitepaper", "outlook", "analysis",
+                "研报", "研究", "报告", "白皮书", "机构", "投行", "券商");
+        boolean communityLike = containsAny(q,
+                "社区", "reddit", "hacker news", "github", "v2ex", "product hunt", "lobsters", "前沿", "讨论", "实践", "经验");
         boolean generalNewsLike = newsLike && !agentLike && !aiLike && containsAny(q,
                 "top news", "world", "international", "china", "domestic", "business", "finance", "market",
                 "markets", "economy", "politics", "society", "sports", "culture", "entertainment",
                 "头条", "要闻", "国内", "国际", "中国", "财经", "市场", "经济", "社会", "体育", "娱乐", "文化", "综合", "全景");
+
+        if (marketLike) {
+            addMarketResearchFallbackSources(results, cryptoLike);
+        }
+
+        if (policyLike || marketLike) {
+            addPolicyResearchFallbackSources(results);
+        }
+
+        if (reportLike || marketLike || academicLike) {
+            addInstitutionReportFallbackSources(results, cryptoLike);
+        }
+
+        if (communityLike) {
+            addCommunityResearchFallbackSources(results);
+        }
 
         if (generalNewsLike) {
             addGeneralNewsFallbackSources(results);
@@ -1454,6 +1917,67 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
 
         return results.stream().limit(maxResults).collect(Collectors.toList());
+    }
+
+    private void addMarketResearchFallbackSources(List<JSONObject> results, boolean cryptoFocused) {
+        addDirectSource(results, "direct-source", "Reuters Markets", "https://www.reuters.com/markets/", "Reuters financial markets, economy, currencies, commodities and crypto-adjacent market news");
+        addDirectSource(results, "direct-source", "Reuters Business", "https://www.reuters.com/business/", "Reuters business, finance, economy and market news");
+        addDirectSource(results, "direct-source", "Bloomberg Markets", "https://www.bloomberg.com/markets", "Bloomberg market data, economy and finance coverage");
+        addDirectSource(results, "direct-source", "CNBC Markets", "https://www.cnbc.com/markets/", "CNBC markets, business, economy and finance news");
+        addDirectSource(results, "direct-source", "CNBC Crypto World", "https://www.cnbc.com/crypto-world/", "CNBC crypto market news and video briefings");
+        addDirectSource(results, "direct-source", "财联社", "https://www.cls.cn/", "Chinese market-moving finance wire, policy and company news");
+        addDirectSource(results, "direct-source", "第一财经", "https://www.yicai.com/", "Chinese finance, macro, markets and company news");
+        addDirectSource(results, "direct-source", "证券时报", "https://www.stcn.com/", "Chinese securities, markets and listed-company news");
+        addDirectSource(results, "direct-source", "21世纪经济报道", "https://www.21jingji.com/", "Chinese macro, finance and capital-market reporting");
+        addDirectSource(results, "direct-source", "中国证券报", "https://www.cs.com.cn/", "Chinese securities and macro-finance reporting");
+        addDirectSource(results, "direct-source", "上海证券报", "https://www.cnstock.com/", "Chinese securities and listed-company reporting");
+        if (cryptoFocused) {
+            addDirectSource(results, "direct-source", "CoinDesk Markets", "https://www.coindesk.com/markets/", "Crypto market news, prices, ETFs, mining and policy coverage");
+            addDirectSource(results, "direct-source", "The Block", "https://www.theblock.co/", "Crypto markets, exchange, ETF, funding and policy reporting");
+            addDirectSource(results, "direct-source", "Cointelegraph Markets", "https://cointelegraph.com/markets", "Crypto markets and policy news");
+            addDirectSource(results, "direct-source", "Decrypt", "https://decrypt.co/", "Crypto industry and market news");
+            addDirectSource(results, "direct-source", "CryptoSlate", "https://cryptoslate.com/", "Crypto market, on-chain and industry news");
+            addDirectSource(results, "direct-source", "CME Cryptocurrency Products", "https://www.cmegroup.com/markets/cryptocurrencies.html", "CME crypto futures and institutional market reference");
+        }
+    }
+
+    private void addPolicyResearchFallbackSources(List<JSONObject> results) {
+        addDirectSource(results, "direct-source", "SEC Crypto Assets", "https://www.sec.gov/securities-topics/crypto-assets", "U.S. SEC official crypto asset policy and investor-protection topic page");
+        addDirectSource(results, "direct-source", "SEC Newsroom", "https://www.sec.gov/newsroom", "U.S. SEC official announcements, enforcement and policy releases");
+        addDirectSource(results, "direct-source", "Federal Reserve News", "https://www.federalreserve.gov/newsevents.htm", "Federal Reserve official policy, speech and press-release index");
+        addDirectSource(results, "direct-source", "U.S. Treasury Press Releases", "https://home.treasury.gov/news/press-releases", "U.S. Treasury official policy and enforcement announcements");
+        addDirectSource(results, "direct-source", "CFTC Press Room", "https://www.cftc.gov/PressRoom/PressReleases", "U.S. CFTC official derivatives, commodity and crypto enforcement releases");
+        addDirectSource(results, "direct-source", "ECB Press", "https://www.ecb.europa.eu/press/html/index.en.html", "European Central Bank official monetary policy and market communications");
+        addDirectSource(results, "direct-source", "中国人民银行", "http://www.pbc.gov.cn/", "PBOC official monetary policy, financial regulation and statistics");
+        addDirectSource(results, "direct-source", "中国证监会", "http://www.csrc.gov.cn/", "CSRC official securities-market regulation and policy releases");
+        addDirectSource(results, "direct-source", "国家发展改革委", "https://www.ndrc.gov.cn/", "NDRC official macro policy, industry and price-policy releases");
+        addDirectSource(results, "direct-source", "财政部", "http://www.mof.gov.cn/", "MOF fiscal policy and official financial releases");
+    }
+
+    private void addInstitutionReportFallbackSources(List<JSONObject> results, boolean cryptoFocused) {
+        addDirectSource(results, "direct-source", "CoinShares Research", "https://coinshares.com/research/", "Digital asset investment, fund-flow and market research");
+        addDirectSource(results, "direct-source", "Glassnode Insights", "https://insights.glassnode.com/", "On-chain market research, weekly reports and data-driven crypto analysis");
+        addDirectSource(results, "direct-source", "Coin Metrics Insights", "https://coinmetrics.io/insights/", "Crypto market data research and network-data analysis");
+        addDirectSource(results, "direct-source", "Kaiko Research", "https://www.kaiko.com/research", "Institutional crypto market data and liquidity research");
+        addDirectSource(results, "direct-source", "Coinbase Institutional Research", "https://www.coinbase.com/institutional/research-insights", "Institutional crypto market research and insights");
+        addDirectSource(results, "direct-source", "Binance Research", "https://www.binance.com/en/research", "Crypto asset research, market structure and industry reports");
+        if (!cryptoFocused) {
+            addDirectSource(results, "direct-source", "IMF Publications", "https://www.imf.org/en/Publications", "International macroeconomic policy and market research");
+            addDirectSource(results, "direct-source", "BIS Publications", "https://www.bis.org/publications/index.htm", "Bank for International Settlements financial-system and monetary research");
+            addDirectSource(results, "direct-source", "World Bank Research", "https://www.worldbank.org/en/research", "World Bank economic and policy research");
+        }
+    }
+
+    private void addCommunityResearchFallbackSources(List<JSONObject> results) {
+        addDirectSource(results, "direct-source", "Hacker News", "https://news.ycombinator.com/news", "Developer and technology community front page");
+        addDirectSource(results, "direct-source", "Hacker News Newest", "https://news.ycombinator.com/newest", "Fresh developer and technology submissions");
+        addDirectSource(results, "direct-source", "GitHub Trending", "https://github.com/trending?since=daily", "Daily trending open-source repositories");
+        addDirectSource(results, "direct-source", "Product Hunt", "https://www.producthunt.com/", "New technology and product launches");
+        addDirectSource(results, "direct-source", "Lobsters", "https://lobste.rs/", "Technical community discussions");
+        addDirectSource(results, "direct-source", "V2EX Hot", "https://www.v2ex.com/?tab=hot", "Chinese developer community hot topics");
+        addDirectSource(results, "direct-source", "Reddit r/programming", "https://www.reddit.com/r/programming/hot/", "Programming community discussions");
+        addDirectSource(results, "direct-source", "Reddit r/Bitcoin", "https://www.reddit.com/r/Bitcoin/hot/", "Bitcoin community discussions");
+        addDirectSource(results, "direct-source", "Reddit r/CryptoCurrency", "https://www.reddit.com/r/CryptoCurrency/hot/", "Crypto market and community discussions");
     }
 
     private void addGeneralNewsFallbackSources(List<JSONObject> results) {
@@ -1650,7 +2174,119 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         result.put("title", cleanText(title));
         result.put("url", normalizeUrl(url));
         result.put("snippet", trimTo(cleanText(snippet), 320));
+        enrichSearchResultMetadata(result);
         return result;
+    }
+
+    private void enrichSearchResultMetadata(JSONObject result) {
+        if (result == null) return;
+        String url = normalizeUrl(result.getString("url"));
+        String domain = extractDomain(url);
+        boolean articleLike = isArticleLikeUrl(url);
+        boolean sectionFallback = isLikelySectionUrl(url);
+        boolean reportLike = isReportLikeUrl(url);
+        result.put("url", url);
+        result.put("domain", domain);
+        result.put("source_tier", classifySourceTier(url));
+        result.put("source_type", classifySourceType(url));
+        result.put("article_like", articleLike);
+        result.put("report_like", reportLike);
+        result.put("section_fallback", sectionFallback);
+    }
+
+    private String classifySourceTier(String url) {
+        String lower = url == null ? "" : url.toLowerCase(Locale.ROOT);
+        String domain = extractDomain(lower);
+        if (containsAny(domain,
+                "sec.gov", "federalreserve.gov", "treasury.gov", "cftc.gov", "ecb.europa.eu",
+                "pbc.gov.cn", "csrc.gov.cn", "ndrc.gov.cn", "mof.gov.cn")
+                || domain.endsWith(".gov") || domain.endsWith(".gov.cn")) {
+            return "official_policy";
+        }
+        if (containsAny(domain,
+                "coinshares.com", "glassnode.com", "coinmetrics.io", "kaiko.com", "cmegroup.com",
+                "blackrock.com", "fidelity.com", "ark-invest.com", "coinbase.com", "binance.com")) {
+            return "institution_report";
+        }
+        if (containsAny(domain,
+                "reuters.com", "apnews.com", "bloomberg.com", "cnbc.com", "ft.com", "wsj.com",
+                "bbc.com", "bbc.co.uk", "theguardian.com", "xinhuanet.com", "people.com.cn", "cls.cn")) {
+            return "first_hand_news";
+        }
+        if (containsAny(domain,
+                "coindesk.com", "theblock.co", "cointelegraph.com", "decrypt.co", "cryptoslate.com",
+                "caixin.com", "yicai.com", "stcn.com", "cs.com.cn", "cnstock.com", "21jingji.com",
+                "wallstreetcn.com", "nbd.com.cn", "jiemian.com", "thepaper.cn")) {
+            return "specialist_news";
+        }
+        if (containsAny(domain,
+                "news.ycombinator.com", "reddit.com", "github.com", "v2ex.com", "lobste.rs", "producthunt.com")) {
+            return "community_original";
+        }
+        if (containsAny(lower, "arxiv.org", "nature.com", "science.org", "ieee.org", "acm.org", "pubmed.ncbi.nlm.nih.gov")) {
+            return "academic_primary";
+        }
+        return "general_web";
+    }
+
+    private String classifySourceType(String url) {
+        if (isReportLikeUrl(url)) return "report";
+        if (classifySourceTier(url).equals("official_policy")) return "official";
+        if (classifySourceTier(url).equals("community_original")) return "community";
+        if (isArticleLikeUrl(url)) return "article";
+        if (isLikelySectionUrl(url)) return "section";
+        return "source";
+    }
+
+    private boolean isArticleLikeUrl(String url) {
+        try {
+            if (isLikelySectionUrl(url)) return false;
+            URI uri = URI.create(url == null ? "" : url);
+            String path = Optional.ofNullable(uri.getPath()).orElse("").toLowerCase(Locale.ROOT);
+            String[] segments = Arrays.stream(path.split("/"))
+                    .filter(segment -> !segment.isBlank())
+                    .toArray(String[]::new);
+            if (path.endsWith(".pdf")) return true;
+            if (path.matches(".*20\\d{2}.*")) return true;
+            if (containsAny(path, "/article/", "/story/", "/stories/", "/live/", "/posts/", "/news/", "/reports/", "/research/", "/insights/", "/analysis/")) {
+                return segments.length >= 2;
+            }
+            return segments.length >= 3 && path.length() > 28;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isReportLikeUrl(String url) {
+        String lower = url == null ? "" : url.toLowerCase(Locale.ROOT);
+        return containsAny(lower, ".pdf", "report", "research", "whitepaper", "white-paper", "outlook", "insights", "analysis", "研报", "报告");
+    }
+
+    private boolean isLikelySectionUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        if (isHomepageLike(url)) return true;
+        if (isNewsSectionPage("", url)) return true;
+        try {
+            URI uri = URI.create(url);
+            String path = Optional.ofNullable(uri.getPath()).orElse("/")
+                    .toLowerCase(Locale.ROOT)
+                    .replaceAll("/+", "/")
+                    .replaceAll("/$", "");
+            String[] segments = Arrays.stream(path.split("/"))
+                    .filter(segment -> !segment.isBlank())
+                    .toArray(String[]::new);
+            String joined = String.join("/", segments);
+            if (segments.length <= 1 && containsAny(joined,
+                    "crypto", "business", "markets", "finance", "economy", "technology", "tech", "news",
+                    "world", "politics", "research", "reports", "insights", "latest", "rolling")) {
+                return true;
+            }
+            return segments.length <= 2 && containsAny(joined,
+                    "business/markets", "markets/commodities", "markets/currencies", "markets/rates-bonds",
+                    "markets/crypto", "finance/markets", "news/latest", "news/finance", "category/artificial-intelligence");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private int scoreSearchResult(JSONObject result, String query) {
@@ -1666,10 +2302,23 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             if (snippet.contains(term)) score += 2;
             if (url.contains(term)) score += 1;
         }
+        String tier = Optional.ofNullable(result.getString("source_tier")).orElse(classifySourceTier(url));
+        if ("official_policy".equals(tier)) score += 12;
+        else if ("first_hand_news".equals(tier)) score += 10;
+        else if ("institution_report".equals(tier)) score += 9;
+        else if ("specialist_news".equals(tier)) score += 7;
+        else if ("academic_primary".equals(tier)) score += 7;
+        else if ("community_original".equals(tier)) score += 4;
+
+        if (Boolean.TRUE.equals(result.getBoolean("article_like"))) score += 10;
+        if (Boolean.TRUE.equals(result.getBoolean("report_like"))) score += 8;
+        if (Boolean.TRUE.equals(result.getBoolean("section_fallback"))) score -= 12;
+        if (isHomepageLike(url)) score -= 14;
         if (url.contains(".gov") || url.contains(".edu") || url.contains("docs.") || url.contains("developer.") || url.contains("github.com")) score += 3;
         String source = Optional.ofNullable(result.getString("source")).orElse("");
         if ("tavily".equals(source) || "bing-cn".equals(source) || "bing-global".equals(source)
-                || "jina-search".equals(source) || "direct-source".equals(source)) score += 2;
+                || "jina-search".equals(source)) score += 2;
+        if ("direct-source".equals(source)) score += Boolean.TRUE.equals(result.getBoolean("section_fallback")) ? 0 : 2;
         if ("baidu".equalsIgnoreCase(source) || url.contains("baidu.com")) score -= 6;
         return score;
     }

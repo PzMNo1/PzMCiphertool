@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
                 'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
+                'Sidebar label Agent means section target damoxing. Skill/MCP实验室 means section target mcpskilllab. Do not map Agent requests to mcpskilllab.',
                 'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu. Use yuliu for 空间类 / space puzzle.',
                 'Available contact submodule targets: guanyuzuozhe, zuozhecaifang, yijianfankui, kaifarizhi.',
                 'Available logic puzzle targets include sudoku, akari, nonogram, kakuro, hashi, hitori, nurikabe, slitherlink.',
@@ -627,11 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '词汇区': 'cihuiqu',
             '预留区': 'yuliu',
             '预留': 'yuliu',
-            '空间类': 'yuliu',
-            '空间区': 'yuliu',
-            '空间': 'yuliu',
-            '空间谜题': 'yuliu',
-            'mainInput': '#mainInput',
+                        'mainInput': '#mainInput',
             'main_input': '#mainInput',
             'main-input': '#mainInput',
             'main input': '#mainInput',
@@ -662,11 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '逻辑区': 'luojimiti',
             '词汇区': 'cihuiqu',
             '词汇': 'cihuiqu',
-            '空间类': 'yuliu',
-            '空间区': 'yuliu',
-            '空间': 'yuliu',
-            '空间谜题': 'yuliu',
-            '预留': 'yuliu',
+                        '预留': 'yuliu',
             space: 'yuliu',
             Space: 'yuliu',
             spacepuzzle: 'yuliu',
@@ -688,6 +681,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         aliases.Agent = 'damoxing';
         aliases.agent = 'damoxing';
+        aliases['Agent模块'] = 'damoxing';
+        aliases['agent模块'] = 'damoxing';
         aliases['API中转站'] = 'apizhongzhuanzhan';
         aliases['api中转站'] = 'apizhongzhuanzhan';
         aliases['中转站'] = 'apizhongzhuanzhan';
@@ -1464,12 +1459,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return { tool: result.message };
         }
 
-        const uiResult = matchFastUiCommand(raw, normalized);
-        if (uiResult) {
-            const result = executeUiAction(uiResult);
-            return { tool: result.message };
-        }
-
+        // UI operations must go through the agent tool flow so requested page actions are visible in the assistant pipeline.
+        // Keep this fast path limited to browser/window commands above.
         return null;
     }
 
@@ -1511,7 +1502,7 @@ document.addEventListener('DOMContentLoaded', () => {
             electroniclab: ['electroniclab', 'electronics', 'circuit', '电子实验室', '电路'],
             workflow: ['workflow', '工作流'],
             zhishitupu: ['zhishitupu', 'graph', '知识图谱'],
-            damoxing: ['damoxing', 'agent', '大模型', '模型'],
+            damoxing: ['damoxing', 'agent', 'agent模块', '大模型', '大模型模块', '模型', '模型模块'],
             mcpskilllab: ['mcpskilllab', 'skill/mcp实验室', 'skill / mcp 实验室', 'mcp实验室', 'skill实验室', '技能实验室', 'skillmcp', 'mcp lab', 'skill lab'],
             yijianfankui: ['yijianfankui', 'feedback', '反馈', '联系我们']
         };
@@ -1526,17 +1517,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return { action: 'switch_contact_submodule', target: contactSubmoduleTarget };
         }
 
-        const spacePuzzleTarget = findSpacePuzzleTargetInText(raw);
-        if (spacePuzzleTarget && hasFastOpenIntent(normalized)) {
-            return { action: 'open_space_puzzle', target: spacePuzzleTarget };
-        }
+        // Space-puzzle requests intentionally stay on the model-driven agent path.
 
         const submodules = {
             mimaqu: ['mimaqu', '经典区', '经典'],
             xiandaiqu: ['xiandaiqu', '现代区', '现代'],
             luojimiti: ['luojimiti', '逻辑区', '逻辑谜题'],
             cihuiqu: ['cihuiqu', '词汇区', '词汇'],
-            yuliu: ['yuliu', '空间类', '空间区', '空间', '空间谜题', 'space', 'spacepuzzle', 'space puzzle']
+            yuliu: ['yuliu']
         };
         for (const [target, names] of Object.entries(submodules)) {
             if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`切换${name}`) || normalized === normalizeText(`打开${name}`))) {
@@ -1564,24 +1552,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hasFastOpenIntent(normalized) {
-        return ['打开', '开启', '进入', '切换', '跳转', '转到', '去', 'open', 'show', 'goto', 'switch']
+        normalized = stripFastCommandHelperPrefix(normalized);
+        return ['打开', '开启', '进入', '转到', '去', 'open', 'show', 'goto', 'switch']
             .some(term => normalized.includes(normalizeText(term)));
     }
 
     function isFastSectionCommand(normalized, name) {
+        normalized = stripFastCommandHelperPrefix(normalized);
         const section = normalizeText(name);
-        return normalized === section ||
-            normalized === normalizeText(`打开${name}`) ||
-            normalized === normalizeText(`开启${name}`) ||
-            normalized === normalizeText(`进入${name}`) ||
-            normalized === normalizeText(`切换到${name}`) ||
-            normalized === normalizeText(`切换${name}`) ||
-            normalized === normalizeText(`转到${name}`) ||
-            normalized === normalizeText(`去${name}`) ||
-            normalized === normalizeText(`goto ${name}`) ||
-            normalized === normalizeText(`open ${name}`) ||
-            normalized === normalizeText(`show ${name}`) ||
-            normalized === normalizeText(`switch ${name}`);
+        if (normalized === section) return true;
+
+        const commandPrefixes = ['打开', '开启', '进入', '切换到', '转到', '去', 'goto', 'open', 'show', 'switch'];
+        for (const prefix of commandPrefixes) {
+            const prefixNorm = normalizeText(prefix);
+            if (normalized.startsWith(prefixNorm) && normalized.slice(prefixNorm.length) === section) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function stripFastCommandHelperPrefix(normalized) {
+        const helperPrefixes = ['请帮我', '帮我', '帮忙', '麻烦', '替我', '给我', '现在', '直接', 'please']
+            .map(normalizeText);
+        for (const prefix of helperPrefixes) {
+            if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
+        }
+        return normalized;
     }
 
     async function executeBrowserAction(args) {
