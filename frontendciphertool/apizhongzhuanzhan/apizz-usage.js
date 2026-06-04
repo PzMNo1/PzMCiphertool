@@ -12,15 +12,10 @@
 
     const RECHARGE_AMOUNTS = [5, 10, 20, 50];
     const PAYMENT_METHODS = [
-        { id: 'manual', label: '手动付款', meta: '线下确认' },
-        { id: 'alipay', label: '支付宝', meta: '待接入' },
-        { id: 'wechat', label: '微信支付', meta: '待接入' },
-        { id: 'stripe', label: 'Stripe', meta: '待接入' }
+        { id: 'wechat', label: '微信支付', meta: '待接入' }
     ];
     const PLANS = [
-        { id: 'basic', name: '基础版', price: 9, credit: 10, quota: '100 万 tokens', badge: 'Starter' },
-        { id: 'standard', name: '标准版', price: 29, credit: 35, quota: '500 万 tokens', badge: 'Standard' },
-        { id: 'pro', name: '专业版', price: 99, credit: 130, quota: '2000 万 tokens', badge: 'Pro' }
+        { id: 'basic', name: '基础版', price: 9, credit: 10, quota: '100 万 tokens', badge: 'Starter' }
     ];
 
     api.registerPage({
@@ -104,10 +99,6 @@
                             <div class="apizz-form-group">
                                 <label class="apizz-form-label" for="apizz-recharge-custom">自定义金额</label>
                                 <input id="apizz-recharge-custom" class="apizz-form-input" type="number" min="0.0001" step="0.0001" placeholder="例如 15">
-                            </div>
-                            <div class="apizz-form-group">
-                                <label class="apizz-form-label" for="apizz-recharge-promo">促销码</label>
-                                <input id="apizz-recharge-promo" class="apizz-form-input" type="text" placeholder="可选">
                             </div>
                         </div>
                     </section>

@@ -401,6 +401,8 @@ textarea {
 
 /*  侧边栏搜索框样式  */
 .sidebar-search {
+  width: 100%;
+  box-sizing: border-box;
   padding: 0 1rem 1rem;
   transition: all 0.3s ease;
   opacity: 0;
@@ -418,6 +420,7 @@ textarea {
 
 #cardSearch {
   width: 100%;
+  box-sizing: border-box;
   padding: 0.7rem;
   border-radius: 10px;
   color: var(--text);
@@ -787,20 +790,21 @@ textarea {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
     transform: translateX(-50%);
     width: min(94vw, 390px);
-    min-height: 94px;
+    min-height: 76px;
     display: flex;
     justify-content: center;
     align-items: flex-end;
     gap: clamp(.2rem, 1.3vw, .55rem);
-    padding: .7rem .75rem .55rem;
-    border: 1px solid rgba(64, 224, 255, .16);
-    border-radius: 999px 999px 30px 30px;
-    background: rgba(0, 20, 40, .22);
-    box-shadow: inset 0 0 22px rgba(64, 224, 255, .08), 0 14px 40px rgba(0, 0, 0, .28);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    padding: .25rem .35rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     overflow: visible;
-    z-index: 9990;
+    pointer-events: none;
+    z-index: 900;
   }
 
   #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
@@ -822,6 +826,7 @@ textarea {
     word-break: keep-all;
     transform: translateY(var(--dial-y)) rotate(var(--dial-r));
     transition: transform .24s ease, border-color .24s ease, background .24s ease, color .24s ease, box-shadow .24s ease;
+    pointer-events: auto;
   }
 
   #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(1) {
@@ -1499,6 +1504,12 @@ body::after {
   body {
     padding: 1rem;
     background-attachment: scroll;
+  }
+
+  .sidebar:hover .sidebar-search,
+  .sidebar.sidebar-pinned .sidebar-search {
+    width: calc(100% - 0.75rem);
+    padding-inline: 0.35rem;
   }
 
   .neon-title {

@@ -1362,8 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getDefaultOrbPosition() {
-        const topOffset = isMobileAgentViewport() ? 176 : 82;
-        return { left: window.innerWidth - 82, top: window.innerHeight - topOffset };
+        return { left: window.innerWidth - 82, top: window.innerHeight - 82 };
     }
 
     function enableOrbDrag(button) {
@@ -1406,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function moveOrbTo(left, top) {
         const wrapper = orb.parentElement;
         const maxLeft = Math.max(10, window.innerWidth - 68);
-        const maxTop = Math.max(10, window.innerHeight - (isMobileAgentViewport() ? 176 : 68));
+        const maxTop = Math.max(10, window.innerHeight - 68);
         const clampedLeft = Math.min(Math.max(10, left), maxLeft);
         const clampedTop = Math.min(Math.max(10, top), maxTop);
         wrapper.style.left = `${clampedLeft}px`;
