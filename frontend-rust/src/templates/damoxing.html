@@ -1,0 +1,86 @@
+
+    <div id="damoxing-content" class="content-section">
+    <div id="damoxing-container">
+        <div class="chat-interface">
+            <!-- 主对话区域 -->
+            <div class="chat-main">
+                <div class="chat-mobile-header" style="display: none;">
+                    <button id="sidebar-toggle" class="cyber-button">
+                        <span class="cyber-button__tag">≡</span>
+                    </button>
+                    <button id="new-chat-mobile" class="cyber-button">
+                        <span class="cyber-button__tag">+</span>
+                    </button>
+                </div>
+                <div id="chat-messages">
+                    <!-- 初始消息 -->
+                    <div class="message system-message">
+                        <div class="message-content">请输入您的问题...</div>
+                    </div>
+                </div>
+                
+                <div class="input-container">
+                    <div class="attachment-controls">
+                        <button id="attachment-add-btn" class="attachment-add-btn" title="导入文件或目录" aria-label="导入文件或目录" type="button"></button>
+                        <div id="attachment-menu" class="attachment-menu" aria-hidden="true">
+                            <button id="attachment-file-btn" type="button">导入文件</button>
+                            <button id="attachment-folder-btn" type="button">导入目录</button>
+                            <button id="import-chat-history-btn" type="button">导入聊天</button>
+                        </div>
+                        <input id="attachment-file-input" type="file" multiple hidden>
+                        <input id="attachment-folder-input" type="file" webkitdirectory multiple hidden>
+                        <input id="import-chat-history-input" type="file" accept=".txt,text/plain" multiple hidden>
+                    </div>
+                    <div class="input-main">
+                        <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
+                        <div id="attachment-status" class="attachment-status" aria-live="polite"></div>
+                        <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                    </div>
+                    <div class="input-actions">
+                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
+                            <span class="cyber-button__tag">作图模式</span>
+                        </button>
+                        <button id="tool-toggle" class="cyber-button active" title="启用工具">
+                            <span class="cyber-button__tag">🔧 工具</span>
+                        </button>
+                        <button id="deep-think-toggle" class="cyber-button active" title="深度思考">
+                            <span class="cyber-button__tag">深度思考</span>
+                        </button>
+                        <button id="send-message" class="cyber-button">
+                            <span class="cyber-button__tag">发送</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧边栏（历史对话） -->
+            <div class="chat-sidebar">
+                <div class="sidebar-header">
+                    <button id="new-chat" class="cyber-button">
+                        <span class="cyber-button__tag">新对话</span>
+                    </button>
+                    <button id="select-all-history" class="cyber-button">
+                        <span class="cyber-button__tag">全选</span>
+                    </button>
+                    <button id="export-chat-history" class="cyber-button">
+                        <span class="cyber-button__tag">导出聊天</span>
+                    </button>
+
+                </div>
+                <div class="search-container">
+                    <input type="text" id="history-search" placeholder="搜索对话...">
+                </div>
+                
+                <div id="chat-history-list">
+                    <!-- 历史对话会动态添加到这里 -->
+                </div>
+                
+                <div class="sidebar-footer">
+                    <button id="delete-history" class="cyber-button">
+                        <span class="cyber-button__tag">删除选中</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

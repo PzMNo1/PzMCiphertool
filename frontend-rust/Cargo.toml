@@ -1,0 +1,42 @@
+[package]
+name = "rust-app"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+js-sys = "0.3.99"
+wasm-bindgen = "0.2.122"
+wasm-bindgen-futures = "0.4.72"
+web-sys = { version = "0.3.99", features = [
+    "console",
+    "CanvasGradient",
+    "CanvasRenderingContext2d",
+    "CssStyleDeclaration",
+    "Document",
+    "DomParser",
+    "DomRect",
+    "DomTokenList",
+    "Element",
+    "Event",
+    "EventTarget",
+    "HtmlCanvasElement",
+    "HtmlElement",
+    "HtmlIFrameElement",
+    "HtmlImageElement",
+    "HtmlInputElement",
+    "HtmlScriptElement",
+    "HtmlTextAreaElement",
+    "KeyboardEvent",
+    "MouseEvent",
+    "Node",
+    "NodeList",
+    "Response",
+    "ScrollBehavior",
+    "ScrollToOptions",
+    "SupportedType",
+    "Window"
+] }

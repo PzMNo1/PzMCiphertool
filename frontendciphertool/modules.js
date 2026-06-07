@@ -305,68 +305,153 @@ const MODULES = {
         </div>
     </div>
 </div>`,
-    // 意见反馈模块
+    // 联系我们模块
     yijianfankui:
         `<div id="yijianfankui-content" class="content-section">
-        <div class="module-header"><h2 class="neon-title" data-text="YIJIANFANKUI">「SENDFEEDBACK」关于作者</h2></div>
 
-        <div class="submodule-nav" style="margin-top: 2rem;">
-            <button class="btn back-btn contact-submodule-btn active" data-target="guanyuzuozhe">关于作者</button>
-            <button class="btn back-btn contact-submodule-btn" data-target="zuozhecaifang">作者采访</button>
-            <button class="btn back-btn contact-submodule-btn" data-target="yijianfankui">意见反馈</button>
-            <button class="btn back-btn contact-submodule-btn" data-target="kaifarizhi">开发日志</button>
-        </div>
-
-    <div class="cipher-swiper-container">
-        <div class="cipher-swiper-wrapper">
-
-        <div id="guanyuzuozhe" class="lianxiwomen-submodule active">
-            <div class="container">
-                <!-- Bilibili -->
-                <a href="https://space.bilibili.com/262497072?spm_id_from=333.337.0.0" target="_blank" class="author-image-link">
-                    <img data-src="./sendfeedback/zuozhetupian/zuozhedeBilibili.jpg" alt="Bilibili" loading="lazy">
-                </a>
-
-                <!-- 公众号 -->
-                <a href="https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=MzI3NTI2MTE4OA==&scene=110#wechat_redirect" target="_blank" class="author-image-link">
-                    <img data-src="./sendfeedback/zuozhetupian/zuozhedegongzhonghao.jpg" alt="公众号" loading="lazy">
-                </a>
-
-                <!-- 知乎 -->
-                <a href="https://www.zhihu.com/people/lei-shen-45-3" target="_blank" class="author-image-link">
-                    <img data-src="./sendfeedback/zuozhetupian/zuozhedezhihu.jpg" alt="知乎" loading="lazy">
-                </a>
-
-                <!-- 赞赏 -->
-                <div class="author-image-link" id="rewardCard" style="cursor: pointer;">
-                    <img data-src="./sendfeedback/zuozhetupian/zanshangzuozhe.jpg" alt="赞赏作者" loading="lazy">
+    <section class="cipher-lab-shell apizz-shell contact-shell">
+        <div class="apizz-header cipher-lab-header">
+            <div>
+                <div class="module-header">
+                    <h2 class="neon-title" data-text="CONTACT CONSOLE">CONTACT CONSOLE</h2>
                 </div>
             </div>
         </div>
 
-        <div id="zuozhecaifang" class="lianxiwomen-submodule">
-            <div class="container">
-                <!-- 内容将由 sendfeedback.js 动态加载 -->
-            </div>
-        </div>
+        <div class="apizz-console-layout cipher-lab-console-layout">
+            <aside class="apizz-console-nav cipher-lab-console-nav" aria-label="联系我们导航">
+                <button type="button" class="submodule-btn contact-submodule-btn active" data-target="guanyuzuozhe">关于作者</button>
+                <button type="button" class="submodule-btn contact-submodule-btn" data-target="zuozhecaifang">作者采访</button>
+                <button type="button" class="submodule-btn contact-submodule-btn" data-target="yijianfankui">意见反馈</button>
+                <button type="button" class="submodule-btn contact-submodule-btn" data-target="kaifarizhi">开发日志</button>
+            </aside>
 
-        <div id="yijianfankui" class="lianxiwomen-submodule">
-            <div class="container">
-                <!-- 内容将由 sendfeedback.js 动态加载 -->
-            </div>
-        </div>
+            <main class="apizz-console-main cipher-lab-console-main">
+                <div class="cipher-lab-panel-stack">
+                    <div id="guanyuzuozhe" class="submodule lianxiwomen-submodule active">
+                        <div class="container">
+                            <!-- Bilibili -->
+                            <a href="https://space.bilibili.com/262497072?spm_id_from=333.337.0.0" target="_blank" class="author-image-link">
+                                <img data-src="./sendfeedback/zuozhetupian/zuozhedeBilibili.jpg" alt="Bilibili" loading="lazy">
+                            </a>
 
-        <div id="kaifarizhi" class="lianxiwomen-submodule">
-            <div class="container">
-                <div class="card">
-                    <div class="badge">开发日志</div>
-                        <p>稍安勿躁，即将呈现</p>
+                            <!-- 公众号 -->
+                            <a href="https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=MzI3NTI2MTE4OA==&scene=110#wechat_redirect" target="_blank" class="author-image-link">
+                                <img data-src="./sendfeedback/zuozhetupian/zuozhedegongzhonghao.jpg" alt="公众号" loading="lazy">
+                            </a>
+
+                            <!-- 知乎 -->
+                            <a href="https://www.zhihu.com/people/lei-shen-45-3" target="_blank" class="author-image-link">
+                                <img data-src="./sendfeedback/zuozhetupian/zuozhedezhihu.jpg" alt="知乎" loading="lazy">
+                            </a>
+
+                            <!-- 赞赏 -->
+                            <div class="author-image-link" id="rewardCard" style="cursor: pointer;">
+                                <img data-src="./sendfeedback/zuozhetupian/zanshangzuozhe.jpg" alt="赞赏作者" loading="lazy">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="zuozhecaifang" class="submodule lianxiwomen-submodule">
+                        <div class="container">
+                            <!-- 内容将由 sendfeedback.js 动态加载 -->
+                        </div>
+                    </div>
+
+                    <div id="yijianfankui" class="submodule lianxiwomen-submodule">
+                        <div class="container">
+                            <!-- 内容将由 sendfeedback.js 动态加载 -->
+                        </div>
+                    </div>
+
+                    <div id="kaifarizhi" class="submodule lianxiwomen-submodule">
+                        <div class="container">
+                            <section class="card devlog-summary-card">
+                                <div class="badge">开发日志</div>
+                                <h3>从脚本到 Agent 工具箱</h3>
+                                <p>这里按项目阶段整理核心进展。更细的提交记录可以查看 GitHub 仓库。</p>
+                                <a class="devlog-repo-link" href="https://github.com/PzMNo1/PzMCiphertool" target="_blank" rel="noopener noreferrer">查看 GitHub 仓库</a>
+                            </section>
+
+                            <section class="devlog-timeline" aria-label="开发日志时间线">
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2024.09</time>
+                                        <h4>项目原型启动</h4>
+                                        <p>从 Python 脚本和 GUI 开始，目标是把常见 Puzzlehunt、CTF 解密流程做成更快的辅助工具。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2024 Q4</time>
+                                        <h4>密码卡片与核心算法成型</h4>
+                                        <p>整理传统区、现代区的转换逻辑，优先追求少输入、快反馈、便于人工推理的卡片式体验。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2025 H1</time>
+                                        <h4>界面风格和早期体验打磨</h4>
+                                        <p>经过多轮重构，形成当前科幻控制台视觉方向，并持续收集早期用户对解题流程、布局和可读性的反馈。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2026.05.24</time>
+                                        <h4>逻辑谜题模块化与加载优化</h4>
+                                        <p>拆出 logicbatch.js，调整逻辑题脚本批次和懒加载策略，让主页面先显示，复杂谜题资源再分批进入。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2026.05.25 - 05.29</time>
+                                        <h4>部署、后端和新模块扩展</h4>
+                                        <p>补充 API Key 配置说明，更新 Agent、Workflow、Space Puzzle、MCP Skill Lab、API 中转站和后端安全配置。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2026.05.31</time>
+                                        <h4>Agent Runtime 和项目图谱整理</h4>
+                                        <p>清理 Agent 运行时、聊天 UI、历史管理和代码图谱相关内容，增强工具箱内部模块之间的协同。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2026.06.03 - 06.04</time>
+                                        <h4>控制台框架和移动端体验升级</h4>
+                                        <p>继续推进 API Router、MCP/Skill Lab、AgentEarth 后端控制器，并重构加密实验室布局、移动端拨盘导航和侧边栏细节。</p>
+                                    </div>
+                                </article>
+
+                                <article class="devlog-item">
+                                    <div class="devlog-marker"></div>
+                                    <div class="devlog-card">
+                                        <time>2026.06.06</time>
+                                        <h4>Rust 前端迁移计划</h4>
+                                        <p>建立 frontend-rust 渐进重构路线，计划优先接管登录、API 中转站、MCP Lab、联系我们等纯 UI 和 API 页面。</p>
+                                    </div>
+                                </article>
+                            </section>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
-
-        </div>
-    </div>
+    </section>
 
     </div>`
 };
@@ -381,7 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
         './apizhongzhuanzhan/apizz-keys.js',
         './apizhongzhuanzhan/apizz-usage.js',
         './apizhongzhuanzhan/apizz-billing.js',
-        './apizhongzhuanzhan/apizz-ops.js',
         './mcpskilllab/mcpskilllab-config.js',
         './mcpskilllab/mcpskilllab-resources-mcp.js',
         './mcpskilllab/mcpskilllab-resources-skills.js',
@@ -391,9 +475,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         './model/contracts/AgentContract.js',
         './model/DeepSeekClient.js',
+        './model/ImageGenerationClient.js',
         './model/ToolRegistry.js',
         './model/ChatUI.js',
         './model/HistoryManager.js',
+        './model/agent/AgentIntentContract.js',
+        './model/agent/AgentProfiles.js',
+        './model/agent/AgentPolicyResolver.js',
+        './model/agent/AgentDurableStore.js',
+        './model/agent/AgentCollaboration.js',
+        './model/agent/ResearchPlan.js',
+        './model/agent/SourceLibrary.js',
+        './model/agent/ToolRiskPolicy.js',
+        './model/agent/EvidenceLedger.js',
+        './model/agent/CitationNormalizer.js',
+        './model/agent/CitationVerifier.js',
         './model/AgentRuntime.js',
         './model/main.js',
         './workflow/workflow.js',

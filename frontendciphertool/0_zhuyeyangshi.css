@@ -418,7 +418,8 @@ textarea {
   max-height: 50px;
 }
 
-#cardSearch {
+#cardSearch,
+.author-interview-search-input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.7rem;
@@ -427,7 +428,8 @@ textarea {
   box-shadow: 0 0 10px 8px rgba(225, 225, 225, 0.13);
 }
 
-#cardSearch:focus {
+#cardSearch:focus,
+.author-interview-search-input:focus {
   outline: none;
   background-color: rgba(255, 255, 255, 0.13);
   box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
@@ -604,13 +606,15 @@ textarea {
   padding: 0 1.5rem;
 }
 
-#jiamishiyanshi-container {
+#jiamishiyanshi-container,
+#yijianfankui-container {
   --cipher-lab-shell-width: min(1440px, calc(100vw - 48px));
   width: var(--cipher-lab-shell-width);
   justify-self: center;
 }
 
-#jiamishiyanshi-content {
+#jiamishiyanshi-content,
+#yijianfankui-content {
   --cipher-lab-nav-fixed-top: 132px;
   --cipher-lab-input-sticky-top: 10px;
   width: 100%;
@@ -639,12 +643,12 @@ textarea {
   min-width: 0;
 }
 
-#jiamishiyanshi-content .cipher-lab-panel-stack {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack {
   min-width: 0;
   overflow: visible;
 }
 
-#jiamishiyanshi-content .cipher-lab-panel-stack>.submodule {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack>.submodule {
   display: none;
   width: 100%;
   min-height: auto;
@@ -652,16 +656,17 @@ textarea {
   overflow: visible;
 }
 
-#jiamishiyanshi-content .cipher-lab-panel-stack>.submodule.active {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack>.submodule.active {
   display: block;
 }
 
 #jiamishiyanshi-content .submodule>.container,
+#yijianfankui-content .submodule>.container,
 #jiamishiyanshi-content #spacepuzzle>.container {
   padding-top: 0 !important;
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
   position: fixed;
   top: 104px !important;
   left: 24px;
@@ -677,7 +682,7 @@ textarea {
   z-index: 35;
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
   position: relative;
   height: 60px;
   width: 100%;
@@ -705,7 +710,7 @@ textarea {
   box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::after {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::after {
   counter-increment: logic-counter;
   content: "NO." counter(logic-counter, decimal-leading-zero);
   position: absolute;
@@ -718,7 +723,7 @@ textarea {
   transition: all 0.3s ease;
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::before {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -731,7 +736,7 @@ textarea {
   opacity: 0.6;
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover {
   transform: translateY(-5px) scale(1.02);
   background: rgba(64, 224, 255, 0.1);
   border-color: rgba(64, 224, 255, 0.6);
@@ -742,7 +747,7 @@ textarea {
     inset 0 0 20px rgba(64, 224, 255, 0.15);
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover::before {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover::before {
   width: 100%;
   height: 95%;
   border-color: #fff;
@@ -750,12 +755,12 @@ textarea {
   box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:active {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:active {
   transform: scale(0.98);
   border-color: var(--primary);
 }
 
-#jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn.active {
+:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn.active {
   background: rgba(64, 224, 255, 0.14);
   border-color: rgba(64, 224, 255, 0.72);
   color: #fff;
@@ -766,11 +771,13 @@ textarea {
 }
 
 @media (max-width: 1100px) {
-  #jiamishiyanshi-container {
+  #jiamishiyanshi-container,
+  #yijianfankui-container {
     width: min(100%, calc(100vw - 20px));
   }
 
-  #jiamishiyanshi-content {
+  #jiamishiyanshi-content,
+  #yijianfankui-content {
     padding: 1.4rem .6rem 9.5rem;
   }
 
@@ -783,7 +790,7 @@ textarea {
     grid-column: 1;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
     position: fixed;
     top: auto !important;
     left: 50%;
@@ -807,7 +814,7 @@ textarea {
     z-index: 900;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
     --dial-y: 0px;
     --dial-r: 0deg;
     flex: 0 0 clamp(52px, 15vw, 60px);
@@ -829,31 +836,51 @@ textarea {
     pointer-events: auto;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(1) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(1) {
     --dial-y: 14px;
     --dial-r: -15deg;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(2) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(2) {
     --dial-y: 4px;
     --dial-r: -8deg;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(3) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(3) {
     --dial-y: -4px;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(4) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(4) {
     --dial-y: 4px;
     --dial-r: 8deg;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:nth-child(5) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(5) {
     --dial-y: 14px;
     --dial-r: 15deg;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::before {
+  #yijianfankui-content .cipher-lab-console-nav .submodule-btn:nth-child(1) {
+    --dial-y: 12px;
+    --dial-r: -12deg;
+  }
+
+  #yijianfankui-content .cipher-lab-console-nav .submodule-btn:nth-child(2) {
+    --dial-y: -2px;
+    --dial-r: -4deg;
+  }
+
+  #yijianfankui-content .cipher-lab-console-nav .submodule-btn:nth-child(3) {
+    --dial-y: -2px;
+    --dial-r: 4deg;
+  }
+
+  #yijianfankui-content .cipher-lab-console-nav .submodule-btn:nth-child(4) {
+    --dial-y: 12px;
+    --dial-r: 12deg;
+  }
+
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::before {
     inset: 7px;
     width: auto;
     height: auto;
@@ -863,7 +890,7 @@ textarea {
     box-shadow: none;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn::after {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::after {
     right: auto;
     left: 50%;
     bottom: 6px;
@@ -877,34 +904,34 @@ textarea {
     transform: translateX(-50%);
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover {
     transform: translateY(calc(var(--dial-y) - 4px)) rotate(var(--dial-r)) scale(1.04);
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:hover::before {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover::before {
     width: auto;
     height: auto;
     border-color: rgba(255, 255, 255, .6);
     box-shadow: none;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn:active {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:active {
     transform: translateY(var(--dial-y)) rotate(var(--dial-r)) scale(.96);
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn.active {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn.active {
     transform: translateY(calc(var(--dial-y) - 6px)) rotate(var(--dial-r)) scale(1.06);
   }
 }
 
 @media (max-width: 430px) {
-  #jiamishiyanshi-content .cipher-lab-console-nav {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
     width: min(96vw, 350px);
     gap: .16rem;
     padding-inline: .45rem;
   }
 
-  #jiamishiyanshi-content .cipher-lab-console-nav .submodule-btn {
+  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
     flex-basis: clamp(48px, 16vw, 56px);
     width: clamp(48px, 16vw, 56px);
     height: clamp(48px, 16vw, 56px);
@@ -1408,16 +1435,6 @@ body::after {
   display: block;
 }
 
-.contact-submodule-btn.active {
-  background: linear-gradient(145deg,
-      rgba(64, 224, 255, 0.3) 20%,
-      rgba(179, 136, 255, 0.2) 80%) !important;
-  box-shadow: 0 0 15px var(--secondary) !important;
-}
-
-
-
-
 /* --- 输入框快速定位自定义搜索下拉框样式 */
 .quick-nav-container {
   position: absolute;
@@ -1555,8 +1572,7 @@ body::after {
     right: 10px;
   }
 
-  .submodule-nav,
-  .lianxiwomen-submodule {
+  .submodule-nav {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -1653,4 +1669,265 @@ body::after {
     0 0 20px rgba(255, 255, 255, 0.5),
     0 0 40px rgba(255, 255, 255, 0.3),
     inset 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+#yijianfankui .container {
+  display: block;
+  max-width: 960px;
+  padding-bottom: 14rem;
+}
+
+#kaifarizhi .container {
+  display: block;
+  max-width: 980px;
+  padding-bottom: 14rem;
+}
+
+.devlog-summary-card {
+  margin-bottom: 1.5rem;
+}
+
+.devlog-summary-card h3 {
+  margin: 1rem 0 .75rem;
+  font-size: 1.35rem;
+  color: #ecf0f1;
+  letter-spacing: 0;
+}
+
+.devlog-summary-card p {
+  max-width: 720px;
+  color: rgba(236, 240, 241, .74);
+  line-height: 1.7;
+}
+
+.devlog-repo-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1.25rem;
+  color: #64ffda;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.devlog-repo-link:hover {
+  color: #40e0ff;
+  text-decoration: underline;
+}
+
+.devlog-timeline {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  padding: .5rem 0 0 1.4rem;
+}
+
+.devlog-timeline::before {
+  content: "";
+  position: absolute;
+  top: .75rem;
+  bottom: .75rem;
+  left: .48rem;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(64, 224, 255, .18), rgba(100, 255, 218, .68), rgba(64, 224, 255, .16));
+}
+
+.devlog-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  align-items: start;
+}
+
+.devlog-marker {
+  position: relative;
+  z-index: 1;
+  width: .9rem;
+  height: .9rem;
+  margin-top: 1.4rem;
+  border: 2px solid rgba(100, 255, 218, .8);
+  border-radius: 999px;
+  background: #07131f;
+  box-shadow: 0 0 18px rgba(100, 255, 218, .26);
+}
+
+.devlog-card {
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(64, 224, 255, .22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, .08), rgba(46, 204, 113, .05)),
+    rgba(4, 12, 24, .74);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+.devlog-card time {
+  display: block;
+  margin-bottom: .55rem;
+  color: #64ffda;
+  font-size: .86rem;
+  font-weight: 800;
+}
+
+.devlog-card h4 {
+  margin: 0 0 .65rem;
+  color: #ecf0f1;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.devlog-card p {
+  margin: 0;
+  color: rgba(236, 240, 241, .72);
+  line-height: 1.75;
+}
+
+.feedback-composer,
+.feedback-card {
+  width: 100%;
+  margin-bottom: 1.25rem;
+}
+
+.feedback-account {
+  margin: .75rem 0 1rem;
+  color: rgba(236, 240, 241, .68);
+  font-size: .92rem;
+}
+
+.feedback-account.author {
+  color: #64ffda;
+}
+
+.feedback-input,
+.feedback-reply-input {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(64, 224, 255, .26);
+  border-radius: 8px;
+  background: rgba(4, 12, 24, .72);
+  color: var(--text);
+  line-height: 1.6;
+  outline: none;
+  box-shadow: inset 0 0 18px rgba(64, 224, 255, .06);
+}
+
+.feedback-reply-input {
+  min-height: 110px;
+  margin-bottom: .75rem;
+}
+
+.feedback-input:focus,
+.feedback-reply-input:focus {
+  border-color: rgba(64, 224, 255, .72);
+  box-shadow:
+    0 0 12px rgba(64, 224, 255, .18),
+    inset 0 0 18px rgba(64, 224, 255, .08);
+}
+
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.feedback-reply-form {
+  display: block;
+  margin-top: 1rem;
+}
+
+.feedback-author-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.feedback-message {
+  min-height: 1.4rem;
+  color: rgba(236, 240, 241, .68);
+  font-size: .9rem;
+}
+
+.feedback-message.success {
+  color: #64ffda;
+}
+
+.feedback-message.error {
+  color: #ff6b6b;
+}
+
+.feedback-list {
+  display: block;
+}
+
+.feedback-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.feedback-meta {
+  color: rgba(236, 240, 241, .58);
+  font-size: .85rem;
+}
+
+.feedback-content,
+.feedback-reply-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+}
+
+.feedback-author-reply {
+  margin-top: 1.2rem;
+  padding: 1rem;
+  border-left: 3px solid rgba(100, 255, 218, .72);
+  background: rgba(46, 204, 113, .08);
+}
+
+.feedback-reply-title {
+  margin-bottom: .55rem;
+  color: #64ffda;
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+.feedback-reply-button,
+#submitFeedbackBtn {
+  top: 0;
+}
+
+.feedback-delete-button {
+  --primary-clr: #e74c3c;
+  --secondary-clr: #ff8a80;
+  --glow-clr: rgba(231, 76, 60, .42);
+  top: 0;
+}
+
+.feedback-empty {
+  color: rgba(236, 240, 241, .72);
+}
+
+@media (max-width: 700px) {
+  #kaifarizhi .container {
+    max-width: 100%;
+    padding-bottom: 10rem;
+  }
+
+  .devlog-timeline {
+    padding-left: .9rem;
+  }
+
+  .devlog-item {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+  }
+
+  .devlog-card {
+    padding: 1rem;
+  }
 }

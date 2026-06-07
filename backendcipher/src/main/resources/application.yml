@@ -65,11 +65,23 @@ auth:
   session:
     expire-hours: ${AUTH_SESSION_EXPIRE_HOURS:168}
 
+feedback:
+  risk:
+    submit-per-hour: ${FEEDBACK_SUBMIT_PER_HOUR:20}
+
 # OpenAI-compatible LLM Config
 llm:
   api-key: ${OPENAI_API_KEY:}
   base-url: ${OPENAI_BASE_URL:https://api.deepseek.com/v1}
   model: ${OPENAI_MODEL:deepseek-v4-flash}
+
+# OpenAI-compatible image generation config
+image:
+  api-key: ${IMAGE_API_KEY:${OPENAI_API_KEY:}}
+  base-url: ${IMAGE_BASE_URL:https://api.openai.com/v1}
+  model: ${IMAGE_MODEL:gpt-image-2}
+  size: ${IMAGE_SIZE:1024x1024}
+  timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:180}
 
 # AgentEarth professional tool aggregator.
 # Disabled by default so existing Agent behavior stays unchanged until configured.
@@ -116,10 +128,12 @@ api-router:
     redeem-per-hour: ${API_ROUTER_RISK_REDEEM_PER_HOUR:20}
     order-create-per-hour: ${API_ROUTER_RISK_ORDER_CREATE_PER_HOUR:12}
     invalid-key-per-minute: ${API_ROUTER_RISK_INVALID_KEY_PER_MINUTE:30}
+  invite:
+    reward-amount: ${API_ROUTER_INVITE_REWARD_AMOUNT:0}
 
 # CORS Config
 cors:
-  allowed-origins: ${CORS_ORIGINS:http://localhost,http://127.0.0.1,file://,http://117.50.34.36,https://pzmno1.github.io}
+  allowed-origins: ${CORS_ORIGINS:http://localhost,http://localhost:5500,http://localhost:5173,http://localhost:8080,http://127.0.0.1,http://127.0.0.1:5500,http://127.0.0.1:5173,http://127.0.0.1:8080,file://,http://117.50.34.36,https://pzmno1.github.io}
   allowed-methods: GET,POST,OPTIONS
   allowed-headers: "*"
   max-age: 3600

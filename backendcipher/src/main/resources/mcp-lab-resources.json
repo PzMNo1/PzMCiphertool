@@ -1,0 +1,1391 @@
+[
+  {
+    "id": "official-mcp-registry",
+    "name": "Official MCP Registry",
+    "type": "MCP Registry",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "registry",
+      "official"
+    ],
+    "scenario": "用途：查询官方 MCP 服务注册表，找到可接入的标准 MCP Server，并查看来源、包名和基础元数据。益处：优先从官方入口选资源，能减少误装、重复查找和来源不明带来的接入风险。",
+    "url": "https://registry.modelcontextprotocol.io/",
+    "docs": "https://github.com/modelcontextprotocol/registry",
+    "template": "{\"mcpServers\":{\"server-name\":{\"command\":\"npx\",\"args\":[\"-y\",\"package-name-from-registry\"]}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "ChatGPT",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "registry",
+      "remote",
+      "directory"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 96,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "mcp-reference-servers",
+    "name": "MCP Reference Servers",
+    "type": "MCP Directory",
+    "category": "mcp",
+    "categories": [
+      "mcp",
+      "devTools"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "官方参考实现",
+    "tags": [
+      "mcp",
+      "reference",
+      "servers",
+      "github"
+    ],
+    "scenario": "用途：查看官方 MCP 参考服务实现，学习文件、GitHub、数据库等常见服务的接入方式。益处：适合照着官方范例搭建或评估自己的 MCP Server，少走协议和配置格式的弯路。",
+    "url": "https://github.com/modelcontextprotocol/servers",
+    "docs": "https://github.com/modelcontextprotocol/servers",
+    "template": "Pick a concrete server from the repository and copy only its documented MCP client JSON.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "filesRead",
+      "shell"
+    ],
+    "installModes": [
+      "sourceReview",
+      "local",
+      "directory"
+    ],
+    "authRequired": "depends",
+    "maintenance": "official",
+    "trustScore": 94,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "mcp-specification",
+    "name": "MCP Specification",
+    "type": "MCP Documentation",
+    "category": "mcp",
+    "categories": [
+      "mcp",
+      "devTools"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "协议标准参考",
+    "tags": [
+      "mcp",
+      "spec",
+      "protocol",
+      "docs"
+    ],
+    "scenario": "用途：查看 MCP 协议规范，理解 tools、resources、prompts、传输方式和授权边界。益处：在接入前先弄清协议能力和限制，避免把不该开放的本地能力暴露给 Agent。",
+    "url": "https://modelcontextprotocol.io/",
+    "docs": "https://modelcontextprotocol.io/docs",
+    "template": "Use as documentation reference. Do not install a server from a spec page; choose a concrete implementation.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "documentation",
+      "riskReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 94,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "mcp-security-best-practices",
+    "name": "MCP Security Best Practices",
+    "type": "MCP Documentation",
+    "category": "security",
+    "categories": [
+      "security",
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "适合风险初筛",
+    "tags": [
+      "mcp",
+      "security",
+      "authorization",
+      "ssrf",
+      "audit"
+    ],
+    "scenario": "用途：查看 MCP 安全最佳实践，重点关注授权、SSRF、Token、权限范围和本地服务风险。益处：能在启用高权限 MCP 前做风险检查，降低密钥泄露、越权访问和误操作风险。",
+    "url": "https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices",
+    "docs": "https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices",
+    "template": "Use the security guide as a baseline for OAuth, SSRF, token, scope, and local server review.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "documentation",
+      "riskReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 90,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "docker-mcp-catalog",
+    "name": "Docker MCP Catalog",
+    "type": "MCP Registry",
+    "category": "mcp",
+    "categories": [
+      "mcp",
+      "devTools"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "适合隔离运行",
+    "tags": [
+      "mcp",
+      "docker",
+      "catalog",
+      "sandbox"
+    ],
+    "scenario": "用途：浏览可用 Docker 方式运行的 MCP 服务，并按镜像方式隔离本地运行环境。益处：比直接在本机安装脚本更容易控制边界，适合先试用再决定是否长期接入。",
+    "url": "https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/",
+    "docs": "https://docs.docker.com/ai/mcp-catalog-and-toolkit/",
+    "template": "{\"mcpServers\":{\"dockerized-tool\":{\"command\":\"docker\",\"args\":[\"run\",\"--rm\",\"-i\",\"image-name\"]}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "docker",
+      "shell"
+    ],
+    "installModes": [
+      "docker",
+      "local",
+      "directory"
+    ],
+    "authRequired": "depends",
+    "maintenance": "official",
+    "trustScore": 90,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "smithery",
+    "name": "Smithery",
+    "type": "MCP Registry",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合发现和安装",
+    "tags": [
+      "mcp",
+      "registry",
+      "install",
+      "tools"
+    ],
+    "scenario": "用途：搜索社区 MCP Server，查看工具列表、安装方式和相关文档入口。益处：发现效率高，但应先打开上游源码复核权限，再把配置加入自己的客户端。",
+    "url": "https://smithery.ai/",
+    "docs": "https://smithery.ai/docs/concepts/registry_search_servers",
+    "template": "{\"mcpServers\":{\"smithery-server\":{\"command\":\"npx\",\"args\":[\"-y\",\"@smithery/cli\",\"run\",\"server-id\"]}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "shell",
+      "installScript"
+    ],
+    "installModes": [
+      "cli",
+      "local",
+      "remote",
+      "directory"
+    ],
+    "authRequired": "depends",
+    "maintenance": "community",
+    "trustScore": 78,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "glama-mcp",
+    "name": "Glama MCP Directory",
+    "type": "MCP Registry",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合看工具结构",
+    "tags": [
+      "mcp",
+      "inspector",
+      "schema",
+      "gateway"
+    ],
+    "scenario": "用途：检查 MCP Server 暴露的工具、参数 schema 和远程服务信息。益处：适合在连接账号或密钥前先看清服务能做什么，降低盲接风险。",
+    "url": "https://glama.ai/mcp",
+    "docs": "https://glama.ai/mcp",
+    "template": "Use Glama to inspect tools/schema first, then copy final config from the upstream server docs.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "remote"
+    ],
+    "installModes": [
+      "remote",
+      "inspector",
+      "directory"
+    ],
+    "authRequired": "depends",
+    "maintenance": "community",
+    "trustScore": 77,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "pulsemcp",
+    "name": "PulseMCP",
+    "type": "MCP Directory",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合扫全生态",
+    "tags": [
+      "mcp",
+      "directory",
+      "news",
+      "community"
+    ],
+    "scenario": "用途：按 GitHub、Figma、Notion、浏览器、数据库等类别浏览 MCP 生态资源。益处：适合快速扫全生态，找到候选后再回到原始仓库做可信度确认。",
+    "url": "https://www.pulsemcp.com/servers",
+    "docs": "https://www.pulsemcp.com/",
+    "template": "Use as discovery, then verify package source and permissions manually.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 74,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "mcp-atlas",
+    "name": "MCP Atlas",
+    "type": "MCP Directory",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "跨目录搜索",
+    "tags": [
+      "mcp",
+      "search",
+      "aggregator"
+    ],
+    "scenario": "用途：聚合搜索多个 MCP 来源，帮助从不同目录里快速找到同类服务。益处：适合作为发现入口，能节省跨站搜索时间，但最终仍要以原始来源为准。",
+    "url": "https://www.mcp-atlas.com/",
+    "docs": "https://www.mcp-atlas.com/",
+    "template": "Use aggregator results as leads, not as trust signals.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 72,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "mcplist",
+    "name": "MCPList",
+    "type": "MCP Directory",
+    "category": "mcp",
+    "categories": [
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "分类浏览清晰",
+    "tags": [
+      "mcp",
+      "directory",
+      "reference"
+    ],
+    "scenario": "用途：按分类浏览官方、参考实现和社区 MCP Server。益处：适合做候选清单整理，便于比较不同服务的功能、维护和接入成本。",
+    "url": "https://www.mcplist.ai/",
+    "docs": "https://www.mcplist.ai/",
+    "template": "Check upstream repository and runtime permissions before install.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 70,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "safe-mcp",
+    "name": "SafeMCP",
+    "type": "MCP Directory",
+    "category": "security",
+    "categories": [
+      "security",
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合风险初筛",
+    "tags": [
+      "mcp",
+      "safety",
+      "scoring",
+      "directory"
+    ],
+    "scenario": "用途：查看 MCP 资源的安全评分、分类和风险提示。益处：可以作为初筛信号，帮助优先排查权限过大或来源不清的服务。",
+    "url": "https://safemcp.info/",
+    "docs": "https://safemcp.info/",
+    "template": "Treat scores as advisory. Still inspect code, install scripts, and requested permissions.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "riskReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 76,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "openai-skills",
+    "name": "OpenAI Skills Catalog",
+    "type": "Skill Registry",
+    "category": "skill",
+    "categories": [
+      "skill"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "Codex Skill 基准",
+    "tags": [
+      "skill",
+      "codex",
+      "openai",
+      "github"
+    ],
+    "scenario": "用途：查看 OpenAI/Codex Skill 示例，学习 SKILL.md、脚本和参考资料的组织方式。益处：适合按官方结构创建自己的技能，让 Agent 在特定任务中更稳定地调用流程。",
+    "url": "https://github.com/openai/skills",
+    "docs": "https://openai.com/academy/codex-plugins-and-skills/",
+    "template": "skills/my-skill/SKILL.md\nskills/my-skill/scripts/\nskills/my-skill/references/",
+    "platforms": [
+      "Codex"
+    ],
+    "permissions": [
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 95,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "anthropic-skills",
+    "name": "Anthropic Skills",
+    "type": "Skill Registry",
+    "category": "skill",
+    "categories": [
+      "skill"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "可迁移 Skill 参考",
+    "tags": [
+      "skill",
+      "claude",
+      "anthropic",
+      "github"
+    ],
+    "scenario": "用途：查看 Anthropic Skills 示例，学习可迁移的技能目录和工作流写法。益处：有助于把重复任务沉淀成清晰技能，减少每次都重新解释任务规则。",
+    "url": "https://github.com/anthropics/skills",
+    "docs": "https://github.com/anthropics/skills",
+    "template": "SKILL.md describes when to use the skill, workflow, scripts, and references.",
+    "platforms": [
+      "Claude",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 94,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "agent-skills-spec",
+    "name": "Agent Skills Spec",
+    "type": "Skill Standard",
+    "category": "skill",
+    "categories": [
+      "skill"
+    ],
+    "source": "Official",
+    "risk": "Low",
+    "recommend": "中立标准参考",
+    "tags": [
+      "skill",
+      "spec",
+      "standard",
+      "skill.md"
+    ],
+    "scenario": "用途：了解以 SKILL.md 为核心的通用 Skill 文件夹标准。益处：便于设计跨 Codex、Claude 等工具都能理解的可复用技能结构。",
+    "url": "https://agentskills.io/",
+    "docs": "https://agentskills.io/",
+    "template": "my-skill/\n  SKILL.md\n  scripts/\n  references/\n  assets/",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "filesRead"
+    ],
+    "installModes": [
+      "documentation",
+      "local"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 92,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "codex-marketplace",
+    "name": "Codex Marketplace",
+    "type": "Plugin Marketplace",
+    "category": "skill",
+    "categories": [
+      "skill"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "Codex 插件/Skill 搜索",
+    "tags": [
+      "skill",
+      "codex",
+      "plugin",
+      "marketplace"
+    ],
+    "scenario": "用途：发现社区 Codex 插件和 Skill 资源。益处：能快速扩展能力，但接入前应检查 manifest、SKILL.md、脚本和权限。",
+    "url": "https://www.codex-marketplace.com/",
+    "docs": "https://www.codex-marketplace.com/skills",
+    "template": "Review plugin manifest, SKILL.md, scripts, and references before installing.",
+    "platforms": [
+      "Codex"
+    ],
+    "permissions": [
+      "network",
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "marketplace",
+      "sourceReview"
+    ],
+    "authRequired": "depends",
+    "maintenance": "community",
+    "trustScore": 70,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "findskills",
+    "name": "FindSkills",
+    "type": "Skill Directory",
+    "category": "skill",
+    "categories": [
+      "skill",
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "跨生态搜索",
+    "tags": [
+      "skill",
+      "mcp",
+      "search",
+      "directory"
+    ],
+    "scenario": "用途：跨 Skill、MCP Server、GPT 插件等 Agent 资源做统一搜索。益处：适合不知道资源在哪个生态时先找入口，再进入原始项目验证。",
+    "url": "https://www.findskills.org/",
+    "docs": "https://www.findskills.org/",
+    "template": "Use for discovery; verify target project source before install.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "ChatGPT",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 70,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "skillery",
+    "name": "Skillery",
+    "type": "Skill Directory",
+    "category": "skill",
+    "categories": [
+      "skill"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "CLI Agent Skill 市场",
+    "tags": [
+      "skill",
+      "marketplace",
+      "codex",
+      "claude"
+    ],
+    "scenario": "用途：浏览面向 Claude Code、Codex CLI 等命令行 Agent 的 Skill。益处：能把常见工作流快速引入本地 Agent，但要先审查脚本和触发条件。",
+    "url": "https://skillery.dev/",
+    "docs": "https://skillery.dev/",
+    "template": "Install only after reading SKILL.md and bundled scripts.",
+    "platforms": [
+      "Codex",
+      "Claude"
+    ],
+    "permissions": [
+      "network",
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "marketplace",
+      "sourceReview"
+    ],
+    "authRequired": "depends",
+    "maintenance": "community",
+    "trustScore": 68,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "trustedskills",
+    "name": "TrustedSkills",
+    "type": "Skill Directory",
+    "category": "skill",
+    "categories": [
+      "skill",
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "多平台 Skill 搜索",
+    "tags": [
+      "skill",
+      "directory",
+      "cursor",
+      "vscode",
+      "mcp"
+    ],
+    "scenario": "用途：跨 OpenAI、Claude、Cursor、VS Code 和 MCP 搜索技能资源。益处：适合做多平台能力对比，便于选择更适合当前工具链的资源。",
+    "url": "https://trustedskills.dev/",
+    "docs": "https://trustedskills.dev/",
+    "template": "Use trust labels as hints; inspect original source and permission scope.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "VS Code",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network"
+    ],
+    "installModes": [
+      "directory",
+      "marketplace",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 69,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "awesome-codex",
+    "name": "awesome-codex",
+    "type": "Skill Directory",
+    "category": "skill",
+    "categories": [
+      "skill",
+      "devTools"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "Codex 生态精选",
+    "tags": [
+      "skill",
+      "codex",
+      "plugins",
+      "github",
+      "curated"
+    ],
+    "scenario": "用途：浏览 Codex CLI 相关插件、Skill、工作流和配套工具列表。益处：适合集中发现 Codex 生态资源，再逐个查看原始仓库确认可用性。",
+    "url": "https://github.com/0xdevalias/awesome-codex",
+    "docs": "https://github.com/0xdevalias/awesome-codex",
+    "template": "Review the original repository, SKILL.md, scripts, references, assets, and manifest files before copying.",
+    "platforms": [
+      "Codex",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "network",
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 73,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "awesome-claude-code",
+    "name": "awesome-claude-code",
+    "type": "Skill Directory",
+    "category": "skill",
+    "categories": [
+      "skill",
+      "devTools"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "Claude Code 生态精选",
+    "tags": [
+      "skill",
+      "claude",
+      "plugins",
+      "agents",
+      "curated"
+    ],
+    "scenario": "用途：查找 Claude Code 命令、子 Agent、Hook、MCP 示例和技能化工作流。益处：能借鉴成熟工作流，帮助把 Claude/Codex 的日常任务整理成可复用流程。",
+    "url": "https://github.com/hesreallyhim/awesome-claude-code",
+    "docs": "https://github.com/hesreallyhim/awesome-claude-code",
+    "template": "Use as a directory; inspect every selected resource upstream before installing.",
+    "platforms": [
+      "Claude",
+      "Codex",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "network",
+      "filesRead",
+      "scripts"
+    ],
+    "installModes": [
+      "directory",
+      "sourceReview"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 72,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "github-mcp-server",
+    "name": "GitHub MCP Server",
+    "type": "MCP Documentation",
+    "category": "devTools",
+    "categories": [
+      "devTools",
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "github",
+      "repository",
+      "issues",
+      "pull-requests"
+    ],
+    "scenario": "用途：把 GitHub 仓库、Issue、PR、代码搜索等操作接入 Agent。益处：适合让 Agent 辅助查仓库、整理问题、审查 PR，但要严格限制 Token 权限。",
+    "url": "https://github.com/github/github-mcp-server",
+    "docs": "https://github.com/github/github-mcp-server",
+    "template": "{\"mcpServers\":{\"github\":{\"command\":\"docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"ghcr.io/github/github-mcp-server\"],\"env\":{\"GITHUB_PERSONAL_ACCESS_TOKEN\":\"${GITHUB_PERSONAL_ACCESS_TOKEN}\"}}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "filesWrite",
+      "remote"
+    ],
+    "installModes": [
+      "docker",
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 86,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "cloudflare-mcp",
+    "name": "Cloudflare MCP Server",
+    "type": "MCP Documentation",
+    "category": "dataApis",
+    "categories": [
+      "dataApis",
+      "mcp",
+      "security"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "cloudflare",
+      "remote",
+      "cloud",
+      "security"
+    ],
+    "scenario": "用途：连接 Cloudflare 托管 MCP 端点，处理账号、应用、安全和性能相关操作。益处：适合云服务运维和排障，但涉及账号操作时必须使用最小权限密钥。",
+    "url": "https://github.com/cloudflare/mcp",
+    "docs": "https://github.com/cloudflare/mcp",
+    "template": "{\"mcpServers\":{\"cloudflare\":{\"url\":\"https://mcp.cloudflare.com/mcp\",\"transport\":\"sse\"}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "ChatGPT",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote"
+    ],
+    "installModes": [
+      "remote",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 90,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "figma-mcp-server",
+    "name": "Figma MCP Server",
+    "type": "MCP Documentation",
+    "category": "automation",
+    "categories": [
+      "automation",
+      "mcp",
+      "devTools"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "figma",
+      "design",
+      "dev-mode",
+      "frontend"
+    ],
+    "scenario": "用途：把 Figma Dev Mode 的设计上下文提供给编码 Agent。益处：有助于把设计稿更准确地转成前端实现，减少人工复制尺寸和样式信息。",
+    "url": "https://developers.figma.com/docs/figma-mcp-server",
+    "docs": "https://developers.figma.com/docs/figma-mcp-server/local-server-installation/",
+    "template": "Review Figma Dev Mode docs and use the official local server installation steps.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "VS Code",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "browser",
+      "filesWrite",
+      "remote"
+    ],
+    "installModes": [
+      "remote",
+      "local",
+      "documentation"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 87,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "notion-mcp-server",
+    "name": "Notion MCP Server",
+    "type": "MCP Documentation",
+    "category": "dataApis",
+    "categories": [
+      "dataApis",
+      "mcp",
+      "automation"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "notion",
+      "workspace",
+      "docs",
+      "remote"
+    ],
+    "scenario": "用途：让 Agent 读取或编辑 Notion 工作区中的页面、数据库和文档内容。益处：适合知识库整理、会议资料汇总和任务信息同步，但写权限要谨慎开启。",
+    "url": "https://github.com/makenotion/notion-mcp-server",
+    "docs": "https://github.com/makenotion/notion-mcp-server",
+    "template": "Use upstream README for the current local or remote MCP configuration.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote",
+      "filesWrite"
+    ],
+    "installModes": [
+      "remote",
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 84,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "supabase-mcp",
+    "name": "Supabase MCP Server",
+    "type": "MCP Documentation",
+    "category": "dataApis",
+    "categories": [
+      "dataApis",
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "API / 数据接入参考",
+    "tags": [
+      "mcp",
+      "supabase",
+      "database",
+      "postgres",
+      "remote"
+    ],
+    "scenario": "用途：通过 MCP 管理 Supabase 项目、数据库 schema、SQL、文档和调试信息。益处：适合数据库开发和排错，让 Agent 更快理解项目数据结构。",
+    "url": "https://github.com/supabase-community/supabase-mcp",
+    "docs": "https://github.com/supabase-community/supabase-mcp",
+    "template": "{\"mcpServers\":{\"supabase\":{\"url\":\"https://mcp.supabase.com/mcp\",\"transport\":\"sse\"}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Windsurf",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "database",
+      "remote"
+    ],
+    "installModes": [
+      "remote",
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 85,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "linear-mcp",
+    "name": "Linear MCP Server",
+    "type": "MCP Documentation",
+    "category": "workflow",
+    "categories": [
+      "workflow",
+      "mcp",
+      "dataApis"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方优先入口",
+    "tags": [
+      "mcp",
+      "linear",
+      "issues",
+      "projects",
+      "remote"
+    ],
+    "scenario": "用途：让 Agent 查询、创建和更新 Linear Issue、项目、评论等工作项。益处：适合把需求整理、缺陷跟踪和项目状态同步到开发工作流中。",
+    "url": "https://linear.app/docs/mcp",
+    "docs": "https://linear.app/docs/mcp",
+    "template": "{\"mcpServers\":{\"linear\":{\"url\":\"https://mcp.linear.app/mcp\",\"transport\":\"sse\"}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote",
+      "filesWrite"
+    ],
+    "installModes": [
+      "remote",
+      "documentation"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 86,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "stripe-mcp",
+    "name": "Stripe MCP",
+    "type": "MCP Documentation",
+    "category": "dataApis",
+    "categories": [
+      "dataApis",
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "API / 数据接入参考",
+    "tags": [
+      "mcp",
+      "stripe",
+      "payments",
+      "billing",
+      "remote"
+    ],
+    "scenario": "用途：接入 Stripe 的客户、商品、账单、支付等工具。益处：适合财务和订阅业务查询，但支付相关密钥必须使用测试环境和最小权限。",
+    "url": "https://github.com/stripe/agent-toolkit",
+    "docs": "https://github.com/stripe/agent-toolkit",
+    "template": "npx -y @stripe/mcp --api-key=YOUR_STRIPE_SECRET_KEY",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote",
+      "shell"
+    ],
+    "installModes": [
+      "remote",
+      "local",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 86,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "firecrawl-mcp",
+    "name": "Firecrawl MCP Server",
+    "type": "MCP Directory",
+    "category": "automation",
+    "categories": [
+      "automation",
+      "mcp"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "适合网页采集",
+    "tags": [
+      "mcp",
+      "firecrawl",
+      "search",
+      "scrape",
+      "browser"
+    ],
+    "scenario": "用途：让 Agent 搜索、抓取、爬取、映射和读取网页内容。益处：适合资料收集、网页抽取和竞品调研，能减少手工打开网页和复制内容。",
+    "url": "https://docs.firecrawl.dev/",
+    "docs": "https://docs.firecrawl.dev/integrations/mcp",
+    "template": "{\"mcpServers\":{\"firecrawl\":{\"command\":\"npx\",\"args\":[\"-y\",\"firecrawl-mcp\"],\"env\":{\"FIRECRAWL_API_KEY\":\"${FIRECRAWL_API_KEY}\"}}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "VS Code",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "browser",
+      "remote"
+    ],
+    "installModes": [
+      "local",
+      "remote",
+      "marketplace"
+    ],
+    "authRequired": "true",
+    "maintenance": "official",
+    "trustScore": 80,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "browserbase-mcp",
+    "name": "Browserbase MCP Server",
+    "type": "MCP Documentation",
+    "category": "automation",
+    "categories": [
+      "automation",
+      "mcp"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合浏览器自动化",
+    "tags": [
+      "mcp",
+      "browserbase",
+      "browser",
+      "automation",
+      "stagehand"
+    ],
+    "scenario": "用途：使用托管浏览器会话完成网页自动化、信息抽取和测试流程。益处：适合需要真实浏览器环境的任务，但要留意账号、Cookie 和网页操作权限。",
+    "url": "https://github.com/browserbase/mcp-server-browserbase",
+    "docs": "https://github.com/browserbase/mcp-server-browserbase",
+    "template": "{\"mcpServers\":{\"browserbase\":{\"command\":\"npx\",\"args\":[\"-y\",\"@browserbasehq/mcp-server-browserbase\"],\"env\":{\"BROWSERBASE_API_KEY\":\"${BROWSERBASE_API_KEY}\"}}}}",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic MCP"
+    ],
+    "permissions": [
+      "browser",
+      "network",
+      "apiKey",
+      "remote"
+    ],
+    "installModes": [
+      "local",
+      "docker",
+      "sourceReview"
+    ],
+    "authRequired": "true",
+    "maintenance": "community",
+    "trustScore": 78,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "codeql-query-packs",
+    "name": "CodeQL Query Packs",
+    "type": "Skill Directory",
+    "category": "security",
+    "categories": [
+      "security",
+      "devTools",
+      "skill"
+    ],
+    "source": "Official",
+    "risk": "Medium",
+    "recommend": "官方安全审查参考",
+    "tags": [
+      "security",
+      "codeql",
+      "static-analysis",
+      "github",
+      "devtools"
+    ],
+    "scenario": "用途：围绕 CodeQL 查询包构建代码安全审查和漏洞定位 Skill。益处：适合把安全扫描、结果解释和修复建议做成可重复执行的审查流程。",
+    "url": "https://github.com/github/codeql",
+    "docs": "https://codeql.github.com/docs/",
+    "template": "codeql-review-skill/\n  SKILL.md\n  scripts/\n  references/",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "filesRead",
+      "filesWrite",
+      "shell",
+      "scripts"
+    ],
+    "installModes": [
+      "sourceReview",
+      "local"
+    ],
+    "authRequired": "false",
+    "maintenance": "official",
+    "trustScore": 82,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "semgrep-rules",
+    "name": "Semgrep Rules",
+    "type": "Skill Directory",
+    "category": "security",
+    "categories": [
+      "security",
+      "skill",
+      "devTools"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合风险初筛",
+    "tags": [
+      "security",
+      "semgrep",
+      "static-analysis",
+      "rules",
+      "devtools"
+    ],
+    "scenario": "用途：用 Semgrep 规则和示例构建代码安全审计 Skill。益处：能快速发现常见漏洞模式，并把检查清单沉淀到团队工作流里。",
+    "url": "https://github.com/semgrep/semgrep-rules",
+    "docs": "https://semgrep.dev/docs/",
+    "template": "semgrep-audit-skill/\n  SKILL.md\n  scripts/\n  references/",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "filesRead",
+      "filesWrite",
+      "shell",
+      "scripts"
+    ],
+    "installModes": [
+      "sourceReview",
+      "local"
+    ],
+    "authRequired": "false",
+    "maintenance": "community",
+    "trustScore": 76,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "n8n-workflow-templates",
+    "name": "n8n Workflow Templates",
+    "type": "Skill Directory",
+    "category": "workflow",
+    "categories": [
+      "workflow",
+      "automation"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "适合复用工作流",
+    "tags": [
+      "workflow",
+      "automation",
+      "n8n",
+      "templates",
+      "agents"
+    ],
+    "scenario": "用途：参考 n8n 自动化模板，把重复流程拆成 Skill 清单、脚本或 MCP 接入方案。益处：适合把人工重复操作流程化，降低跨工具协作和执行成本。",
+    "url": "https://n8n.io/workflows/",
+    "docs": "https://docs.n8n.io/",
+    "template": "Use workflow templates as diagrams. Rebuild only the minimal steps needed for your agent workflow.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote"
+    ],
+    "installModes": [
+      "directory",
+      "documentation"
+    ],
+    "authRequired": "depends",
+    "maintenance": "community",
+    "trustScore": 70,
+    "lastChecked": "2026-06-06"
+  },
+  {
+    "id": "composio-tool-catalog",
+    "name": "Composio Tool Catalog",
+    "type": "Skill Directory",
+    "category": "dataApis",
+    "categories": [
+      "dataApis",
+      "automation",
+      "skill"
+    ],
+    "source": "Community",
+    "risk": "Medium",
+    "recommend": "跨生态工具目录",
+    "tags": [
+      "tools",
+      "apis",
+      "automation",
+      "agents",
+      "connectors"
+    ],
+    "scenario": "用途：浏览 Composio 的应用连接器和 API 工具目录。益处：适合设计跨 SaaS 的自动化技能，但接入生产账号前要确认 OAuth 范围。",
+    "url": "https://github.com/ComposioHQ/composio",
+    "docs": "https://docs.composio.dev/",
+    "template": "Prefer least-privilege OAuth scopes, test accounts, and a written rollback plan before connecting production apps.",
+    "platforms": [
+      "Codex",
+      "Claude",
+      "Cursor",
+      "Generic Skill"
+    ],
+    "permissions": [
+      "network",
+      "apiKey",
+      "remote",
+      "filesWrite"
+    ],
+    "installModes": [
+      "sourceReview",
+      "documentation",
+      "local"
+    ],
+    "authRequired": "true",
+    "maintenance": "community",
+    "trustScore": 71,
+    "lastChecked": "2026-06-06"
+  }
+]

@@ -2,9 +2,11 @@ package com.ciphertool.service;
 
 import com.ciphertool.dto.ApiRouterAdminOverview;
 import com.ciphertool.dto.ApiRouterDashboard;
+import com.ciphertool.dto.ApiRouterInviteOverview;
 import com.ciphertool.dto.ApiRouterKeyCreateResponse;
 import com.ciphertool.dto.ApiRouterPaymentReconciliation;
 import com.ciphertool.dto.ApiRouterStatus;
+import com.ciphertool.dto.ApiRouterSubscriptionPlanInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
@@ -40,9 +42,11 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -100,6 +104,9 @@ public class ApiRouterService {
     @Value("${api-router.payment.callback-window-minutes:15}")
     private long paymentCallbackWindowMinutes;
 
+    @Value("${api-router.invite.reward-amount:0}")
+    private double inviteRewardAmount;
+
     @Value("${api-router.health.probe-path:/models}")
     private String healthProbePath;
 
@@ -115,6 +122,7 @@ public class ApiRouterService {
     @PostConstruct
     public void initializeCommercialStorage() {
         seedDefaultChannel();
+        seedDefaultSubscriptionPlans();
         migrateLegacyFilesAtStartup();
     }
 
@@ -444,6 +452,60 @@ public class ApiRouterService {
         return listOrders(operatorEmail, true);
     }
 
+    public synchronized ApiRouterDashboard.OrderInfo submitOrderPaymentReview(
+            String email,
+            String orderId,
+            String externalTradeNo,
+            String note) {
+        String owner = normalizeEmail(email);
+        ApiRouterDashboard.OrderInfo order = findOrder(orderId);
+        if (order == null) {
+            throw new IllegalArgumentException("订单不存在");
+        }
+        if (!owner.equals(normalizeEmail(order.getEmail()))) {
+            throw new IllegalArgumentException("只能提交自己的订单");
+        }
+        if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
+            throw new IllegalArgumentException("只有待支付订单可以提交审核");
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        String reviewNote = blankToDefault(note, "用户已完成微信付款，等待人工审核");
+        jdbcTemplate.update(
+                "update api_router_orders set status = ?, external_trade_no = ?, note = ?, updated_at = ? where id = ? and email = ? and status = 'PENDING'",
+                "PAYMENT_REVIEW",
+                blankToDefault(externalTradeNo, ""),
+                reviewNote,
+                now,
+                order.getId(),
+                owner
+        );
+        return findOrder(order.getId());
+    }
+
+    public synchronized ApiRouterDashboard.OrderInfo cancelOwnOrder(String email, String orderId, String note) {
+        String owner = normalizeEmail(email);
+        ApiRouterDashboard.OrderInfo order = findOrder(orderId);
+        if (order == null) {
+            throw new IllegalArgumentException("订单不存在");
+        }
+        if (!owner.equals(normalizeEmail(order.getEmail()))) {
+            throw new IllegalArgumentException("只能取消自己的订单");
+        }
+        if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
+            throw new IllegalArgumentException("只有待支付订单可以取消");
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        jdbcTemplate.update(
+                "update api_router_orders set status = ?, note = ?, updated_at = ? where id = ? and email = ? and status = 'PENDING'",
+                "CANCELLED",
+                blankToDefault(note, "用户取消订单"),
+                now,
+                order.getId(),
+                owner
+        );
+        return findOrder(order.getId());
+    }
+
     public synchronized ApiRouterDashboard.OrderInfo handlePaymentCallback(
             String orderId,
             double amount,
@@ -617,6 +679,118 @@ public class ApiRouterService {
                 owner,
                 safeLimit
         );
+    }
+
+    public synchronized List<ApiRouterSubscriptionPlanInfo> listSubscriptionPlans() {
+        return jdbcTemplate.query(
+                "select * from api_router_subscription_plans where enabled = true order by priority asc, price asc",
+                subscriptionPlanRowMapper()
+        );
+    }
+
+    public synchronized ApiRouterDashboard.OrderInfo createSubscriptionOrder(
+            String email,
+            String planId,
+            String payMethod,
+            String idempotencyKey) {
+        String owner = normalizeEmail(email);
+        requireActiveUser(owner);
+        ApiRouterSubscriptionPlanInfo plan = findSubscriptionPlan(planId);
+        if (plan == null || !plan.isEnabled()) {
+            throw new IllegalArgumentException("订阅套餐不存在或已停用");
+        }
+        String note = "Subscription " + plan.getName() + " (" + plan.getId() + "), credit " + formatCurrency(plan.getCredit());
+        return createOrder(owner, Math.max(0.0001, plan.getCredit()), payMethod, idempotencyKey, note);
+    }
+
+    public synchronized ApiRouterInviteOverview getInviteOverview(String email) {
+        String owner = normalizeEmail(email);
+        requireActiveUser(owner);
+        InviteProfile profile = ensureInviteProfile(owner);
+        List<ApiRouterInviteOverview.InviteeInfo> invitees = jdbcTemplate.query(
+                "select invitee_email, reward_amount, status, created_at, rewarded_at from api_router_invite_referrals where inviter_email = ? order by created_at desc limit 100",
+                (rs, rowNum) -> new ApiRouterInviteOverview.InviteeInfo(
+                        maskEmail(rs.getString("invitee_email")),
+                        rs.getDouble("reward_amount"),
+                        rs.getString("status"),
+                        rs.getString("created_at"),
+                        rs.getString("rewarded_at")
+                ),
+                owner
+        );
+        String referredBy = "";
+        try {
+            referredBy = jdbcTemplate.queryForObject(
+                    "select inviter_email from api_router_invite_referrals where invitee_email = ? order by created_at desc limit 1",
+                    String.class,
+                    owner
+            );
+        } catch (EmptyResultDataAccessException ignored) {
+        }
+        Integer invitedUsers = jdbcTemplate.queryForObject(
+                "select count(*) from api_router_invite_referrals where inviter_email = ?",
+                Integer.class,
+                owner
+        );
+        double pendingRewards = sumForDouble(
+                "select coalesce(sum(reward_amount), 0) from api_router_invite_referrals where inviter_email = ? and status = 'PENDING'",
+                owner
+        );
+        double creditedRewards = sumForDouble(
+                "select coalesce(sum(reward_amount), 0) from api_router_invite_referrals where inviter_email = ? and status = 'REWARDED'",
+                owner
+        );
+        return new ApiRouterInviteOverview(
+                profile.code(),
+                invitedUsers == null ? 0 : invitedUsers,
+                round4(pendingRewards),
+                round4(creditedRewards),
+                referredBy == null || referredBy.isBlank() ? "" : maskEmail(referredBy),
+                invitees
+        );
+    }
+
+    public synchronized ApiRouterInviteOverview applyInviteCode(String email, String code) {
+        String owner = normalizeEmail(email);
+        requireActiveUser(owner);
+        String normalizedCode = normalizeInviteCode(code);
+        if (normalizedCode.isBlank()) {
+            throw new IllegalArgumentException("邀请码不能为空");
+        }
+        InviteProfile inviter = findInviteProfileByCode(normalizedCode);
+        if (inviter == null) {
+            throw new IllegalArgumentException("邀请码不存在");
+        }
+        if (owner.equals(inviter.email())) {
+            throw new IllegalArgumentException("不能使用自己的邀请码");
+        }
+        Integer existing = jdbcTemplate.queryForObject(
+                "select count(*) from api_router_invite_referrals where invitee_email = ?",
+                Integer.class,
+                owner
+        );
+        if (existing != null && existing > 0) {
+            throw new IllegalArgumentException("当前账号已绑定过邀请关系");
+        }
+
+        double reward = round4(Math.max(0.0, inviteRewardAmount));
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        String status = reward > 0 ? "REWARDED" : "PENDING";
+        jdbcTemplate.update(
+                "insert into api_router_invite_referrals(id, inviter_email, invitee_email, code, reward_amount, status, created_at, rewarded_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID().toString(),
+                inviter.email(),
+                owner,
+                normalizedCode,
+                BigDecimal.valueOf(reward),
+                status,
+                now,
+                reward > 0 ? now : ""
+        );
+        if (reward > 0) {
+            creditInviteReward(inviter.email(), owner, reward, now);
+        }
+        return getInviteOverview(owner);
     }
 
     public synchronized ApiRouterAdminOverview getAdminOverview(int userLimit, int auditLimit) {
@@ -1091,8 +1265,56 @@ public class ApiRouterService {
                 key.getId(),
                 key.getName(),
                 key.getMask(),
-                key.getQuota()
+                key.getQuota(),
+                effectiveKeyRpmLimit(key),
+                effectiveKeyTpmLimit(key)
         );
+    }
+
+    public synchronized List<String> listServedModels() {
+        Set<String> models = new LinkedHashSet<>();
+        for (ApiRouterDashboard.ChannelInfo channel : listChannels()) {
+            if (!channel.isEnabled()) {
+                continue;
+            }
+            if (channel.getModels() == null || channel.getModels().isBlank()) {
+                continue;
+            }
+            for (String item : channel.getModels().split(",")) {
+                String model = item.trim();
+                if (!model.isBlank() && !"*".equals(model)) {
+                    models.add(model);
+                }
+            }
+        }
+        if (models.isEmpty() && defaultUpstreamModel != null && !defaultUpstreamModel.isBlank()) {
+            models.add(defaultUpstreamModel.trim());
+        }
+        return new ArrayList<>(models);
+    }
+
+    public synchronized void requirePriceConfigured(String model) {
+        if (hasDefaultBillingRate()) {
+            return;
+        }
+        boolean matched = loadEnabledModelPriceRules().stream()
+                .anyMatch(rule -> modelPatternMatches(rule.modelPattern(), model));
+        if (!matched) {
+            throw ApiRouterAccessException.forbidden("模型未配置计费价格，已拒绝转发: " + normalizeModelName(model));
+        }
+    }
+
+    public synchronized List<UpstreamChannel> filterBillableChannels(String model, List<UpstreamChannel> channels) {
+        if (channels == null || channels.isEmpty()) {
+            return new ArrayList<>();
+        }
+        if (hasDefaultBillingRate()) {
+            return channels;
+        }
+        List<ModelPriceRule> rules = loadEnabledModelPriceRules();
+        return channels.stream()
+                .filter(channel -> hasBillingRule(rules, model, channel.getProvider(), channel.getId()))
+                .toList();
     }
 
     public synchronized void recordProxyUsage(
@@ -1567,6 +1789,131 @@ public class ApiRouterService {
         }
     }
 
+    private void seedDefaultSubscriptionPlans() {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from api_router_subscription_plans",
+                Integer.class
+        );
+        if (count != null && count > 0) {
+            return;
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        jdbcTemplate.update(
+                "insert into api_router_subscription_plans(id, name, price, credit, quota, badge, enabled, priority, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "basic",
+                "基础版",
+                BigDecimal.valueOf(9.0),
+                BigDecimal.valueOf(9.0),
+                "100 万 tokens",
+                "Starter",
+                true,
+                100,
+                "Default starter plan",
+                now,
+                now
+        );
+    }
+
+    private RowMapper<ApiRouterSubscriptionPlanInfo> subscriptionPlanRowMapper() {
+        return (rs, rowNum) -> new ApiRouterSubscriptionPlanInfo(
+                rs.getString("id"),
+                rs.getString("name"),
+                rs.getDouble("price"),
+                rs.getDouble("credit"),
+                rs.getString("quota"),
+                rs.getString("badge"),
+                rs.getBoolean("enabled"),
+                rs.getString("note")
+        );
+    }
+
+    private ApiRouterSubscriptionPlanInfo findSubscriptionPlan(String planId) {
+        if (planId == null || planId.isBlank()) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    "select * from api_router_subscription_plans where id = ?",
+                    subscriptionPlanRowMapper(),
+                    planId.trim()
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private InviteProfile ensureInviteProfile(String email) {
+        String owner = normalizeEmail(email);
+        InviteProfile existing = findInviteProfileByEmail(owner);
+        if (existing != null) {
+            return existing;
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String code = generateInviteCode();
+            try {
+                jdbcTemplate.update(
+                        "insert into api_router_invite_profiles(email, code, created_at, updated_at) values (?, ?, ?, ?)",
+                        owner,
+                        code,
+                        now,
+                        now
+                );
+                return new InviteProfile(owner, code);
+            } catch (DuplicateKeyException ignored) {
+            }
+        }
+        throw new IllegalStateException("邀请码生成失败，请稍后重试");
+    }
+
+    private InviteProfile findInviteProfileByEmail(String email) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "select email, code from api_router_invite_profiles where email = ?",
+                    (rs, rowNum) -> new InviteProfile(normalizeEmail(rs.getString("email")), rs.getString("code")),
+                    normalizeEmail(email)
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private InviteProfile findInviteProfileByCode(String code) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "select email, code from api_router_invite_profiles where code = ?",
+                    (rs, rowNum) -> new InviteProfile(normalizeEmail(rs.getString("email")), rs.getString("code")),
+                    normalizeInviteCode(code)
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private void creditInviteReward(String inviterEmail, String inviteeEmail, double amount, String now) {
+        String owner = normalizeEmail(inviterEmail);
+        ensureWallet(owner);
+        double nextBalance = round4(currentWalletBalance(owner) + amount);
+        jdbcTemplate.update(
+                "update api_router_wallets set balance = ?, updated_at = ? where email = ?",
+                BigDecimal.valueOf(nextBalance),
+                now,
+                owner
+        );
+        jdbcTemplate.update(
+                "insert into api_router_ledger(id, email, key_id, usage_id, entry_type, amount, balance_after, description, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID().toString(),
+                owner,
+                "",
+                "",
+                "INVITE_REWARD",
+                BigDecimal.valueOf(round4(amount)),
+                BigDecimal.valueOf(nextBalance),
+                "Invite reward from " + maskEmail(inviteeEmail),
+                now
+        );
+    }
+
     public synchronized List<UpstreamChannel> resolveUpstreamChannels(String model) {
         String requestedModel = model == null || model.isBlank() ? blankToDefault(defaultUpstreamModel, "*") : model.trim();
         String now = LocalDateTime.now().format(STORAGE_TIME);
@@ -2017,14 +2364,14 @@ public class ApiRouterService {
         if ("PAID".equalsIgnoreCase(order.getStatus())) {
             return;
         }
-        if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
-            throw new IllegalArgumentException("只能处理待支付订单");
+        if (!"PENDING".equalsIgnoreCase(order.getStatus()) && !"PAYMENT_REVIEW".equalsIgnoreCase(order.getStatus())) {
+            throw new IllegalArgumentException("只能处理待支付或待审核订单");
         }
 
         String now = LocalDateTime.now().format(STORAGE_TIME);
         String paidAt = "PAID".equals(normalizedStatus) ? now : "";
         int updated = jdbcTemplate.update(
-                "update api_router_orders set status = ?, external_trade_no = ?, note = ?, paid_at = ?, updated_at = ? where id = ? and status = 'PENDING'",
+                "update api_router_orders set status = ?, external_trade_no = ?, note = ?, paid_at = ?, updated_at = ? where id = ? and status in ('PENDING', 'PAYMENT_REVIEW')",
                 normalizedStatus,
                 blankToDefault(externalTradeNo, ""),
                 blankToDefault(note, order.getNote()),
@@ -2378,6 +2725,9 @@ public class ApiRouterService {
         if ("PAID".equalsIgnoreCase(status) || "已支付".equals(status)) {
             return "PAID";
         }
+        if ("PAYMENT_REVIEW".equalsIgnoreCase(status) || "REVIEW".equalsIgnoreCase(status) || "待审核".equals(status)) {
+            return "PAYMENT_REVIEW";
+        }
         if ("CANCELLED".equalsIgnoreCase(status) || "CANCELED".equalsIgnoreCase(status) || "取消".equals(status)) {
             return "CANCELLED";
         }
@@ -2489,6 +2839,10 @@ public class ApiRouterService {
         return code == null ? "" : code.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
     }
 
+    private String normalizeInviteCode(String code) {
+        return code == null ? "" : code.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+    }
+
     private String normalizeExpiresAt(String expiresAt) {
         if (expiresAt == null || expiresAt.isBlank()) {
             return "";
@@ -2511,6 +2865,16 @@ public class ApiRouterService {
         return "PZM-" + raw.substring(0, 4) + "-" + raw.substring(4, 8) + "-" + raw.substring(8, 12);
     }
 
+    private String generateInviteCode() {
+        byte[] bytes = new byte[6];
+        random.nextBytes(bytes);
+        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+                .toUpperCase(Locale.ROOT)
+                .replace("_", "P")
+                .replace("-", "Z");
+        return "INV" + raw.substring(0, Math.min(8, raw.length()));
+    }
+
     private String maskUpstreamKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             return "";
@@ -2529,7 +2893,8 @@ public class ApiRouterService {
         String normalizedModel = model == null ? "" : model.trim().toLowerCase(Locale.ROOT);
         for (String item : channel.getModels().split(",")) {
             String candidate = item.trim().toLowerCase(Locale.ROOT);
-            if (candidate.equals("*") || candidate.equals(normalizedModel)) {
+            if (candidate.equals("*") || candidate.equals(normalizedModel)
+                    || candidate.endsWith("*") && normalizedModel.startsWith(candidate.substring(0, candidate.length() - 1))) {
                 return true;
             }
         }
@@ -2988,8 +3353,16 @@ public class ApiRouterService {
         return Math.max(1, keyRpmLimit);
     }
 
+    private int effectiveKeyRpmLimit(StoredApiKey key) {
+        return key != null && key.getKeyRpm() > 0 ? key.getKeyRpm() : effectiveKeyRpmLimit();
+    }
+
     private long effectiveKeyTpmLimit() {
         return Math.max(1L, keyTpmLimit);
+    }
+
+    private long effectiveKeyTpmLimit(StoredApiKey key) {
+        return key != null && key.getKeyTpm() > 0 ? key.getKeyTpm() : effectiveKeyTpmLimit();
     }
 
     private long effectiveDefaultTokenQuota() {
@@ -3166,6 +3539,15 @@ public class ApiRouterService {
                 .orElse(defaultBillingRate());
     }
 
+    private boolean hasBillingRule(List<ModelPriceRule> rules, String model, String provider, String channelId) {
+        String normalizedProvider = normalizePriceScope(provider);
+        String normalizedChannelId = normalizePriceScope(channelId);
+        return rules.stream()
+                .filter(rule -> modelPatternMatches(rule.modelPattern(), model))
+                .filter(rule -> priceScopeMatches(rule.provider(), normalizedProvider))
+                .anyMatch(rule -> priceScopeMatches(rule.channelId(), normalizedChannelId));
+    }
+
     private BillingRate resolvePreauthBillingRate(String model, long inputTokens) {
         List<ModelPriceRule> matchingRules = loadEnabledModelPriceRules().stream()
                 .filter(rule -> modelPatternMatches(rule.modelPattern(), model))
@@ -3181,6 +3563,10 @@ public class ApiRouterService {
 
     private BillingRate defaultBillingRate() {
         return new BillingRate(Math.max(0.0, inputPricePerMillion), Math.max(0.0, outputPricePerMillion));
+    }
+
+    private boolean hasDefaultBillingRate() {
+        return inputPricePerMillion > 0 || outputPricePerMillion > 0;
     }
 
     private List<ModelPriceRule> loadEnabledModelPriceRules() {
@@ -3370,6 +3756,8 @@ public class ApiRouterService {
         private String name;
         private String mask;
         private String quota;
+        private int keyRpm;
+        private long keyTpm;
     }
 
     @Data
@@ -3468,6 +3856,9 @@ public class ApiRouterService {
             int usedCount,
             boolean enabled,
             String expiresAt) {
+    }
+
+    private record InviteProfile(String email, String code) {
     }
 
     private record UserControl(

@@ -33,6 +33,14 @@ public class RiskControlService {
         requireIdentifierAction("token", token, action, limit, window, message);
     }
 
+    public void requireKeyRequest(String keyId, int limit, Duration window, String message) {
+        requireIdentifierBudget("key", keyId, "request", 1L, limit, window, message, false);
+    }
+
+    public void requireKeyTokens(String keyId, long tokens, long limit, Duration window, String message) {
+        requireIdentifierBudget("key", keyId, "tokens", Math.max(0L, tokens), limit, window, message, false);
+    }
+
     public String clientIp(HttpServletRequest request) {
         if (request == null) {
             return "unknown";
@@ -56,7 +64,19 @@ public class RiskControlService {
             int limit,
             Duration window,
             String message) {
-        if (limit <= 0 || identifier == null || identifier.isBlank()) {
+        requireIdentifierBudget(scope, identifier, action, 1L, limit, window, message, true);
+    }
+
+    private void requireIdentifierBudget(
+            String scope,
+            String identifier,
+            String action,
+            long increment,
+            long limit,
+            Duration window,
+            String message,
+            boolean failOpen) {
+        if (limit <= 0 || increment <= 0 || identifier == null || identifier.isBlank()) {
             return;
         }
         Duration safeWindow = window == null || window.isZero() || window.isNegative()
@@ -69,13 +89,17 @@ public class RiskControlService {
 
         Long count;
         try {
-            count = redisTemplate.opsForValue().increment(key);
-            if (count != null && count == 1L) {
+            count = redisTemplate.opsForValue().increment(key, increment);
+            if (count != null && count == increment) {
                 redisTemplate.expire(key, safeWindow);
             }
         } catch (Exception e) {
-            log.warn("Risk control skipped because Redis is unavailable: {}", e.getMessage());
-            return;
+            if (failOpen) {
+                log.warn("Risk control skipped because Redis is unavailable: {}", e.getMessage());
+                return;
+            }
+            log.error("Strict API router rate limit failed because Redis is unavailable", e);
+            throw ApiRouterService.ApiRouterAccessException.rateLimited("API 网关限流服务不可用，请稍后再试");
         }
 
         if (count != null && count > limit) {

@@ -1,465 +1,137 @@
-怎么打开这个项目
+# 泡面的 Agent 工具箱（PzMCiphertool）
 
-1.如果你安装了VS Code 或者 cursor，那么可以安装live server插件，然后在目录栏里右键index.html，选择Open with live server来打开。
+## 快速启动
 
-2.如果你已经安装了 Node.js，直接在终端输入命令并回车：npx http-server，终端会显示访问地址，通常是 http://127.0.0.1:8080。按住 Ctrl 点击链接即可打开。
+### 一键启动（推荐）
 
-3.如果你已经安装了cursor，那么可以按 Ctrl + Shift + P 打开搜索框，输入>Simple Browser: Show（注意大小写和英文冒号），然后回车，然后在框里输入 http://127.0.0.1:5500/你解压工程后的文件夹名称/index.html，
-一般是http://127.0.0.1:5500/08_Ciphertool/frontendciphertool/index.html。
-这样你就可以不需要浏览器，直接在代码编辑器的右侧分栏中直接看到网页效果。
+双击运行 `backendcipher\start.bat`，会自动完成以下所有步骤：
+Redis 启动 → 后端 Maven 构建 → 后端 Spring Boot 启动 → 前端 http-server 启动。
 
-### 💡 如何配置大模型 (LLM) 与 Agent
-
-前端不再保存或读取模型 API Key。大模型聊天、Agent 和悬浮助手统一请求本地 Spring Boot 后端：
-
-```text
-POST http://localhost:8080/api/chat/completions
-```
-
-在项目根目录或后端运行环境中配置后端环境变量：
-
-```properties
-OPENAI_API_KEY=你的上游模型_API_KEY
-OPENAI_BASE_URL=https://api.deepseek.com/v1
-OPENAI_MODEL=deepseek-v4-flash
-```
-
-也可以继续使用任何 OpenAI-compatible 上游，只要 `OPENAI_BASE_URL` 指向对应 `/v1` 基址即可。前端只需要确认 `window.CIPHERTOOL_API_BASE` 指向后端地址，默认本地为 `http://localhost:8080`。
-
-
-
-开发文档
-## 1. 项目简介
-基于Python/HTML/CSS/JS/TS构建，不依赖任何框架
-工程的UI、前后端算法、部署、函数作用等都是作者从0-1原生构建
-
-本文档的宗旨是，让开发者更好地理解这个项目的构成、开发、维护；
-目的是让每位开发者规避过多认知负荷，不在繁琐的“框架、流程、库”上花费大量时间
-以及同未来的开发者们颠覆未来几年的应用设计路线
+> [!IMPORTANT]
+> **Codex CLI / AI 编码工具注意**：Codex CLI 的沙箱环境会拦截 `npx` 等命令（`C:\Users\mi` 目录被沙箱拒绝访问），导致前端无法在沙箱内启动。
+> 
+> 解决方案：
+> 1. **直接双击 `start.bat`**（推荐，不受沙箱限制）
+> 2. 在 Codex 中只启动后端（`mvn` + `java -jar`），前端用 VS Code Live Server 或手动在终端运行 `npx http-server`
+> 3. 后端的 Maven 构建命令可以在 Codex 中正常运行，只有 `npx` 会被拦截
 
 ---
 
-## 2. 工程历史介绍
+### 手动启动
 
-本工程采用简单暴力直接的DOM，摒弃多余复杂的操作。
+#### 环境依赖
 
-设计哲学上采用Unix哲学，Getting Real，Zen、Less but Better，以及乔布斯的SITUS的结合
-也就是作者认为的：在极简暴力、文件为王的全局复用中逐渐驾驭复杂体系
+| 依赖 | 路径 |
+|------|------|
+| JDK 17 | `d:\10_Leochad\jdk-17.0.12` |
+| Maven 3.9 | `d:\10_Leochad\apache-maven-3.9.5` |
+| Redis | `d:\10_Leochad\redis` |
+| Node.js | 已全局安装 |
+| Rust stable | 仅 `frontend-rust/` 需要 |
+| Trunk | 仅 `frontend-rust/` 需要 |
 
-如：
-1.在999_funtion.js里仅一个updateAll就掌握了所有密码卡片从前到后的函数作用和扩展核心。
-2.一个搜索框就能在所有模块通用，且互不影响
-3.workflow模块不采用臃肿的前端画线，让工作流后端化。
+#### 1. 启动 Redis
 
-**在开发灵感上，作者大量参考了马斯克的第一性原理、各学术前沿论文、科幻小说、以及现实各种跨领域的工作经验，来逐渐形成自己的taste**
+```powershell
+Start-Process -FilePath "d:\10_Leochad\redis\redis-server.exe" -WindowStyle Minimized
+```
 
-首先，根据摩尔定律做宏观推算，那么计算机每9年快1000倍；
-再根据各科幻小说作品结合，你可以想象到未来的手机可能会是透明银行卡大小的卡片
-嗯，然后面板投影在满大街的空气上。这样可能是一个不太注重个人隐私的时代。
-硬件方面的想象就到这了，然后就是软件方面的想象。
+#### 2. 启动后端（Spring Boot，端口 8080）
 
-那么作者应该做出什么样的UI来适配这个未来硬件呢？
-    作者在《Science》发现吴教授团队通过Oz技术让实验者看到了前所未有的蓝绿色
-    作者以这个样本作为颜色主题，尝试用蓝绿色进行高光阴影叠加
-    再结合摩尔定律、科幻小说、工作领域想象出晶莹剔透的蚀刻电路版
-    作者在工作开发上接触Linux系统较多
+```powershell
+$env:JAVA_HOME = "d:\10_Leochad\jdk-17.0.12"
+$env:MAVEN_HOME = "d:\10_Leochad\apache-maven-3.9.5"
+$env:PATH = "$env:JAVA_HOME\bin;$env:MAVEN_HOME\bin;$env:PATH"
 
-部署思维：全局变量化、去APP化、去接口化、去框架化、甚至是去服务器化
+cd d:\10_Leochad\PzMCiphertool-\backendcipher
+mvn clean package -DskipTests -q
+java -jar target\ciphertool-backend-1.0.0.jar
+```
 
+后端启动后访问：`http://localhost:8080`  
+健康检查：`http://localhost:8080/api/auth/health`
 
-1.  **输入同步**：
-    无论你在"经典区"还是"现代区"的主输入框（`#mainInput`）打字，代码会自动把内容同步到所有区域的输入框，确保你切换页面时数据还在。
+#### 3. 启动前端（静态文件服务，端口 5500）
 
-2.  **事件驱动 (The Heartbeat)**：
-    在 `cipher/999_funtion.js` 中，有一个全选监听器：
-    ```javascript
-    document.querySelectorAll('#mainInput, input, textarea, select').forEach(el => {
-        el.addEventListener('input', updateAll);
-    });
-    ```
-    这意味着：**页面上任何一个输入框或下拉菜单发生变化，都会触发 `updateAll()` 函数。**
+```powershell
+cd d:\10_Leochad\PzMCiphertool-\frontendciphertool
+npx -y http-server -p 5500 -c-1 --cors
+```
 
-3.  **全量刷新 (updateAll)**：
-    `updateAll()` 函数被触发后，会做以下流水线工作：
-    *   **读取**：获取主输入框的文本 `t`。
-    *   **参数获取**：获取各个密码卡片特有的设置（比如凯撒的偏移量、栅栏的栏数）。
-    *   **计算与回填**：调用对应的算法对象（如 `Caesar.e(t, s)`），算出结果，直接塞回对应的结果显示框（如 `innerHTML = ...`）。
+前端访问：`http://127.0.0.1:5500`
+
+> 也可以在 VS Code 中使用 Live Server 插件启动前端，默认同样监听 5500 端口。
+
+#### 4. 启动 Rust 渐进重构前端（端口 5173）
+
+Rust 新前端位于 `frontend-rust/`，当前用于渐进式接管电子实验室、知识图谱和 Workflow；旧前端仍可继续在 5500 端口运行。
+
+第一次使用前安装 Rust/WASM 目标和 Trunk：
+
+```powershell
+rustup target add wasm32-unknown-unknown
+cargo install --locked trunk
+```
+
+当前推荐启动方式是先构建 Rust/WASM 产物，再用静态服务器跑 `dist/`：
+
+```powershell
+cd d:\10_Leochad\PzMCiphertool-\frontend-rust
+trunk build
+
+cd d:\10_Leochad\PzMCiphertool-\frontend-rust\dist
+http-server -p 5173 -c-1 --cors
+```
+
+Rust 前端访问：`http://127.0.0.1:5173/`
+
+如果 `http-server` 没有全局命令，可以用：
+
+```powershell
+npx -y http-server -p 5173 -c-1 --cors
+```
+
+端口关系：
+
+```text
+5500  旧前端 frontendciphertool
+5173  Rust 新前端 frontend-rust
+8080  Spring Boot 后端 backendcipher
+```
+
+如果 5173 被占用，可以换一个端口：
+
+```powershell
+http-server -p 5174 -c-1 --cors
+```
+
+停止 5173 服务时先查进程：
+
+```powershell
+netstat -ano | findstr :5173
+taskkill /PID 进程ID /F
+```
+
+也可以尝试直接用 Trunk 开发服务器：
+
+```powershell
+cd d:\10_Leochad\PzMCiphertool-\frontend-rust
+trunk serve --port 5173 --open
+```
 
 ---
 
-## 3. 实战教程：如何添加一个新的密码模块？
+### LLM 配置
 
-假设我们要添加一个 **"倒序密码 (Reverse Cipher)"**（把文本倒过来写），请跟随以下步骤：
+前端统一通过后端代理调用大模型，不在前端保存 API Key。
 
-### 第一步：添加界面 (UI)
-打开 `cipher/0_cipher_div_batch.js`，找到 `CIPHER_CLASSIC_MODERN_DIV_BATCH` 里的经典区/现代区 HTML。在 `<div id="mimaqu" ...>` 内部找到合适的位置，插入一个新的卡片代码：
+后端环境变量：
 
-```html
-<!-- 在 cipher/0_cipher_div_batch.js 的 CIPHER_CLASSIC_MODERN_DIV_BATCH 中添加 -->
-<div class="card">
-    <div class="badge">倒序密码 Reverse</div>
-    <div class="result" id="reverseResult"></div>
-</div>
-```
-> **注意**：一定要给结果 `div` 起一个唯一的 ID，比如 `reverseResult`。
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `OPENAI_API_KEY` | 上游模型 API Key | （必填） |
+| `OPENAI_BASE_URL` | 上游 API 地址 | `https://api.deepseek.com/v1` |
 
-### 第二步：实现逻辑 (Logic)
-打开 `cipher/1_cipherlab.js`，在文件头部或中间，定义算法对象。
+支持任何 OpenAI-compatible 上游，只需将 `OPENAI_BASE_URL` 指向对应 `/v1` 基址。
 
-```javascript
-// 在 1_cipherlab.js 中添加
-const ReverseCipher = {
-    // 加密 (e = encrypt)
-    e: (text) => {
-        return text.split('').reverse().join('');
-    },
-    // 解密 (d = decrypt)，倒序的解密就是再倒序一次
-    d: (text) => {
-        return text.split('').reverse().join('');
-    }
-};
-```
-
-### 第三步：连接逻辑 (Binding)
-打开 `cipher/999_funtion.js`，找到 `updateAll()` 函数。在函数内部添加调用代码：
-
-```javascript
-async function updateAll() {
-    let t = inputClassic.value; // 获取主输入
-    // ... 前面的一大堆代码 ...
-
-    // === 在这里添加你的新代码 ===
-    // 1. 计算结果
-    let reverseEncrypted = ReverseCipher.e(t);
-    let reverseDecrypted = ReverseCipher.d(t);
-    
-    // 2. 显示结果 (找到你在第一步定义的 id)
-    // 检查元素是否存在，防止报错
-    const reverseEl = document.getElementById('reverseResult');
-    if (reverseEl) {
-        reverseEl.textContent = `加密: ${reverseEncrypted}\n解密: ${reverseDecrypted}`;
-    }
-}
-```
-
-**完成！** 保存文件，刷新网页，你现在的密码工具箱里就多了一个会自动更新的"倒序密码"模块。
-
----
-
-## 4. 算法分类与常用工具
-
-工程中的算法主要封装为 **Object（对象）** 或 **Class（类）**，通常包含 `e` (encrypt/加密) 和 `d` (decrypt/解密) 两个方法。
-
-### 常用工具函数 (Utils)
-在编写新模块时，你可能会用到这些通用处理：
-1.  **清理输入**: `t.replace(/\s/g, "")` —— 去除所有空格，常用于古典密码处理。
-2.  **转大写**: `t.toUpperCase()` —— 规范化输入。
-3.  **大整数处理**: `BigInt` —— 用于大数进制转换。
-4.  **文本编码**: `new TextEncoder().encode(t)` —— 用于将字符串转为字节数组（在 Base64 或 Hash 算法中常用）。
-
----
-
-## 5. 工程文件详解 (File Structure & Descriptions)
-
-为了方便维护，工程文件按照功能模块进行了分类。以下是每个文件/目录的具体作用：
-
-### 📂 根目录 (Root)
-*   **`index.html`**: **入口文件**。定义了网页的基础骨架、侧边栏导航和各模块的容器（Container）。此时容器是空的，等待 JS 填充。
-*   **`modules.js`**: **内容仓库与加载器**。
-    *   **HTML 仓库**: 变量 `MODULES` 存储页面级模块（电子实验室、工作流、知识图谱、Agent、API 中转站、联系我们等）的 HTML 字符串。
-    *   **模块注入与脚本调度**: 负责把页面级模块注入容器，并调度各功能区批量加载器。加密实验室的经典区/现代区和 cipher 脚本已经从 `modules.js` 抽离到 `cipher/0_cipher_div_batch.js`。
-*   **`0_zhuyeyangshi.css`**: **全局样式表**。定义了赛博朋克风格、霓虹灯效果、卡片布局、侧边栏样式等。
-*   **`0_sidebar_funtion.js`**: **导航交互逻辑**。处理侧边栏点击事件，负责在不同模块（div）之间切换显示/隐藏。
-
-### 📂 cipher/ (密码学核心逻辑)
-这是"加密实验室"的核心代码库。
-*   **`0_cipher_div_batch.js`**: **加密实验室批量入口**。
-    *   保存经典区、现代区的 HTML 字符串 `CIPHER_CLASSIC_MODERN_DIV_BATCH`。
-    *   保存 `CIPHER_SCRIPT_BATCH`，并提供 `loadCipherScriptBatch(loadBatch)` 顺序加载 cipher 脚本，避免工具函数早于算法脚本执行。
-*   **`1_cipherlab.js`**: **核心算法库**。
-    *   包含了大多数基础算法（凯撒、维吉尼亚、栅栏、培根等）。
-    *   主要负责算法对象和算法函数定义。
-*   **`999_funtion.js`**: **加密实验室绑定层**。
-    *   包含 `updateAll()`，负责监听输入、读取 DOM 参数、调用算法并回填结果。
-    *   经典区/现代区 UI 里的 DOM id 需要和这里保持一致。
-*   **`2_ADFGXCipher.js`**: 独立文件。实现了 ADFGX 和 ADFVGX 这种复杂的棋盘+置换密码。
-*   **`3_Enigma.js`**: 独立文件。实现了二战恩尼格玛机（Enigma）的模拟逻辑，包括转子、反射器、插板的设置。
-*   **`4_MD5.js`**: 独立文件。包含 MD5 哈希算法的实现。
-*   **`6_semaphore.js`**: 独立文件。实现了旗语（Semaphore）和盲文的可视化逻辑（绘制图片或 canvas）。
-*   **`888_chinese_code_table.js`**: **数据文件**。存储中文电码（Chinese Telegraph Code）的对照表。
-*   **`888_CornerMap.js`**: **数据文件**。存储四角号码的对照字典。
-
-### 📂 logic/ (逻辑谜题)
-这是"逻辑谜题区"的独立算法集合。当前主页面通过 `logic/logicbatch.js` 批量加载逻辑题算法和 `logic/logicdiv/` 下的 UI 片段，不再依赖一堆独立 HTML 小页面跳转。
-
-### 📂 model/ (大模型与AI)
-涉及 AI 对话和智能助手的功能。
-*   **`script.js`**: 大模型（Da Mo Xing）聊天界面的前端交互逻辑，处理发送消息、显示气泡等。
-*   **`cipher_bridge_auto.js`**: **桥接脚本**。尝试将密码工具的计算能力暴露给 AI，或者让 AI 能够调用密码工具的函数。
-*   **`2_damoxing.css`**: 大模型聊天界面的专用样式。
-
-### 📂 workflow/ (工作流)
-*   **`workflow.js`**: 处理工作流模块的逻辑（可能是类似 Coze 的节点式处理或批量任务处理）。
-*   **`1_workflow.css`**: 工作流模块的样式。
-
-### 📂 zhishitupu/ (知识图谱)
-*   **`zhishitupu.js`**: 知识图谱的渲染逻辑（可能使用了 D3.js 或类似库来绘制节点和连线）。
-*   **`3_zhishitupu.css`**: 知识图谱的专用样式。
-
----
-
-## 6. 开发者注意事项
-
-1.  **修改页面级 UI**: 侧边栏和顶层容器在 `index.html`；电子实验室、工作流、知识图谱、Agent、API 中转站、联系我们等页面级模块在 `modules.js`。
-2.  **修改加密实验室经典区/现代区 UI**: 去 `cipher/0_cipher_div_batch.js`，不要再把经典区/现代区的大段卡片 HTML 塞回 `modules.js`。
-3.  **新增 cipher 脚本**: 如果添加 `cipher/5_NewCipher.js` 这类脚本，要注册到 `cipher/0_cipher_div_batch.js` 的 `CIPHER_SCRIPT_BATCH`，不是注册到 `modules.js`。
-4.  **新增空间类模块**: 在 `spacepuzzle/` 下新增模块 JS 后，注册到 `spacepuzzle/spacepuzzlebatch.js`。空间类样式目前随 JS 注入，不再保留独立 `.css` 文件。
-5.  **异步问题**: 现代加密（SHA/MD5）使用了浏览器原生 Crypto API，是异步的。在 `updateAll` 中调用它们时记得使用 `await`，否则用户会看到 `[object Promise]`。
-
----
-
-## 7. 项目布局总览
-
-这个项目整体是 **原生前端静态站 + Spring Boot 后端 + 已生成代码知识图谱** 的结构。前端承担主要 UI、本地算法和工具体验，后端承担登录、聊天代理、API 中转、爬取、MCP/Skill 检测等需要服务端能力的部分。
-
-```text
-PzMCiphertool-
-├─ README.md                         根说明文档
-├─ README2.md                        备用/历史说明文档
-├─ docs/                             专题开发文档
-├─ .env                              环境变量
-├─ .github/                          GitHub workflow
-├─ .vscode/                          VS Code 配置
-├─ .claude/                          Claude/agent 相关配置
-├─ Agent聊天记录/                    本地 Agent 聊天记录
-├─ backendcipher/                    Java Spring Boot 后端
-├─ frontendciphertool/               原生 HTML/CSS/JS 前端
-├─ graphify-out/                     已生成代码知识图谱
-└─ MinGit/                           本地 Git 工具资源
-```
-
-### 知识图谱：`graphify-out/`
-
-项目已经生成了代码知识图谱，位于 `graphify-out/`：
-
-```text
-graphify-out/
-├─ graph.json                        机器可读图谱数据
-├─ graph.html                        可视化图谱页面
-├─ GRAPH_REPORT.md                   图谱报告
-├─ manifest.json                     文件/AST 缓存清单
-└─ cache/                            AST 缓存
-```
-
-当前图谱报告显示：265 个文件、2763 个节点、5722 条边、247 个社区；图谱构建提交是 `e9ac077b`。如果代码发生修改，运行 `graphify update .` 更新图谱。`CLAUDE.md` 也明确建议代码库问题优先使用：
-
-```bash
-graphify query "<question>"
-graphify path "<A>" "<B>"
-graphify explain "<concept>"
-```
-
-图谱里的高连接核心节点包括 `ApiRouterService`、`WebCrawlerServiceImpl`、`ChatUI`、`ApiRouterController`、`AgentRuntime`。这说明当前项目的主要复杂度集中在 API 中转站、网页抓取、大模型聊天 UI 和 Agent 运行链路上。
-
-注意：这里有两套“知识图谱”概念：
-
-1. `graphify-out/` 是代码知识图谱，用于理解代码结构和跨文件关系。
-2. `frontendciphertool/zhishitupu/` 是产品页面里的前端知识图谱模块，由 `graphData.js` 生成数据，由 `zhishitupu.js` 初始化和渲染。
-
-### 前端：`frontendciphertool/`
-
-这是主要用户界面。目录里没有 `package.json`，所以它不是 React/Vue/Vite 这类框架项目，而是原生静态网页。
-
-```text
-frontendciphertool/
-├─ index.html                        前端入口页面、侧边栏、模块容器
-├─ modules.js                        页面级模块 HTML 仓库 + 脚本调度器
-├─ backendconfig.js                  后端 API base 配置
-├─ 0_zhuyeyangshi.css                全局样式
-├─ 0_sidebar_funtion.js              侧边栏、页面切换、搜索跳转
-├─ favicon.svg
-├─ cipher/                           加密/解密实验室，含经典区/现代区 UI 批量入口
-├─ electronic/                       电子电路实验室，内含 CircuitJS 资源
-├─ workflow/                         工作流模块
-├─ zhishitupu/                       前端知识图谱可视化模块
-├─ model/                            大模型聊天/Agent 前端逻辑
-├─ apizhongzhuanzhan/                API 中转站前端
-├─ mcpskilllab/                      Skill / MCP 实验室前端
-├─ loginsystem/                      登录认证前端
-├─ sendfeedback/                     联系/反馈模块
-├─ logic/                            逻辑谜题模块
-├─ wordsearch/                       单词搜索模块
-├─ spacepuzzle/                      空间谜题，如魔方
-└─ agentmaster/                      全局悬浮助手
-```
-
-前端运行方式大致是：
-
-1. `index.html` 定义侧边栏和各模块容器，并在 `modules.js` 前先加载 `cipher/0_cipher_div_batch.js`。
-2. `backendconfig.js` 设置 `window.CIPHERTOOL_API_BASE`，本地默认指向 `http://localhost:8080`，需要后端的模块都应从这里取值。
-3. `modules.js` 的 `MODULES` 对象保存页面级 HTML：加密实验室外壳、电子实验室、工作流、知识图谱、大模型、API 中转站、MCP/Skill 实验室、反馈页等。
-4. 加密实验室的经典区/现代区 HTML 由 `cipher/0_cipher_div_batch.js` 提供，通过 `${window.CIPHER_CLASSIC_MODERN_DIV_BATCH || ''}` 注入到 `modules.js` 的加密实验室外壳里。
-5. 通用脚本由 `modules.js` 的 `coreScripts` 批量加载；cipher 脚本由 `cipher/0_cipher_div_batch.js` 的 `CIPHER_SCRIPT_BATCH` 顺序加载。
-6. 逻辑谜题由 `logic/logicbatch.js` 管理 UI 片段和具体谜题 JS；空间类由 `spacepuzzle/spacepuzzlebatch.js` 统一加载公共 UI 和 8 个空间谜题模块。
-
-### 核心前端模块
-
-```text
-cipher/
-├─ 0_cipher_div_batch.js             经典区/现代区 HTML + cipher 脚本顺序加载入口
-├─ 1_cipherlab.js                    主算法库，定义基础密码算法对象/函数
-├─ 2_ADFGXCipher.js                  ADFGX/ADFGVX
-├─ 3_Enigma.js                       Enigma 模拟
-├─ 4_MD5.js                          MD5
-├─ 6_semaphore.js                    旗语/可视化
-├─ 888_chinese_code_table.js         中文电码数据表
-├─ 888_CornerMap.js                  四角号码数据
-├─ shiyongshuoming/                  使用说明页脚本与样式
-└─ 999_funtion.js                    DOM 绑定、输入监听、updateAll() 和结果回填
-```
-
-`cipher/999_funtion.js` 是加密实验室的绑定层。`updateAll()` 读取主输入和各卡片参数，调用对应算法，再把结果回填到 DOM；`syncInputs()` 负责同步经典区、现代区等多个 `#mainInput`。
-
-```text
-logic/
-├─ logicbatch.js                     逻辑谜题分批加载入口
-├─ logicdiv/                         逻辑谜题 UI 片段
-└─ js/                               逻辑谜题具体实现
-```
-
-```text
-spacepuzzle/
-├─ spacepuzzle_ui.js                 空间类公共 UI 样式与工具函数
-├─ spacepuzzlebatch.js               空间类批量加载入口
-├─ rubikscube/
-│  └─ nubikscube.js                  标准三维魔方
-├─ huarongdao/
-│  └─ huarongdao.js                  数字华容道
-├─ qiqiaoban/
-│  └─ qiqiaoban.js                   七巧板
-├─ jinzitamofang/
-│  └─ jinzitamofang.js               金字塔魔方
-├─ rubiksclock/
-│  └─ rubiksclock.js                 Rubik's Clock
-├─ skewbmofang/
-│  └─ skewbmofang.js                 Skewb 魔方
-├─ squreonemofang/
-│  └─ squreonemofang.js              Square-1 魔方
-└─ Pentomino/
-   └─ Pentomino.js                   Pentomino 五连方
-```
-
-当前 `spacepuzzle/` 下没有独立 `.css` 文件。公共布局样式放在 `spacepuzzle_ui.js`，例如 `space-workspace`、`space-control-panel`、`space-display-panel`、`space-cube-hud`、步骤条、统计卡片等；每个具体模块只保留自己的棋盘、3D 模型、贴纸、钟盘或谜题专属样式。
-
-```text
-model/
-├─ main.js
-├─ script.js
-├─ AgentRuntime.js
-├─ ChatUI.js
-├─ DeepSeekClient.js
-├─ HistoryManager.js
-├─ ToolRegistry.js
-├─ contracts/
-│  └─ AgentContract.js
-└─ 2_damoxing.css
-```
-
-`model/` 是大模型聊天/Agent 相关前端逻辑，可能会调用后端 `/api/chat`、历史记录和工具接口。`agentmaster/` 是全局悬浮助手，负责页面跳转、命令识别、局部导航和对话入口。
-
-```text
-zhishitupu/
-├─ graphData.js                      构建前端产品内知识图谱数据
-├─ zhishitupu.js                     初始化、渲染、搜索、聚焦和导入逻辑
-└─ 3_zhishitupu.css                  专用样式
-```
-
-`mcpskilllab/` 是 Skill / MCP 实验室，提供资源目录、待接入管理、配置模板、可信分、后端只读检测、批量检测和检测结果审查。其本地运行和安全边界见 `docs/mcp-skill-lab-local.md`。
-
-### 后端：`backendcipher/`
-
-后端是 Maven + Spring Boot 3.2.0 + Java 17。主要依赖包括 Spring Web、Redis、JDBC、Flyway、H2、MySQL、PostgreSQL、Validation、Mail、阿里云短信 SDK、fastjson2 和测试框架。
-
-```text
-backendcipher/
-├─ pom.xml                           Maven 配置
-├─ README.md
-├─ start.bat                         Windows 启动脚本
-├─ start.sh                          Linux/macOS 启动脚本
-├─ Aliyunsmsmd/                      阿里云短信相关文档
-├─ modelchathistory/                 聊天历史 JSON 存储
-└─ src/
-   ├─ main/
-   │  ├─ java/com/ciphertool/
-   │  │  ├─ CipherToolApplication.java  Spring Boot 入口
-   │  │  ├─ config/                     CORS、Redis、阿里云短信配置
-   │  │  ├─ controller/                 API 控制器
-   │  │  ├─ dto/                        请求/响应 DTO
-   │  │  ├─ exception/                  全局异常处理
-   │  │  └─ service/                    业务服务与实现
-   │  └─ resources/
-   │     ├─ application.yml
-   │     ├─ application-dev.yml
-   │     ├─ schema.sql
-   │     └─ db/migration/
-   └─ test/java/com/ciphertool/         后端测试
-```
-
-后端主要接口分组：
-
-```text
-/api/auth
-├─ POST /send-code                   发送验证码
-├─ POST /login                       登录
-└─ GET  /health                      健康检查
-
-/api/chat
-├─ POST /completions                 聊天补全，SSE 流式输出
-├─ GET  /history                     获取聊天历史
-└─ POST /history                     保存聊天历史
-
-/v1
-└─ POST /chat/completions            OpenAI-compatible API 中转入口
-
-/api/api-router
-├─ GET/POST dashboard、keys、ledger、wallet、redeem、orders
-├─ GET/POST channels、model-prices、status
-└─ GET/POST admin/overview、users、audits、reconciliation
-
-/api/crawler
-├─ POST /search
-├─ POST /community_snapshot
-├─ POST /webpage
-├─ POST /search_urls
-├─ POST /research、/research/fast、/research/deep
-├─ POST /read_webpage
-├─ POST /news
-├─ POST /weather
-└─ POST /finance
-
-/api/mcp-lab
-├─ GET  /health                      Skill / MCP 实验室只读检测器健康检查
-└─ POST /check-resource              资源 URL / GitHub 公开元信息只读检测
-
-/api/project
-├─ POST /list_files
-├─ POST /read_file
-├─ POST /file_info
-├─ POST /search_files
-├─ POST /propose_patch
-└─ POST /run_command
-```
-
-`ApiRouterService` 是后端最大核心，负责 API Key、钱包、额度、订单、支付回调、渠道、模型价格、上游选择、用量记录和管理后台数据。`OpenAiCompatibleController` 接 `/v1/chat/completions`，会校验 API Key、选择上游渠道、预留钱包额度、转发请求并记录用量。`WebCrawlerServiceImpl` 是网页搜索/读取/新闻/天气/金融/研究类工具的主要实现。
-
-数据层默认使用 H2 文件数据库，可通过 `CIPHERTOOL_DB_URL`、`CIPHERTOOL_DB_DRIVER`、`CIPHERTOOL_DB_USERNAME`、`CIPHERTOOL_DB_PASSWORD` 切换 MySQL 或 PostgreSQL。`schema.sql` 和 `db/migration/` 中维护了 API Router 的 keys、usage logs、wallets、ledger、channels、model prices、redeem codes、orders、payment callbacks、admin audits、user controls 和 agent runs 等表结构。
-
-Skill / MCP 实验室本地联调默认使用 `http://localhost:8080`，不要请求已停用的旧线上域名。完整流程见 `docs/mcp-skill-lab-local.md`。
-
-### 项目性质总结
-
-这是一个“泡面的 Agent 工具箱 / Puzzlehunt / CTF / 电子实验室 / 大模型助手 / API 中转站 / MCP Skill 实验室”综合工具站。项目已经从单页工具箱演进成了前端工具平台、后端 API/商业路由和 Agent/MCP 实验平台的组合。
-
-维护时最关键的是：不要只看 `index.html`。页面级 UI 主要在 `frontendciphertool/modules.js`；加密实验室经典区/现代区 UI 和 cipher 脚本列表在 `frontendciphertool/cipher/0_cipher_div_batch.js`；逻辑谜题由 `logic/logicbatch.js`、`logic/logicdiv/` 和 `logic/js/` 分层管理；空间类由 `spacepuzzle/spacepuzzlebatch.js` 和各谜题 JS 管理，样式随 JS 注入；需要后端的前端模块统一通过 `window.CIPHERTOOL_API_BASE` 取后端地址。
-
-修改代码后，建议同步运行 `graphify update .`，让 `graphify-out/` 继续反映当前代码结构。
+前端通过 `window.CIPHERTOOL_API_BASE`（默认 `http://localhost:8080`）连接后端。

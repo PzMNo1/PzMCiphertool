@@ -1,0 +1,115 @@
+/* 空间类：七巧板 */
+.tangram-template-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.tangram-template-btn {
+  min-width: 0;
+}
+
+.tangram-template-btn.active {
+  border-color: rgba(255, 107, 138, 0.78);
+  background: rgba(255, 107, 138, 0.1);
+  box-shadow: 0 0 16px rgba(255, 107, 138, 0.22);
+}
+
+.tangram-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.space-tangram-panel {
+  flex: 2;
+  min-width: 420px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(255, 107, 138, 0.08), rgba(64, 224, 255, 0.04)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.tangram-board {
+  width: min(680px, 100%);
+  aspect-ratio: 8 / 7;
+  display: block;
+  border: 1px solid rgba(64, 224, 255, 0.25);
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.06), transparent 26%),
+    linear-gradient(145deg, rgba(2, 12, 18, 0.96), rgba(8, 24, 32, 0.72));
+  box-shadow:
+    inset 0 0 24px rgba(64, 224, 255, 0.1),
+    0 0 28px rgba(0, 0, 0, 0.24);
+  touch-action: none;
+  user-select: none;
+}
+
+.tangram-board-bg {
+  fill: transparent;
+}
+
+.tangram-guide-piece polygon {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.34);
+  stroke-width: 2;
+  stroke-dasharray: 8 7;
+}
+
+.tangram-piece {
+  cursor: grab;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tangram-piece:active {
+  cursor: grabbing;
+}
+
+.tangram-piece polygon {
+  fill: var(--piece-color);
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 10px rgba(64, 224, 255, 0.18));
+  transition: stroke 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+
+.tangram-piece:hover polygon,
+.tangram-piece.selected polygon {
+  stroke: #ffffff;
+  filter:
+    drop-shadow(0 0 13px rgba(64, 224, 255, 0.42))
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.22));
+}
+
+.tangram-piece-label {
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: rgba(6, 16, 22, 0.72);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+@media (max-width: 760px) {
+  .space-tangram-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .tangram-template-row,
+  .tangram-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tangram-piece-label {
+    font-size: 12px;
+  }
+}

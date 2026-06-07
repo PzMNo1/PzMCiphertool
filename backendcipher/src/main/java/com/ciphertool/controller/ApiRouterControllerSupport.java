@@ -18,6 +18,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class ApiRouterControllerSupport {
 
+    private static final String PAYMENT_REVIEWER_EMAIL = "1551601828@qq.com";
+
     private final ApiRouterService apiRouterService;
     private final RiskControlService riskControlService;
 
@@ -51,6 +53,13 @@ public class ApiRouterControllerSupport {
                 .anyMatch(value -> "*".equals(value) || value.equals(normalizedEmail));
         if (!allowed) {
             throw AuthService.AuthAccessException.unauthorized("需要管理员权限，请配置 API_ROUTER_ADMIN_EMAILS");
+        }
+    }
+
+    public void requirePaymentReviewer(String email) {
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (!PAYMENT_REVIEWER_EMAIL.equals(normalizedEmail)) {
+            throw AuthService.AuthAccessException.unauthorized("只有 1551601828@qq.com 可以审核微信支付订单");
         }
     }
 

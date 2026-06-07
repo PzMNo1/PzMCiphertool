@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电路模拟系统</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">∿</div>
+        <div>
+          <h1>电路模拟系统</h1>
+          <p>交互式编辑、实时求解、波形测量</p>
+        </div>
+      </div>
+
+      <div class="toolbar" role="toolbar" aria-label="主工具栏">
+        <button class="tool-button active" id="tool-select" data-tool="select" title="选择 / 移动">⌖</button>
+        <button class="tool-button" id="tool-wire" data-tool="wire" title="连接导线">╱</button>
+        <button class="tool-button" id="undo-action" title="撤销">↶</button>
+        <button class="tool-button" id="redo-action" title="重做">↷</button>
+        <button class="tool-button" id="rotate-selected" title="旋转选中元件">⟳</button>
+        <button class="tool-button" id="duplicate-selected" title="复制选中元件">⧉</button>
+        <button class="tool-button danger" id="delete-selected" title="删除选中对象">⌫</button>
+        <button class="tool-button" id="zoom-out" title="缩小">−</button>
+        <button class="tool-button" id="zoom-in" title="放大">＋</button>
+        <button class="tool-button" id="zoom-fit" title="适配电路">⤢</button>
+      </div>
+
+      <div class="runbar">
+        <button class="primary-button" id="run-toggle">暂停</button>
+        <button class="secondary-button" id="step-once">单步</button>
+        <button class="secondary-button" id="reset-sim">复位</button>
+      </div>
+    </header>
+
+    <main class="workbench">
+      <aside class="palette-panel" aria-label="元件库">
+        <div class="panel-heading">
+          <span>控制台</span>
+          <button class="ghost-button" id="new-circuit" title="新建电路">新建</button>
+        </div>
+
+        <div class="panel-heading compact">
+          <span>演示电路</span>
+        </div>
+        <div class="example-list" id="example-list"></div>
+
+        <div class="panel-heading compact">
+          <span>搭建元件</span>
+        </div>
+        <div class="palette-search">
+          <input id="component-filter" type="search" placeholder="筛选元件">
+        </div>
+        <div class="component-list" id="component-list"></div>
+
+        <div class="panel-heading compact">
+          <span>项目</span>
+        </div>
+        <div class="file-actions">
+          <button class="secondary-button full" id="export-circuit">导出 JSON</button>
+          <button class="secondary-button full" id="import-circuit">导入 JSON</button>
+        </div>
+      </aside>
+
+      <section class="canvas-panel">
+        <div class="canvas-header">
+          <div class="status-pill" id="simulation-status">运行中</div>
+          <div class="canvas-meta" id="canvas-meta">t = 0.000 s</div>
+        </div>
+        <div class="canvas-wrap">
+          <div class="canvas-hud" id="canvas-hud" aria-live="polite"></div>
+          <svg id="circuit-canvas" viewBox="0 0 1200 720" role="application" aria-label="电路编辑画布">
+            <defs>
+              <pattern id="minor-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <path d="M 24 0 L 0 0 0 24" class="minor-grid-line"></path>
+              </pattern>
+              <pattern id="major-grid" width="120" height="120" patternUnits="userSpaceOnUse">
+                <rect width="120" height="120" fill="url(#minor-grid)"></rect>
+                <path d="M 120 0 L 0 0 0 120" class="major-grid-line"></path>
+              </pattern>
+            </defs>
+            <rect class="grid-bg" x="0" y="0" width="1200" height="720" fill="url(#major-grid)"></rect>
+            <g id="wire-layer"></g>
+            <g id="component-layer"></g>
+            <g id="overlay-layer"></g>
+          </svg>
+        </div>
+      </section>
+
+      <aside class="inspector-panel">
+        <div class="tabs" role="tablist">
+          <button class="tab" data-tab="properties">属性</button>
+          <button class="tab" data-tab="simulation">仿真</button>
+          <button class="tab active" data-tab="measurements">测量</button>
+        </div>
+
+        <section class="tab-panel" id="tab-properties">
+          <div id="properties-content" class="properties-content"></div>
+        </section>
+
+        <section class="tab-panel" id="tab-simulation">
+          <div class="form-grid">
+            <label>
+              时间步长
+              <input id="setting-dt" type="number" min="0.0001" max="1" step="0.0005">
+            </label>
+            <label>
+              每帧步数
+              <input id="setting-speed" type="number" min="1" max="200" step="1">
+            </label>
+            <label>
+              波形样本
+              <input id="setting-samples" type="number" min="80" max="1000" step="20">
+            </label>
+            <label class="check-row">
+              <input id="setting-autosave" type="checkbox">
+              自动保存
+            </label>
+            <label class="check-row">
+              <input id="setting-orthogonal-wire" type="checkbox">
+              正交布线
+            </label>
+          </div>
+          <div class="warning-list" id="warning-list"></div>
+        </section>
+
+        <section class="tab-panel active" id="tab-measurements">
+          <div class="meter-summary" id="meter-summary"></div>
+          <canvas id="scope-canvas" width="420" height="190" aria-label="示波器"></canvas>
+          <div class="measurement-table-wrap">
+            <table class="measurement-table">
+              <thead>
+                <tr>
+                  <th>对象</th>
+                  <th>电压</th>
+                  <th>电流</th>
+                  <th>功率</th>
+                </tr>
+              </thead>
+              <tbody id="measurement-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status-text">选择元件或使用导线工具开始搭建电路。</span>
+      <span id="selection-text">未选中</span>
+    </footer>
+  </div>
+
+  <dialog id="json-dialog" class="json-dialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <h2 id="json-dialog-title">电路 JSON</h2>
+        <button class="tool-button" value="cancel" title="关闭">×</button>
+      </div>
+      <textarea id="json-textarea" spellcheck="false"></textarea>
+      <div class="dialog-actions">
+        <button class="secondary-button" id="copy-json" type="button">复制</button>
+        <button class="primary-button" id="apply-json" type="button">应用</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

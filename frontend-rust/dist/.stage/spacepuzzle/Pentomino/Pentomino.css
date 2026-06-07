@@ -1,0 +1,201 @@
+/* 空间类：Pentomino 五连方 */
+.pentomino-control-panel {
+  min-width: 360px;
+}
+
+.pentomino-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pentomino-preview {
+  min-height: 138px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 1.1rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 218, 89, 0.05)),
+    rgba(0, 0, 0, 0.24);
+}
+
+.pentomino-preview-grid {
+  width: 120px;
+  height: 120px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.pentomino-preview-cell {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.pentomino-preview-cell.active {
+  border-color: rgba(255, 255, 255, 0.48);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.28), transparent 30%),
+    var(--piece-color);
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.12),
+    0 0 12px rgba(64, 224, 255, 0.14);
+}
+
+.pentomino-panel {
+  flex: 2;
+  min-width: 540px;
+  padding: 2.4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 24% 16%, rgba(255, 218, 89, 0.1), transparent 30%),
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 107, 138, 0.06)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.pentomino-tray {
+  width: min(620px, 100%);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.pentomino-piece-btn {
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.42)),
+    var(--piece-color);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.pentomino-piece-btn:hover,
+.pentomino-piece-btn.active {
+  transform: translateY(-2px);
+  border-color: var(--piece-color);
+  box-shadow: 0 0 16px rgba(64, 224, 255, 0.24);
+}
+
+.pentomino-piece-btn.placed {
+  opacity: 0.48;
+}
+
+.pentomino-piece-btn.active.placed {
+  opacity: 0.72;
+}
+
+.pentomino-board {
+  --pentomino-cols: 10;
+  --pentomino-rows: 6;
+  width: min(680px, 100%);
+  aspect-ratio: 10 / 6;
+  display: grid;
+  grid-template-columns: repeat(var(--pentomino-cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--pentomino-rows), minmax(0, 1fr));
+  gap: 0.36rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(64, 224, 255, 0.24);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(64, 224, 255, 0.055) 0,
+      rgba(64, 224, 255, 0.055) 8px,
+      rgba(255, 255, 255, 0.018) 8px,
+      rgba(255, 255, 255, 0.018) 16px
+    ),
+    linear-gradient(145deg, rgba(2, 12, 18, 0.96), rgba(8, 24, 32, 0.72));
+  box-shadow:
+    inset 0 0 24px rgba(64, 224, 255, 0.1),
+    0 0 28px rgba(0, 0, 0, 0.24);
+}
+
+.pentomino-cell {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(64, 224, 255, 0.22);
+  color: rgba(6, 16, 22, 0.78);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: clamp(0.72rem, 1.3vw, 1rem);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pentomino-cell:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 218, 89, 0.78);
+  box-shadow: 0 0 12px rgba(255, 218, 89, 0.14);
+}
+
+.pentomino-cell.filled {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.42);
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.34), transparent 28%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 44%),
+    var(--piece-color);
+  box-shadow:
+    inset 0 0 12px rgba(255, 255, 255, 0.14),
+    0 0 14px rgba(64, 224, 255, 0.16);
+}
+
+#pentomino-step-counter {
+  color: #ffda59;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(255, 218, 89, 0.86);
+}
+
+#pentomino-step-move {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 980px) {
+  .pentomino-panel {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .pentomino-tray {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pentomino-control-panel,
+  .pentomino-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .pentomino-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pentomino-board {
+    gap: 0.2rem;
+    padding: 0.45rem;
+  }
+
+  .pentomino-tray {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

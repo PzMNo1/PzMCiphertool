@@ -1,0 +1,346 @@
+/* 空间类：Rubik's Clock */
+.rubiks-clock-control {
+  min-width: 360px;
+}
+
+.clock-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.clock-pattern-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.clock-pattern-btn {
+  min-width: 0;
+}
+
+.clock-pattern-btn.active {
+  border-color: rgba(255, 218, 89, 0.82);
+  background: rgba(255, 218, 89, 0.11);
+  box-shadow:
+    inset 0 0 16px rgba(255, 218, 89, 0.1),
+    0 0 18px rgba(255, 218, 89, 0.22);
+}
+
+.clock-wheel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.2rem;
+}
+
+.clock-wheel-card {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 218, 89, 0.05)),
+    rgba(0, 0, 0, 0.26);
+  border-radius: 6px;
+}
+
+.clock-wheel-title {
+  margin-bottom: 0.65rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.clock-wheel-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.clock-wheel-actions button {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(64, 224, 255, 0.28);
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(4, 18, 24, 0.82);
+  border-radius: 4px;
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.clock-wheel-actions button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 218, 89, 0.8);
+  box-shadow: 0 0 14px rgba(255, 218, 89, 0.18);
+}
+
+.rubiks-clock-panel {
+  flex: 2;
+  min-width: 460px;
+  padding: 2.4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 16%, rgba(255, 218, 89, 0.1), transparent 28%),
+    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 107, 138, 0.06)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.rubiks-clock-board {
+  width: min(820px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.rubiks-clock-side {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  background:
+    linear-gradient(145deg, rgba(2, 12, 18, 0.96), rgba(8, 24, 32, 0.78)),
+    rgba(0, 0, 0, 0.34);
+  box-shadow:
+    inset 0 0 24px rgba(64, 224, 255, 0.08),
+    0 0 26px rgba(0, 0, 0, 0.22);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rubiks-clock-side.active {
+  border-color: rgba(255, 218, 89, 0.72);
+  box-shadow:
+    inset 0 0 24px rgba(255, 218, 89, 0.1),
+    0 0 22px rgba(255, 218, 89, 0.15);
+}
+
+.rubiks-clock-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.85rem;
+  color: rgba(255, 255, 255, 0.84);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.rubiks-clock-focus-btn {
+  min-width: 72px;
+  min-height: 28px;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(64, 224, 255, 0.28);
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.32);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rubiks-clock-side.active .rubiks-clock-focus-btn {
+  border-color: rgba(255, 218, 89, 0.64);
+  color: #ffda59;
+}
+
+.rubiks-clock-grid {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 0.68rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(64, 224, 255, 0.06), transparent 58%),
+    rgba(0, 0, 0, 0.22);
+}
+
+.rubiks-clock-dial {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(64, 224, 255, 0.32);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.22), transparent 22%),
+    radial-gradient(circle at center, rgba(255, 218, 89, 0.12), rgba(2, 12, 18, 0.94) 64%);
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.36),
+    0 0 13px rgba(64, 224, 255, 0.12);
+}
+
+.rubiks-clock-dial.solved {
+  border-color: rgba(255, 218, 89, 0.54);
+}
+
+.rubiks-clock-hand {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 16%;
+  width: 4px;
+  height: 36%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffda59, #ff6b8a);
+  box-shadow: 0 0 10px rgba(255, 218, 89, 0.45);
+  transform: rotate(var(--clock-angle, 0deg));
+  transform-origin: 50% 94%;
+  transition: transform 0.16s ease;
+}
+
+.rubiks-clock-hand::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: translateX(-50%);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.55);
+}
+
+.rubiks-clock-value {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.82);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: clamp(0.66rem, 1.7vw, 0.95rem);
+  font-weight: 900;
+}
+
+.rubiks-clock-tick {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.rubiks-clock-tick-12 {
+  top: 9%;
+  left: calc(50% - 2px);
+}
+
+.rubiks-clock-tick-3 {
+  top: calc(50% - 2px);
+  right: 9%;
+}
+
+.rubiks-clock-tick-6 {
+  bottom: 9%;
+  left: calc(50% - 2px);
+}
+
+.rubiks-clock-tick-9 {
+  top: calc(50% - 2px);
+  left: 9%;
+}
+
+.rubiks-clock-pin {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid rgba(64, 224, 255, 0.5);
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(3, 16, 22, 0.94);
+  box-shadow: 0 0 14px rgba(64, 224, 255, 0.2);
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rubiks-clock-pin span {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.rubiks-clock-pin.up {
+  border-color: rgba(255, 218, 89, 0.94);
+  color: #061016;
+  background: linear-gradient(135deg, #ffda59, #40e0ff);
+  box-shadow:
+    0 0 14px rgba(255, 218, 89, 0.36),
+    0 0 9px rgba(64, 224, 255, 0.24);
+}
+
+.rubiks-clock-pin:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.rubiks-clock-pin-ul {
+  left: 35%;
+  top: 35%;
+}
+
+.rubiks-clock-pin-ur {
+  left: 65%;
+  top: 35%;
+}
+
+.rubiks-clock-pin-dl {
+  left: 35%;
+  top: 65%;
+}
+
+.rubiks-clock-pin-dr {
+  left: 65%;
+  top: 65%;
+}
+
+#clock-step-counter {
+  color: #ffda59;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(255, 218, 89, 0.86);
+}
+
+#clock-step-move {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.76);
+  word-break: break-word;
+}
+
+@media (max-width: 980px) {
+  .rubiks-clock-board {
+    grid-template-columns: 1fr;
+    width: min(460px, 100%);
+  }
+}
+
+@media (max-width: 760px) {
+  .rubiks-clock-control,
+  .rubiks-clock-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .clock-action-grid,
+  .clock-wheel-grid,
+  .clock-pattern-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rubiks-clock-grid {
+    gap: 0.42rem;
+    padding: 0.5rem;
+  }
+
+  .rubiks-clock-pin {
+    width: 32px;
+    height: 32px;
+  }
+}

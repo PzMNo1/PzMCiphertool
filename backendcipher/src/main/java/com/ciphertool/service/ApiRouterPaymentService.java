@@ -84,6 +84,9 @@ public class ApiRouterPaymentService {
         String base = manualInstructions == null || manualInstructions.isBlank()
                 ? "请联系管理员完成线下转账，并备注订单号。"
                 : manualInstructions.trim();
+        if ("wechat".equals(payMethod)) {
+            return "请扫描页面微信收款码完成转账，付款后点击“我已完成支付”提交人工审核。订单号: " + orderId;
+        }
         return base + " 订单号: " + orderId;
     }
 

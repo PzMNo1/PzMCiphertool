@@ -43,7 +43,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private static final int DEEP_READ_FUTURE_TIMEOUT_SECONDS = 22;
     private static final int SEARCH_REQUEST_TIMEOUT_SECONDS = 6;
     private static final int SEARCH_FUTURE_TIMEOUT_SECONDS = 8;
-    private static final int RESEARCH_QUERY_BATCH_PARALLELISM = 4;
+    private static final int RESEARCH_QUERY_BATCH_PARALLELISM = 6;
     private static final int RESEARCH_QUERY_FUTURE_TIMEOUT_SECONDS = 18;
     private static final int NEWS_RESULT_LIMIT = 8;
     private static final int NEWS_CANDIDATE_LIMIT = 64;
