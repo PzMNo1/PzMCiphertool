@@ -135,3 +135,24 @@ trunk serve --port 5173 --open
 支持任何 OpenAI-compatible 上游，只需将 `OPENAI_BASE_URL` 指向对应 `/v1` 基址。
 
 前端通过 `window.CIPHERTOOL_API_BASE`（默认 `http://localhost:8080`）连接后端。
+
+### API 中转站生产配置
+
+中转站提供 OpenAI-compatible `/v1` 接入、API Key、余额钱包、价格规则、上游渠道、充值订单、余额套餐和邀请返利。生产环境建议使用外部数据库并启用 Flyway 迁移：
+
+| 变量 | 说明 | 建议 |
+|------|------|------|
+| `CIPHERTOOL_DB_URL` | 生产数据库 JDBC URL | 使用 MySQL/PostgreSQL 等外部数据库 |
+| `CIPHERTOOL_SQL_INIT_MODE` | Spring `schema.sql` 初始化 | 生产设为 `never` |
+| `CIPHERTOOL_FLYWAY_ENABLED` | Flyway 迁移 | 生产设为 `true` |
+| `CIPHERTOOL_FLYWAY_BASELINE_ON_MIGRATE` | 已有库接入迁移 | 仅首次接入已有库时按需设为 `true` |
+| `API_ROUTER_ADMIN_EMAILS` | 渠道、价格、套餐、兑换码管理员 | 多个邮箱用英文逗号分隔 |
+| `API_ROUTER_PAYMENT_REVIEWER_EMAILS` | 支付审核员 | 未配置时回退到管理员 |
+| `API_ROUTER_MAX_OUTPUT_TOKENS` | 单次请求最大输出 token 参数 | 默认 `8192`，硬上限 `1000000` |
+| `API_ROUTER_MAX_OUTPUT_CHOICES` | 单次请求最大 `n` / `best_of` 数量 | 默认 `16`，硬上限 `128` |
+| `API_ROUTER_INPUT_PRICE_PER_MILLION` / `API_ROUTER_OUTPUT_PRICE_PER_MILLION` | 全局默认售价 | 也可在运营页配置模型价格规则 |
+| `API_ROUTER_PUBLIC_BASE_URL` | 支付完成返回前端地址 | 例如 `https://app.example.com` |
+
+支付可使用 `API_ROUTER_PAYMENT_CHECKOUT_URL_TEMPLATE` / `API_ROUTER_PAYMENT_QR_CODE_URL_TEMPLATE`，或按支付方式分别配置 `API_ROUTER_ALIPAY_*`、`API_ROUTER_WECHAT_*`、`API_ROUTER_STRIPE_*` 模板。模板支持 `{orderId}`、`{email}`、`{amount}`、`{payMethod}`、`{returnUrl}`。
+
+生产数据库不要启用 `schema.sql` 全量初始化；该文件用于本地 H2/嵌入式初始化。中转站旧审计、用户控制、支付回调和对账表已由迁移清理，生产迁移以 `backendcipher/src/main/resources/db/migration` 为准。

@@ -127,8 +127,9 @@
         const id = normalizeResourceId(item.id, name) || createCustomId(name);
         const type = normalizeChoice(item.type, allowedResourceTypes, 'MCP Directory');
         const sourceLabel = normalizeChoice(item.source, allowedSources, 'Community');
-        const category = normalizeCategory(item.category);
+        const tags = normalizeTags(item.tags, ['custom']);
         const categories = normalizeListValue(item.categories, [], categoryTabs.map(tab => tab.id), { maxItems: 6, maxLength: 24 });
+        const category = normalizeCategory(item.category) || getResourceCategory({ ...item, type, tags, categories }) || 'other';
         if (category && !categories.includes(category)) categories.unshift(category);
 
         return {
@@ -139,8 +140,8 @@
             categories,
             source: sourceLabel,
             risk: normalizeChoice(item.risk, allowedRisks, 'Medium'),
-            recommend: clipText(item.recommend, 120, sourceLabel === 'Official' ? '官方优先入口' : '本地补充资源'),
-            tags: normalizeTags(item.tags, ['custom']),
+            recommend: clipText(item.recommend, 120, sourceLabel === 'Official' ? '官方优先入口' : '自定义资源'),
+            tags,
             scenario: clipText(item.scenario, 600, '本地手动添加的 Skill / MCP 候选资源。'),
             url,
             docs,
@@ -1414,7 +1415,7 @@
             categories: Array.isArray(value.categories) ? value.categories.map(normalizeCategory).filter(Boolean) : undefined,
             source: 'Community',
             risk: normalizeChoice(value.risk, allowedRisks, 'Medium'),
-            recommend: clipText(value.recommend, 120, '本地补充资源'),
+            recommend: clipText(value.recommend, 120, '自定义资源'),
             tags: Array.from(new Set([...normalizeTags(value.tags, ['custom']), 'custom'])),
             scenario: clipText(value.scenario, 600, '本地手动添加的 Skill / MCP 候选资源。'),
             url,
@@ -1493,7 +1494,7 @@
         } catch (error) {
             serverResources = [];
             serverResourceStatus = 'error';
-            serverResourceMessage = `后端共享目录暂不可用：${error.message || '连接失败'}。当前使用前端离线目录和本地补充。`;
+            serverResourceMessage = `后端共享目录暂不可用：${error.message || '连接失败'}。当前使用前端离线目录。`;
         }
         render();
     }
@@ -2753,14 +2754,13 @@
     }
 
     function renderHubPanel(favorites) {
-        const customResources = getCustomResources();
         return `
             <div class="mcpskilllab-hub-grid">
                 <div class="card mcpskilllab-hub-card">
                     <div class="badge">共享目录</div>
                     <div class="mcpskilllab-detail-title">当前阶段</div>
                     <div class="mcpskilllab-hub-desc">
-                        资源目录优先从后端加载。团队可以通过技能包上传、联网搜索或手动表单把 Skill / MCP 资源提交到共享目录。本地收藏、状态和备注仍保存在浏览器本地。
+                        资源目录优先从后端加载。本地收藏、状态和备注仍保存在浏览器本地。
                     </div>
                     ${renderServiceStatus()}
                     <div class="mcpskilllab-roadmap-list">
@@ -2770,20 +2770,14 @@
                         </div>
                         <div class="mcpskilllab-roadmap-item">
                             <span class="mcpskilllab-chip status-ready">本阶段</span>
-                            <div class="mcpskilllab-hub-desc">联网搜索候选、手动提交共享目录、待接入状态、备注。</div>
+                            <div class="mcpskilllab-hub-desc">联网搜索候选、共享目录接入、待接入状态、备注。</div>
                         </div>
                         <div class="mcpskilllab-roadmap-item">
                             <span class="mcpskilllab-chip status-review">下一阶段</span>
                             <div class="mcpskilllab-hub-desc">更细的来源审核、按场景推荐、接入测试记录。</div>
                         </div>
                     </div>
-                    <div class="mcpskilllab-inline-actions">
-                        <button class="cyber-button" id="mcpskilllab-export" type="button"><span class="cyber-button__tag">导出JSON</span></button>
-                        <button class="cyber-button" id="mcpskilllab-import" type="button"><span class="cyber-button__tag">导入JSON</span></button>
-                        <button class="cyber-button" id="mcpskilllab-refresh-dialog" type="button"><span class="cyber-button__tag">刷新共享目录</span></button>
-                        <input id="mcpskilllab-import-file" type="file" accept="application/json,.json" hidden>
-                    </div>
-                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个，自定义资源 ${customResources.length} 个。</div>
+                    <div class="mcpskilllab-hub-desc">本地收藏 ${favorites.size} 个。</div>
                 </div>
 
                 <div class="card mcpskilllab-hub-card">
@@ -2828,87 +2822,6 @@
                     </form>
                     ${searchStatus ? `<div class="mcpskilllab-hub-desc">${escapeHtml(searchStatus)}</div>` : ''}
                     ${renderSearchCandidates()}
-                </div>
-
-                <div class="card mcpskilllab-hub-card">
-                    <div class="badge">补充资源</div>
-                    <div class="mcpskilllab-detail-title">手动提交 Skill / MCP</div>
-                    <form id="mcpskilllab-custom-form" class="mcpskilllab-field-grid">
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-name">名称</label>
-                            <input id="mcpskilllab-resource-name" name="resourceName" type="text" placeholder="例如：My Company MCP" required>
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-type">类型</label>
-                            <select id="mcpskilllab-resource-type" name="resourceType">${renderTypeOptions('MCP Directory')}</select>
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-category">所属子模块</label>
-                            <select id="mcpskilllab-resource-category" name="resourceCategory">${renderCategoryOptions(activeCategory)}</select>
-                        </div>
-                        <div class="mcpskilllab-field wide">
-                            <label for="mcpskilllab-resource-url">官网或仓库链接</label>
-                            <input id="mcpskilllab-resource-url" name="resourceUrl" type="url" placeholder="https://..." required>
-                        </div>
-                        <div class="mcpskilllab-field wide">
-                            <label for="mcpskilllab-resource-docs">文档链接</label>
-                            <input id="mcpskilllab-resource-docs" name="resourceDocs" type="url" placeholder="不填则使用官网链接">
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-risk">初始风险</label>
-                            <select id="mcpskilllab-resource-risk" name="resourceRisk">
-                                <option value="Medium">中风险</option>
-                                <option value="Low">低风险</option>
-                            </select>
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-auth">密钥需求</label>
-                            <select id="mcpskilllab-resource-auth" name="resourceAuth">
-                                <option value="depends">视资源而定</option>
-                                <option value="true">需要密钥</option>
-                                <option value="false">不强制</option>
-                            </select>
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-tags">标签</label>
-                            <input id="mcpskilllab-resource-tags" name="resourceTags" type="text" placeholder="mcp, database, custom">
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-platforms">适配平台</label>
-                            <input id="mcpskilllab-resource-platforms" name="resourcePlatforms" type="text" placeholder="Codex, Claude, Cursor">
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-permissions">权限</label>
-                            <input id="mcpskilllab-resource-permissions" name="resourcePermissions" type="text" placeholder="network, apiKey, filesRead">
-                        </div>
-                        <div class="mcpskilllab-field">
-                            <label for="mcpskilllab-resource-install">接入方式</label>
-                            <input id="mcpskilllab-resource-install" name="resourceInstallModes" type="text" placeholder="directory, remote, local">
-                        </div>
-                        <div class="mcpskilllab-field wide">
-                            <label for="mcpskilllab-resource-scenario">用途说明</label>
-                            <textarea id="mcpskilllab-resource-scenario" name="resourceScenario" placeholder="这个资源适合什么场景？"></textarea>
-                        </div>
-                        <div class="mcpskilllab-field wide">
-                            <label for="mcpskilllab-resource-template">配置片段或备注</label>
-                            <textarea id="mcpskilllab-resource-template" name="resourceTemplate" placeholder='例如：{"mcpServers":{...}}'></textarea>
-                        </div>
-                        <label class="mcpskilllab-checkbox-row wide">
-                            <input name="favorite" type="checkbox" checked>
-                            添加后同时加入待接入清单
-                        </label>
-                        <div class="mcpskilllab-inline-actions wide">
-                            <button class="cyber-button" type="submit"><span class="cyber-button__tag">提交共享目录</span></button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card mcpskilllab-hub-card">
-                    <div class="badge">本地补充</div>
-                    <div class="mcpskilllab-detail-title">自定义资源</div>
-                    <div class="mcpskilllab-custom-list">
-                        ${renderCustomResources(customResources)}
-                    </div>
                 </div>
             </div>
         `;
@@ -2964,7 +2877,7 @@
                     <div class="card mcpskilllab-hub-card">
                         <div class="badge">技能接口</div>
                         <div class="mcpskilllab-detail-title">批量交换 Skill / MCP 资源</div>
-                        <div class="mcpskilllab-hub-desc">面向各类 Agent 的通用上传/下载入口，同时保留联网搜索和手动提交。</div>
+                        <div class="mcpskilllab-hub-desc">查看后端共享目录连接状态和当前加载资源。</div>
                         <div class="mcpskilllab-inline-actions">
                             <button class="cyber-button mcpskilllab-panel-close" type="button"><span class="cyber-button__tag">收起</span></button>
                         </div>
@@ -3209,13 +3122,6 @@
             });
         }
 
-        const refreshDialogButton = root.querySelector('#mcpskilllab-refresh-dialog');
-        if (refreshDialogButton) {
-            refreshDialogButton.addEventListener('click', () => {
-                loadServerResources(true);
-            });
-        }
-
         const serverSearchForm = root.querySelector('#mcpskilllab-server-search-form');
         if (serverSearchForm) {
             serverSearchForm.addEventListener('submit', event => {
@@ -3339,39 +3245,6 @@
             });
         }
 
-        const exportButton = root.querySelector('#mcpskilllab-export');
-        if (exportButton) {
-            exportButton.addEventListener('click', exportHubData);
-        }
-
-        const importButton = root.querySelector('#mcpskilllab-import');
-        const importFile = root.querySelector('#mcpskilllab-import-file');
-        if (importButton && importFile) {
-            importButton.addEventListener('click', () => {
-                importFile.click();
-            });
-            importFile.addEventListener('change', event => {
-                const file = event.target.files && event.target.files[0];
-                if (!file) return;
-                if (file.size > MAX_IMPORT_BYTES) {
-                    window.alert('导入失败：JSON 文件过大');
-                    importFile.value = '';
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = () => {
-                    try {
-                        importHubData(String(reader.result || ''));
-                        render();
-                    } catch (error) {
-                        window.alert(`导入失败：${error.message || 'JSON 无法解析'}`);
-                    }
-                    importFile.value = '';
-                };
-                reader.readAsText(file, 'utf-8');
-            });
-        }
-
         const customForm = root.querySelector('#mcpskilllab-custom-form');
         if (customForm) {
             customForm.addEventListener('submit', async event => {
@@ -3387,7 +3260,7 @@
                 } catch (error) {
                     saveCustomResources(mergeCustomResourceLists(getCustomResources(), [resource]));
                     serverResourceStatus = 'error';
-                    serverResourceMessage = `共享目录提交失败，已保存为本地补充：${error.message || '后端不可用'}`;
+                    serverResourceMessage = `共享目录提交失败，已保存为自定义资源：${error.message || '后端不可用'}`;
                 }
                 if (new FormData(customForm).has('favorite')) {
                     const favorites = getFavorites();

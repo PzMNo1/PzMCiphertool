@@ -1484,6 +1484,7 @@
     }
 
     function formatChatForExport(chat) {
+        const debugExport = shouldExportDebugInternals();
         const lines = [
             `会话标题: ${chat.title || '未命名会话'}`,
             `会话 ID: ${chat.id}`,
@@ -1510,12 +1511,12 @@
                 });
             }
 
-            if (msg.reasoning_content || msg.reasoning) {
+            if (debugExport && (msg.reasoning_content || msg.reasoning)) {
                 lines.push('', '[思维链]');
                 lines.push(String(msg.reasoning_content || msg.reasoning));
             }
 
-            if (Array.isArray(msg.tool_calls) && msg.tool_calls.length) {
+            if (debugExport && Array.isArray(msg.tool_calls) && msg.tool_calls.length) {
                 lines.push('', '[工具调用]');
                 msg.tool_calls.forEach((toolCall, toolIndex) => {
                     lines.push(formatToolCallForExport(toolCall, toolIndex));
@@ -1542,6 +1543,14 @@
         });
 
         return lines.join('\n');
+    }
+
+    function shouldExportDebugInternals() {
+        try {
+            return localStorage.getItem('PZM_EXPORT_DEBUG') === '1';
+        } catch (e) {
+            return false;
+        }
     }
 
     function formatRole(role) {

@@ -865,6 +865,7 @@ class ChatUI {
     }
 
     createAgentCollaborationPanel(collaboration) {
+        return null;
         if (!collaboration?.enabled || !Array.isArray(collaboration.collaborators) || !collaboration.collaborators.length) {
             return null;
         }
@@ -1361,7 +1362,7 @@ class ChatUI {
             </div>
             <div class="tool-call-result"></div>
         `;
-        toolCard.hidden = true;
+        toolCard.hidden = Boolean(container?.agentRunPanel);
 
         if (container.toolDeck) {
             container.toolDeck.appendChild(toolCard);

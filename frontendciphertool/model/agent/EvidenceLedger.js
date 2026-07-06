@@ -102,13 +102,18 @@
                         kind: 'search_result',
                         tool: toolName,
                         source_id: index + 1,
-                        title: item.title,
-                        url: item.url,
-                        snippet: item.snippet,
+                        title: item.title || item.name || item.paper_title,
+                        url: item.url || item.link || item.href || item.paper_url || this.buildStableItemUrl(item),
+                        snippet: item.snippet || item.abstract || item.summary || item.description,
                         search_source: item.source,
+                        stable_id: item.pmid || item.PMID || item.arxiv || item.arxiv_id || item.arxivId || item.doi || item.DOI,
                         observed_at: now
                     }));
                 });
+            }
+
+            if (!entries.length && toolName === 'news_query') {
+                entries.push(...this.parseNewsQueryEntries(String(result || ''), now));
             }
 
             if (!entries.length) {
@@ -126,6 +131,43 @@
             return entries
                 .filter(Boolean)
                 .sort((a, b) => this.scoreSource(b) - this.scoreSource(a));
+        }
+
+        parseNewsQueryEntries(resultText, observedAt) {
+            const text = String(resultText || '');
+            if (!/^News results for:/i.test(text.trim())) return [];
+            const blocks = Array.from(text.matchAll(/(?:^|\n)(\d+)\.\s+([^\n]+)\n([\s\S]*?)(?=\n\d+\.\s+|\nNext step:|$)/g));
+            return blocks.map(match => {
+                const sourceId = match[1];
+                const title = match[2];
+                const body = match[3] || '';
+                const sourceLine = body.match(/^\s*Source:\s*([^\n]+)$/mi);
+                const linkLine = body.match(/^\s*Link:\s*(https?:\/\/\S+)/mi);
+                const qualityLine = body.match(/^\s*Quality:\s*([^\n]+)$/mi);
+                const snippetLine = body.match(/^\s*Snippet:\s*([\s\S]*?)(?=\n\s*(?:Source|Link|Quality|Snippet):|$)/mi);
+                const sourceText = sourceLine ? sourceLine[1].trim() : '';
+                const domain = sourceText.split(/\s+via\s+/i)[0]?.trim() || '';
+                const searchSource = sourceText.split(/\s+via\s+/i)[1]?.trim() || '';
+                const quality = qualityLine ? qualityLine[1].trim() : '';
+                const trustLevel = /^high\b/i.test(quality)
+                    ? 'high'
+                    : /^medium\b/i.test(quality)
+                        ? 'medium'
+                        : '';
+                return this.normalizeEntry({
+                    kind: 'news_result',
+                    tool: 'news_query',
+                    source_id: sourceId,
+                    title,
+                    url: linkLine ? linkLine[1] : '',
+                    snippet: snippetLine ? snippetLine[1].trim() : '',
+                    search_source: searchSource,
+                    domain,
+                    quality,
+                    trustLevel,
+                    observed_at: observedAt
+                });
+            }).filter(Boolean);
         }
 
         addEntry(runState, entry) {
@@ -177,13 +219,45 @@
                 url: runtime.cleanUrl(entry.url || ''),
                 observed_at: entry.observed_at || new Date().toISOString()
             };
-            ['query', 'search_source', 'community', 'filter', 'chunk_index', 'total_chunks', 'truncated', 'error'].forEach(key => {
+            [
+                'query',
+                'search_source',
+                'community',
+                'filter',
+                'chunk_index',
+                'total_chunks',
+                'truncated',
+                'error',
+                'trustLevel',
+                'trustReason',
+                'sourceType',
+                'authorityScore',
+                'recencyScore',
+                'primarySource',
+                'sourceProfileReason',
+                'domain',
+                'quality',
+                'published_at',
+                'publishedAt',
+                'date',
+                'stable_id'
+            ].forEach(key => {
                 if (entry[key] !== undefined && entry[key] !== null && entry[key] !== '') normalized[key] = entry[key];
             });
             if (entry.snippet) normalized.snippet = runtime.previewValue(entry.snippet, 320);
             if (entry.content_preview) normalized.content_preview = runtime.previewValue(entry.content_preview, 500);
             if (!normalized.title && !normalized.url && !normalized.error) return null;
             return normalized;
+        }
+
+        buildStableItemUrl(item = {}) {
+            const pmid = item.pmid || item.PMID;
+            if (pmid) return `https://pubmed.ncbi.nlm.nih.gov/${String(pmid).trim()}/`;
+            const arxiv = item.arxiv || item.arxiv_id || item.arxivId;
+            if (arxiv) return `https://arxiv.org/abs/${String(arxiv).trim().replace(/\.pdf$/i, '').replace(/v\d+$/i, '')}`;
+            const doi = item.doi || item.DOI;
+            if (doi) return `https://doi.org/${String(doi).trim().replace(/^https?:\/\/doi\.org\//i, '')}`;
+            return '';
         }
 
         scoreSource(entry) {

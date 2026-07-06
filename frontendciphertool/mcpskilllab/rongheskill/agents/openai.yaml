@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ronghe Skill"
+  short_description: "Fuse skills into one coherent operating skill"
+  default_prompt: "Use $rongheskill to fuse several skills into one coherent higher-order skill with explicit conflict resolution."
+

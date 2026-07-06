@@ -240,6 +240,7 @@
 }
 
 .apizz-icon.blue { color: #75a8ff; background: rgba(117, 168, 255, .13); border-color: rgba(117, 168, 255, .22); }
+.apizz-icon.green { color: #79f2bd; background: rgba(46, 204, 113, .13); border-color: rgba(46, 204, 113, .24); }
 .apizz-icon.orange { color: #ffd27b; background: rgba(255, 210, 123, .13); border-color: rgba(255, 210, 123, .24); }
 .apizz-icon.purple { color: #b388ff; background: rgba(179, 136, 255, .14); border-color: rgba(179, 136, 255, .26); }
 .apizz-icon.red { color: #ff8fa3; background: rgba(255, 143, 163, .13); border-color: rgba(255, 143, 163, .24); }
@@ -740,19 +741,19 @@
   min-height: 44px;
 }
 
-.apizz-wechat-pay-page {
+.apizz-checkout-page {
   display: grid;
   gap: 1rem;
   margin-top: 1rem;
 }
 
-.apizz-wechat-pay-card,
-.apizz-wechat-countdown {
+.apizz-checkout-card,
+.apizz-checkout-countdown {
   min-height: auto !important;
   white-space: normal;
 }
 
-.apizz-wechat-pay-card {
+.apizz-checkout-card {
   display: grid;
   justify-items: center;
   gap: 1rem;
@@ -761,13 +762,13 @@
   background: rgba(8, 24, 42, .72);
 }
 
-.apizz-wechat-pay-title {
+.apizz-checkout-title {
   color: #f8fafc;
   font-size: 1.02rem;
   font-weight: 900;
 }
 
-.apizz-wechat-order-box {
+.apizz-checkout-order-box {
   display: grid;
   width: min(450px, 100%);
   overflow: hidden;
@@ -777,7 +778,7 @@
   text-align: left;
 }
 
-.apizz-wechat-order-box div {
+.apizz-checkout-order-box div {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -786,26 +787,27 @@
   padding: .7rem .85rem;
 }
 
-.apizz-wechat-order-box div + div {
+.apizz-checkout-order-box div + div {
   border-top: 1px solid rgba(148, 163, 184, .24);
 }
 
-.apizz-wechat-order-box span {
+.apizz-checkout-order-box span {
   color: rgba(203, 213, 225, .8);
 }
 
-.apizz-wechat-order-box strong {
+.apizz-checkout-order-box strong {
   color: #f8fafc;
 }
 
-.apizz-wechat-amount {
+.apizz-checkout-amount {
   color: #66f5d2 !important;
   font-size: 1.6rem;
 }
 
-.apizz-wechat-qr-frame {
+.apizz-checkout-qr-frame {
   display: grid;
   place-items: center;
+  gap: .85rem;
   width: min(324px, calc(100vw - 80px));
   aspect-ratio: 1;
   padding: 1rem;
@@ -814,16 +816,38 @@
   background: rgba(2, 6, 23, .34);
 }
 
-.apizz-wechat-qr-frame img {
+.apizz-checkout-qr-frame.apizz-checkout-only {
+  aspect-ratio: auto;
+  min-height: 148px;
+}
+
+.apizz-payment-placeholder {
+  color: rgba(226, 232, 240, .74);
+  font-size: .92rem;
+  text-align: center;
+}
+
+.apizz-checkout-qr-frame img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 248px;
   object-fit: contain;
   border-radius: 8px;
   background: #fff;
 }
 
-.apizz-wechat-note {
+.apizz-checkout-link {
+  width: 100%;
+  max-width: 220px;
+  min-height: 44px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.apizz-checkout-note {
   display: grid;
   gap: .45rem;
   color: rgba(203, 213, 225, .82);
@@ -831,11 +855,11 @@
   line-height: 1.55;
 }
 
-.apizz-wechat-note p {
+.apizz-checkout-note p {
   margin: 0;
 }
 
-.apizz-wechat-countdown {
+.apizz-checkout-countdown {
   display: grid;
   justify-items: center;
   gap: .3rem;
@@ -844,24 +868,24 @@
   background: rgba(8, 24, 42, .72);
 }
 
-.apizz-wechat-countdown strong {
+.apizz-checkout-countdown strong {
   color: #f8fafc;
   font-size: 1.7rem;
   font-weight: 900;
 }
 
-.apizz-wechat-countdown span {
+.apizz-checkout-countdown span {
   color: rgba(203, 213, 225, .64);
   font-size: .82rem;
 }
 
-.apizz-wechat-actions,
+.apizz-checkout-actions,
 .apizz-orders-tools {
   display: flex;
   gap: .75rem;
 }
 
-.apizz-wechat-actions > button {
+.apizz-checkout-actions > button {
   top: 0 !important;
   flex: 1 1 0;
   min-height: 44px;
@@ -872,6 +896,21 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 360px));
   gap: 1rem;
   justify-content: start;
+}
+
+.apizz-plan-pay-note {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 1rem;
+  padding: .45rem .65rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  color: rgba(203, 213, 225, .78);
+  background: rgba(15, 23, 42, .48);
+  border: 1px solid rgba(64, 224, 255, .18);
+  border-radius: 8px;
+  font-size: .84rem;
 }
 
 .apizz-plan-card {
@@ -2216,6 +2255,48 @@
   padding: .35rem .6rem;
 }
 
+.apizz-access-panel {
+  margin-top: 12px;
+}
+
+.apizz-access-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .9fr);
+  gap: 12px;
+}
+
+.apizz-access-field {
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, .34);
+}
+
+.apizz-access-wide {
+  grid-column: 1 / -1;
+}
+
+.apizz-access-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.apizz-access-copy-row code {
+  flex: 1;
+  min-width: 0;
+  color: #dbeafe;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apizz-access-warning {
+  color: #ffd27b !important;
+}
+
 .apizz-key-status.enabled {
   color: #8bffb9;
   background: rgba(46, 204, 113, .12);
@@ -2277,13 +2358,72 @@
   }
 
   .apizz-keys-actions,
+  .apizz-access-grid,
   .apizz-key-edit-grid {
     grid-template-columns: 1fr;
     width: 100%;
   }
 
+  .apizz-access-wide {
+    grid-column: auto;
+  }
+
   .apizz-key-edit-modal {
     width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
+  }
+}
+
+.apizz-ops-command {
+  min-height: auto;
+}
+
+.apizz-ops-actions {
+  grid-template-columns: repeat(4, minmax(132px, 1fr));
+  width: 100%;
+}
+
+.apizz-ops-metrics {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.apizz-ops-panel {
+  min-height: auto !important;
+  margin-bottom: 1rem;
+  white-space: normal;
+}
+
+.apizz-ops-table-wrap .apizz-table {
+  min-width: 880px;
+}
+
+.apizz-ops-table-wrap .apizz-key-actions {
+  justify-content: flex-start;
+  min-width: 260px;
+}
+
+.apizz-ops-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.apizz-checkbox-row {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.apizz-checkbox-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: #2eccbf;
+}
+
+@media (max-width: 860px) {
+  .apizz-ops-actions,
+  .apizz-ops-metrics,
+  .apizz-ops-form-grid {
+    grid-template-columns: 1fr;
   }
 }

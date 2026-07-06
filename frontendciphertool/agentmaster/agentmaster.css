@@ -229,6 +229,52 @@
     margin-bottom: 4px;
 }
 
+.agent-msg-ai .agent-table-wrap {
+    max-width: 100%;
+    margin: 10px 0;
+    overflow-x: auto;
+    border: 1px solid rgba(142, 231, 255, .18);
+    border-radius: 8px;
+    background: rgba(5, 16, 26, .32);
+}
+
+.agent-msg-ai .agent-markdown-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: .88rem;
+    line-height: 1.45;
+}
+
+.agent-msg-ai .agent-markdown-table th,
+.agent-msg-ai .agent-markdown-table td {
+    padding: 8px 10px;
+    border-right: 1px solid rgba(142, 231, 255, .14);
+    border-bottom: 1px solid rgba(142, 231, 255, .12);
+    text-align: left;
+    vertical-align: top;
+}
+
+.agent-msg-ai .agent-markdown-table th:last-child,
+.agent-msg-ai .agent-markdown-table td:last-child {
+    border-right: 0;
+}
+
+.agent-msg-ai .agent-markdown-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.agent-msg-ai .agent-markdown-table th {
+    color: #fff;
+    font-weight: 700;
+    background: rgba(64, 224, 255, .1);
+    white-space: nowrap;
+}
+
+.agent-msg-ai .agent-markdown-table td {
+    color: #dbeafe;
+}
+
 .agent-msg-ai strong {
     color: #fff;
 }

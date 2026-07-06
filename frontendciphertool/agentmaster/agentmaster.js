@@ -44,7 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'You are PzM assistant, a page-control agent embedded in this toolkit UI.',
                 'You can answer questions normally, and when the user asks you to operate the page, call the ui_action tool.',
                 'Only use tools when the latest user message explicitly asks for a UI operation such as open, switch, click, fill, search, scroll, focus, highlight, close, reload, or navigate.',
-                'Do not use tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, Skill/MCP, or 联系我们.',
+                'Do not use page-operation tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, Skill/MCP, or 联系我们.',
+                'Exception: when a selected knowledge-graph node explanation is active and the knowledge_graph_retrieve tool is available, retrieve that node knowledge base before answering.',
                 'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, and highlighting.',
                 'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
                 'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
@@ -176,6 +177,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const knowledgeGraphRetrieveTool = {
+        type: 'function',
+        function: {
+            name: 'knowledge_graph_retrieve',
+            description: 'Retrieve the current knowledge-graph node knowledge base. Use this when the user asks what the selected knowledge graph node is, what it means, or asks to explain it.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'Short natural-language query about the selected node.'
+                    },
+                    nodeName: {
+                        type: 'string',
+                        description: 'Optional node name. If omitted, use the active selected knowledge-graph node.'
+                    },
+                    topK: {
+                        type: 'number',
+                        description: 'Maximum number of retrieval records to return.'
+                    }
+                }
+            }
+        }
+    };
+
+    let pendingKnowledgeGraphContext = null;
+
     let mathJaxPromise = null;
     function hasMathSyntax(value) {
         const text = String(value || '');
@@ -218,12 +246,93 @@ document.addEventListener('DOMContentLoaded', () => {
     const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const inline = s => esc(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
 
+    function splitMarkdownTableRow(line) {
+        const raw = String(line || '').trim().replace(/^\|/, '').replace(/\|$/, '');
+        const cells = [];
+        let cell = '';
+        for (let i = 0; i < raw.length; i++) {
+            const ch = raw[i];
+            if (ch === '\\' && raw[i + 1] === '|') {
+                cell += '|';
+                i++;
+                continue;
+            }
+            if (ch === '|') {
+                cells.push(cell.trim());
+                cell = '';
+                continue;
+            }
+            cell += ch;
+        }
+        cells.push(cell.trim());
+        return cells;
+    }
+
+    function isMarkdownTableDivider(line) {
+        const cells = splitMarkdownTableRow(line);
+        return cells.length >= 2 && cells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, '')));
+    }
+
+    function isMarkdownTableAt(lines, index) {
+        const header = String(lines[index] || '').trim();
+        const divider = String(lines[index + 1] || '').trim();
+        return header.includes('|') &&
+            splitMarkdownTableRow(header).length >= 2 &&
+            isMarkdownTableDivider(divider);
+    }
+
+    function tableAlignment(dividerCell) {
+        const marker = String(dividerCell || '').replace(/\s+/g, '');
+        if (marker.startsWith(':') && marker.endsWith(':')) return 'center';
+        if (marker.endsWith(':')) return 'right';
+        if (marker.startsWith(':')) return 'left';
+        return '';
+    }
+
+    function tableCellAttrs(align) {
+        return align ? ` style="text-align:${align}"` : '';
+    }
+
+    function consumeMarkdownTable(lines, startIndex) {
+        const headers = splitMarkdownTableRow(lines[startIndex]);
+        const alignments = splitMarkdownTableRow(lines[startIndex + 1]).map(tableAlignment);
+        const rows = [];
+        let index = startIndex + 2;
+
+        while (index < lines.length) {
+            const line = String(lines[index] || '').trim();
+            if (!line || !line.includes('|') || line.startsWith('```')) break;
+            const cells = splitMarkdownTableRow(line);
+            if (cells.length < 2) break;
+            rows.push(cells);
+            index++;
+        }
+
+        const head = headers.map((cell, cellIndex) => {
+            const align = tableCellAttrs(alignments[cellIndex] || '');
+            return `<th${align}>${inline(cell)}</th>`;
+        }).join('');
+        const body = rows.map(row => {
+            const cells = headers.map((_, cellIndex) => {
+                const align = tableCellAttrs(alignments[cellIndex] || '');
+                return `<td${align}>${inline(row[cellIndex] || '')}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        return {
+            html: `<div class="agent-table-wrap"><table class="agent-markdown-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`,
+            nextIndex: index
+        };
+    }
+
     function fmt(text) {
         if (!text) return '';
         const lines = String(text).split('\n');
         let html = '', inCode = false, inMath = false, buf = [];
 
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
             const t = line.trim();
 
             if (t.startsWith('```')) {
@@ -245,6 +354,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (t.endsWith('\\]') || t.endsWith('$$')) {
                     html += `<div class="math-block">${buf.join('\n')}</div>`; buf = []; inMath = false;
                 }
+                continue;
+            }
+
+            if (isMarkdownTableAt(lines, i)) {
+                const table = consumeMarkdownTable(lines, i);
+                html += table.html;
+                i = table.nextIndex - 1;
                 continue;
             }
 
@@ -554,19 +670,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const allowKnowledgeGraphRetrieval = shouldAllowKnowledgeGraphRetrieval(text);
+        if (allowKnowledgeGraphRetrieval) {
+            await runKnowledgeGraphRag(text);
+            return;
+        }
+
         const allowAgentTools = shouldAllowAgentTools(text);
         const loader = showLoading();
 
         try {
             const payload = {
-                messages: buildRequestMessages(messages, allowAgentTools),
+                messages: buildRequestMessages(messages, allowAgentTools, allowKnowledgeGraphRetrieval),
                 stream: true
             };
             if (AGENT_MODEL) payload.model = AGENT_MODEL;
 
-            if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) {
-                payload.tools = [uiActionTool, browserActionTool];
-            }
+            const tools = [];
+            if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) tools.push(uiActionTool, browserActionTool);
+            if (allowKnowledgeGraphRetrieval) tools.push(knowledgeGraphRetrieveTool);
+            if (tools.length) payload.tools = tools;
 
             const res = await fetch(AGENT_API_URL, {
                 method: 'POST',
@@ -587,20 +710,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { reply, toolCalls, inlineActions } = await readStream(res, allowAgentTools);
 
-            if (reply) {
-                messages.push({ role: 'assistant', content: reply });
-            }
-
-            if (allowAgentTools && (toolCalls.length > 0 || inlineActions.length > 0)) {
+            if (toolCalls.length > 0 || inlineActions.length > 0) {
                 const executed = [
                     ...await executeToolCalls(toolCalls),
-                    ...await executeInlineActions(inlineActions)
+                    ...(allowAgentTools ? await executeInlineActions(inlineActions) : [])
                 ];
-                if (!reply) {
-                    messages.push({ role: 'assistant', content: executed.join('\n') || 'UI action completed.' });
+                if (allowKnowledgeGraphRetrieval && !reply && executed.length) {
+                    await answerWithKnowledgeGraphRetrieval(text, executed);
+                } else if (!reply) {
+                    messages.push({ role: 'assistant', content: executed.join('\n') || 'Action completed.' });
                 }
-            } else if (!allowAgentTools && (toolCalls.length > 0 || inlineActions.length > 0)) {
-                addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
+                if (!allowAgentTools && inlineActions.length > 0) {
+                    addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
+                }
+            } else if (allowKnowledgeGraphRetrieval) {
+                const retrieved = await executeKnowledgeGraphRetrieve({ query: text });
+                addToolMsg('已检索当前知识图谱节点知识库。');
+                await answerWithKnowledgeGraphRetrieval(text, [retrieved.message]);
+            }
+
+            if (reply) {
+                messages.push({ role: 'assistant', content: reply });
             }
         } catch (err) {
             loader.remove();
@@ -608,7 +738,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function buildRequestMessages(baseMessages, allowTools) {
+    async function runKnowledgeGraphRag(userText) {
+        const loader = showLoading();
+        try {
+            const toolCalls = await requestKnowledgeGraphToolCalls(userText);
+            const retrievedMessages = [];
+            for (const call of toolCalls) {
+                if (call.name !== 'knowledge_graph_retrieve') continue;
+                let args = {};
+                try {
+                    args = JSON.parse(call.arguments || '{}');
+                } catch {
+                    args = { query: userText };
+                }
+                const result = await executeKnowledgeGraphRetrieve({ query: userText, ...args });
+                retrievedMessages.push(result.message);
+            }
+            if (!retrievedMessages.length) {
+                const fallback = await executeKnowledgeGraphRetrieve({ query: userText });
+                retrievedMessages.push(fallback.message);
+            }
+            loader.remove();
+            addToolMsg('已检索当前知识图谱节点知识库。');
+            await answerWithKnowledgeGraphRetrieval(userText, retrievedMessages);
+        } catch (err) {
+            loader.remove();
+            addMsg('ai', `**[Knowledge Graph Retrieval Error]** ${err.message}`);
+        }
+    }
+
+    async function requestKnowledgeGraphToolCalls(userText) {
+        const payload = {
+            messages: buildRequestMessages(messages, false, true),
+            stream: true,
+            tools: [knowledgeGraphRetrieveTool],
+            tool_choice: {
+                type: 'function',
+                function: { name: 'knowledge_graph_retrieve' }
+            }
+        };
+        if (AGENT_MODEL) payload.model = AGENT_MODEL;
+
+        const res = await fetch(AGENT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            return [];
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        const toolCalls = [];
+        let buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+
+            for (const line of lines) {
+                const t = line.trim();
+                if (!t.startsWith('data: ') || t === 'data: [DONE]') continue;
+                try {
+                    const data = JSON.parse(t.slice(6));
+                    const delta = data.choices?.[0]?.delta;
+                    if (delta?.tool_calls) mergeToolCalls(toolCalls, delta.tool_calls);
+                } catch {
+                    // Ignore malformed SSE fragments from compatible providers.
+                }
+            }
+        }
+        return compactToolCalls(toolCalls);
+    }
+
+    function buildRequestMessages(baseMessages, allowTools, allowKnowledgeGraphRetrieval = false) {
+        if (allowKnowledgeGraphRetrieval) {
+            const selected = pendingKnowledgeGraphContext || {};
+            const guard = {
+                role: 'system',
+                content: [
+                    'The latest user message asks about a selected knowledge-graph node.',
+                    'Do not answer from memory first. Call the knowledge_graph_retrieve tool to retrieve the node knowledge base, then answer in Chinese.',
+                    'Do not call ui_action or browser_action for this explanation request.',
+                    `Selected node: ${selected.nodeName || 'unknown'}`,
+                    `Graph path: ${selected.graphPath || 'unknown'}`
+                ].join('\n')
+            };
+            return [baseMessages[0], guard, ...baseMessages.slice(1)];
+        }
         if (allowTools) return baseMessages;
         const guard = {
             role: 'system',
@@ -745,7 +966,65 @@ document.addEventListener('DOMContentLoaded', () => {
     async function executeAgentAction(name, args) {
         if (name === 'ui_action') return executeUiAction(args);
         if (name === 'browser_action') return executeBrowserAction(args);
+        if (name === 'knowledge_graph_retrieve') return executeKnowledgeGraphRetrieve(args);
         throw new Error(`unknown tool "${name}"`);
+    }
+
+    async function executeKnowledgeGraphRetrieve(args = {}) {
+        const retriever = window.ZSTP?.retrieveKnowledge;
+        if (typeof retriever !== 'function') {
+            throw new Error('knowledge graph retriever is not available');
+        }
+        const result = await retriever({
+            query: args.query || '',
+            nodeName: args.nodeName || pendingKnowledgeGraphContext?.nodeName || '',
+            topK: Number.isFinite(args.topK) ? args.topK : 12
+        });
+        return {
+            message: JSON.stringify(result, null, 2),
+            tool: 'knowledge_graph_retrieve'
+        };
+    }
+
+    async function answerWithKnowledgeGraphRetrieval(userText, retrievedMessages) {
+        const retrievalText = retrievedMessages.join('\n\n');
+        const followupMessages = [
+            messages[0],
+            {
+                role: 'system',
+                content: [
+                    'Answer the user in Chinese using the retrieved knowledge graph context below.',
+                    'Keep the answer concise and explanatory. Do not mention internal JSON unless useful.',
+                    'Cover: node meaning, why it matters, graph neighborhood, maturity/applications/risks, and next retrieval directions.',
+                    'If evidence is thin, say so explicitly.',
+                    '',
+                    'Retrieved context:',
+                    retrievalText
+                ].join('\n')
+            },
+            { role: 'user', content: userText }
+        ];
+        const loader = showLoading();
+        try {
+            const payload = { messages: followupMessages, stream: true };
+            if (AGENT_MODEL) payload.model = AGENT_MODEL;
+            const res = await fetch(AGENT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            loader.remove();
+            if (!res.ok) {
+                const errorText = await res.text().catch(() => '');
+                addMsg('ai', `**[Error]** API request failed after retrieval: ${res.status}${errorText ? `\n\n${errorText.slice(0, 500)}` : ''}`);
+                return;
+            }
+            const { reply } = await readStream(res, false);
+            if (reply) messages.push({ role: 'assistant', content: reply });
+        } catch (err) {
+            loader.remove();
+            addMsg('ai', `**[Network Error]** ${err.message}`);
+        }
     }
 
     function executeUiAction(args) {
@@ -1495,9 +1774,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(value).replace(/["\\]/g, '\\$&');
     }
 
-    window.openAgentMasterWithPrompt = function (prompt) {
+    window.openAgentMasterWithPrompt = function (prompt, options = {}) {
         const text = String(prompt || '').trim();
         if (!text) return;
+        pendingKnowledgeGraphContext = options?.knowledgeGraphContext || null;
         restoreAgent();
         chatWindow.classList.add('active');
         isChatActive = true;
@@ -1665,6 +1945,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isLikelyAnswerOnlyRequest(raw, normalized)) return false;
         return hasExplicitOperationIntent(raw, normalized);
+    }
+
+    function shouldAllowKnowledgeGraphRetrieval(text) {
+        if (!pendingKnowledgeGraphContext) return false;
+        const raw = String(text || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized) return false;
+        const answerIntent = isLikelyAnswerOnlyRequest(raw, normalized) ||
+            ['节点', '知识图谱', '是什么', '解释', '说明', 'what', 'explain', 'meaning']
+                .some(term => normalized.includes(normalizeText(term)));
+        return answerIntent && !hasExplicitOperationIntent(raw, normalized);
     }
 
     function isLikelyAnswerOnlyRequest(raw, normalized) {

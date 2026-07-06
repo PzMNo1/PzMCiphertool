@@ -488,8 +488,10 @@
             entry.contentPreview,
             entry.error
         ].filter(Boolean).join('\n');
-        const trust = inferTrust(entry);
-        const source = inferSourceProfile(entry);
+        const normalizedUrl = normalizeEvidenceUrl(entry);
+        const inferenceEntry = { ...entry, url: normalizedUrl };
+        const trust = inferTrust(inferenceEntry);
+        const source = inferSourceProfile(inferenceEntry);
         const normalized = {
             ...entry,
             id: entry.id || createId('evd'),
@@ -500,7 +502,7 @@
             kind: entry.kind || 'unknown',
             tool: entry.tool || '',
             title: cleanOneLine(entry.title || ''),
-            url: String(entry.url || '').trim().replace(/[.,;]+$/, ''),
+            url: normalizedUrl,
             observed_at: entry.observed_at || retrievedAt,
             retrievedAt,
             contentHash: entry.contentHash || hashString(contentForHash || JSON.stringify(entry)),
@@ -515,6 +517,36 @@
             usedInFinalAnswer: Boolean(entry.usedInFinalAnswer)
         };
         return normalized;
+    }
+
+    function normalizeEvidenceUrl(entry = {}) {
+        const rawUrl = String(entry.url || entry.link || entry.href || '').trim().replace(/[.,;]+$/, '');
+        if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+        const text = [
+            rawUrl,
+            entry.stable_id,
+            entry.pmid,
+            entry.PMID,
+            entry.arxiv,
+            entry.arxiv_id,
+            entry.arxivId,
+            entry.doi,
+            entry.DOI,
+            entry.title,
+            entry.snippet,
+            entry.content_preview,
+            entry.contentPreview
+        ].filter(Boolean).join(' ');
+        const pmid = (text.match(/\bpmid\s*[:：]?\s*(\d{5,10})\b/i) || [])[1]
+            || (/^\d{5,10}$/.test(String(entry.pmid || entry.PMID || '').trim()) ? String(entry.pmid || entry.PMID).trim() : '');
+        if (pmid) return `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
+        const arxiv = (text.match(/\barxiv\s*[:：]?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i) || [])[1]
+            || (/^[0-9]{4}\.[0-9]{4,5}(?:v\d+)?$/.test(String(entry.arxiv || entry.arxiv_id || entry.arxivId || '').trim()) ? String(entry.arxiv || entry.arxiv_id || entry.arxivId).trim() : '');
+        if (arxiv) return `https://arxiv.org/abs/${arxiv.replace(/\.pdf$/i, '').replace(/v\d+$/i, '')}`;
+        const doi = (text.match(/\bdoi\s*[:：]?\s*(10\.\d{4,9}\/[^\s"'<>）)]+)/i) || [])[1]
+            || (/^10\.\d{4,9}\//i.test(String(entry.doi || entry.DOI || '').trim()) ? String(entry.doi || entry.DOI).trim() : '');
+        if (doi) return `https://doi.org/${doi.replace(/[.,;]+$/g, '')}`;
+        return rawUrl;
     }
 
     function inferTrust(entry) {
@@ -570,10 +602,10 @@
             authorityScore = 0.78;
             primarySource = /annual[-_ ]?report|10-k|10-q|earnings|investor|ir\./.test(text);
             reason = 'institutional report, data source, or company disclosure';
-        } else if (/reuters\.com|apnews\.com|bbc\.com|bloomberg\.com|wsj\.com|ft\.com|nytimes\.com|theguardian\.com|cnbc\.com|npr\.org|economist\.com|caixin\.com|chinanews\.com|news\.cn|xinhuanet\.com|people\.com\.cn|cctv\.com/.test(url)) {
+        } else if (kind === 'news_result' || /reuters\.com|apnews\.com|bbc\.com|bloomberg\.com|wsj\.com|ft\.com|nytimes\.com|theguardian\.com|cnbc\.com|npr\.org|economist\.com|caixin\.com|chinanews\.com|news\.cn|xinhuanet\.com|people\.com\.cn|cctv\.com/.test(url)) {
             sourceType = 'news';
-            authorityScore = 0.68;
-            reason = 'reputable news or wire source';
+            authorityScore = kind === 'news_result' ? 0.64 : 0.68;
+            reason = kind === 'news_result' ? 'structured news search result' : 'reputable news or wire source';
         } else if (/github\.com\/trending|news\.ycombinator\.com|reddit\.com|v2ex\.com|lobste\.rs|producthunt\.com|stackoverflow\.com|medium\.com|substack\.com/.test(url) || kind === 'community_snapshot_item') {
             sourceType = 'community';
             authorityScore = 0.48;

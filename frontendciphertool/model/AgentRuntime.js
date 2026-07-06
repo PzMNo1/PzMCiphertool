@@ -1146,7 +1146,7 @@ class AgentRuntime {
         (Array.isArray(evidence) ? evidence : [])
             .filter(entry => entry && !entry.error && (entry.title || entry.url))
             .filter(entry => !academicMode || this.isAllowedAcademicEvidence(entry))
-            .filter(entry => this.isUsableFinalCitationEvidence(entry, { academicMode, industryMode }))
+            .filter(entry => this.isUsableFinalCitationEvidence(entry, { academicMode, industryMode, plan }))
             .filter(entry => !this.isGenericSourceHomepage(entry.title || '', entry.url || ''))
             .forEach(entry => {
                 const candidate = { ...entry, _candidateKey: this.getEvidenceCandidateKey(entry) };
@@ -1169,16 +1169,62 @@ class AgentRuntime {
         const trust = String(entry.trustLevel || 'unknown');
         const sourceType = String(entry.sourceType || 'unknown');
         if (['page_read_error', 'source_read_error'].includes(kind)) return false;
-        if (kind === 'raw_url_reference') return false;
-        if (['source_candidate', 'search_result'].includes(kind)) {
-            return Boolean(options.industryMode)
-                && Number(entry.authorityScore || 0) >= 0.72
+        if (this.isNewsBriefPlan(options.plan) && entry.url && this.isLowValueNewsCitationUrl(entry.url || '', entry.title || '')) {
+            return false;
+        }
+        if (kind === 'raw_url_reference') {
+            return this.isNewsBriefPlan(options.plan)
+                && entry.tool === 'news_query'
                 && Boolean(entry.url)
+                && ['medium', 'high', 'primary'].includes(trust)
                 && !this.isGenericSourceHomepage(entry.title || '', entry.url || '');
+        }
+        if (kind === 'news_result') {
+            return this.isNewsBriefPlan(options.plan)
+                && Boolean(entry.url)
+                && !['low', 'unknown'].includes(trust)
+                && !this.isGenericSourceHomepage(entry.title || '', entry.url || '');
+        }
+        if (['source_candidate', 'search_result'].includes(kind)) {
+            const strongCandidate = this.isStrongStableCitationCandidate(entry);
+            return strongCandidate && (Boolean(options.industryMode) || Boolean(options.academicMode));
         }
         if (['low', 'unknown'].includes(trust) && Number(entry.authorityScore || 0) < 0.55) return false;
         if (!options.academicMode && sourceType === 'encyclopedia') return false;
         return true;
+    }
+
+    isLowValueNewsCitationUrl(url = '', title = '') {
+        const cleanUrl = this.cleanUrl(url || '').toLowerCase();
+        const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
+        if (!cleanUrl) return true;
+        if (/(dictionary|translate|word|lingoland|iciba|runoob|csdn|zhihu\.com\/topic|baike|wikipedia)/i.test(`${cleanUrl} ${cleanTitle}`)) {
+            return true;
+        }
+        try {
+            const parsed = new URL(cleanUrl);
+            const host = parsed.hostname.replace(/^www\./i, '');
+            const path = parsed.pathname.replace(/\/+$/, '');
+            const sectionOnly = path === ''
+                || /^\/(news|world|business|markets|technology|tech|china|international|latest|politics|finance|economy|sports|culture)$/i.test(path);
+            const trustedNewsSection = /(reuters\.com|apnews\.com|bbc\.com|bloomberg\.com|wsj\.com|ft\.com|nytimes\.com|theguardian\.com|cnbc\.com|npr\.org|economist\.com|caixin\.com|chinanews\.com|news\.cn|xinhuanet\.com|people\.com\.cn|news\.163\.com|cctv\.com|tv\.cctv\.com)$/i.test(host);
+            const officialSection = /(home\.treasury\.gov|gov\.cn|ndrc\.gov\.cn|mof\.gov\.cn|pbc\.gov\.cn|csrc\.gov\.cn)$/i.test(host);
+            if (sectionOnly && !trustedNewsSection && !officialSection) {
+                return true;
+            }
+        } catch (error) {
+            return false;
+        }
+        return false;
+    }
+
+    isStrongStableCitationCandidate(entry = {}) {
+        if (!entry || entry.error || !entry.url) return false;
+        if (this.isGenericSourceHomepage(entry.title || '', entry.url || '')) return false;
+        const url = this.cleanUrl(entry.url || '').toLowerCase();
+        const authority = Number(entry.authorityScore || 0);
+        if (authority >= 0.72) return true;
+        return /(?:pubmed\.ncbi\.nlm\.nih\.gov\/\d+|arxiv\.org\/abs\/[0-9]{4}\.[0-9]{4,5}|doi\.org\/10\.|nature\.com\/articles\/|science\.org\/doi\/|dl\.acm\.org\/doi\/|ieeexplore\.ieee\.org\/(?:document|abstract)\/|github\.com\/[^/]+\/[^/]+|docs\.|developer\.|\.gov\/|\.edu\/)/i.test(url);
     }
 
     mergeEvidenceCitationEntries(primary, secondary) {
@@ -1345,21 +1391,207 @@ class AgentRuntime {
     }
 
     formatEvidenceSource(entry) {
-        const title = this.cleanOneLine(entry?.title || '');
-        const url = this.cleanUrl(entry?.url || '');
+        const rawTitle = this.cleanOneLine(entry?.title || '');
+        const rawSnippet = this.cleanOneLine(entry?.snippet || entry?.content_preview || '');
+        const title = this.cleanEvidenceSourceTitle(rawTitle, rawSnippet);
+        const snippet = this.cleanEvidenceSourceSnippet(rawSnippet, title);
+        const stableRef = this.extractStableSourceReference(entry, `${rawTitle} ${rawSnippet}`);
+        const rawUrl = this.cleanUrl(entry?.url || '');
+        const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : (stableRef.url || rawUrl);
         const host = this.extractHostname(url);
-        const snippet = this.cleanOneLine(entry?.snippet || entry?.content_preview || '');
-        const genericHomepage = this.isGenericSourceHomepage(title, url);
+        const siteLabel = this.getSourceSiteLabel(entry, host, stableRef);
+        const genericHomepage = this.isGenericSourceHomepage(title || siteLabel, url);
         const parts = [];
+
         if (title) parts.push(title);
-        if (genericHomepage) parts.push('general index page; no specific article URL returned');
-        if (host && (!title || !title.toLowerCase().includes(host))) parts.push(host);
-        if (url) parts.push(url);
-        if (!url && entry?.community) parts.push(`${entry.community} tool snapshot`);
-        if (snippet && (title.length < 24 || /^(bbc news|reuters|ap news|网易新闻中心|新浪新闻|来源|source)$/i.test(title))) {
-            parts.push(this.previewValue(snippet, 120).replace(/\s+/g, ' '));
+        else if (siteLabel) parts.push(siteLabel);
+
+        const sourceLabel = siteLabel || host;
+        if (sourceLabel && !this.sourceLabelContainsHost(parts[0] || '', sourceLabel) && !this.sourceLabelContainsHost(parts[0] || '', host)) {
+            parts.push(sourceLabel);
         }
-        return parts.filter(Boolean).join(' — ');
+
+        if (url) parts.push(url);
+        else if (stableRef.label) parts.push(stableRef.label);
+        else if (entry?.community) parts.push(`${entry.community} tool snapshot`);
+        else if (entry?.kind === 'external_tool_result') parts.push('AgentEarth 工具快照');
+
+        if (genericHomepage && snippet) {
+            parts.push(this.parentheticalSourceNote(snippet, 90));
+        } else if (this.shouldIncludeSourceSnippet(title, snippet, entry)) {
+            parts.push(this.parentheticalSourceNote(snippet, 120));
+        }
+
+        return this.dedupeSourceParts(parts).join(' — ');
+    }
+
+    cleanEvidenceSourceTitle(title = '', snippet = '') {
+        let clean = this.cleanOneLine(title || '')
+            .replace(/\s*\[preview truncated\]\s*$/i, '')
+            .replace(/^\s*(title|标题)\s*[:：]\s*/i, '')
+            .replace(/^#+\s*/, '')
+            .replace(/\s+\|\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
+            .replace(/\s+[-—]\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
+            .trim();
+        const extracted = this.extractTitleFromEvidenceText(snippet);
+        if (!clean
+            || /^(source|sources|reference|references|来源|参考)$/i.test(clean)
+            || /^(pmid|arxiv|doi)\s*[:：]?\s*[\w./-]+$/i.test(clean)
+            || /\.\.\.|preview truncated/i.test(clean)) {
+            clean = extracted || clean;
+        }
+        return this.cleanOneLine(clean)
+            .replace(/\s*\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
+            .replace(/\s*\[preview truncated\]\s*$/i, '')
+            .slice(0, 220)
+            .trim();
+    }
+
+    extractTitleFromEvidenceText(value = '') {
+        const text = String(value || '');
+        const explicit = text.match(/(?:^|\n|\.\.\.)\s*(?:Title|标题)\s*[:：]\s*([^\n.。]+)/i);
+        if (explicit?.[1]) return this.cleanExtractedSourceTitle(explicit[1]);
+        const heading = text.match(/(?:^|\n|\.\.\.)\s*#{1,6}\s*([^\n.]+)/);
+        if (heading?.[1]) return this.cleanExtractedSourceTitle(heading[1]);
+        const markdownLink = text.match(/\[([^\]]{8,180})\]\((https?:\/\/[^)]+)\)/);
+        if (markdownLink?.[1]) return this.cleanExtractedSourceTitle(markdownLink[1]);
+        const fallback = text
+            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
+            .replace(/\b(?:pmid|arxiv|doi)\s*[:：]?\s*(?:10\.\d{4,9}\/[^\s"'<>）)]+|[0-9]{4}\.[0-9]{4,5}(?:v\d+)?|\d{5,10})\b/ig, ' ')
+            .replace(/https?:\/\/\S+/ig, ' ')
+            .replace(/\.\.\./g, '\n')
+            .split(/\n|[。.!?]\s+/)
+            .map(line => this.cleanExtractedSourceTitle(line))
+            .find(line => line.length >= 12);
+        return fallback || '';
+    }
+
+    cleanExtractedSourceTitle(value = '') {
+        return this.cleanOneLine(value || '')
+            .replace(/^[-*•#\s]+/, '')
+            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
+            .replace(/\s+\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
+            .replace(/\s+[-—]\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    cleanEvidenceSourceSnippet(snippet = '', title = '') {
+        const titleNorm = this.normalizeCitationMatchText(title || '');
+        const seen = new Set();
+        const segments = String(snippet || '')
+            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
+            .replace(/\.\.\./g, '\n')
+            .split(/\n+/)
+            .map(line => this.cleanOneLine(line)
+                .replace(/^[-*•]\s*/, '')
+                .replace(/^#+\s*/, '')
+                .replace(/^!\[[^\]]*]\([^)]+\)\s*/, '')
+                .replace(/\[([^\]]+)]\((https?:\/\/[^)]+)\)/g, '$1')
+                .replace(/^(Title|标题)\s*[:：]\s*/i, '')
+                .trim())
+            .filter(line => line.length >= 12)
+            .filter(line => !/^image\s+\d+$/i.test(line))
+            .filter(line => {
+                const norm = this.normalizeCitationMatchText(line);
+                if (!norm || norm === titleNorm) return false;
+                if (seen.has(norm)) return false;
+                seen.add(norm);
+                return true;
+            });
+        return segments[0] || '';
+    }
+
+    extractStableSourceReference(entry = {}, fallbackText = '') {
+        const url = this.cleanUrl(entry?.url || '');
+        const text = `${entry?.source_id || ''} ${entry?.sourceId || ''} ${entry?.url || ''} ${entry?.title || ''} ${entry?.snippet || ''} ${entry?.content_preview || ''} ${fallbackText || ''}`;
+        const arxivFromUrl = url.match(/arxiv\.org\/(?:abs|pdf)\/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i);
+        const arxiv = arxivFromUrl?.[1]
+            || (text.match(/\barxiv\s*[:：]?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i) || [])[1];
+        if (arxiv) {
+            const cleanId = arxiv.replace(/\.pdf$/i, '');
+            return { type: 'arxiv', id: cleanId, label: `arXiv: ${cleanId}`, url: `https://arxiv.org/abs/${cleanId.replace(/v\d+$/i, '')}` };
+        }
+        const pmidFromUrl = url.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i);
+        const pmid = pmidFromUrl?.[1]
+            || (text.match(/\bpmid\s*[:：]?\s*(\d{5,10})\b/i) || [])[1];
+        if (pmid) {
+            return { type: 'pmid', id: pmid, label: `PMID: ${pmid}`, url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` };
+        }
+        const doiFromUrl = url.match(/doi\.org\/(10\.\d{4,9}\/[^\s"'<>）)]+)/i);
+        const doi = doiFromUrl?.[1]
+            || (text.match(/\bdoi\s*[:：]?\s*(10\.\d{4,9}\/[^\s"'<>）)]+)/i) || [])[1];
+        if (doi) {
+            const cleanDoi = doi.replace(/[.,;]+$/g, '');
+            return { type: 'doi', id: cleanDoi, label: `DOI: ${cleanDoi}`, url: `https://doi.org/${cleanDoi}` };
+        }
+        return { type: '', id: '', label: '', url: '' };
+    }
+
+    getSourceSiteLabel(entry = {}, host = '', stableRef = {}) {
+        if (entry?.domain) return this.cleanOneLine(entry.domain);
+        if (stableRef?.type === 'pmid') return 'PubMed';
+        if (stableRef?.type === 'arxiv') return 'arXiv';
+        if (stableRef?.type === 'doi') return 'DOI';
+        if (!host) return '';
+        const labels = {
+            'pubmed.ncbi.nlm.nih.gov': 'PubMed',
+            'arxiv.org': 'arXiv',
+            'github.com': 'GitHub',
+            'nature.com': 'nature.com',
+            'reuters.com': 'Reuters',
+            'apnews.com': 'AP News',
+            'bbc.com': 'BBC News',
+            'bbc.co.uk': 'BBC News',
+            'theguardian.com': 'The Guardian',
+            'people.com.cn': '人民网',
+            'world.people.com.cn': '人民网',
+            'news.163.com': '网易新闻'
+        };
+        return labels[host] || host;
+    }
+
+    sourceLabelContainsHost(label = '', host = '') {
+        const cleanLabel = this.cleanOneLine(label || '').toLowerCase();
+        const cleanHost = String(host || '').toLowerCase().replace(/^www\./, '');
+        if (!cleanLabel || !cleanHost) return false;
+        return cleanLabel.includes(cleanHost) || cleanHost.split('.').some(part => part.length >= 4 && cleanLabel.includes(part));
+    }
+
+    shouldIncludeSourceSnippet(title = '', snippet = '', entry = {}) {
+        if (!snippet) return false;
+        if (!title || title.length < 24) return true;
+        if (entry?.kind === 'external_tool_result') return true;
+        return /^(bbc news|bbc world|reuters|ap news|associated press|guardian|cnbc|网易新闻中心|新浪新闻|来源|source)$/i.test(title);
+    }
+
+    parentheticalSourceNote(value = '', max = 100) {
+        const clean = this.previewValue(this.cleanOneLine(value || ''), max)
+            .replace(/\s*\[preview truncated\]\s*$/i, '')
+            .trim();
+        return clean ? `(${clean})` : '';
+    }
+
+    dedupeSourceParts(parts = []) {
+        const result = [];
+        const seen = new Set();
+        parts
+            .map(part => this.cleanOneLine(part || ''))
+            .filter(Boolean)
+            .forEach(part => {
+                const key = part.toLowerCase();
+                if (seen.has(key)) return;
+                const isUrl = /^https?:\/\//i.test(part);
+                if (!isUrl && result.some(existing => {
+                    const existingKey = existing.toLowerCase();
+                    const existingIsUrl = /^https?:\/\//i.test(existing);
+                    if (existingIsUrl) return existingKey.includes(key);
+                    return existingKey.includes(key) || key.includes(existingKey);
+                })) return;
+                seen.add(key);
+                result.push(part);
+            });
+        return result;
     }
 
     isGenericSourceHomepage(title, url) {

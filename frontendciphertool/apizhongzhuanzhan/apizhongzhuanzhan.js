@@ -1,9 +1,10 @@
 (function () {
-    const API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
+    const API_BASE = resolveApiBase();
     const DEFAULT_STATE = {
         email: '',
         range: '7',
         granularity: 'day',
+        admin: false,
         metrics: {
             balance: 0,
             apiKeys: 0,
@@ -19,6 +20,7 @@
             outputToken: 0
         },
         models: [],
+        servedModels: [],
         usage: [],
         keys: [],
         ledger: [],
@@ -43,8 +45,9 @@
     const PAGE_NAV = [
         { id: 'overview', label: '仪表盘' },
         { id: 'keys', label: 'API Keys' },
-        { id: 'usage', label: '充值/订阅' },
-        { id: 'billing', label: '邀请返利' }
+        { id: 'usage', label: '充值/套餐' },
+        { id: 'billing', label: '邀请返利' },
+        { id: 'ops', label: '运营配置', adminOnly: true }
     ];
     const pageRegistry = new Map();
     const publicApi = window.ApiZhongZhuanZhan = window.ApiZhongZhuanZhan || {};
@@ -104,7 +107,7 @@
         if (root.dataset.loaded !== 'true') renderLoading(root);
 
         try {
-            const url = `${API_BASE}/api/api-router/dashboard?email=${encodeURIComponent(user.email)}&range=${encodeURIComponent(nextRange)}&granularity=${encodeURIComponent(nextGranularity)}`;
+            const url = `${API_BASE}/api/api-router/dashboard?range=${encodeURIComponent(nextRange)}&granularity=${encodeURIComponent(nextGranularity)}`;
             const data = await requestJson(url, {
                 headers: authHeaders()
             });
@@ -158,7 +161,6 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({
-                email: user.email,
                 range: state.range || '7',
                 granularity: state.granularity || 'day',
                 ...extra
@@ -168,9 +170,21 @@
 
     async function requestJson(url, options) {
         const response = await fetch(url, options);
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-            throw new Error(result.message || `请求失败: ${response.status}`);
+        const text = await response.text();
+        let result = null;
+        if (text) {
+            try {
+                result = JSON.parse(text);
+            } catch (error) {
+                if (!response.ok) {
+                    const preview = text.trim().replace(/\s+/g, ' ').slice(0, 160);
+                    throw new Error(preview || `请求失败: ${response.status}`);
+                }
+                throw new Error('后端返回格式不是 JSON');
+            }
+        }
+        if (!response.ok || !result || !result.success) {
+            throw new Error((result && result.message) || `请求失败: ${response.status}`);
         }
         return result.data;
     }
@@ -220,7 +234,8 @@
 
     function render(root) {
         root.dataset.loaded = 'true';
-        const currentPage = pageRegistry.has(activePage) ? activePage : 'overview';
+        const currentPage = allowedPage(activePage);
+        activePage = currentPage;
         const balance = numberValue(state.metrics.balance).toFixed(2);
 
         root.innerHTML = `
@@ -253,7 +268,7 @@
     }
 
     function renderPageNav(currentPage) {
-        return PAGE_NAV.map(page => `
+        return visiblePages().map(page => `
             <a href="#apizz-page-${escapeHtml(page.id)}" class="${page.id === currentPage ? 'active' : ''}" data-apizz-page="${escapeHtml(page.id)}">${escapeHtml(page.label)}</a>
         `).join('');
     }
@@ -290,6 +305,7 @@
                 selected,
                 numberValue,
                 maskEmail,
+                routerBaseUrl,
                 escapeHtml,
                 metricCard,
                 modelRow,
@@ -316,10 +332,19 @@
     }
 
     function selectPage(root, pageId) {
-        if (!pageRegistry.has(pageId)) return;
-        activePage = pageId;
+        const nextPage = allowedPage(pageId);
+        activePage = nextPage;
         render(root);
         bind(root);
+    }
+
+    function visiblePages() {
+        return PAGE_NAV.filter(page => !page.adminOnly || state.admin === true);
+    }
+
+    function allowedPage(pageId) {
+        const page = visiblePages().find(item => item.id === pageId);
+        return page && pageRegistry.has(page.id) ? page.id : 'overview';
     }
 
     function bind(root) {
@@ -395,7 +420,7 @@
         if (action === 'create-key') {
             try {
                 const nextName = `router-key-${state.keys.length + 1}`;
-                const data = await postDashboard(root, 'keys', { name: nextName, quota: '1,000,000 tokens' });
+                const data = await postDashboard(root, 'keys', { name: nextName });
                 lastCreatedKey = data.plainKey || '';
                 state = normalizeDashboard(data.dashboard);
                 await loadCommerceState();
@@ -540,9 +565,9 @@
                         <input id="apizz-cfg-name" class="apizz-form-input" type="text" value="${escapeHtml(keyInfo.name)}" placeholder="key 名称">
                     </div>
                     <div class="apizz-form-group apizz-key-edit-wide">
-                        <label class="apizz-form-label">Token 配额</label>
-                        <input id="apizz-cfg-quota" class="apizz-form-input" type="text" value="${escapeHtml(keyInfo.quota)}" placeholder="如 1,000,000 tokens 或 $10.00">
-                        <div class="apizz-form-hint">支持 tokens 和 $ 两种格式，留空保持不变</div>
+                        <label class="apizz-form-label">密钥额度上限</label>
+                        <input id="apizz-cfg-quota" class="apizz-form-input" type="text" value="${escapeHtml(keyInfo.quota)}" placeholder="unlimited、1,000,000 tokens 或 $10.00">
+                        <div class="apizz-form-hint">默认不限额，实际消费按钱包余额扣费；可手动设置 tokens 或 $ 上限</div>
                     </div>
                     <div class="apizz-form-group">
                         <label class="apizz-form-label">RPM 限制</label>
@@ -627,48 +652,7 @@
                     </div>
                 </div>
 
-                <div class="apizz-redeem-admin-toggle">
-                    <div>
-                        <div class="apizz-redeem-admin-title">管理员生成</div>
-                        <div class="apizz-muted">展开后再加载兑换码列表。</div>
-                    </div>
-                    <button id="apizz-code-toggle" class="apizz-ghost-btn" type="button" aria-expanded="false">展开</button>
-                </div>
-
-                <div id="apizz-code-admin" class="apizz-redeem-admin-panel" hidden>
-                    <div class="apizz-redeem-form-grid">
-                        <div class="apizz-form-group">
-                            <label class="apizz-form-label">指定代码</label>
-                            <input id="apizz-code-code" class="apizz-form-input" type="text" placeholder="留空自动生成">
-                        </div>
-                        <div class="apizz-form-group">
-                            <label class="apizz-form-label">金额</label>
-                            <input id="apizz-code-amount" class="apizz-form-input" type="number" min="0.0001" step="0.0001" value="1">
-                        </div>
-                        <div class="apizz-form-group">
-                            <label class="apizz-form-label">可用次数</label>
-                            <input id="apizz-code-max" class="apizz-form-input" type="number" min="1" value="1">
-                        </div>
-                        <div class="apizz-form-group">
-                            <label class="apizz-form-label">过期时间</label>
-                            <input id="apizz-code-expire" class="apizz-form-input" type="text" placeholder="yyyy-MM-ddTHH:mm:ss，留空不过期">
-                        </div>
-                        <div class="apizz-form-group">
-                            <label class="apizz-form-label">备注</label>
-                            <input id="apizz-code-note" class="apizz-form-input" type="text" placeholder="V2EX launch campaign">
-                        </div>
-                    </div>
-                    <div class="apizz-modal-actions apizz-redeem-actions">
-                        <button id="apizz-code-refresh" class="apizz-ghost-btn" type="button">刷新列表</button>
-                        <button id="apizz-code-create" class="apizz-primary-btn" type="button">生成</button>
-                    </div>
-                    <div class="apizz-table-wrap apizz-redeem-table-wrap">
-                        <table class="apizz-table">
-                            <thead><tr><th>兑换码</th><th>金额</th><th>次数</th><th>状态</th><th>过期</th><th>操作</th></tr></thead>
-                            <tbody id="apizz-code-rows"><tr><td colspan="6" class="apizz-muted">展开后可刷新查看兑换码列表。</td></tr></tbody>
-                        </table>
-                    </div>
-                </div>
+                ${state.admin ? redeemAdminPanelHtml() : ''}
             </div>
         `;
         document.body.appendChild(overlay);
@@ -686,6 +670,7 @@
         let redeemCodesLoaded = false;
 
         const setAdminOpen = open => {
+            if (!adminPanel || !toggleButton) return;
             adminPanel.hidden = !open;
             toggleButton.setAttribute('aria-expanded', String(open));
             toggleButton.textContent = open ? '收起' : '展开';
@@ -726,47 +711,96 @@
                 applyButton.click();
             }
         });
-        toggleButton.addEventListener('click', () => {
-            const shouldOpen = adminPanel.hidden;
-            setAdminOpen(shouldOpen);
-            if (shouldOpen && !redeemCodesLoaded) {
-                loadRedeemCodes(false);
-            }
-        });
-        refreshButton.addEventListener('click', () => {
-            if (adminPanel.hidden) setAdminOpen(true);
-            loadRedeemCodes(true);
-        });
-        createButton.addEventListener('click', async () => {
-            if (createButton.disabled) return;
-            createButton.disabled = true;
-            try {
-                const codes = await requestJson(`${API_BASE}/api/api-router/redeem-codes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-                    body: JSON.stringify({
-                        code: document.getElementById('apizz-code-code').value.trim(),
-                        amount: Number(document.getElementById('apizz-code-amount').value),
-                        maxUses: parseInt(document.getElementById('apizz-code-max').value, 10) || 1,
-                        expiresAt: document.getElementById('apizz-code-expire').value.trim(),
-                        note: document.getElementById('apizz-code-note').value.trim(),
-                        enabled: true
-                    })
-                });
-                const rows = overlay.querySelector('#apizz-code-rows');
-                if (rows) rows.innerHTML = redeemCodeRows(codes);
-                redeemCodesLoaded = true;
-                bindRedeemCodeActions(root, overlay);
-                toast(root, '兑换码已生成');
-            } catch (error) {
-                toast(root, error.message || '兑换码生成失败');
-            } finally {
-                createButton.disabled = false;
-            }
-        });
+        if (state.admin && adminPanel && toggleButton && refreshButton && createButton) {
+            toggleButton.addEventListener('click', () => {
+                const shouldOpen = adminPanel.hidden;
+                setAdminOpen(shouldOpen);
+                if (shouldOpen && !redeemCodesLoaded) {
+                    loadRedeemCodes(false);
+                }
+            });
+            refreshButton.addEventListener('click', () => {
+                if (adminPanel.hidden) setAdminOpen(true);
+                loadRedeemCodes(true);
+            });
+            createButton.addEventListener('click', async () => {
+                if (createButton.disabled) return;
+                createButton.disabled = true;
+                try {
+                    const codes = await requestJson(`${API_BASE}/api/api-router/redeem-codes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                        body: JSON.stringify({
+                            code: overlay.querySelector('#apizz-code-code').value.trim(),
+                            amount: Number(overlay.querySelector('#apizz-code-amount').value),
+                            maxUses: parseInt(overlay.querySelector('#apizz-code-max').value, 10) || 1,
+                            expiresAt: overlay.querySelector('#apizz-code-expire').value.trim(),
+                            note: overlay.querySelector('#apizz-code-note').value.trim(),
+                            enabled: true
+                        })
+                    });
+                    const rows = overlay.querySelector('#apizz-code-rows');
+                    if (rows) rows.innerHTML = redeemCodeRows(codes);
+                    redeemCodesLoaded = true;
+                    bindRedeemCodeActions(root, overlay);
+                    toast(root, '兑换码已生成');
+                } catch (error) {
+                    toast(root, error.message || '兑换码生成失败');
+                } finally {
+                    createButton.disabled = false;
+                }
+            });
+        }
         overlay.addEventListener('click', event => {
             if (event.target === overlay) closeEditModal();
         });
+    }
+
+    function redeemAdminPanelHtml() {
+        return `
+            <div class="apizz-redeem-admin-toggle">
+                <div>
+                    <div class="apizz-redeem-admin-title">管理员生成</div>
+                    <div class="apizz-muted">展开后再加载兑换码列表。</div>
+                </div>
+                <button id="apizz-code-toggle" class="apizz-ghost-btn" type="button" aria-expanded="false">展开</button>
+            </div>
+
+            <div id="apizz-code-admin" class="apizz-redeem-admin-panel" hidden>
+                <div class="apizz-redeem-form-grid">
+                    <div class="apizz-form-group">
+                        <label class="apizz-form-label">指定代码</label>
+                        <input id="apizz-code-code" class="apizz-form-input" type="text" placeholder="留空自动生成">
+                    </div>
+                    <div class="apizz-form-group">
+                        <label class="apizz-form-label">金额</label>
+                        <input id="apizz-code-amount" class="apizz-form-input" type="number" min="0.0001" step="0.0001" value="1">
+                    </div>
+                    <div class="apizz-form-group">
+                        <label class="apizz-form-label">可用次数</label>
+                        <input id="apizz-code-max" class="apizz-form-input" type="number" min="1" value="1">
+                    </div>
+                    <div class="apizz-form-group">
+                        <label class="apizz-form-label">过期时间</label>
+                        <input id="apizz-code-expire" class="apizz-form-input" type="text" placeholder="yyyy-MM-ddTHH:mm:ss，留空不过期">
+                    </div>
+                    <div class="apizz-form-group">
+                        <label class="apizz-form-label">备注</label>
+                        <input id="apizz-code-note" class="apizz-form-input" type="text" placeholder="渠道拉新活动">
+                    </div>
+                </div>
+                <div class="apizz-modal-actions apizz-redeem-actions">
+                    <button id="apizz-code-refresh" class="apizz-ghost-btn" type="button">刷新列表</button>
+                    <button id="apizz-code-create" class="apizz-primary-btn" type="button">生成</button>
+                </div>
+                <div class="apizz-table-wrap apizz-redeem-table-wrap">
+                    <table class="apizz-table">
+                        <thead><tr><th>兑换码</th><th>金额</th><th>次数</th><th>状态</th><th>过期</th><th>操作</th></tr></thead>
+                        <tbody id="apizz-code-rows"><tr><td colspan="6" class="apizz-muted">展开后可刷新查看兑换码列表。</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     }
 
     async function refreshRedeemCodes(root, overlay, showError) {
@@ -1019,12 +1053,14 @@
             ...source,
             metrics: { ...defaults.metrics, ...(source.metrics || {}) },
             models: Array.isArray(source.models) ? source.models : [],
+            servedModels: Array.isArray(source.servedModels) ? source.servedModels : [],
             usage: Array.isArray(source.usage) ? source.usage : [],
             keys: Array.isArray(source.keys) ? source.keys : [],
             ledger: Array.isArray(source.ledger) ? source.ledger : [],
             trend: Array.isArray(source.trend) ? source.trend : [],
             orders: Array.isArray(source.orders) ? source.orders : defaults.orders,
             subscriptionPlans: Array.isArray(source.subscriptionPlans) ? source.subscriptionPlans : defaults.subscriptionPlans,
+            admin: source.admin === true,
             invite: normalizeInvite(source.invite || defaults.invite)
         };
     }
@@ -1070,6 +1106,30 @@
         const [name, domain] = value.split('@');
         if (name.length <= 3) return value;
         return `${name.slice(0, 3)}****@${domain}`;
+    }
+
+    function resolveApiBase() {
+        const configured = typeof window.CIPHERTOOL_API_BASE === 'string'
+            ? window.CIPHERTOOL_API_BASE.trim()
+            : '';
+        if (configured) return configured.replace(/\/+$/, '');
+
+        const location = window.location || {};
+        const origin = String(location.origin || '').replace(/\/+$/, '');
+        const hostname = String(location.hostname || '').toLowerCase();
+        if (isLocalHost(hostname)) return 'http://localhost:8080';
+        return origin;
+    }
+
+    function isLocalHost(hostname) {
+        return hostname === ''
+            || hostname === 'localhost'
+            || hostname === '127.0.0.1';
+    }
+
+    function routerBaseUrl() {
+        const base = String(API_BASE || '').replace(/\/+$/, '');
+        return `${base || window.location.origin}/v1`;
     }
 
     function escapeHtml(value) {

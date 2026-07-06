@@ -37,7 +37,7 @@
                         <div class="apizz-orders-head">
                             <div>
                                 <div class="apizz-panel-title">邀请好友</div>
-                                <p class="apizz-muted">好友通过你的邀请码注册后，后续真实充值或卡密兑换会按后台设置的计入比例结算邀请返利。</p>
+                                <p class="apizz-muted">好友绑定你的邀请码后，首次真实充值或卡密兑换会按后台配置结算邀请返利。</p>
                             </div>
                             <div class="apizz-plan-badge">我的邀请码：${h.escapeHtml(invite.code || '未生成')}</div>
                         </div>
@@ -61,9 +61,9 @@
 
                         <div class="apizz-status-summary apizz-billing-rule-grid">
                             <div class="apizz-status-tile">
-                                <div class="apizz-label">返利比例</div>
+                                <div class="apizz-label">返利规则</div>
                                 <div class="apizz-status-value">后台配置</div>
-                                <div class="apizz-muted">前端不写死比例</div>
+                                <div class="apizz-muted">前端不写死金额或比例</div>
                             </div>
                             <div class="apizz-status-tile">
                                 <div class="apizz-label">到账方式</div>

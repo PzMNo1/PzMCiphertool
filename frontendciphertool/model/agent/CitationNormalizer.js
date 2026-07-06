@@ -49,11 +49,17 @@
                 const existingIds = runtime.extractCitationMarkers(line);
                 const claimText = runtime.cleanClaimForCitationMatch(line);
                 const canonicalIds = [];
+                const shouldDiversify = runtime.isNewsBriefPlan(sourcePolicyPlan)
+                    || registry.entries.length < targetCount;
 
                 existingIds.forEach(oldId => {
                     const resolved = this.resolveExistingCitationToEvidence(oldId, sourceParts.rawSourceMap, evidenceCatalog);
                     const resolvedScore = resolved ? runtime.scoreEvidenceClaimMatch(claimText, resolved) : 0;
-                    if (resolved && this.isEvidenceClaimMatchAcceptable(resolved, resolvedScore, sourcePolicyPlan, true)) {
+                    const exactSourceMapping = Boolean(sourceParts.rawSourceMap?.has?.(String(oldId)))
+                        && !runtime.isNewsBriefPlan(sourcePolicyPlan)
+                        && !this.isWeakEvidenceForFinalSource(resolved);
+                    if (resolved && (exactSourceMapping || this.isEvidenceClaimMatchAcceptable(resolved, resolvedScore, sourcePolicyPlan, true, shouldDiversify))) {
+                        if (shouldDiversify && registry.useCount(resolved) > 0) return;
                         const id = registry.add(resolved);
                         if (id) {
                             canonicalIds.push(id);
@@ -63,8 +69,7 @@
                 });
 
                 if (canonicalIds.length === 0 && existingIds.length > 0) {
-                    const best = runtime.findBestEvidenceMatchesForClaim(claimText, evidenceCatalog, usedEvidenceKeys, 2)
-                        .filter(match => this.isEvidenceClaimMatchAcceptable(match?.entry, match?.score, sourcePolicyPlan, true));
+                    const best = this.selectCitationMatches(claimText, evidenceCatalog, usedEvidenceKeys, 3, sourcePolicyPlan, true, registry, true);
                     best.forEach(match => {
                         const id = registry.add(match.entry);
                         if (id) {
@@ -75,7 +80,7 @@
                 }
 
                 if (!existingIds.length && registry.entries.length < targetCount) {
-                    const best = runtime.findBestEvidenceMatchesForClaim(claimText, evidenceCatalog, usedEvidenceKeys, 1)[0];
+                    const best = this.selectCitationMatches(claimText, evidenceCatalog, usedEvidenceKeys, 1, sourcePolicyPlan, false, registry, true)[0];
                     if (this.isEvidenceClaimMatchAcceptable(best?.entry, best?.score, sourcePolicyPlan)) {
                         const id = registry.add(best.entry);
                         if (id) {
@@ -87,8 +92,7 @@
                 }
 
                 if (existingIds.length && registry.entries.length < targetCount && canonicalIds.length < 2) {
-                    const supplemental = runtime.findBestEvidenceMatchesForClaim(claimText, evidenceCatalog, usedEvidenceKeys, 2)
-                        .filter(match => this.isEvidenceClaimMatchAcceptable(match?.entry, match?.score, sourcePolicyPlan, true));
+                    const supplemental = this.selectCitationMatches(claimText, evidenceCatalog, usedEvidenceKeys, 3, sourcePolicyPlan, true, registry, true);
                     supplemental.forEach(match => {
                         const id = registry.add(match.entry);
                         if (id && !canonicalIds.includes(id)) {
@@ -99,7 +103,9 @@
                     });
                 }
 
-                if (!canonicalIds.length) return line;
+                if (!canonicalIds.length) {
+                    return existingIds.length ? this.removeCitationMarkers(line) : line;
+                }
                 return this.appendCanonicalCitationMarkers(line, canonicalIds);
             });
 
@@ -190,16 +196,25 @@
             const runtime = this.runtime;
             const byKey = new Map();
             const entries = [];
+            const keyUseCounts = new Map();
             return {
                 entries,
+                useCount: entry => {
+                    const key = runtime.getEvidenceCandidateKey(entry);
+                    return key ? (keyUseCounts.get(key) || 0) : 0;
+                },
                 add: entry => {
                     const key = runtime.getEvidenceCandidateKey(entry);
                     if (!key) return '';
-                    if (byKey.has(key)) return byKey.get(key);
+                    if (byKey.has(key)) {
+                        keyUseCounts.set(key, (keyUseCounts.get(key) || 0) + 1);
+                        return byKey.get(key);
+                    }
                     const body = runtime.formatEvidenceSource(entry);
                     if (!body) return '';
                     const id = String(entries.length + 1);
                     byKey.set(key, id);
+                    keyUseCounts.set(key, 1);
                     entries.push({ id, key, entry, body });
                     return id;
                 }
@@ -210,8 +225,13 @@
             const runtime = this.runtime;
             const rawBody = rawSourceMap?.get?.(String(sourceId)) || '';
             if (rawBody) {
-                const rawUrl = runtime.normalizeCitationUrl(runtime.extractFirstUrlFromText(rawBody));
-                const rawTitle = runtime.normalizeCitationTitle(rawBody.replace(/https?:\/\/\S+/ig, ''));
+                const stableRef = typeof runtime.extractStableSourceReference === 'function'
+                    ? runtime.extractStableSourceReference({}, rawBody)
+                    : null;
+                const rawUrl = runtime.normalizeCitationUrl(stableRef?.url || runtime.extractFirstUrlFromText(rawBody));
+                const rawTitle = runtime.normalizeCitationTitle(rawBody
+                    .replace(/https?:\/\/\S+/ig, '')
+                    .replace(/\b(?:pmid|arxiv|doi)\s*[:：]?\s*(?:10\.\d{4,9}\/[^\s"'<>）)]+|[0-9]{4}\.[0-9]{4,5}(?:v\d+)?|\d{5,10})\b/ig, ''));
                 const byUrl = rawUrl
                     ? evidenceCatalog.find(entry => runtime.normalizeCitationUrl(entry.url || '') === rawUrl)
                     : null;
@@ -244,12 +264,12 @@
             const baseTarget = configured > 0
                 ? configured
                 : runtime.isNewsBriefPlan(plan)
-                    ? 24
+                    ? Math.max(24, Math.ceil(bodyCitationLines * 0.7))
                     : runtime.isEvidenceSeekingPlan(plan)
                         ? 18
                         : 8;
             const bodyTarget = runtime.isNewsBriefPlan(plan)
-                ? Math.max(12, Math.ceil(bodyCitationLines * 0.45))
+                ? Math.max(16, Math.ceil(bodyCitationLines * 0.7))
                 : runtime.isEvidenceSeekingPlan(plan)
                     ? Math.max(10, Math.ceil(bodyCitationLines * 0.55))
                     : Math.max(6, Math.ceil(bodyCitationLines * 0.35));
@@ -263,10 +283,36 @@
             return 6;
         }
 
-        isEvidenceClaimMatchAcceptable(entry, score = 0, plan = null, allowExistingRepair = false) {
+        isEvidenceClaimMatchAcceptable(entry, score = 0, plan = null, allowExistingRepair = false, diversifying = false) {
             if (!entry || !Number.isFinite(Number(score))) return false;
-            const minimumScore = allowExistingRepair ? 5 : this.getCitationAutoMatchScore(plan);
+            const minimumScore = allowExistingRepair
+                ? (diversifying && this.runtime.isNewsBriefPlan(plan) ? 4 : 5)
+                : this.getCitationAutoMatchScore(plan);
             return Number(score) >= minimumScore;
+        }
+
+        selectCitationMatches(claimText, catalog, usedEvidenceKeys, limit, plan = null, allowExistingRepair = false, registry = null, preferUnused = false) {
+            const runtime = this.runtime;
+            const candidates = runtime.findBestEvidenceMatchesForClaim(
+                claimText,
+                catalog,
+                usedEvidenceKeys,
+                Math.max(12, Math.max(1, limit) * 4)
+            ).filter(match => this.isEvidenceClaimMatchAcceptable(
+                match?.entry,
+                match?.score,
+                plan,
+                allowExistingRepair,
+                preferUnused
+            ));
+            if (!candidates.length) return [];
+
+            const unused = candidates.filter(match => {
+                const key = runtime.getEvidenceCandidateKey(match.entry);
+                return key && !usedEvidenceKeys.has(key) && (!registry?.useCount || registry.useCount(match.entry) === 0);
+            });
+            const pool = preferUnused && unused.length ? unused : candidates;
+            return pool.slice(0, Math.max(1, limit));
         }
 
         countCitationCandidateLines(body) {
@@ -302,10 +348,22 @@
             return `${cleaned} ${marker}`;
         }
 
+        removeCitationMarkers(line) {
+            return String(line || '')
+                .replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, '')
+                .replace(/\s+([，。！？；：、,.!?;:])/g, '$1')
+                .replace(/\s{2,}/g, ' ')
+                .trimEnd();
+        }
+
         isWeakEvidenceForFinalSource(entry) {
             if (!entry || entry.error) return true;
-            if (['source_candidate', 'search_result', 'raw_url_reference', 'page_read_error', 'source_read_error'].includes(entry.kind)) return true;
-            if (['low', 'unknown'].includes(entry.trustLevel || 'unknown')) return true;
+            if (['page_read_error', 'source_read_error'].includes(entry.kind)) return true;
+            if (['source_candidate', 'search_result'].includes(entry.kind)) {
+                return !this.runtime.isStrongStableCitationCandidate?.(entry);
+            }
+            if (entry.kind === 'raw_url_reference') return true;
+            if (['low', 'unknown'].includes(entry.trustLevel || 'unknown') && !this.runtime.isStrongStableCitationCandidate?.(entry)) return true;
             return false;
         }
     }

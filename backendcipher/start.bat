@@ -17,9 +17,15 @@ if not defined MAVEN_HOME set MAVEN_HOME=d:\10_Leochad\apache-maven-3.9.5
 if not defined REDIS_HOME set REDIS_HOME=d:\10_Leochad\redis
 set PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%
 
-REM LLM API Configuration (DeepSeek) - always override system env to avoid stale keys
-set OPENAI_API_KEY=sk-8ad75ba59f5b4018af287ca3d2f0ffee
-set OPENAI_BASE_URL=https://api.deepseek.com/v1
+REM LLM API Configuration
+REM Load the project .env so local config is the single source of truth.
+if exist "%PROJECT_ROOT%\.env" (
+    for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%PROJECT_ROOT%\.env") do (
+        if not "%%A"=="" set "%%A=%%B"
+    )
+)
+if not defined OPENAI_BASE_URL set OPENAI_BASE_URL=https://api.deepseek.com/v1
+if not defined OPENAI_MODEL set OPENAI_MODEL=deepseek-v4-flash
 
 REM ============ Portable Environment Override ============
 set LOCAL_TOOLS=%SCRIPT_DIR%.tools
