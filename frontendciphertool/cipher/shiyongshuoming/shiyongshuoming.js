@@ -4,6 +4,11 @@
       label: '经典区使用说明',
       steps: [
         {
+          selector: '#sidebar',
+          title: '展开侧边栏',
+          body: '移动到左上角的“By泡面的面”入口，可以展开侧边栏，切换模块或使用侧边栏搜索。'
+        },
+        {
           selector: '#mimaqu #mainInput',
           title: '先输入待处理文本',
           body: '在这里输入明文或密文。经典区和现代区的主输入框会同步，输入后下方所有相关卡片会自动计算。'
@@ -22,11 +27,6 @@
           selector: '#caesarResult',
           title: '查看加密和解密结果',
           body: '结果区域通常会同时显示加密和解密。你可以直接选中复制，也可以继续改输入或参数进行比对。'
-        },
-        {
-          selector: '#mimaqu .pin-toggle-btn',
-          title: '必要时置顶输入框',
-          body: '点击“置顶”可以把主输入框固定在页面上方，方便你在长页面里一边滚动一边调整文本。'
         }
       ]
     },
@@ -231,8 +231,12 @@
     panelEl.querySelector('.cipher-guide-next').textContent = activeIndex === activeSet.steps.length - 1 ? '完成' : '下一步';
 
     if (target && shouldScroll) {
-      target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-      window.setTimeout(positionGuide, 260);
+      if (getComputedStyle(target).position === 'fixed') {
+        positionGuide();
+      } else {
+        target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        window.setTimeout(positionGuide, 260);
+      }
     } else {
       positionGuide();
     }

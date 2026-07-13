@@ -375,7 +375,7 @@
         return text;
     }
 
-    function buildContextPack({ chatId, userMessage, routingMessage, priorMessages, priorAgentRuns = [], preparedAttachments, isImageModeEnabled }) {
+    function buildContextPack({ chatId, userMessage, routingMessage, priorMessages, priorAgentRuns = [], preparedAttachments, isImageModeEnabled, isModelingModeEnabled }) {
         if (window.AgentContract?.createContextPack) {
             return window.AgentContract.createContextPack({
                 chatId,
@@ -385,6 +385,7 @@
                 priorAgentRuns,
                 preparedAttachments,
                 isImageModeEnabled,
+                isModelingModeEnabled,
                 isToolEnabled,
                 isDeepThinkEnabled,
                 maxAttachments: MAX_ATTACHMENTS,
@@ -403,6 +404,7 @@
                 text: userMessage,
                 routingText: routingMessage,
                 imageMode: Boolean(isImageModeEnabled),
+                modelingMode: Boolean(isModelingModeEnabled),
                 toolEnabled: Boolean(isToolEnabled),
                 deepThinkEnabled: Boolean(isDeepThinkEnabled)
             },
@@ -1009,12 +1011,14 @@
             return;
         }
         const message = rawMessage || '请阅读这些附件并总结重点。';
+        const modelingModeToggle = document.getElementById('modeling-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
+        const isModelingModeEnabled = modelingModeToggle && modelingModeToggle.classList.contains('active');
         const isImageModeEnabled = imageModeToggle && imageModeToggle.classList.contains('active');
 
         // 更新按钮状态
         if (sendButton) {
-            sendButton.querySelector('.cyber-button__tag').textContent = hasAttachments ? '读取中' : isImageModeEnabled ? '作图中' : '停止';
+            sendButton.querySelector('.cyber-button__tag').textContent = hasAttachments ? '读取中' : isImageModeEnabled ? '作图中' : isModelingModeEnabled ? '建模中' : '停止';
         }
 
         let preparedAttachments;
@@ -1081,7 +1085,7 @@
             ...priorMessages,
             { role: 'user', content: apiUserContent }
         ];
-        const routingMessage = [isImageModeEnabled ? '作图模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
+        const routingMessage = [isImageModeEnabled ? '作图模式' : isModelingModeEnabled ? '建模模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
         const contextPack = buildContextPack({
             chatId,
             userMessage: message,
@@ -1089,7 +1093,8 @@
             priorMessages,
             priorAgentRuns,
             preparedAttachments,
-            isImageModeEnabled
+            isImageModeEnabled,
+            isModelingModeEnabled
         });
         startDurableRun(activeRun, {
             userMessage: message,
@@ -1577,9 +1582,41 @@
             text = String(content);
         }
         if (message?.role === 'assistant') {
-            return normalizeExportSourceSections(text);
+            return normalizeExportFinalAnswerText(normalizeExportSourceSections(text));
         }
         return text;
+    }
+
+    function normalizeExportFinalAnswerText(text) {
+        return String(text || '')
+            .split('\n')
+            .map(line => normalizeExportSummaryHeadingLine(line))
+            .join('\n');
+    }
+
+    function normalizeExportSummaryHeadingLine(line) {
+        const raw = String(line || '');
+        if (!/一句话/.test(raw)) return raw;
+        const heading = raw.match(/^(\s{0,3}#{1,6}\s+).*一句话.*$/u);
+        if (heading) return `${heading[1]}总结`;
+        const trimmed = raw.trim();
+        if (/^\d+[.)、]\s+/.test(trimmed)) return raw;
+        const labelish = /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?\s*[:：]/u.test(trimmed)
+            || /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?$/u.test(trimmed)
+            || /^[\-*+> ]{0,4}[^:：\n]{0,16}一句话[^:：\n]{0,16}\s*[:：]/u.test(trimmed);
+        if (!labelish) return raw;
+        const boldLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}([:：])(\*\*)?\s*(.*)$/u);
+        if (boldLabel) {
+            const marker = boldLabel[2] || boldLabel[4] ? '**' : '';
+            const suffix = boldLabel[5] ? ` ${boldLabel[5].replace(/^\*\*\s*/, '').trim()}` : '';
+            return `${boldLabel[1] || ''}${marker}总结${boldLabel[3]}${marker}${suffix}`.trimEnd();
+        }
+        const plainLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}(\*\*)?\s*$/u);
+        if (plainLabel) {
+            const marker = plainLabel[2] || plainLabel[3] ? '**' : '';
+            return `${plainLabel[1] || ''}${marker}总结${marker}`.trimEnd();
+        }
+        return raw;
     }
 
     function normalizeExportSourceSections(text) {
@@ -2165,13 +2202,17 @@
             });
         }
 
+        const modelingModeToggle = document.getElementById('modeling-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
-        if (imageModeToggle) {
-            const inputActions = imageModeToggle.closest('.input-actions');
-            const syncImageModeControls = enabled => {
-                imageModeToggle.classList.toggle('active', enabled);
-                inputActions?.classList.toggle('image-mode-only', enabled);
-                if (enabled) {
+        if (modelingModeToggle || imageModeToggle) {
+            const inputActions = (modelingModeToggle || imageModeToggle).closest('.input-actions');
+            const syncModeControls = activeMode => {
+                const modelingEnabled = activeMode === 'modeling';
+                const imageEnabled = activeMode === 'image';
+                modelingModeToggle?.classList.toggle('active', modelingEnabled);
+                imageModeToggle?.classList.toggle('active', imageEnabled);
+                inputActions?.classList.toggle('image-mode-only', modelingEnabled || imageEnabled);
+                if (modelingEnabled || imageEnabled) {
                     toolToggle?.classList.remove('active');
                     deepThinkToggle?.classList.remove('active');
                 } else {
@@ -2179,9 +2220,17 @@
                     deepThinkToggle?.classList.add('active');
                 }
             };
-            syncImageModeControls(imageModeToggle.classList.contains('active'));
-            imageModeToggle.addEventListener('click', () => {
-                syncImageModeControls(!imageModeToggle.classList.contains('active'));
+            const initialMode = modelingModeToggle?.classList.contains('active')
+                ? 'modeling'
+                : imageModeToggle?.classList.contains('active')
+                    ? 'image'
+                    : '';
+            syncModeControls(initialMode);
+            modelingModeToggle?.addEventListener('click', () => {
+                syncModeControls(modelingModeToggle.classList.contains('active') ? '' : 'modeling');
+            });
+            imageModeToggle?.addEventListener('click', () => {
+                syncModeControls(imageModeToggle.classList.contains('active') ? '' : 'image');
             });
         }
 

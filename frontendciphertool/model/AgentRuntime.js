@@ -593,7 +593,7 @@ class AgentRuntime {
         return queries.map((query, index) => this.createInjectedToolCall('agent_earth_run', {
             query,
             task_context: '',
-            max_attempts: 1
+            max_attempts: 0
         }, `early-${currentIteration}-${index + 1}`));
     }
 
@@ -603,20 +603,20 @@ class AgentRuntime {
         const broadNews = profile === 'news_brief';
         const baseQueries = broadNews
             ? [
-                `${task}\nFocus: international and domestic top news, broad daily briefing evidence.`,
-                `${task}\nFocus: finance, markets, business, economy, and policy signals.`,
-                `${task}\nFocus: technology, science, health, climate, and education developments.`,
-                `${task}\nFocus: society, livelihood, sports, culture, and public-interest stories.`,
-                `${task}\nFocus: cross-check missing angles and source diversity for the final brief.`,
-                `${task}\nFocus: reputable primary or high-authority sources with URLs.`
+                `${task}\nFocus: international and domestic top news, broad daily briefing evidence. Prefer AgentEarth tools for Reuters, Bloomberg, Google News, BrightData/news extraction, X/Twitter, YouTube, Facebook, Reddit, and other available news/social platforms when useful.`,
+                `${task}\nFocus: finance, markets, business, economy, and policy signals. Prefer Reuters, Bloomberg, WSJ/CNBC, 财联社, Google News, Tushare/market-data, and other AgentEarth finance/news tools when useful.`,
+                `${task}\nFocus: technology, science, health, climate, and education developments. Include Google News, Reuters/AP, official sources, Reddit/X/Twitter, YouTube, and specialist AgentEarth tools when useful.`,
+                `${task}\nFocus: society, livelihood, sports, culture, and public-interest stories. Include Google News, YouTube, Facebook, Reddit, X/Twitter, and reputable media tools when useful.`,
+                `${task}\nFocus: cross-check missing angles and source diversity for the final brief. Use all relevant AgentEarth news, social, data, and extraction tools without limiting to one candidate.`,
+                `${task}\nFocus: reputable primary or high-authority sources with URLs. If normal foreign-source search is blocked or thin, fall back to AgentEarth platform tools repeatedly until useful candidates are exhausted.`
             ]
             : [
-                `${task}\nFocus: current facts and authoritative sources.`,
-                `${task}\nFocus: specialist tools, data, reports, and comparisons.`,
-                `${task}\nFocus: primary sources, official pages, and verification.`,
-                `${task}\nFocus: missing angles, risks, community or market signals.`,
-                `${task}\nFocus: source diversity and citation-ready URLs.`,
-                `${task}\nFocus: concise evidence useful for final synthesis.`
+                `${task}\nFocus: current facts and authoritative sources. Use AgentEarth platform tools such as Google News, Reuters, Bloomberg, BrightData extraction, X/Twitter, Reddit, YouTube, Facebook, finance/data, and other relevant tools when available.`,
+                `${task}\nFocus: specialist tools, data, reports, and comparisons. Let AgentEarth choose from all matching professional tools.`,
+                `${task}\nFocus: primary sources, official pages, and verification. If ordinary web search fails, keep using AgentEarth alternatives.`,
+                `${task}\nFocus: missing angles, risks, community or market signals across X/Twitter, Reddit, Facebook, YouTube, news wires, market-data, and other available sources.`,
+                `${task}\nFocus: source diversity and citation-ready URLs from multiple platforms.`,
+                `${task}\nFocus: concise evidence useful for final synthesis, not raw JSON.`
             ];
         return baseQueries.slice(0, Math.max(0, count));
     }
@@ -786,14 +786,62 @@ class AgentRuntime {
     normalizeFinalResearchAnswer(content, plan, runState = null) {
         // Citation/source-section mechanics live in AgentCitationNormalizer.
         // Keep AgentRuntime focused on run orchestration and shared evidence helpers.
+        const input = this.normalizeFinalAnswerText(content);
         if (this.citationNormalizer) {
-            return this.citationNormalizer.normalizeFinalResearchAnswer(content, plan, runState);
+            return this.normalizeFinalAnswerText(this.citationNormalizer.normalizeFinalResearchAnswer(input, plan, runState));
         }
-        const text = String(content || '');
+        const text = input;
         const hasEvidence = Array.isArray(runState?.evidenceLedger) && runState.evidenceLedger.length > 0;
         const hasSourceSection = this.hasSourceHeading(text);
         if (!text || (!this.isResearchLikeMode(plan?.mode) && !hasEvidence && !hasSourceSection)) return text;
-        return this.normalizeSourceSection(text, runState, plan);
+        return this.normalizeFinalAnswerText(this.normalizeSourceSection(text, runState, plan));
+    }
+
+    normalizeFinalAnswerText(content) {
+        const text = String(content || '');
+        if (!text) return text;
+        return text
+            .split('\n')
+            .map(line => this.normalizeSummaryHeadingLine(line))
+            .join('\n');
+    }
+
+    normalizeSummaryHeadingLine(line) {
+        const raw = String(line || '');
+        if (!/一句话/.test(raw)) return raw;
+
+        const heading = raw.match(/^(\s{0,3}#{1,6}\s+).*一句话.*$/u);
+        if (heading) return `${heading[1]}总结`;
+
+        const trimmed = raw.trim();
+        if (/^\d+[.)、]\s+/.test(trimmed)) return raw;
+        const labelish = /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?\s*[:：]/u.test(trimmed)
+            || /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?$/u.test(trimmed)
+            || /^[\-*+> ]{0,4}[^:：\n]{0,16}一句话[^:：\n]{0,16}\s*[:：]/u.test(trimmed);
+        if (!labelish) return raw;
+
+        const boldLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}([:：])(\*\*)?\s*(.*)$/u);
+        if (boldLabel) {
+            const prefix = boldLabel[1] || '';
+            const marker = boldLabel[2] || boldLabel[4] ? '**' : '';
+            const suffix = boldLabel[5] ? ` ${boldLabel[5].replace(/^\*\*\s*/, '').trim()}` : '';
+            return `${prefix}${marker}总结${boldLabel[3]}${marker}${suffix}`.trimEnd();
+        }
+
+        const plainLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}(\*\*)?\s*$/u);
+        if (plainLabel) {
+            const prefix = plainLabel[1] || '';
+            const marker = plainLabel[2] || plainLabel[3] ? '**' : '';
+            return `${prefix}${marker}总结${marker}`.trimEnd();
+        }
+
+        const indent = raw.match(/^\s*/)?.[0] || '';
+        const labelCandidate = raw.trim().replace(/^[^\p{L}\p{N}\u4e00-\u9fff]+/u, '');
+        if (labelCandidate.length <= 40 && /一句话/.test(labelCandidate)) {
+            return `${indent}总结`;
+        }
+
+        return raw;
     }
 
     normalizeSourceSection(text, runState = null, plan = null) {
@@ -1198,7 +1246,7 @@ class AgentRuntime {
         const cleanUrl = this.cleanUrl(url || '').toLowerCase();
         const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
         if (!cleanUrl) return true;
-        if (/(dictionary|translate|word|lingoland|iciba|runoob|csdn|zhihu\.com\/topic|baike|wikipedia)/i.test(`${cleanUrl} ${cleanTitle}`)) {
+        if (/(dictionary|translate|word|lingoland|iciba|runoob|csdn|zhihu\.com\/topic|baike|wikipedia|extendoffice|excel[-_\s]?today|today\s+function|how\s+to\s+use\s+today)/i.test(`${cleanUrl} ${cleanTitle}`)) {
             return true;
         }
         try {
@@ -1400,15 +1448,16 @@ class AgentRuntime {
         const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : (stableRef.url || rawUrl);
         const host = this.extractHostname(url);
         const siteLabel = this.getSourceSiteLabel(entry, host, stableRef);
-        const genericHomepage = this.isGenericSourceHomepage(title || siteLabel, url);
         const parts = [];
-
-        if (title) parts.push(title);
-        else if (siteLabel) parts.push(siteLabel);
-
         const sourceLabel = siteLabel || host;
-        if (sourceLabel && !this.sourceLabelContainsHost(parts[0] || '', sourceLabel) && !this.sourceLabelContainsHost(parts[0] || '', host)) {
+
+        if (sourceLabel) {
             parts.push(sourceLabel);
+        }
+        if (title && !this.sourceLabelContainsHost(title, sourceLabel) && !this.sourceLabelContainsHost(title, host)) {
+            parts.push(title);
+        } else if (title && !parts.length) {
+            parts.push(title);
         }
 
         if (url) parts.push(url);
@@ -1416,10 +1465,8 @@ class AgentRuntime {
         else if (entry?.community) parts.push(`${entry.community} tool snapshot`);
         else if (entry?.kind === 'external_tool_result') parts.push('AgentEarth 工具快照');
 
-        if (genericHomepage && snippet) {
+        if (!url && entry?.kind === 'external_tool_result' && snippet) {
             parts.push(this.parentheticalSourceNote(snippet, 90));
-        } else if (this.shouldIncludeSourceSnippet(title, snippet, entry)) {
-            parts.push(this.parentheticalSourceNote(snippet, 120));
         }
 
         return this.dedupeSourceParts(parts).join(' — ');
@@ -1429,6 +1476,7 @@ class AgentRuntime {
         let clean = this.cleanOneLine(title || '')
             .replace(/\s*\[preview truncated\]\s*$/i, '')
             .replace(/^\s*(title|标题)\s*[:：]\s*/i, '')
+            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
             .replace(/^#+\s*/, '')
             .replace(/\s+\|\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
             .replace(/\s+[-—]\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
@@ -1440,11 +1488,10 @@ class AgentRuntime {
             || /\.\.\.|preview truncated/i.test(clean)) {
             clean = extracted || clean;
         }
-        return this.cleanOneLine(clean)
+        return this.compactSourceTitle(this.cleanOneLine(clean)
             .replace(/\s*\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
             .replace(/\s*\[preview truncated\]\s*$/i, '')
-            .slice(0, 220)
-            .trim();
+            .trim());
     }
 
     extractTitleFromEvidenceText(value = '') {
@@ -1467,13 +1514,35 @@ class AgentRuntime {
     }
 
     cleanExtractedSourceTitle(value = '') {
-        return this.cleanOneLine(value || '')
+        return this.compactSourceTitle(this.cleanOneLine(value || '')
             .replace(/^[-*•#\s]+/, '')
             .replace(/\s*\[preview truncated\]\s*/ig, ' ')
+            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
             .replace(/\s+\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
             .replace(/\s+[-—]\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
             .replace(/\s{2,}/g, ' ')
+            .trim());
+    }
+
+    compactSourceTitle(value = '', maxLength = 110) {
+        let clean = this.cleanOneLine(value || '')
+            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
+            .replace(/\s*[|｜]\s*.*$/u, '')
+            .replace(/\s{2,}/g, ' ')
             .trim();
+        if (this.isMojibakeText(clean)) return '';
+        if (clean.length <= maxLength) return clean;
+        const clipped = clean.slice(0, maxLength);
+        const boundary = clipped.replace(/[，,。；;：:、\s_-][^，,。；;：:、\s_-]*$/u, '').trim();
+        return (boundary.length >= 24 ? boundary : clipped.trim()).replace(/[，,。；;：:、_-]+$/u, '').trim();
+    }
+
+    isMojibakeText(value = '') {
+        const text = String(value || '');
+        if (!text) return false;
+        const replacementCount = (text.match(/\uFFFD/g) || []).length;
+        if (replacementCount >= 2) return true;
+        return replacementCount > 0 && replacementCount / Math.max(text.length, 1) > 0.04;
     }
 
     cleanEvidenceSourceSnippet(snippet = '', title = '') {
@@ -1612,13 +1681,29 @@ class AgentRuntime {
     }
 
     cleanSourceEntryText(value) {
-        return String(value || '')
+        const original = String(value || '');
+        const url = this.extractFirstUrlFromText(original);
+        const host = this.extractHostname(url);
+        let text = original
             .replace(/\s+—\s+\.\.\.\s*\{[\s\S]*$/g, '')
             .replace(/\s+\.\.\.\s*\{[\s\S]*$/g, '')
+            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*?(?=\s+—\s+(?:https?:\/\/|[a-z0-9.-]+\.[a-z]{2,})|$)/i, '')
             .replace(/\s*\[preview truncated]\s*$/i, '')
             .replace(/\s+/g, ' ')
             .replace(/^[\-—–:：]\s*/, '')
             .trim();
+        const parts = text
+            .split(/\s+—\s+/)
+            .map(part => this.cleanOneLine(part))
+            .filter(Boolean)
+            .filter(part => /^https?:\/\//i.test(part) || !this.isMojibakeText(part))
+            .map(part => /^https?:\/\//i.test(part) ? this.cleanUrl(part) : this.compactSourceTitle(part, 110))
+            .filter(Boolean);
+        if (!parts.some(part => /^https?:\/\//i.test(part)) && url) parts.push(url);
+        if (host && parts.length === 1 && /^https?:\/\//i.test(parts[0])) {
+            parts.unshift(host);
+        }
+        return this.dedupeSourceParts(parts).join(' — ');
     }
 
     buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedCount = 0) {
@@ -2015,7 +2100,7 @@ class AgentRuntime {
             enriched.task_context = taskContext;
         }
         if (!Number.isFinite(Number(enriched.max_attempts))) {
-            enriched.max_attempts = 1;
+            enriched.max_attempts = 0;
         }
         return enriched;
     }

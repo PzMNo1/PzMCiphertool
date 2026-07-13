@@ -427,6 +427,7 @@
                 text: String(input.userMessage || ''),
                 routingText: String(input.routingMessage || ''),
                 imageMode: Boolean(input.isImageModeEnabled),
+                modelingMode: Boolean(input.isModelingModeEnabled),
                 toolEnabled: Boolean(input.isToolEnabled),
                 deepThinkEnabled: Boolean(input.isDeepThinkEnabled)
             },

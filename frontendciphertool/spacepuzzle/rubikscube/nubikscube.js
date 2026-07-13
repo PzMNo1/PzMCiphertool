@@ -116,6 +116,80 @@ const STANDARD_CUBE_STYLES = `
   padding: 0.55rem 0.25rem;
 }
 
+.space-stats.cube-stats-area {
+  display: block;
+}
+
+.cube-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.7rem;
+}
+
+.cube-map-panel {
+  display: none;
+  width: 100%;
+}
+
+.space-stats.cube-map-open .cube-stat-grid {
+  display: none;
+}
+
+.space-stats.cube-map-open .cube-map-panel {
+  display: block;
+}
+
+.cube-map-frame {
+  min-height: 238px;
+  padding: 0.75rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(64, 224, 255, 0.1), transparent 68%),
+    rgba(0, 0, 0, 0.28);
+  overflow: visible;
+}
+
+.cube-map-svg {
+  display: block;
+  width: 100%;
+  min-height: 238px;
+}
+
+.cube-map-cycle {
+  fill: none;
+  stroke: rgba(225, 241, 255, 0.28);
+  stroke-width: 1.15;
+  vector-effect: non-scaling-stroke;
+}
+
+.cube-map-face-loop {
+  fill: none;
+  stroke: rgba(64, 224, 255, 0.2);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.cube-map-node {
+  stroke: rgba(2, 12, 18, 0.92);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 0 3px rgba(64, 224, 255, 0.35));
+}
+
+.cube-map-node-center {
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 1.7;
+}
+
+.cube-map-label {
+  fill: rgba(234, 255, 255, 0.72);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
 @media (max-width: 760px) {
   .cube-scene {
     width: 210px;
@@ -204,6 +278,7 @@ const STANDARD_CUBE_STYLES = `
     let solutionFrameIndex = 0;
     let cubeRotX = -28;
     let cubeRotY = -38;
+    let cubeMapOpen = false;
 
     function makeSticker(face, x, y, z, nx, ny, nz) {
         return {
@@ -450,6 +525,128 @@ const STANDARD_CUBE_STYLES = `
         mount.style.setProperty('--cube-rot-y', `${cubeRotY}deg`);
     }
 
+    const MAP_RING_ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
+    const MAP_FACE_LAYOUT = {
+        U: { x: 180, y: 54 },
+        L: { x: 96, y: 122 },
+        F: { x: 180, y: 122 },
+        R: { x: 264, y: 122 },
+        B: { x: 132, y: 196 },
+        D: { x: 228, y: 196 }
+    };
+
+    function getCubeMapPositions() {
+        const positions = {};
+        FACE_NAMES.forEach(face => {
+            const center = MAP_FACE_LAYOUT[face];
+            const start = -Math.PI / 2;
+            const radius = 25;
+            MAP_RING_ORDER.forEach((index, orderIndex) => {
+                const angle = start + (Math.PI * 2 * orderIndex / MAP_RING_ORDER.length);
+                positions[`${face}${index}`] = {
+                    x: center.x + Math.cos(angle) * radius,
+                    y: center.y + Math.sin(angle) * radius
+                };
+            });
+            positions[`${face}4`] = { x: center.x, y: center.y };
+        });
+        return positions;
+    }
+
+    function stickerPositionId(sticker) {
+        const face = normalToFace(sticker.normal);
+        return `${face}${faceIndex(face, sticker.pos)}`;
+    }
+
+    function getMoveCycles(move, positions) {
+        const before = createSolvedStickers();
+        const after = cloneState(before);
+        const mapping = new Map();
+        turnState(after, move);
+
+        before.forEach((sticker, index) => {
+            const from = stickerPositionId(sticker);
+            const to = stickerPositionId(after[index]);
+            if (from !== to && positions[from] && positions[to]) {
+                mapping.set(from, to);
+            }
+        });
+
+        const cycles = [];
+        const visited = new Set();
+        mapping.forEach((_, start) => {
+            if (visited.has(start)) return;
+            const cycle = [];
+            let current = start;
+            while (mapping.has(current) && !visited.has(current)) {
+                visited.add(current);
+                cycle.push(current);
+                current = mapping.get(current);
+            }
+            if (cycle.length > 1 && current === start) cycles.push(cycle);
+        });
+        return cycles;
+    }
+
+    function makeCurvedPath(points) {
+        if (points.length < 2) return '';
+        const center = points.reduce((acc, point) => ({
+            x: acc.x + point.x / points.length,
+            y: acc.y + point.y / points.length
+        }), { x: 0, y: 0 });
+        return points.map((point, index) => {
+            if (index === 0) return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+            return `Q ${center.x.toFixed(1)} ${center.y.toFixed(1)} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+        }).join(' ') + ` Q ${center.x.toFixed(1)} ${center.y.toFixed(1)} ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    }
+
+    function getDisplayedCubeState() {
+        if (solutionFrames.length && solutionFrames[solutionFrameIndex]) {
+            return solutionFrames[solutionFrameIndex].state;
+        }
+        return stickers;
+    }
+
+    function renderCubeMap(state = getDisplayedCubeState()) {
+        const svg = document.getElementById('cube-map-svg');
+        if (!svg || !cubeMapOpen) return;
+        const faces = getFacelets(state);
+        const positions = getCubeMapPositions();
+        const faceLoops = FACE_NAMES.map(face => {
+            const center = MAP_FACE_LAYOUT[face];
+            return `<circle class="cube-map-face-loop" cx="${center.x}" cy="${center.y}" r="29"></circle>`;
+        }).join('');
+        const cyclePaths = Object.keys(MOVE_DEFS).flatMap(move =>
+            getMoveCycles(move, positions).map(cycle => {
+                const points = cycle.map(id => positions[id]).filter(Boolean);
+                return `<path class="cube-map-cycle" d="${makeCurvedPath(points)}"></path>`;
+            })
+        ).join('');
+        const nodes = FACE_NAMES.map(face => faces[face].map((color, index) => {
+            const point = positions[`${face}${index}`];
+            const centerClass = index === 4 ? ' cube-map-node-center' : '';
+            const radius = index === 4 ? 6.2 : 5.5;
+            return `<circle class="cube-map-node${centerClass}" cx="${point.x}" cy="${point.y}" r="${radius}" fill="${color}"><title>${face}${index + 1}</title></circle>`;
+        }).join('')).join('');
+        const labels = FACE_NAMES.map(face => {
+            const center = MAP_FACE_LAYOUT[face];
+            return `<text class="cube-map-label" x="${center.x}" y="${center.y + 3}">${face}</text>`;
+        }).join('');
+        svg.innerHTML = `${faceLoops}${cyclePaths}${nodes}${labels}`;
+    }
+
+    function setCubeMapOpen(open) {
+        cubeMapOpen = open;
+        const area = document.getElementById('cube-stats-area');
+        const panel = document.getElementById('cube-map-panel');
+        const button = document.getElementById('cube-map-toggle');
+        const tag = button ? button.querySelector('.cyber-button__tag') : null;
+        if (area) area.classList.toggle('cube-map-open', cubeMapOpen);
+        if (panel) panel.setAttribute('aria-hidden', String(!cubeMapOpen));
+        if (tag) tag.textContent = cubeMapOpen ? '二维映射收起' : '二维映射展开';
+        renderCubeMap(getDisplayedCubeState());
+    }
+
     function renderCube(state = stickers, options = {}) {
         const mount = document.getElementById('standard-cube-3d');
         if (!mount) return;
@@ -459,6 +656,7 @@ const STANDARD_CUBE_STYLES = `
             return `<div class="cube-face cube-face-${face.toLowerCase()}">${cells}<b>${face}</b></div>`;
         }).join('');
         applyCubeRotation();
+        renderCubeMap(state);
         setText('cube-history-count', String(rawHistoryLength));
         setText('cube-reduced-count', String(history.length));
         if (!options.preview) {
@@ -643,11 +841,18 @@ const STANDARD_CUBE_STYLES = `
                             <button class="cyber-button cyber-glow" id="cube-solve-btn" onclick="window.solveStandardCube()"><span class="cyber-button__tag">规约求解</span></button>
                         </div>
 
-                        <div class="space-stats">
-                            <div>解记录数: <span id="cube-solutionsCount">0</span></div>
-                            <div>算力耗时: <span id="cube-timeElapsed">0</span> ms</div>
-                            <div>历史步数: <span id="cube-history-count">0</span></div>
-                            <div>有效步数: <span id="cube-reduced-count">0</span></div>
+                        <div class="space-stats cube-stats-area" id="cube-stats-area">
+                            <div class="cube-stat-grid">
+                                <div>解记录数: <span id="cube-solutionsCount">0</span></div>
+                                <div>算力耗时: <span id="cube-timeElapsed">0</span> ms</div>
+                                <div>历史步数: <span id="cube-history-count">0</span></div>
+                                <div>有效步数: <span id="cube-reduced-count">0</span></div>
+                            </div>
+                            <div class="cube-map-panel" id="cube-map-panel" aria-hidden="true">
+                                <div class="cube-map-frame">
+                                    <svg class="cube-map-svg" id="cube-map-svg" viewBox="48 18 264 226" role="img" aria-label="三阶魔方二维映射"></svg>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="space-solution-card">
@@ -664,7 +869,7 @@ const STANDARD_CUBE_STYLES = `
                                 <div class="cube-step-bar"><span id="cube-step-progress"></span></div>
                             </div>
                             <div class="result" id="cube-solution-output">等待生成解法。</div>
-                            <button class="cyber-button" onclick="window.executeCubeSolution()"><span class="cyber-button__tag">执行全部解法</span></button>
+                            <button class="cyber-button" id="cube-map-toggle" onclick="window.toggleCubeMap()"><span class="cyber-button__tag">二维映射展开</span></button>
                         </div>
 
                         <div class="instructions space-instructions">
@@ -791,6 +996,10 @@ const STANDARD_CUBE_STYLES = `
         const nextIndex = Math.max(0, Math.min(solutionFrames.length - 1, solutionFrameIndex + delta));
         solutionFrameIndex = nextIndex;
         updateStepPanel();
+    };
+
+    window.toggleCubeMap = function () {
+        setCubeMapOpen(!cubeMapOpen);
     };
 
     window.executeCubeSolution = function () {

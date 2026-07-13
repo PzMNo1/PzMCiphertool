@@ -57,7 +57,7 @@ public class AgentEarthController {
             } else if (rawParams instanceof Map<?, ?> map) {
                 arguments = (Map<String, Object>) map;
             }
-            Integer maxAttempts = safeRequest.get("max_attempts") instanceof Number number ? number.intValue() : 1;
+            Integer maxAttempts = safeRequest.get("max_attempts") instanceof Number number ? number.intValue() : 0;
 
             if (query.isBlank()) {
                 return Map.of("success", false, "message", "query cannot be empty");

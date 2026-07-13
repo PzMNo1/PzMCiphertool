@@ -820,7 +820,7 @@ function renderGraph(container) {
     function inspectCodeNode(node) {
         const file = getNodeFile(node);
         if (!file) {
-            showPreview(node.name, node.path || '默认知识图谱节点', `<p>这个节点没有关联到导入文件。请先导入项目目录，再点击具体代码文件节点。</p>`);
+            inspectKnowledgeGraphNode(node);
             return;
         }
         if (!CODE_EXTS.has(node.ext)) {
@@ -837,7 +837,7 @@ function renderGraph(container) {
     function inspectDocumentNode(node) {
         const file = getNodeFile(node);
         if (!file) {
-            showPreview(node.name, node.path || '默认知识图谱节点', `<p>这个节点没有关联到导入文档。请先导入包含文档的目录，再点击文档文件节点。</p>`);
+            inspectKnowledgeGraphNode(node);
             return;
         }
         if (!DOC_EXTS.has(node.ext)) {
@@ -866,6 +866,32 @@ function renderGraph(container) {
             formatFileMeta(file, node),
             `<p>浏览器通常不能直接内嵌预览 Word/PPT 文件。可以用下面的链接在新窗口打开或下载。</p>
              <a class="zstp-preview-link" href="${activePreviewUrl}" target="_blank" rel="noopener">打开文档</a>`
+        );
+    }
+
+    function inspectKnowledgeGraphNode(node) {
+        const context = getNodeGraphContext(node);
+        const records = (node.knowledgeBase || []).slice(0, 8);
+        const children = (context.children || []).slice(0, 12).map(item => item.name);
+        const recordHtml = records.length
+            ? records.map(item => `
+                <section class="zstp-kb-record">
+                    <h4>${escapeHtml(item.title || '节点知识库')}</h4>
+                    <pre><code>${escapeHtml(item.content || '')}</code></pre>
+                    ${item.keywords?.length ? `<p class="zstp-kb-keywords">${escapeHtml(item.keywords.slice(0, 12).join(' / '))}</p>` : ''}
+                </section>
+            `).join('')
+            : '<p>这个节点暂未生成知识库记录。</p>';
+        showPreview(
+            node.name,
+            `${(context.path || []).join(' > ')} · ${records.length} 条本地知识库`,
+            `
+                <div class="zstp-kb-summary">
+                    <p>${escapeHtml(node.description || '默认知识图谱节点，可用于模型解释与检索增强。')}</p>
+                    ${children.length ? `<p>直接子节点: ${escapeHtml(children.join('；'))}</p>` : ''}
+                </div>
+                ${recordHtml}
+            `
         );
     }
 
@@ -1088,6 +1114,17 @@ function renderGraph(container) {
         const siblings = (context.siblings || []).slice(0, 10).map(item => item.name);
         const ancestors = (context.ancestors || []).map(item => item.name);
         const records = [
+            ...(node.knowledgeBase || []).slice(0, 8).map((item, index) => ({
+                type: 'node-knowledge-base',
+                title: item.title || `节点知识库 ${index + 1}`,
+                content: [
+                    item.content || '',
+                    item.source ? `来源: ${item.source}` : '',
+                    item.url ? `链接: ${item.url}` : '',
+                    item.keywords?.length ? `关键词: ${item.keywords.join('；')}` : '',
+                ].filter(Boolean).join('\n'),
+                score: 1.08 - index * 0.02
+            })),
             {
                 type: 'node-card',
                 title: '节点定位',
@@ -1487,7 +1524,8 @@ function renderGraph(container) {
                     source: selected.source || '',
                     scale: selected.scale || '',
                     maturity: selected.maturity || '',
-                    layer: selected.layer || ''
+                    layer: selected.layer || '',
+                    knowledgeBaseCount: Array.isArray(selected.knowledgeBase) ? selected.knowledgeBase.length : 0
                 },
                 profile: knowledge.profile,
                 graph: {
@@ -1498,7 +1536,8 @@ function renderGraph(container) {
                     nodeCount: knowledge.graphContext.nodeCount,
                     linkCount: knowledge.graphContext.linkCount,
                 },
-                localRecords: knowledge.localRecords.slice(0, Math.min(limit, 8)),
+                nodeKnowledgeBase: (selected.knowledgeBase || []).slice(0, Math.min(limit, 12)),
+                localRecords: knowledge.localRecords.slice(0, Math.min(limit, 10)),
                 externalRecords: knowledge.externalRecords.slice(0, limit),
                 retrievalPolicy: knowledge.retrievalPolicy,
             };

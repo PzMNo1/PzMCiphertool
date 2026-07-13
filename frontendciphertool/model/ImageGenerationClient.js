@@ -67,71 +67,6 @@
         };
     }
 
-    function escapeSvgText(value) {
-        return String(value || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    function wrapSvgText(value, maxChars = 48, maxLines = 5) {
-        const words = String(value || '').replace(/\s+/g, ' ').trim().split(' ');
-        const lines = [];
-        let current = '';
-
-        words.forEach(word => {
-            if (!word) return;
-            const next = current ? `${current} ${word}` : word;
-            if (next.length > maxChars && current) {
-                lines.push(current);
-                current = word;
-            } else {
-                current = next;
-            }
-        });
-        if (current) lines.push(current);
-
-        return lines.slice(0, maxLines);
-    }
-
-    function createFallbackImage(error, prompt) {
-        const message = String(error?.message || error || 'Image generation failed').slice(0, 220);
-        const promptPreview = String(prompt || '').replace(/\s+/g, ' ').trim().slice(0, 160);
-        const lines = [
-            'IMAGE MODE FALLBACK',
-            '',
-            ...wrapSvgText(message, 46, 4),
-            '',
-            ...wrapSvgText(promptPreview ? `Prompt: ${promptPreview}` : 'Prompt was empty.', 46, 3)
-        ];
-        const text = lines.map((line, index) => {
-            const y = 300 + index * 44;
-            const size = index === 0 ? 34 : 24;
-            const fill = index === 0 ? '#8ee7ff' : '#dcecff';
-            return `<text x="512" y="${y}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${size}" fill="${fill}">${escapeSvgText(line)}</text>`;
-        }).join('');
-        const svg = [
-            '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">',
-            '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#06141f"/><stop offset="1" stop-color="#102640"/></linearGradient></defs>',
-            '<rect width="1024" height="1024" fill="url(#bg)"/>',
-            '<rect x="104" y="104" width="816" height="816" rx="28" fill="rgba(0,0,0,.18)" stroke="#2fd6ff" stroke-opacity=".45" stroke-width="2"/>',
-            '<circle cx="512" cy="210" r="62" fill="none" stroke="#2fd6ff" stroke-opacity=".7" stroke-width="4"/>',
-            '<path d="M482 210h60M512 180v60" stroke="#2fd6ff" stroke-width="8" stroke-linecap="round"/>',
-            text,
-            '</svg>'
-        ].join('');
-
-        return {
-            content: '已生成图片。',
-            images: [{
-                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-                mimeType: 'image/svg+xml',
-                revisedPrompt: promptPreview
-            }]
-        };
-    }
-
     async function generateImageThroughBackend(options = {}) {
         const prompt = String(options.prompt || '').trim() || 'Create an image for this empty image-mode message.';
 
@@ -174,8 +109,8 @@
             if (error?.name === 'AbortError') {
                 throw error;
             }
-            console.warn('Image generation failed; rendering fallback image.', error);
-            return createFallbackImage(error, prompt);
+            console.warn('Image generation failed.', error);
+            throw new Error(error?.message || '图片生成失败，请检查后端图片模型配置后重试');
         }
     }
 

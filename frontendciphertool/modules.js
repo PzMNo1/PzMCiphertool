@@ -73,6 +73,13 @@ const MODULES = {
     </div>
 `,
 
+    // 建模实验室模块
+    jianmoshiyanshi: `
+    <div id="jianmoshiyanshi-content" class="content-section">
+        <div id="modelinglab-root"></div>
+    </div>
+`,
+
     // 工作流模块
     workflow: `
     <div id="workflow-content" class="content-section">
@@ -258,6 +265,9 @@ const MODULES = {
                         <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
                     </div>
                     <div class="input-actions">
+                        <button id="modeling-mode-toggle" class="cyber-button image-mode-toggle" title="建模模式" type="button">
+                            <span class="cyber-button__tag">建模模式</span>
+                        </button>
                         <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
                             <span class="cyber-button__tag">作图模式</span>
                         </button>
@@ -461,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===== 核心脚本（页面框架、密码、工作流等）=====
     const coreScripts = [
         './electronic/electronic_lab.js',
+        './modelinglab/modelinglab.js',
         './apizhongzhuanzhan/apizhongzhuanzhan.js',
         './apizhongzhuanzhan/apizz-overview.js',
         './apizhongzhuanzhan/apizz-keys.js',
@@ -535,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initChatFunctions === 'function') initChatFunctions();
             initWorkflowCoze();
             if (typeof initElectronicLab === 'function') initElectronicLab();
+            if (typeof initModelingLab === 'function') initModelingLab();
             if (typeof initAuthorPage === 'function') initAuthorPage();
         });
 
@@ -542,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBatch(['./logic/logicbatch.js']);
 
     if (!MODULES) return console.error('模块内容未定义');
-    ['jiamishiyanshi', 'electroniclab', 'workflow', 'zhishitupu', 'damoxing', 'apizhongzhuanzhan', 'mcpskilllab', 'yijianfankui'].forEach(id =>
+    ['jiamishiyanshi', 'electroniclab', 'jianmoshiyanshi', 'workflow', 'zhishitupu', 'damoxing', 'apizhongzhuanzhan', 'mcpskilllab', 'yijianfankui'].forEach(id =>
         document.getElementById(id + '-container').innerHTML = MODULES[id]
     );
 
@@ -579,6 +591,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (loading) loading.classList.add('active'); // 显示加载遮罩
                 frame.src = frame.getAttribute('data-src');
             }
+        }
+
+        if (id === 'jianmoshiyanshi' && typeof initModelingLab === 'function') {
+            initModelingLab();
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
 
         document.querySelectorAll('.menu-item').forEach(item =>

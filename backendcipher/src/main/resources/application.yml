@@ -93,6 +93,7 @@ agent-earth:
   timeout-seconds: ${AGENT_EARTH_TIMEOUT_SECONDS:60}
   max-context-chars: ${AGENT_EARTH_MAX_CONTEXT_CHARS:8000}
   max-response-chars: ${AGENT_EARTH_MAX_RESPONSE_CHARS:24000}
+  recommend-limit: ${AGENT_EARTH_RECOMMEND_LIMIT:20}
   allow-any-execute-url: ${AGENT_EARTH_ALLOW_ANY_EXECUTE_URL:true}
 
 # API Router quota, rate limit and optional internal billing config

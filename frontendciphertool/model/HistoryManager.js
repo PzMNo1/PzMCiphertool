@@ -9,7 +9,9 @@ class HistoryManager {
         this.CURRENT_CHAT_KEY = 'currentChatId';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
-        this.MAX_AGENT_EVENTS = 240;
+        this.MAX_AGENT_EVENTS = 3000;
+        this.TIGHT_AGENT_EVENTS = 1000;
+        this.MINIMAL_AGENT_EVENTS = 200;
         this.MAX_AGENT_EVIDENCE = 64;
         this.MAX_AGENT_TOOL_RESULTS = 36;
         this.MAX_STORED_CONTENT_CHARS = 260000;
@@ -448,7 +450,11 @@ class HistoryManager {
 
     compactAgentRunForStorage(run, level = 'normal') {
         if (!run || typeof run !== 'object') return null;
-        const eventLimit = level === 'normal' ? this.MAX_AGENT_EVENTS : level === 'tight' ? 120 : 40;
+        const eventLimit = level === 'normal'
+            ? this.MAX_AGENT_EVENTS
+            : level === 'tight'
+                ? this.TIGHT_AGENT_EVENTS
+                : this.MINIMAL_AGENT_EVENTS;
         const evidenceLimit = level === 'normal' ? this.MAX_AGENT_EVIDENCE : level === 'tight' ? 44 : 20;
         const toolResultLimit = level === 'normal' ? this.MAX_AGENT_TOOL_RESULTS : level === 'tight' ? 16 : 0;
         return {
@@ -547,7 +553,17 @@ class HistoryManager {
     }
 
     compactAgentEvents(events, limit, level = 'normal') {
-        const maxString = level === 'normal' ? 320 : 180;
+        const eventCount = Array.isArray(events) ? events.filter(event => event?.type !== 'model.delta').length : 0;
+        const maxString = level === 'normal'
+            ? (eventCount > 1000 ? 180 : 320)
+            : level === 'tight'
+                ? 140
+                : 90;
+        const maxArray = level === 'normal'
+            ? (eventCount > 1000 ? 8 : 14)
+            : level === 'tight'
+                ? 6
+                : 4;
         return (Array.isArray(events) ? events : [])
             .filter(event => event?.type !== 'model.delta')
             .slice(-limit)
@@ -560,7 +576,7 @@ class HistoryManager {
                 ts: event?.ts || '',
                 stage: event?.stage || '',
                 visibility: event?.visibility || 'history',
-                payload: this.compactJsonValue(event?.payload || {}, 2, maxString, 14)
+                payload: this.compactJsonValue(event?.payload || {}, 2, maxString, maxArray)
             }));
     }
 

@@ -55,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
                 'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
-                'Available section targets: jiamishiyanshi, electroniclab, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
-                'Sidebar label Agent means section target damoxing. Skill/MCP实验室 means section target mcpskilllab. Do not map Agent requests to mcpskilllab.',
+                'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
+                'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. Skill/MCP实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
                 'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu. Use yuliu for 空间类 / space puzzle.',
                 'Available contact submodule targets: guanyuzuozhe, zuozhecaifang, yijianfankui, kaifarizhi.',
                 'Available logic puzzle targets include sudoku, akari, nonogram, kakuro, hashi, hitori, nurikabe, slitherlink.',
@@ -1130,6 +1130,8 @@ document.addEventListener('DOMContentLoaded', () => {
             '密码': 'jiamishiyanshi',
             '电子实验室': 'electroniclab',
             '电路': 'electroniclab',
+            '建模实验室': 'jianmoshiyanshi',
+            '建模': 'jianmoshiyanshi',
             '工作流': 'workflow',
             '知识图谱': 'zhishitupu',
             '大模型': 'damoxing',
@@ -1158,6 +1160,8 @@ document.addEventListener('DOMContentLoaded', () => {
             '密码': 'jiamishiyanshi',
             '电子实验室': 'electroniclab',
             '电路': 'electroniclab',
+            '建模实验室': 'jianmoshiyanshi',
+            '建模': 'jianmoshiyanshi',
             '工作流': 'workflow',
             '知识图谱': 'zhishitupu',
             '大模型': 'damoxing',
@@ -1201,6 +1205,11 @@ document.addEventListener('DOMContentLoaded', () => {
         aliases.agent = 'damoxing';
         aliases['Agent模块'] = 'damoxing';
         aliases['agent模块'] = 'damoxing';
+        aliases.jianmoshiyanshi = 'jianmoshiyanshi';
+        aliases['建模模块'] = 'jianmoshiyanshi';
+        aliases['建模实验室模块'] = 'jianmoshiyanshi';
+        aliases['modeling lab'] = 'jianmoshiyanshi';
+        aliases['modeling laboratory'] = 'jianmoshiyanshi';
         aliases['API中转站'] = 'apizhongzhuanzhan';
         aliases['api中转站'] = 'apizhongzhuanzhan';
         aliases['中转站'] = 'apizhongzhuanzhan';
@@ -2044,6 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sections = {
             jiamishiyanshi: ['jiamishiyanshi', 'cipher', 'ciphers', '加密实验室', '密码', '密码区'],
             electroniclab: ['electroniclab', 'electronics', 'circuit', '电子实验室', '电路'],
+            jianmoshiyanshi: ['jianmoshiyanshi', '建模实验室', '建模', '建模模块', 'modeling lab', 'modeling laboratory'],
             workflow: ['workflow', '工作流'],
             zhishitupu: ['zhishitupu', 'graph', '知识图谱'],
             damoxing: ['damoxing', 'agent', 'agent模块', '大模型', '大模型模块', '模型', '模型模块'],

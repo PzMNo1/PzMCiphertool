@@ -422,7 +422,7 @@
   pointer-events: auto;
 }
 
-#image-mode-toggle {
+.image-mode-toggle {
   min-width: 80px;
   height: 34px;
   margin: 0;
@@ -432,13 +432,13 @@
   padding: 0.28rem 0.5rem;
 }
 
-#image-mode-toggle.active {
+.image-mode-toggle.active {
   opacity: 1;
   border-color: #40e0ff;
   box-shadow: 0 0 12px rgba(64, 224, 255, 0.26);
 }
 
-#image-mode-toggle.active .cyber-button__tag {
+.image-mode-toggle.active .cyber-button__tag {
   color: #8ee7ff;
   text-shadow: 0 0 6px rgba(64, 224, 255, 0.5);
 }
@@ -984,7 +984,7 @@
     width: 14px;
   }
 
-  #image-mode-toggle {
+  .image-mode-toggle {
     min-width: 68px;
     height: 32px;
     font-size: 0.64rem;
@@ -2271,7 +2271,7 @@
   }
 
   .input-actions .cyber-button,
-  #image-mode-toggle,
+  .image-mode-toggle,
   #send-message {
     min-width: 74px;
   }

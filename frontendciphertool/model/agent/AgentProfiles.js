@@ -132,7 +132,7 @@
 
         getAgentEarthTargetCalls(plan = null) {
             const configured = Number(plan?.agentEarthTargetCalls || 0);
-            if (configured > 0) return Math.min(10, Math.max(8, configured));
+            if (configured > 0) return Math.min(14, Math.max(8, configured));
             if (Array.isArray(plan?.selectedTools) && plan.selectedTools.includes('agent_earth_run')) return 8;
             return 0;
         }
@@ -327,9 +327,11 @@
                 '  - agent_earth_run is a professional external tool aggregator. It must be used as a cooperating tool when selected, not only after other tools fail.',
                 '  - Keep AgentEarth inside the normal model tool loop. Before the tool calls in a turn, stream one short natural progress sentence to the user, then request the tools.',
                 `  - For broad research/news/specialist tasks, treat ${plan.agentEarthTargetCalls || 8} AgentEarth calls as an upper-bound planning target, not a hard quota. Prefer one concise batched AgentEarth pass early, then synthesize from the useful results.`,
-                '  - Let AgentEarth choose suitable resources freely. Do not over-constrain it with a preferred_tool_name unless the user explicitly names a specific AgentEarth tool.',
-                '  - Use agent_earth_run together with relevant local/web/market tools for local services, travel, multimedia creation, business intelligence, live external data, and specialist-tool tasks.',
-                '  - The backend wrapper already performs AgentEarth Recommend before Execute. Do not try to call hidden recommend/execute endpoints manually.',
+                '  - Let AgentEarth choose suitable resources freely. Do not over-constrain it with a preferred_tool_name unless the user explicitly names a specific AgentEarth tool. Use max_attempts=0 to let the backend try all recommended candidates.',
+                '  - For blocked, sparse, or failed foreign-source searches, call AgentEarth again with a narrower query instead of giving up after one attempt.',
+                '  - Make AgentEarth searches platform-aware when relevant: ask it to use X/Twitter search/news tools, Reuters/BrightData news extraction, Bloomberg/markets tools, Google News/Serper news, 财联社/China finance tools, Facebook, YouTube, Reddit, Tushare/finance indicators, and other available specialist tools.',
+                '  - Use agent_earth_run together with relevant local/web/market tools for local services, travel, multimedia creation, business intelligence, social intelligence, live external data, and specialist-tool tasks.',
+                '  - The backend wrapper already performs AgentEarth Recommend before Execute and can try all recommended tools. Do not try to call hidden recommend/execute endpoints manually.',
                 '  - Provide agent_earth_run with a concise query and only relevant task_context. Do not dump unrelated full chat history.',
                 '  - If attachment context is relevant, rely on the runtime-injected task_context rather than copying large attachment text into the query.',
                 '  - When AgentEarth and existing tools both return useful results, synthesize them together. Do not present AgentEarth output as raw JSON.'
@@ -346,7 +348,7 @@
                     `- Main evidence pass: use web_research mode="news_brief" or mode="news" with max_results=24-28, read_top=true, and query variants that all target ${label} from multiple reputable outlets and regions.`,
                     '- Direct source reads are mandatory when coverage is thin. Prefer readable general news pages and category pages over search result pages.',
                     '- Do not broaden into unrelated categories unless the user asked for a broad cross-category brief. Keep the answer scoped to the requested category.',
-                    '- If Reuters/AP or other sources return 451/429, skip them and continue with accessible reputable sources such as BBC, Guardian, Sina, Chinanews, NetEase, CNBC, NBD, CCTV, People, or other readable outlets.',
+                    '- If Reuters/AP or other foreign sources return 451/403/429 or no useful article, immediately add AgentEarth fallback calls with max_attempts=0 for Reuters/BrightData, Bloomberg, Google News/Serper, X/Twitter, YouTube, Facebook, Reddit, and other relevant platforms, then continue with accessible reputable sources such as BBC, Guardian, Sina, Chinanews, NetEase, CNBC, NBD, CCTV, People, or other readable outlets.',
                     '- Do not use OpenAI, Anthropic, DeepMind, Google AI, Microsoft AI, Hugging Face, GitHub AI, The Batch, or AI-only sections as dominant sources unless the user explicitly asked for AI/technology news.',
                     `- Aim for ${sourceTarget}+ distinct source URLs and cite ${citationTarget}+ useful sources when available, but prioritize on-topic source diversity over unrelated breadth.`,
                     '- Final density: provide at least 10 well-supported items for the requested category when evidence allows. Each important item should include what happened and why it matters, not just a headline.',
@@ -358,7 +360,7 @@
                 '- First tool pass should establish date and broad coverage: call get_current_date, then use news_query for at least world/international, finance/markets, technology, and general China/domestic keywords when useful.',
                 '- Main evidence pass: use web_research mode="news_brief" or mode="news" with max_results=28-32, read_top=true, and queries that separately target domestic China, international/world, finance/markets, technology/science, and society/sports/culture.',
                 '- Direct source reads are mandatory when broad coverage is thin. Prefer readable general news pages such as Sina News, China News Service, NetEase Latest News, BBC News, Reuters World/Business/Markets, CNBC Markets, CCTV News 30, and National Business Daily.',
-                '- If Reuters/AP/The Verge/Wired return 451/429 or section-only pages, do not let those failures narrow the answer to AI. Continue with accessible general sources such as Sina, Chinanews, NetEase, BBC, CNBC, NBD, CCTV, People, or Guardian.',
+                '- If Reuters/AP/The Verge/Wired or other foreign sources return 451/403/429, section-only pages, or thin snippets, do not let those failures narrow the answer to AI. Add AgentEarth fallback calls with max_attempts=0 for Reuters/BrightData, Bloomberg, Google News/Serper, X/Twitter, YouTube, Facebook, Reddit, 财联社, Tushare/finance, and other relevant tools, then continue with accessible general sources such as Sina, Chinanews, NetEase, BBC, CNBC, NBD, CCTV, People, or Guardian.',
                 '- Do not use OpenAI, Anthropic, DeepMind, Google AI, Microsoft AI, Hugging Face, GitHub AI, The Batch, or AI-only sections as dominant sources unless the user explicitly asked for AI/technology news.',
                 '- Coverage target before synthesis: try to include domestic, international, finance/markets, technology/science, and society/sports/culture. If one section is weak after a bounded attempt, explicitly say so and explain the retrieval gap.',
                 `- Aim for ${sourceTarget}+ distinct source URLs and cite ${citationTarget}+ useful sources when available, but prioritize category breadth over repeating similar AI/company sources.`,
@@ -379,8 +381,8 @@
             return [
                 'AgentEarth collaboration request: agent_earth_run was routed for this run but the useful cooperating-tool pass is still thin.',
                 `Make one concise batched AgentEarth pass with up to ${Math.min(remaining, 4)} additional call(s) if they add distinct value, then synthesize even if the original planning target is not fully reached.`,
-                'Let AgentEarth freely choose suitable resources; do not set preferred_tool_name unless the user explicitly named one.',
-                'Use diverse concise queries for resource discovery, verification, primary sources, community signals, data/comparison, and missing angles. Include only relevant task_context if available.',
+                'Let AgentEarth freely choose suitable resources; do not set preferred_tool_name unless the user explicitly named one. Use max_attempts=0 so the backend can try all recommended candidates.',
+                'Use diverse concise queries for resource discovery, verification, primary sources, community/social signals, data/comparison, and missing angles. Name relevant platforms directly when useful: X/Twitter, Reuters, Bloomberg, Google News, BrightData, 财联社, Facebook, YouTube, Reddit, Tushare, and other available tools. Include only relevant task_context if available.',
                 'If another existing tool is relevant, use it too, then synthesize all observations without dumping raw JSON.',
                 `User task: ${this.runtime.previewValue(userMessage, 1200)}`
             ].join('\n');
@@ -460,7 +462,7 @@
                     `This is a focused ${label} news brief. Add on-topic evidence before synthesis when accessible; do not broaden into unrelated categories.`,
                     `Current source coverage: ${stats.uniqueUrls} unique URLs, ${domains.size} hosts, ${readableCount} readable items; missing coverage: ${missing.join(', ') || label}.`,
                     `Next pass: use web_research mode="news_brief" with query variants for ${label}, then use read_webpage on readable sources from multiple reputable outlets.`,
-                    'If Reuters/AP return 451, skip them and continue with accessible reputable sources. After this pass, synthesize in the user language and mark any weak coverage.'
+                    'If Reuters/AP return 451/403/429 or useful foreign coverage is thin, add AgentEarth fallback calls with max_attempts=0 for relevant news/social/data platforms, then continue with accessible reputable sources. After this pass, synthesize in the user language and mark any weak coverage.'
                 ].join('\n');
             }
 
@@ -476,7 +478,7 @@
                 '- https://www.bbc.com/news',
                 '- https://www.reuters.com/world/ or https://www.reuters.com/business/',
                 '- https://www.cnbc.com/markets/ or https://www.nbd.com.cn/',
-                'If Reuters/AP return 451, skip them and continue with Sina, Chinanews, NetEase, BBC, CNBC, NBD, CCTV, People, or Guardian.',
+                'If Reuters/AP return 451/403/429 or foreign-source coverage remains thin, add AgentEarth fallback calls with max_attempts=0 for Reuters/BrightData, Bloomberg, Google News/Serper, X/Twitter, YouTube, Facebook, Reddit, 财联社, Tushare/finance, and other relevant tools, then continue with Sina, Chinanews, NetEase, BBC, CNBC, NBD, CCTV, People, or Guardian.',
                 'After this pass, synthesize in the user language. Try to cover international, domestic, finance/markets, technology/science, and society/sports/culture; if one remains weak, say so explicitly.'
             ].join('\n');
         }

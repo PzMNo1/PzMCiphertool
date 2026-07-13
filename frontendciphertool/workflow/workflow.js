@@ -531,6 +531,18 @@ function initWorkflowCoze() {
             selectNode(n.id);
         });
 
+        el.addEventListener('focusin', e => {
+            if (e.target.closest('.wf-node-delete')) return;
+            selectNode(n.id);
+        });
+
+        el.querySelectorAll('textarea, input, select, .wf-node-result .result').forEach(control => {
+            control.addEventListener('mousedown', e => {
+                e.stopPropagation();
+                selectNode(n.id);
+            });
+        });
+
         // Delete
         el.querySelector('.wf-node-delete').addEventListener('click', e => {
             e.stopPropagation();

@@ -3,6 +3,7 @@ package com.ciphertool.exception;
 import com.ciphertool.dto.ApiResponse;
 import com.ciphertool.service.ApiRouterService;
 import com.ciphertool.service.AuthService;
+import com.ciphertool.service.ImageGenerationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(e.getMessage());
     }
 
+    @ExceptionHandler(ImageGenerationException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public ApiResponse<Void> handleImageGenerationException(ImageGenerationException e) {
+        log.warn("Image generation failed: {}", e.getMessage());
+        return ApiResponse.error(e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {
@@ -65,8 +73,6 @@ public class GlobalExceptionHandler {
         return ApiResponse.error("系统繁忙，请稍后重试");
     }
 }
-
-
 
 
 

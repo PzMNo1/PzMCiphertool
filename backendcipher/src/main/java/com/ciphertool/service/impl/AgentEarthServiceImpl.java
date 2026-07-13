@@ -18,7 +18,6 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -51,6 +50,9 @@ public class AgentEarthServiceImpl implements AgentEarthService {
     @Value("${agent-earth.max-response-chars:24000}")
     private int maxResponseChars;
 
+    @Value("${agent-earth.recommend-limit:20}")
+    private int recommendLimit;
+
     @Value("${agent-earth.allow-any-execute-url:false}")
     private boolean allowAnyExecuteUrl;
 
@@ -80,7 +82,7 @@ public class AgentEarthServiceImpl implements AgentEarthService {
             throw new IllegalStateException("AgentEarth recommend returned no tools.");
         }
 
-        int attempts = Math.max(1, Math.min(Optional.ofNullable(maxAttempts).orElse(1), Math.min(3, tools.size())));
+        int attempts = resolveAttemptCount(maxAttempts, tools.size());
         JSONObject selected = selectTool(tools, preferredToolName);
         int selectedIndex = tools.indexOf(selected);
         if (selectedIndex < 0) selectedIndex = 0;
@@ -168,12 +170,20 @@ public class AgentEarthServiceImpl implements AgentEarthService {
     private JSONObject recommend(String query, String taskContext) {
         JSONObject payload = new JSONObject();
         payload.put("query", buildRecommendQuery(query, taskContext));
-        payload.put("limit", 5);
+        payload.put("limit", Math.max(1, Math.min(recommendLimit, 50)));
         JSONObject response = postJson(resolveUrl(recommendPath), payload, Duration.ofSeconds(Math.max(10, timeoutSeconds / 2)));
         if (!isSuccess(response)) {
             throw new IllegalStateException("AgentEarth recommend failed: " + errorMessage(response));
         }
         return response;
+    }
+
+    private int resolveAttemptCount(Integer maxAttempts, int toolCount) {
+        int total = Math.max(1, toolCount);
+        if (maxAttempts == null || maxAttempts <= 0) {
+            return total;
+        }
+        return Math.max(1, Math.min(maxAttempts, total));
     }
 
     private JSONObject execute(String toolUrl, JSONObject params) {

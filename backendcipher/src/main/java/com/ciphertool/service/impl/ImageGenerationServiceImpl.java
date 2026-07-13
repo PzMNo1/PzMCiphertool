@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.ciphertool.dto.ImageGenerationRequest;
 import com.ciphertool.dto.ImageGenerationResponse;
+import com.ciphertool.service.ImageGenerationException;
 import com.ciphertool.service.ImageGenerationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
     private final String generationsUrl;
     private final String defaultModel;
     private final String defaultSize;
+    private final long timeoutSeconds;
 
     public ImageGenerationServiceImpl(
             @Value("${image.api-key:${llm.api-key:}}") String apiKey,
@@ -45,12 +47,13 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
         this.generationsUrl = resolveGenerationsUrl(baseUrl);
         this.defaultModel = normalizeDefault(defaultModel, "gpt-image-2");
         this.defaultSize = normalizeDefault(defaultSize, "1024x1024");
+        this.timeoutSeconds = Math.max(30, Math.min(timeoutSeconds, 300));
     }
 
     @Override
     public ImageGenerationResponse generate(ImageGenerationRequest request) {
         if (apiKey.isBlank()) {
-            throw new IllegalStateException("IMAGE_API_KEY is not configured");
+            throw new ImageGenerationException("IMAGE_API_KEY is not configured");
         }
 
         String prompt = request.getPrompt() == null ? "" : request.getPrompt().trim();
@@ -63,10 +66,13 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
         payload.put("prompt", prompt);
         payload.put("size", normalizeDefault(request.getSize(), defaultSize));
         payload.put("n", normalizeImageCount(request.getN()));
+        if (supportsResponseFormat(payload.getString("model"))) {
+            payload.put("response_format", "b64_json");
+        }
 
         HttpRequest httpRequest = HttpRequest.newBuilder()
                 .uri(URI.create(generationsUrl))
-                .timeout(Duration.ofSeconds(300))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(payload.toJSONString(), StandardCharsets.UTF_8))
@@ -76,24 +82,24 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Image API error {}: {}", response.statusCode(), preview(response.body(), 800));
-                throw new IllegalStateException("图片生成接口返回错误: " + response.statusCode());
+                throw new ImageGenerationException("图片生成接口返回错误: " + response.statusCode() + imageApiErrorMessage(response.body()));
             }
 
             JSONObject body = JSON.parseObject(response.body());
             List<ImageGenerationResponse.ImageItem> images = parseImages(body);
             if (images.isEmpty()) {
-                throw new IllegalStateException("图片生成接口没有返回图片");
+                throw new ImageGenerationException("图片生成接口没有返回图片");
             }
 
             ImageGenerationResponse result = new ImageGenerationResponse();
             result.setContent("已生成图片。");
             result.setImages(images);
             return result;
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalArgumentException | ImageGenerationException e) {
             throw e;
         } catch (Exception e) {
             log.error("Image generation request failed", e);
-            throw new IllegalStateException("图片生成失败，请稍后重试");
+            throw new ImageGenerationException("图片生成失败，请稍后重试", e);
         }
     }
 
@@ -122,39 +128,71 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
         return Math.max(1, Math.min(4, count));
     }
 
+    private boolean supportsResponseFormat(String model) {
+        String value = model == null ? "" : model.trim().toLowerCase();
+        return value.startsWith("dall-e-") || value.startsWith("dalle-");
+    }
+
     private List<ImageGenerationResponse.ImageItem> parseImages(JSONObject body) {
-        JSONArray data = body.getJSONArray("data");
-        if (data == null && body.containsKey("url")) {
-            data = new JSONArray();
-            data.add(body);
-        }
-        if (data == null) {
+        if (body == null) {
             return List.of();
         }
 
         List<ImageGenerationResponse.ImageItem> images = new ArrayList<>();
+        collectImageItem(images, body);
+        JSONArray data = body.getJSONArray("data");
+        if (data == null) {
+            data = body.getJSONArray("images");
+        }
+        if (data == null) {
+            JSONObject output = body.getJSONObject("output");
+            if (output != null) {
+                collectImageItem(images, output);
+                JSONArray outputData = output.getJSONArray("data");
+                if (outputData != null) {
+                    data = outputData;
+                }
+            }
+        }
+        if (data == null) {
+            return images;
+        }
+
         for (int i = 0; i < data.size(); i++) {
             JSONObject item = data.getJSONObject(i);
             if (item == null) {
                 continue;
             }
-            String url = firstNonBlank(item.getString("url"), item.getString("image_url"));
-            String b64 = firstNonBlank(item.getString("b64_json"), item.getString("base64"));
-            String mimeType = normalizeDefault(item.getString("mime_type"), "image/png");
-            if ((url == null || url.isBlank()) && b64 != null && !b64.isBlank()) {
-                url = "data:" + mimeType + ";base64," + b64;
-            }
-            if (url == null || url.isBlank()) {
-                continue;
-            }
-            DisplayImage displayImage = toDisplayableImage(url, mimeType);
-            images.add(new ImageGenerationResponse.ImageItem(
-                    displayImage.url(),
-                    displayImage.mimeType(),
-                    firstNonBlank(item.getString("revised_prompt"), item.getString("revisedPrompt"))
-            ));
+            collectImageItem(images, item);
         }
         return images;
+    }
+
+    private void collectImageItem(List<ImageGenerationResponse.ImageItem> images, JSONObject item) {
+        String url = firstNonBlank(
+                item.getString("url"),
+                item.getString("image_url"),
+                item.getString("imageUrl"),
+                item.getString("public_url"),
+                item.getString("publicUrl"));
+        String b64 = firstNonBlank(
+                item.getString("b64_json"),
+                item.getString("base64"),
+                item.getString("image_base64"),
+                item.getString("imageBase64"));
+        String mimeType = normalizeDefault(firstNonBlank(item.getString("mime_type"), item.getString("mimeType")), "image/png");
+        if ((url == null || url.isBlank()) && b64 != null && !b64.isBlank()) {
+            url = b64.startsWith("data:") ? b64 : "data:" + mimeType + ";base64," + b64;
+        }
+        if (url == null || url.isBlank()) {
+            return;
+        }
+        DisplayImage displayImage = toDisplayableImage(url, mimeType);
+        images.add(new ImageGenerationResponse.ImageItem(
+                displayImage.url(),
+                displayImage.mimeType(),
+                firstNonBlank(item.getString("revised_prompt"), item.getString("revisedPrompt"))
+        ));
     }
 
     private DisplayImage toDisplayableImage(String url, String mimeType) {
@@ -219,6 +257,20 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
     private String preview(String value, int max) {
         String text = value == null ? "" : value;
         return text.length() <= max ? text : text.substring(0, max) + "...";
+    }
+
+    private String imageApiErrorMessage(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "";
+        }
+        try {
+            JSONObject body = JSON.parseObject(responseBody);
+            JSONObject error = body.getJSONObject("error");
+            String message = error != null ? error.getString("message") : body.getString("message");
+            return message == null || message.isBlank() ? "" : " - " + preview(message, 300);
+        } catch (Exception ignored) {
+            return " - " + preview(responseBody, 300);
+        }
     }
 
     private record DisplayImage(String url, String mimeType) {

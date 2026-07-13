@@ -40,9 +40,6 @@ class ToolRegistry {
 
     isToolAvailable(name) {
         if (!this.has(name)) return false;
-        if (name === 'agent_earth_run') {
-            return this.dynamicAvailability.get(name) === true;
-        }
         return true;
     }
 
@@ -65,8 +62,11 @@ class ToolRegistry {
             this.dynamicAvailability.set('agent_earth_run', available);
             return available;
         } catch (error) {
-            this.dynamicAvailability.set('agent_earth_run', false);
-            return false;
+            // Keep the tool routable. The run endpoint returns the actionable
+            // configuration/network error, and availability probes are often
+            // shorter than real AgentEarth calls.
+            this.dynamicAvailability.set('agent_earth_run', true);
+            return true;
         }
     }
 
@@ -189,15 +189,26 @@ class ToolRegistry {
             },
             execute: ({ expression }) => {
                 try {
-                    // 安全的数学计算（只允许数学相关操作）
-                    const safeExpression = expression.replace(/[^0-9+\-*/().%\s]|(?<!Math)\./g, (match) => {
-                        if (match === 'Math.') return match;
-                        if (/[a-zA-Z]/.test(match)) return '';
-                        return match;
+                    const mathNames = [
+                        'abs', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'exp',
+                        'floor', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt',
+                        'tan', 'PI', 'E'
+                    ];
+                    const safeExpression = String(expression || '').replace(/\bMath\./g, '');
+                    if (!/^[0-9+\-*/().,%\sA-Za-z_]+$/.test(safeExpression)) {
+                        throw new Error('unsupported characters in expression');
+                    }
+                    const identifiers = safeExpression.match(/[A-Za-z_][A-Za-z0-9_]*/g) || [];
+                    const allowed = new Set(mathNames);
+                    identifiers.forEach(name => {
+                        if (!allowed.has(name)) {
+                            throw new Error(`unsupported identifier: ${name}`);
+                        }
                     });
 
-                    // 使用 Function 构造器在受限环境执行
-                    const result = new Function('Math', `return ${expression}`)(Math);
+                    const result = new Function(...mathNames, `"use strict"; return (${safeExpression});`)(
+                        ...mathNames.map(name => Math[name])
+                    );
                     return String(result);
                 } catch (e) {
                     return `计算错误: ${e.message}`;
@@ -1404,7 +1415,8 @@ class ToolRegistry {
             name: 'agent_earth_run',
             description: [
                 'Run AgentEarth as a professional external tool aggregator inside the same AgentRun.',
-                'Use it together with local/web/market tools for live external data, local services, travel, multimedia creation, business intelligence, and broad specialist-tool tasks.',
+                'Use it together with local/web/market tools for live external data, local services, travel, multimedia creation, social/news intelligence, business intelligence, and broad specialist-tool tasks.',
+                'For international news/search failures or blocked sources, use AgentEarth as the fallback aggregator and let it choose tools for X/Twitter, Reuters, Bloomberg, Google News, BrightData/news extraction, Facebook, YouTube, Reddit, finance data, and other available platforms.',
                 'The backend handles AgentEarth recommend -> execute ordering and returns the selected professional tool result.'
             ].join(' '),
             parameters: {
@@ -1428,7 +1440,7 @@ class ToolRegistry {
                     },
                     max_attempts: {
                         type: 'integer',
-                        description: 'How many recommended AgentEarth candidates to try. Default 1.'
+                        description: 'How many recommended AgentEarth candidates to try. Use 0 or omit for all recommended candidates.'
                     }
                 },
                 required: ['query']
@@ -1448,7 +1460,7 @@ class ToolRegistry {
                 sourceKind: 'external_tool_result',
                 tags: ['agentearth', 'external', 'specialist-tools']
             },
-            execute: async ({ query, task_context = '', preferred_tool_name = '', arguments: args = {}, max_attempts = 1 }) => {
+            execute: async ({ query, task_context = '', preferred_tool_name = '', arguments: args = {}, max_attempts = 0 }) => {
                 const response = await this.fetchWithAbort(`${this.getAgentEarthApiBase()}/run`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1646,12 +1658,23 @@ class ToolRegistry {
         }
 
         try {
+            this.validateToolArgs(tool, args || {});
             const timeoutMs = Number(tool.metadata?.timeoutMs) || 30000;
             const result = await this.withTimeout(Promise.resolve().then(() => tool.execute(args)), timeoutMs, name);
             return typeof result === 'string' ? result : JSON.stringify(result);
         } catch (e) {
             throw new Error(`工具执行失败: ${e.message}`);
         }
+    }
+
+    validateToolArgs(tool, args = {}) {
+        const required = Array.isArray(tool?.parameters?.required) ? tool.parameters.required : [];
+        required.forEach(key => {
+            const value = args?.[key];
+            if (value === undefined || value === null || value === '') {
+                throw new Error(`${key} is required`);
+            }
+        });
     }
 
     withTimeout(promise, timeoutMs, name) {

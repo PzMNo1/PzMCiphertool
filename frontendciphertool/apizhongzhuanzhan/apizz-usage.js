@@ -15,9 +15,7 @@
 
     const RECHARGE_AMOUNTS = [5, 10, 20, 50];
     const PAYMENT_METHODS = [
-        { id: 'wechat', label: '微信支付', meta: '扫码或收银台' },
-        { id: 'alipay', label: '支付宝', meta: '收银台模板' },
-        { id: 'stripe', label: 'Stripe', meta: 'Checkout' }
+        { id: 'wechat', label: '微信支付', meta: '扫码或收银台' }
     ];
 
     api.registerPage({

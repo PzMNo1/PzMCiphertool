@@ -401,6 +401,39 @@
     color: #bfffee;
 }
 
+.zstp-kb-summary {
+    margin-bottom: 14px;
+    color: rgba(220, 248, 255, 0.78);
+}
+
+.zstp-kb-summary p {
+    margin: 0 0 8px;
+}
+
+.zstp-kb-record {
+    padding: 12px 0;
+    border-top: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-kb-record h4 {
+    margin: 0 0 8px;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.zstp-kb-record pre {
+    margin: 0;
+    padding: 10px 12px;
+    background: rgba(64, 224, 255, 0.05);
+    border: 1px solid rgba(64, 224, 255, 0.1);
+}
+
+.zstp-kb-keywords {
+    margin: 8px 0 0;
+    color: rgba(165, 241, 255, 0.62);
+    font-size: 0.76rem;
+}
+
 .zstp-doc-frame {
     width: 100%;
     height: min(68vh, 720px);

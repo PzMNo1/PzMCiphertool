@@ -121,7 +121,7 @@
                 runState.metrics.auto_citation_repairs = autoCitationCount;
                 runState.metrics.canonical_source_count = registry.entries.length;
             }
-            return `${repairedBody}\n\n\u6765\u6e90\uff1a\n${sourceLines.join('\n')}`;
+            return runtime.normalizeFinalAnswerText(`${repairedBody}\n\n\u6765\u6e90\uff1a\n${sourceLines.join('\n')}`);
         }
 
         splitFinalSourceSection(text) {
