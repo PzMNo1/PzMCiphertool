@@ -148,6 +148,7 @@
             const writingPolicy = this.buildWritingPolicy(plan);
             const finalAnswerStyle = this.buildFinalAnswerStyle(plan, citationTarget);
             const agentEarthPolicy = this.buildAgentEarthPolicy(plan);
+            const sourceAlignmentPolicy = this.buildSourceAlignmentPolicy(plan);
             const contextMemoryPolicy = runtime.buildContextMemoryPolicy(contextPack);
             const toolLoopPolicy = needsEvidencePolicy
                 ? [
@@ -167,6 +168,7 @@
                 ...researchPolicy,
                 ...writingPolicy,
                 ...agentEarthPolicy,
+                ...sourceAlignmentPolicy,
                 ...finalAnswerStyle,
                 ...contextMemoryPolicy,
                 ...toolLoopPolicy,
@@ -338,6 +340,18 @@
             ];
         }
 
+        buildSourceAlignmentPolicy(plan) {
+            const needsEvidence = this.runtime.isEvidenceSeekingPlan(plan) || plan?.researchProfile === 'agentic';
+            if (!needsEvidence) return [];
+            return [
+                '- Claim-source alignment policy:',
+                '  - Every current or external factual claim must be grounded by a source that could actually know that claim. The cited source must match the same subject, event, paper, product, metric, organization, or time window.',
+                '  - Do not source-launder: a homepage, rolling page, category page, search result, policy page, or unrelated authoritative source cannot support a concrete claim just because it looks reputable.',
+                '  - If a claim is specific but direct evidence is thin, label the evidence state as unverified, conflicting, or retrieval-limited instead of filling gaps with plausible dates, numbers, mechanisms, codenames, or substitutions.',
+                '  - If specific claims appear to rely on generic/mismatched sources, make one targeted verification pass from the claim text itself before final synthesis. When normal web or foreign-source retrieval is weak, use AgentEarth max_attempts=0 to try all relevant platform routes.'
+            ];
+        }
+
         buildNewsBriefPolicy(sourceTarget, citationTarget, scope = null) {
             const focus = scope?.focus || 'broad';
             const label = this.getNewsBriefScopeLabel(scope);
@@ -423,6 +437,26 @@
                 'Do not dump raw source JSON. Do not add decorative divider lines. Keep the answer readable with clear sections, short paragraphs, and compact but information-rich story bullets.',
                 'Use the existing tool evidence first. Call more tools only for categories or source coverage that are still weak.'
             ].join('\n');
+        }
+
+        buildForcedSourceAlignmentFollowUp(plan, response, forcedCount = 0) {
+            const needsEvidence = this.runtime.isEvidenceSeekingPlan(plan) || plan?.researchProfile === 'agentic';
+            if (!needsEvidence || forcedCount >= 1) return null;
+
+            const report = this.analyzeSourceAlignment(response?.content || '');
+            if (!this.needsSourceAlignmentFollowUp(report)) return null;
+
+            const examples = report.issues
+                .slice(0, 4)
+                .map(issue => `- ${issue.reason}: ${this.runtime.previewValue(issue.line, 180)}`)
+                .join('\n');
+            return [
+                'Source-alignment verification request: the draft has specific claims whose citations look generic, missing, or semantically mismatched.',
+                `Alignment check: ${report.claimCount} claim-like line(s), ${report.sourceCount} source entrie(s), ${report.issues.length} issue(s).`,
+                examples ? `Examples:\n${examples}` : '',
+                'Make one targeted verification pass from the unsupported claim text itself. Use the right source class: official/primary pages for status and releases, papers/DOIs/journals for research claims, filings/regulators/company disclosures for financial or legal claims, and reputable reporting for news events.',
+                'If retrieval is weak or foreign sources are blocked, use AgentEarth max_attempts=0 when available to try all relevant platform routes. Then rewrite only the affected claims: keep them only with directly matching sources, otherwise mark them unverified, conflicting, or retrieval-limited.'
+            ].filter(Boolean).join('\n');
         }
 
         buildForcedResearchFollowUp(plan, runState, userMessage, forcedCount = 0) {
@@ -520,6 +554,146 @@
                 profileHint,
                 'After this pass, synthesize even if coverage is limited, but mark weak or unsupported claims and do not invent citations.'
             ].join('\n');
+        }
+
+        analyzeSourceAlignment(content) {
+            const { body, sourceSection } = this.splitAnswerSources(content);
+            const sources = this.parseSourceEntries(sourceSection);
+            const claims = this.extractSourceAlignmentClaims(body);
+            const issues = [];
+            let alignedCitedClaimCount = 0;
+
+            claims.forEach(claim => {
+                if (!claim.citationIds.length) {
+                    if (claim.specificity >= 3) issues.push({ reason: 'uncited specific claim', line: claim.text });
+                    return;
+                }
+
+                let aligned = false;
+                claim.citationIds.forEach(id => {
+                    const source = sources.get(id);
+                    if (!source) {
+                        issues.push({ reason: `missing source [${id}]`, line: claim.text });
+                        return;
+                    }
+                    const assessment = this.assessClaimSourceAlignment(claim.text, source);
+                    if (assessment.aligned) aligned = true;
+                    else if (assessment.generic) issues.push({ reason: `generic source [${id}]`, line: claim.text });
+                    else if (claim.specificity >= 4) issues.push({ reason: `weak source match [${id}]`, line: claim.text });
+                });
+                if (aligned) alignedCitedClaimCount += 1;
+            });
+
+            return { claimCount: claims.length, sourceCount: sources.size, alignedCitedClaimCount, issues };
+        }
+
+        needsSourceAlignmentFollowUp(report) {
+            if (!report || !report.claimCount) return false;
+            const issues = Array.isArray(report.issues) ? report.issues : [];
+            if (issues.some(issue => /^generic source/.test(issue.reason))) return true;
+            if (issues.filter(issue => /^missing source/.test(issue.reason)).length >= 2) return true;
+            if (issues.filter(issue => /^weak source match/.test(issue.reason)).length >= 2) return true;
+            return report.sourceCount >= 2 && report.alignedCitedClaimCount === 0 && issues.length >= 2;
+        }
+
+        splitAnswerSources(content) {
+            const text = String(content || '');
+            const match = text.match(/(?:^|\n)\s*(?:#{1,6}\s*)?(?:来源|参考|引用|Sources|References)\s*[:：]?\s*\n/i);
+            if (!match) return { body: text, sourceSection: '' };
+            return { body: text.slice(0, match.index), sourceSection: text.slice(match.index + match[0].length) };
+        }
+
+        parseSourceEntries(sourceSection) {
+            const sources = new Map();
+            const pattern = /(?:^|\n)\s*\[(\d{1,3})]\s*([\s\S]*?)(?=\n\s*\[\d{1,3}]\s+|$)/g;
+            let match;
+            while ((match = pattern.exec(String(sourceSection || ''))) !== null) {
+                sources.set(match[1], String(match[2] || '').replace(/\s+/g, ' ').trim());
+            }
+            return sources;
+        }
+
+        extractSourceAlignmentClaims(body) {
+            return String(body || '').split('\n')
+                .map(line => this.cleanClaimLine(line))
+                .filter(Boolean)
+                .map(text => ({
+                    text,
+                    citationIds: Array.from(text.matchAll(/\[(\d{1,3})]/g)).map(match => match[1]),
+                    specificity: this.estimateClaimSpecificity(text)
+                }))
+                .filter(claim => claim.citationIds.length || claim.specificity >= 3);
+        }
+
+        cleanClaimLine(line) {
+            const text = String(line || '')
+                .replace(/^\s{0,3}#{1,6}\s*/, '')
+                .replace(/^\s*(?:[-*+]\s+|\d+[.)、）]\s+)/, '')
+                .replace(/\|/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (text.length < 18 || /^[-*_]{3,}$/.test(text)) return '';
+            if (/^(声明|注|备注|来源|参考|引用|Sources|References)\s*[:：]?/i.test(text)) return '';
+            return text;
+        }
+
+        estimateClaimSpecificity(text) {
+            const value = String(text || '');
+            let score = 0;
+            if (/\[(\d{1,3})]/.test(value)) score += 1;
+            if (/(?:19|20)\d{2}|Q[1-4]|[12]?\d月|[123]?\d日/i.test(value)) score += 1;
+            if (/\d+(?:\.\d+)?\s*(?:%|bp|bps|美元|亿元|亿|万|kg|nm|GHz|Tbps|TOPS|W|Wh|T|K|MW|GW|倍|次|例|人|家|桶|oz|token|qubits?)/i.test(value)) score += 1;
+            if (/(发布|宣布|推出|批准|实现|完成|获得|上涨|下跌|回落|维持|降息|突破|证实|证伪|收购|融资|量产|部署|发表|报道|签署|制裁|打击|袭击|监管|预计|目标|released|announced|reported|approved|published|launched|fell|rose|signed|deployed|confirmed|expected)/i.test(value)) score += 1;
+            if (/\b[A-Z][A-Za-z0-9&+.-]{2,}(?:\s+[A-Z][A-Za-z0-9&+.-]{2,}){0,3}\b/.test(value)) score += 1;
+            if (/(公司|大学|研究院|实验室|交易所|央行|监管局|委员会|基金|银行|政府|集团|芯片|电池|模型|论文|报告|装置|协议|项目|法院|部门)/.test(value)) score += 1;
+            if (/(未证实|待验证|传闻|推测|unverified|uncertain|retrieval-limited)/i.test(value)) score = Math.max(0, score - 1);
+            return score;
+        }
+
+        assessClaimSourceAlignment(claim, source) {
+            const claimTerms = this.extractAlignmentKeywords(claim);
+            const sourceTerms = this.extractAlignmentKeywords(source);
+            const overlap = claimTerms.filter(term => sourceTerms.some(sourceTerm => sourceTerm === term || (term.length >= 3 && sourceTerm.includes(term)) || (sourceTerm.length >= 3 && term.includes(sourceTerm)))).length;
+            const sharedNumbers = this.extractAlignmentNumbers(claim).filter(value => this.extractAlignmentNumbers(source).includes(value)).length;
+            const generic = this.isGenericSourceEntry(source);
+            return { aligned: overlap + sharedNumbers > 0, generic };
+        }
+
+        extractAlignmentKeywords(value) {
+            const text = String(value || '').replace(/https?:\/\/\S+/gi, ' ').replace(/\[(?:\d{1,3})]/g, ' ').toLowerCase();
+            const stop = new Set(['the', 'and', 'for', 'with', 'from', 'news', 'source', 'sources', 'html', 'http', 'https', 'www', 'com', 'org', 'net', '来源', '内容', '新闻', '报道', '目前', '最新', '以及', '主要', '方面', '阶段', '状态', '领域', '技术', '产品', '市场', '公司', '官方', '显示', '数据', '研究', '行业', '全球', '国际', '国内']);
+            const terms = [];
+            (text.match(/[a-z0-9][a-z0-9+.-]{1,}/g) || []).forEach(token => {
+                const normalized = token.replace(/^[.-]+|[.-]+$/g, '');
+                if (normalized.length >= 2 && !stop.has(normalized) && !/^\d+$/.test(normalized)) terms.push(normalized);
+            });
+            (text.match(/[\u4e00-\u9fff]{2,}/g) || []).forEach(token => {
+                if (!stop.has(token)) terms.push(token);
+                if (token.length > 5) {
+                    for (let i = 0; i <= token.length - 3; i += 2) terms.push(token.slice(i, i + 3));
+                }
+            });
+            return Array.from(new Set(terms)).slice(0, 40);
+        }
+
+        extractAlignmentNumbers(value) {
+            return Array.from(String(value || '').toLowerCase().matchAll(/(?:19|20)\d{2}|q[1-4]|\d+(?:\.\d+)?\s*(?:%|bp|bps|nm|ghz|tbps|tops|wh|mw|gw|kg|oz|t|k|w|亿|万|倍|次|例|人|家|桶)?/g))
+                .map(match => match[0].replace(/\s+/g, ''))
+                .filter(Boolean);
+        }
+
+        isGenericSourceEntry(source) {
+            const text = String(source || '').toLowerCase();
+            if (/(press releases|latest news|top stories|homepage|index|rolling news|live updates|category|topics|滚动|首页|即时|新闻首页|资讯首页|快讯)/i.test(text)) return true;
+            const urlMatch = text.match(/https?:\/\/[^\s<>)\]}]+/i);
+            if (!urlMatch) return false;
+            try {
+                const url = new URL(urlMatch[0]);
+                const path = url.pathname.replace(/\/+$/, '').toLowerCase();
+                return !path || path === '/' || /\/(?:news|world|business|markets|finance|technology|press-releases|topics|latest|live|roll|index)$/i.test(path) || /\/index\.(?:html?|shtml|asp|php)$/i.test(path);
+            } catch (_) {
+                return false;
+            }
         }
 
         analyzeNewsBriefAnswer(content, scope = null) {
