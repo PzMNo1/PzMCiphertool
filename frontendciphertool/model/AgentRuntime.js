@@ -323,7 +323,6 @@ class AgentRuntime {
         let shouldReplayFinalContent = false;
         let forcedAgentEarthFollowups = 0;
         let forcedNewsBriefDensityFollowups = 0;
-        let forcedSourceAlignmentFollowups = 0;
         let forcedCoverageFollowups = 0;
         let forcedCitationQualityFollowups = 0;
         const collectedToolCalls = [];
@@ -451,17 +450,6 @@ class AgentRuntime {
                         forcedFollowups: forcedAgentEarthFollowups
                     }, { stage: 'act', visibility: 'history' });
                     return { continue: true, message: agentEarthFollowUp };
-                }
-                const sourceAlignmentFollowUp = this.buildForcedSourceAlignmentFollowUp(plan, response, forcedSourceAlignmentFollowups);
-                if (sourceAlignmentFollowUp) {
-                    forcedSourceAlignmentFollowups += 1;
-                    this.ui.setAgentStage(container, 'act', 'active', `Source alignment ${forcedSourceAlignmentFollowups}`);
-                    this.ui.addAgentTrace(container, 'act', `Source alignment verification requested a targeted evidence pass at iteration ${iteration}.`);
-                    this.emitEvent(runState, 'research.source_alignment_gap', {
-                        iteration,
-                        forcedFollowups: forcedSourceAlignmentFollowups
-                    }, { stage: 'act', visibility: 'history' });
-                    return { continue: true, message: sourceAlignmentFollowUp };
                 }
                 const densityFollowUp = this.buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedNewsBriefDensityFollowups);
                 if (densityFollowUp) {
@@ -1733,12 +1721,6 @@ class AgentRuntime {
     buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedCount = 0) {
         return this.agentProfiles
             ? this.agentProfiles.buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedCount)
-            : null;
-    }
-
-    buildForcedSourceAlignmentFollowUp(plan, response, forcedCount = 0) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildForcedSourceAlignmentFollowUp(plan, response, forcedCount)
             : null;
     }
 

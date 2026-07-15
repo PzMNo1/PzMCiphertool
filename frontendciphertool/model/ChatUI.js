@@ -10,7 +10,6 @@ class ChatUI {
         this.lastMathJaxRenderTime = 0;
         this.mathJaxPromise = null;
         this.toolCallNames = new Map();
-        this.citationLinkMap = new Map();
     }
 
     /**
@@ -26,12 +25,8 @@ class ChatUI {
      * @returns {string}
      */
     formatMessage(text) {
-        if (!text) {
-            this.citationLinkMap = new Map();
-            return '';
-        }
+        if (!text) return '';
 
-        this.citationLinkMap = this.buildCitationLinkMap(text);
         const lines = text.split('\n');
         const newsBriefFormatting = this.shouldUseNewsBriefFormatting(text);
         const blocks = [];
@@ -165,36 +160,6 @@ class ChatUI {
         return blocks.join('');
     }
 
-    buildCitationLinkMap(text) {
-        const map = new Map();
-        const sourceSection = this.extractSourceSection(text);
-        if (!sourceSection) return map;
-
-        const sourcePattern = /(?:^|\n)\s*\[(\d{1,3})]\s*([\s\S]*?)(?=\n\s*\[\d{1,3}]\s+|$)/g;
-        let match;
-        while ((match = sourcePattern.exec(sourceSection)) !== null) {
-            const id = match[1];
-            const href = this.extractFirstSourceUrl(match[2]);
-            if (id && href && !map.has(id)) map.set(id, href);
-        }
-        return map;
-    }
-
-    extractSourceSection(text) {
-        const value = String(text || '');
-        const match = value.match(/(?:^|\n)\s*(?:#{1,6}\s*)?(?:来源|参考|引用|Sources|References)\s*[:：]?\s*\n/i);
-        return match ? value.slice(match.index + match[0].length) : '';
-    }
-
-    extractFirstSourceUrl(value) {
-        const raw = String(value || '');
-        const httpMatch = raw.match(/https?:\/\/[^\s<>)\]}，。！？；：、》」』）】]+/i);
-        if (httpMatch) return this.sanitizeUrl(httpMatch[0]);
-
-        const domainMatch = raw.match(/(?:^|[\s—-])((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/i);
-        return domainMatch ? this.sanitizeUrl(`https://${domainMatch[1]}`) : '';
-    }
-
     formatInline(value) {
         let text = this.escapeHtml(value);
         const tokens = [];
@@ -225,19 +190,8 @@ class ChatUI {
             const href = this.sanitizeUrl(`https://${trimmed.url.replace(/^www\./i, 'www.')}`);
             return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
         });
-        text = this.formatCitationLinks(text, stash);
 
         return text.replace(/\uE000(\d+)\uE000/g, (_, index) => tokens[Number(index)] || '');
-    }
-
-    formatCitationLinks(text, stash) {
-        const map = this.citationLinkMap instanceof Map ? this.citationLinkMap : new Map();
-        if (!map.size) return text;
-        return text.replace(/\[((?:\d{1,3}\s*(?:[,，]\s*\d{1,3}\s*)*))]/g, (match, group) => {
-            const ids = String(group || '').split(/[,，]/).map(id => id.trim()).filter(Boolean);
-            if (!ids.length || !ids.every(id => map.has(id))) return match;
-            return ids.map(id => stash(`<a href="${this.escapeHtml(map.get(id))}" target="_blank" rel="noopener noreferrer">[${this.escapeHtml(id)}]</a>`)).join('');
-        });
     }
 
     sanitizeUrl(value) {
