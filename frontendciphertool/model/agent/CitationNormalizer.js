@@ -65,6 +65,16 @@
                             canonicalIds.push(id);
                             usedEvidenceKeys.add(runtime.getEvidenceCandidateKey(resolved));
                         }
+                        return;
+                    }
+                    const rawId = this.addPreservedRawSourceToRegistry(
+                        registry,
+                        oldId,
+                        sourceParts.rawSourceMap?.get?.(String(oldId)),
+                        sourcePolicyPlan
+                    );
+                    if (rawId) {
+                        canonicalIds.push(rawId);
                     }
                 });
 
@@ -115,6 +125,8 @@
                     : value;
             }
 
+            this.appendPreservedSourceSectionEntries(registry, sourceParts.rawSourceMap, sourcePolicyPlan);
+
             const sourceLines = registry.entries.map(entry => `[${entry.id}] ${entry.body}`);
             const repairedBody = runtime.cleanRepeatedCitationMarkers(repairedLines.join('\n')).trimEnd();
             if (runState?.metrics) {
@@ -122,6 +134,60 @@
                 runState.metrics.canonical_source_count = registry.entries.length;
             }
             return runtime.normalizeFinalAnswerText(`${repairedBody}\n\n\u6765\u6e90\uff1a\n${sourceLines.join('\n')}`);
+        }
+
+        addPreservedRawSourceToRegistry(registry, oldId, rawBody, plan = null) {
+            if (!registry || !Array.isArray(registry.entries)) return '';
+            const runtime = this.runtime;
+            const body = runtime.cleanSourceEntryText(rawBody || '');
+            if (!this.shouldPreserveRawSourceEntry(body, plan)) return '';
+            const stableRef = typeof runtime.extractStableSourceReference === 'function'
+                ? runtime.extractStableSourceReference({}, body)
+                : null;
+            const url = runtime.normalizeCitationUrl(stableRef?.url || runtime.extractFirstUrlFromText(body));
+            const title = runtime.normalizeCitationTitle(body);
+            const key = url || title || `raw-source:${oldId}`;
+            const existing = registry.entries.find(entry => {
+                if (entry.key && entry.key === key) return true;
+                const entryBody = runtime.cleanSourceEntryText(entry.body || '');
+                if (!entryBody) return false;
+                const entryUrl = runtime.normalizeCitationUrl(runtime.extractFirstUrlFromText(entryBody));
+                if (url && entryUrl === url) return true;
+                return title && runtime.normalizeCitationTitle(entryBody) === title;
+            });
+            if (existing?.id) return existing.id;
+            const id = String(registry.entries.length + 1);
+            registry.entries.push({
+                id,
+                key,
+                entry: null,
+                body
+            });
+            return id;
+        }
+
+        appendPreservedSourceSectionEntries(registry, rawSourceMap, plan = null) {
+            if (!registry || !rawSourceMap?.size || !Array.isArray(registry.entries)) return;
+            const runtime = this.runtime;
+            rawSourceMap.forEach((rawBody, oldId) => {
+                const body = runtime.cleanSourceEntryText(rawBody || '');
+                if (!this.shouldPreserveRawSourceEntry(body, plan)) return;
+                this.addPreservedRawSourceToRegistry(registry, oldId, body, plan);
+            });
+        }
+
+        shouldPreserveRawSourceEntry(body, plan = null) {
+            const runtime = this.runtime;
+            const text = runtime.cleanSourceEntryText(body || '');
+            if (!text) return false;
+            if (runtime.isAcademicResearchPlan(plan) && !runtime.isAllowedAcademicSourceBody(text)) return false;
+            if (runtime.isFallbackSourceReference(text)) return false;
+            const url = runtime.extractFirstUrlFromText(text);
+            const hasSpecificReference = /https?:\/\/|\b(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|ai|cn|uk|de|jp|fr|au|ca)\b|snapshot|快照|AgentEarth/i.test(text);
+            if (!hasSpecificReference) return false;
+            if (!runtime.isGenericSourceReference(text)) return true;
+            if (/snapshot|快照|AgentEarth/i.test(text)) return true;
+            return Boolean(url && !runtime.isLowValueNewsCitationUrl(url, text));
         }
 
         splitFinalSourceSection(text) {

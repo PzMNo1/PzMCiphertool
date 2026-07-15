@@ -57,4 +57,50 @@ assert(source.length < 220, 'source should remain compact');
 const mojibake = runtime.cleanSourceEntryText('��������[2026��7��12��] - CCTIME������ 内容: ������ — http://www.cctime.com/scroll/default.asp');
 assert(mojibake === 'cctime.com — http://www.cctime.com/scroll/default.asp', 'mojibake title should fall back to host and URL');
 
+const preservedSnapshot = runtime.citationNormalizer.shouldPreserveRawSourceEntry(
+    'CNBC DAILY OPEN: Hormuz Blockade — CNBC Markets section (snapshot)',
+    { mode: 'news_brief', researchProfile: 'news_brief' }
+);
+assert(preservedSnapshot, 'specific tool snapshot source entries should be preserved');
+
+const manySources = Array.from({ length: 25 }, (_, index) => {
+    const id = index + 1;
+    return `[${id}] news${id}.example.com — Story ${id} — https://news${id}.example.com/story-${id}`;
+}).join('\n');
+const citedBody = Array.from({ length: 10 }, (_, index) => {
+    const id = index + 1;
+    return `${id}. Story ${id} happened with a concrete detail. [${id}]`;
+}).join('\n');
+const manySourceAnswer = `${citedBody}\n\n来源：\n${manySources}`;
+
+const normalizedManySources = runtime.normalizeFinalResearchAnswer(
+    manySourceAnswer,
+    { mode: 'news_brief', researchProfile: 'news_brief', citationTarget: 24 },
+    {
+        evidenceLedger: [
+            {
+                kind: 'opened_source',
+                source_id: '1',
+                title: 'Story 1',
+                url: 'https://news1.example.com/story-1',
+                trustLevel: 'high',
+                authorityScore: 0.9
+            }
+        ],
+        metrics: {}
+    }
+);
+assert(/\[25\]\s+news25\.example\.com/.test(normalizedManySources), 'evidence-backed rebuild should preserve reliable existing source-section entries beyond cited ids');
+
+const sourceEntryCount = (normalizedManySources.split(/\n/).filter(line => /^\[\d+\]\s+news\d+\.example\.com/.test(line))).length;
+assert(sourceEntryCount === 25, `evidence-backed rebuild should keep 25 reliable sources, got ${sourceEntryCount}`);
+
+const normalizedPlainSources = runtime.normalizeSourceSection(
+    manySourceAnswer,
+    { evidenceLedger: [] },
+    { mode: 'news_brief', researchProfile: 'news_brief', citationTarget: 24 }
+);
+const plainSourceEntryCount = normalizedPlainSources.split(/\n/).filter(line => /^\[\d+\]\s+news\d+\.example\.com/.test(line)).length;
+assert(plainSourceEntryCount === 25, `plain source normalization should keep uncited reliable source-section entries, got ${plainSourceEntryCount}`);
+
 console.log('agent_citation_normalizer: ok');

@@ -9,9 +9,9 @@ class HistoryManager {
         this.CURRENT_CHAT_KEY = 'currentChatId';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
-        this.MAX_AGENT_EVENTS = 3000;
-        this.TIGHT_AGENT_EVENTS = 1000;
-        this.MINIMAL_AGENT_EVENTS = 200;
+        this.MAX_AGENT_EVENTS = 320;
+        this.TIGHT_AGENT_EVENTS = 120;
+        this.MINIMAL_AGENT_EVENTS = 40;
         this.MAX_AGENT_EVIDENCE = 64;
         this.MAX_AGENT_TOOL_RESULTS = 36;
         this.MAX_STORED_CONTENT_CHARS = 260000;

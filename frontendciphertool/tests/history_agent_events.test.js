@@ -65,20 +65,21 @@ const message = {
 };
 
 const normal = manager.prepareMessageForStorage(message, 'normal');
-assert(normal.agent_run.events.length === 412, 'normal history should preserve all 412 Agent events');
-assert(normal.agent_run.events[0].seq === 1, 'normal history should preserve the first Agent event');
-assert(normal.agent_run.events[411].seq === 412, 'normal history should preserve the last Agent event');
+assert(normal.agent_run.events.length === 320, 'normal history should cap Agent events to protect chat content persistence');
+assert(normal.agent_run.events[0].seq === 93, 'normal history should keep the newest Agent events after capping');
+assert(normal.agent_run.events[normal.agent_run.events.length - 1].seq === 412, 'normal history should preserve the last Agent event');
 
 const tight = manager.prepareMessageForStorage(message, 'tight');
-assert(tight.agent_run.events.length === 412, 'tight checkpoints should preserve 412 Agent events');
-assert(tight.agent_run.events[0].seq === 1, 'tight checkpoints should preserve the first Agent event');
+assert(tight.agent_run.events.length === 120, 'tight checkpoints should cap Agent events');
+assert(tight.agent_run.events[0].seq === 293, 'tight checkpoints should keep newest events');
 
 const minimal = manager.prepareMessageForStorage(message, 'minimal');
-assert(minimal.agent_run.events.length === 200, 'minimal fallback should still cap Agent events for quota recovery');
-assert(minimal.agent_run.events[0].seq === 213, 'minimal fallback should keep the newest Agent events');
+assert(minimal.agent_run.events.length === 40, 'minimal fallback should cap Agent events aggressively for quota recovery');
+assert(minimal.agent_run.events[0].seq === 373, 'minimal fallback should keep the newest Agent events');
 
 manager.saveChatHistory('chat-events', 'events', [message]);
 const saved = JSON.parse(storage.chatHistory);
-assert(saved['chat-events'].messages[0].agent_run.events.length === 412, 'persisted chat history should keep 412 Agent events');
+assert(saved['chat-events'].messages[0].content === 'done', 'persisted chat history should preserve assistant content');
+assert(saved['chat-events'].messages[0].agent_run.events.length === 320, 'persisted chat history should cap Agent events');
 
 console.log('history_agent_events: ok');

@@ -724,6 +724,7 @@
             latestImages: initial.images || null,
             durableRunId: initial.durableRunId || null,
             latestResumePrompt: initial.resume_prompt || '',
+            latestErrorMessage: initial.error_message || null,
             abortController: initial.abortController || null,
             runtime: initial.runtime || null,
             client: initial.client || null,
@@ -755,10 +756,25 @@
             images: patch.images ?? entry.latestImages ?? null,
             durable_run_id: patch.durable_run_id ?? entry.durableRunId ?? null,
             resume_prompt: patch.resume_prompt ?? entry.latestResumePrompt ?? null,
-            error_message: patch.error_message || null,
+            error_message: patch.error_message ?? entry.latestErrorMessage ?? null,
             owner_id: getCurrentAccountId()
         };
         return next;
+    }
+
+    function buildActiveRunLatestPatch(entry, patch = {}) {
+        return {
+            status: entry.status || patch.status || 'running',
+            content: entry.latestContent || '',
+            reasoning_content: entry.latestReasoning || null,
+            tool_calls: entry.latestToolCalls || null,
+            agent_run: entry.latestAgentRun || null,
+            images: entry.latestImages || null,
+            durable_run_id: entry.durableRunId || null,
+            resume_prompt: entry.latestResumePrompt || null,
+            error_message: entry.latestErrorMessage || null,
+            checkpoint_reason: patch.checkpoint_reason || patch.status || 'message.persisted'
+        };
     }
 
     function persistActiveRun(entry, patch = {}, options = {}) {
@@ -771,15 +787,18 @@
         if (patch.images !== undefined) entry.latestImages = patch.images || null;
         if (patch.durable_run_id !== undefined) entry.durableRunId = patch.durable_run_id || null;
         if (patch.resume_prompt !== undefined) entry.latestResumePrompt = patch.resume_prompt || '';
+        if (patch.error_message !== undefined) entry.latestErrorMessage = patch.error_message || null;
 
         const save = () => {
             entry.lastPersistAt = Date.now();
             entry.pendingPersistTimer = null;
-            const durableRecord = checkpointDurableRun(entry, patch);
+            const latestPatch = buildActiveRunLatestPatch(entry, patch);
+            const durableRecord = checkpointDurableRun(entry, latestPatch);
             if (durableRecord?.resume_prompt) {
                 entry.latestResumePrompt = durableRecord.resume_prompt;
+                latestPatch.resume_prompt = durableRecord.resume_prompt;
             }
-            return window.historyManager.updateMessage(entry.chatId, entry.messageId, buildAssistantPatch(entry, patch));
+            return window.historyManager.updateMessage(entry.chatId, entry.messageId, buildAssistantPatch(entry, latestPatch));
         };
 
         if (options.immediate) {
@@ -915,6 +934,47 @@
         ].filter(Boolean).join('\n');
     }
 
+    function hydrateMessageFromDurableCheckpoint(chatId, msg) {
+        if (!msg || msg.role !== 'assistant') return msg;
+        if (String(msg.content || '').trim()) return msg;
+        if (!['running', 'aborting', 'recoverable'].includes(msg.status)) return msg;
+
+        const store = getDurableStore();
+        const record = msg.durable_run_id
+            ? store?.get?.(msg.durable_run_id)
+            : store?.getByMessage?.(chatId, msg.message_id || msg.id);
+        if (!record) return msg;
+
+        const recoveredContent = String(record.content || record.content_preview || '').trim();
+        const recovered = {
+            ...msg,
+            durable_run_id: msg.durable_run_id || record.durableRunId,
+            resume_prompt: msg.resume_prompt || record.resume_prompt || ''
+        };
+
+        if (recoveredContent) {
+            recovered.content = recoveredContent;
+            recovered.status = record.status === 'completed' ? 'completed' : 'recoverable';
+            recovered.agent_run = msg.agent_run || record.agent_run || null;
+            recovered.error_message = msg.error_message || (record.status === 'completed'
+                ? ''
+                : '历史正文已从本地 AgentRun checkpoint 恢复。');
+            window.historyManager.updateMessage(chatId, recovered.message_id || recovered.id, recovered);
+            return recovered;
+        }
+
+        if (msg.status === 'running') {
+            recovered.status = 'recoverable';
+            recovered.content = '运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。';
+            recovered.agent_run = msg.agent_run || record.agent_run || null;
+            recovered.error_message = msg.error_message || '历史正文为空；本地 checkpoint 没有可恢复正文。';
+            window.historyManager.updateMessage(chatId, recovered.message_id || recovered.id, recovered);
+            return recovered;
+        }
+
+        return recovered;
+    }
+
     function removeRunFromOrder(chatId, messageId) {
         const order = runningRunOrderByChat.get(chatId);
         if (!order) return;
@@ -957,6 +1017,22 @@
         const chatId = window.historyManager?.getCurrentChatId?.();
         const hasRunningCurrentChat = Boolean(chatId && getLatestActiveRunForChat(chatId));
         setSendButtonLabel(!rawMessage && !attachments.length && hasRunningCurrentChat ? '停止' : '发送');
+    }
+
+    function hasAssistantOutput(content, options = {}) {
+        return Boolean(
+            String(content || '').trim()
+            || (Array.isArray(options.images) && options.images.length)
+        );
+    }
+
+    function assertAssistantOutput(content, options = {}) {
+        if (hasAssistantOutput(content, options)) return;
+        const diagnosticParts = [];
+        if (options.agentRun) diagnosticParts.push('已收到 AgentRun 快照');
+        if (options.toolCalls) diagnosticParts.push('已收到工具调用');
+        const diagnostic = diagnosticParts.length ? ` (${diagnosticParts.join('，')}，但没有最终正文)` : '';
+        throw new Error(`模型代理返回了空响应${diagnostic}，未收到可保存的助手正文。请检查后端 /api/chat/completions 的 SSE 返回是否包含 data: ... choices[0].delta.content。`);
     }
 
     function bindActiveRunContainer(chatId, messageId, restoredContainer) {
@@ -1056,62 +1132,65 @@
         const container = window.chatUI.createAssistantMessageContainer();
         const assistantMessageId = createAssistantMessageId();
         const runClient = createRunClient();
-        const runRuntime = createRunRuntime(runClient);
         const abortController = new AbortController();
-        const activeRun = registerActiveRun(chatId, assistantMessageId, container, {
-            status: 'running',
-            abortController,
-            client: runClient,
-            runtime: runRuntime
-        });
-        window.historyManager.addMessage(chatId, {
-            role: 'assistant',
-            id: assistantMessageId,
-            message_id: assistantMessageId,
-            status: 'running',
-            content: '',
-            owner_id: getCurrentAccountId()
-        });
-
-        // 获取状态
-        const deepThinkToggle = document.getElementById('deep-think-toggle');
-        const toolToggle = document.getElementById('tool-toggle');
-        isDeepThinkEnabled = deepThinkToggle && deepThinkToggle.classList.contains('active');
-        isToolEnabled = toolToggle && toolToggle.classList.contains('active');
-
-        // 构建消息
-        const messages = [
-            { role: 'system', content: window.PZM_SYSTEM_PROMPT },
-            ...priorMessages,
-            { role: 'user', content: apiUserContent }
-        ];
-        const routingMessage = [isImageModeEnabled ? '作图模式' : isModelingModeEnabled ? '建模模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
-        const contextPack = buildContextPack({
-            chatId,
-            userMessage: message,
-            routingMessage,
-            priorMessages,
-            priorAgentRuns,
-            preparedAttachments,
-            isImageModeEnabled,
-            isModelingModeEnabled
-        });
-        startDurableRun(activeRun, {
-            userMessage: message,
-            routingMessage,
-            contextPack
-        });
-
-        // 初始化客户端
-        initClient();
-        refreshSendButtonState();
-
+        let runRuntime = null;
+        let activeRun = null;
+        let assistantMessagePersisted = false;
         let finalReasoning = '';
         let finalContent = '';
         let agentRunSnapshot = null;
         let collectedToolCalls = []; // 收集工具调用信息
 
         try {
+            runRuntime = createRunRuntime(runClient);
+            activeRun = registerActiveRun(chatId, assistantMessageId, container, {
+                status: 'running',
+                abortController,
+                client: runClient,
+                runtime: runRuntime
+            });
+            assistantMessagePersisted = window.historyManager.addMessage(chatId, {
+                role: 'assistant',
+                id: assistantMessageId,
+                message_id: assistantMessageId,
+                status: 'running',
+                content: '',
+                owner_id: getCurrentAccountId()
+            }) !== false;
+
+            // 获取状态
+            const deepThinkToggle = document.getElementById('deep-think-toggle');
+            const toolToggle = document.getElementById('tool-toggle');
+            isDeepThinkEnabled = deepThinkToggle && deepThinkToggle.classList.contains('active');
+            isToolEnabled = toolToggle && toolToggle.classList.contains('active');
+
+            // 构建消息
+            const messages = [
+                { role: 'system', content: window.PZM_SYSTEM_PROMPT },
+                ...priorMessages,
+                { role: 'user', content: apiUserContent }
+            ];
+            const routingMessage = [isImageModeEnabled ? '作图模式' : isModelingModeEnabled ? '建模模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
+            const contextPack = buildContextPack({
+                chatId,
+                userMessage: message,
+                routingMessage,
+                priorMessages,
+                priorAgentRuns,
+                preparedAttachments,
+                isImageModeEnabled,
+                isModelingModeEnabled
+            });
+            startDurableRun(activeRun, {
+                userMessage: message,
+                routingMessage,
+                contextPack
+            });
+
+            // 初始化客户端
+            initClient();
+            refreshSendButtonState();
+
             if (isImageModeEnabled) {
                 window.chatUI.setReasoningStatus(container, '正在生成图片');
                 window.chatUI.appendReasoningEvent(container, '已进入作图模式，正在请求图片生成模型。');
@@ -1240,6 +1319,11 @@
                 finalReasoning = response.reasoning_content || finalReasoning;
             }
 
+            assertAssistantOutput(finalContent, {
+                agentRun: agentRunSnapshot,
+                toolCalls: collectedToolCalls.length ? collectedToolCalls : null
+            });
+
             // 完成消息
             window.chatUI.finalizeMessage(container);
 
@@ -1257,20 +1341,41 @@
                 finalContent += '\n[TRANSMISSION INTERRUPTED]';
                 window.chatUI.updateContent(container, finalContent);
 
-                completeActiveRun(activeRun, {
+                const interruptedPatch = {
                     status: 'interrupted',
                     content: finalContent,
                     reasoning_content: finalReasoning || null
-                });
+                };
+                if (activeRun) {
+                    completeActiveRun(activeRun, interruptedPatch);
+                } else if (!assistantMessagePersisted) {
+                    window.historyManager.addMessage(chatId, {
+                        role: 'assistant',
+                        id: assistantMessageId,
+                        message_id: assistantMessageId,
+                        ...interruptedPatch
+                    });
+                }
             } else {
                 window.chatUI.showError(container, error.message);
-                completeActiveRun(activeRun, {
+                const errorPatch = {
                     status: 'error',
                     content: finalContent || `[SYSTEM FAILURE]: ${error.message}`,
                     reasoning_content: finalReasoning || null,
                     agent_run: agentRunSnapshot,
                     error_message: error.message
-                });
+                };
+                if (activeRun) {
+                    completeActiveRun(activeRun, errorPatch);
+                } else if (!assistantMessagePersisted) {
+                    window.historyManager.addMessage(chatId, {
+                        role: 'assistant',
+                        id: assistantMessageId,
+                        message_id: assistantMessageId,
+                        ...errorPatch,
+                        owner_id: getCurrentAccountId()
+                    });
+                }
                 console.error('Chat error:', error);
             }
         } finally {
@@ -1298,11 +1403,12 @@
                 messages.forEach(msg => {
                     if (msg.role !== 'tool' && msg.role !== 'system') {
                         try {
-                            const rendered = window.chatUI.displayMessageFromHistory(msg);
-                            if (msg.role === 'assistant' && msg.status === 'running') {
-                                bindActiveRunContainer(chatId, msg.message_id || msg.id, rendered);
+                            const displayMsg = hydrateMessageFromDurableCheckpoint(chatId, msg);
+                            const rendered = window.chatUI.displayMessageFromHistory(displayMsg);
+                            if (displayMsg.role === 'assistant' && displayMsg.status === 'running') {
+                                bindActiveRunContainer(chatId, displayMsg.message_id || displayMsg.id, rendered);
                             }
-                            appendRecoverableRunActions(chatId, msg, rendered);
+                            appendRecoverableRunActions(chatId, displayMsg, rendered);
                         } catch (e) {
                             console.warn('Failed to render history message:', e, msg);
                         }
@@ -1508,6 +1614,19 @@
         messages.forEach((msg, index) => {
             lines.push(`--- ${index + 1}. ${formatRole(msg.role)} ---`);
             lines.push(formatMessageContentForExport(msg.content, msg));
+
+            if (msg.status && msg.status !== 'completed') {
+                lines.push('', '[状态]');
+                lines.push(String(msg.status));
+            }
+            if (msg.error_message) {
+                lines.push('', '[错误]');
+                lines.push(String(msg.error_message));
+            }
+            if (msg.durable_run_id) {
+                lines.push('', '[Durable Run]');
+                lines.push(String(msg.durable_run_id));
+            }
 
             if (Array.isArray(msg.attachments) && msg.attachments.length) {
                 lines.push('', '[附件]');
@@ -1880,11 +1999,20 @@
         if (sections['生成图片']) {
             message.images = parseImportedImages(sections['生成图片']);
         }
+        if (sections['状态']) {
+            message.status = sections['状态'].trim() || undefined;
+        }
+        if (sections['错误']) {
+            message.error_message = sections['错误'].trim();
+        }
+        if (sections['Durable Run']) {
+            message.durable_run_id = sections['Durable Run'].trim();
+        }
         return message;
     }
 
     function splitExportMessageSections(block) {
-        const labels = new Set(['附件', '思维链', '工具调用', 'Agent Run 状态', '生成图片']);
+        const labels = new Set(['附件', '思维链', '工具调用', 'Agent Run 状态', '生成图片', '状态', '错误', 'Durable Run']);
         const sections = { content: [] };
         let current = 'content';
 

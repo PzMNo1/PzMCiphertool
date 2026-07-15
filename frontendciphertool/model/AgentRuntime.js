@@ -888,9 +888,15 @@ class AgentRuntime {
         });
         const bodyForCitations = enriched.text || before;
         const citedIds = this.extractCitationMarkers(bodyForCitations);
+        const rawSourceIds = sourceMatches.map(item => String(item[1]));
+        const preservableRawSourceIds = citedIds.length
+            ? rawSourceIds.filter(id => this.citationNormalizer?.shouldPreserveRawSourceEntry
+                ? this.citationNormalizer.shouldPreserveRawSourceEntry(rawSourceMap.get(id), sourcePolicyPlan)
+                : true)
+            : rawSourceIds;
         const sourceOrder = citedIds.length
-            ? citedIds
-            : sourceMatches.map(item => String(item[1]));
+            ? Array.from(new Set([...citedIds, ...preservableRawSourceIds]))
+            : preservableRawSourceIds;
 
         const idMap = new Map();
         const droppedIds = new Set();
