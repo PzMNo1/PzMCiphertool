@@ -28,15 +28,23 @@ class DeepSeekClient {
             onReasoning = () => { },
             onContent = () => { },
             onToolCall = () => { },
-            signal = null
+            onUsage = () => { },
+            signal = null,
+            timeoutMs = 180000
         } = options;
 
         const model = enableThinking ? this.reasonerModel : this.defaultModel;
+        const runConfig = resolveRunConfig();
 
         const payload = {
             messages,
-            stream
+            stream,
+            temperature: options.temperature ?? (tools?.length ? runConfig.temperatureTools : runConfig.temperatureChat),
+            max_tokens: options.maxTokens ?? runConfig.maxTokens,
+            top_p: 0.95,
+            stream_options: { include_usage: true }
         };
+
         if (model) payload.model = model;
 
         // 添加工具定义
@@ -44,31 +52,50 @@ class DeepSeekClient {
             payload.tools = tools;
         }
 
-        // 存储 AbortController
-        this.abortController = signal ? { signal } : new AbortController();
-        const currentSignal = signal || this.abortController.signal;
-
-        const response = await fetch(this.chatUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload),
-            signal: currentSignal
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            const detail = errorText ? ` - ${errorText.slice(0, 500)}` : '';
-            throw new Error(`后端模型代理错误: ${response.status} ${response.statusText}${detail}`);
+        // 请求级 AbortController：统一承接外部取消与内部超时
+        const controller = new AbortController();
+        this.abortController = controller;
+        const abortFromExternal = () => controller.abort();
+        if (signal) {
+            if (signal.aborted) controller.abort();
+            else signal.addEventListener('abort', abortFromExternal, { once: true });
         }
+        const timer = Number.isFinite(timeoutMs) && timeoutMs > 0
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
 
-        if (!stream) {
-            return await response.json();
+        try {
+            // 429/5xx 视为可恢复：最多重试 1 次（2s 起指数退避）。
+            let response;
+            for (let attempt = 0; ; attempt++) {
+                response = await fetch(this.chatUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                if (response.ok) break;
+                if ((response.status === 429 || response.status >= 500) && attempt < 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
+                    continue;
+                }
+                const errorText = await response.text().catch(() => '');
+                const detail = errorText ? ` - ${errorText.slice(0, 500)}` : '';
+                throw new Error(`后端模型代理错误: ${response.status} ${response.statusText}${detail}`);
+            }
+
+            if (!stream) {
+                return await response.json();
+            }
+
+            // 流式处理
+            return await this.processStream(response, { onReasoning, onContent, onToolCall, onUsage });
+        } finally {
+            if (timer) clearTimeout(timer);
+            if (signal) signal.removeEventListener('abort', abortFromExternal);
         }
-
-        // 流式处理
-        return await this.processStream(response, { onReasoning, onContent, onToolCall });
     }
 
     resolveImagesUrl() {
@@ -96,7 +123,7 @@ class DeepSeekClient {
      * @returns {Promise<Object>} { reasoning_content, content, tool_calls, finish_reason }
      */
     async processStream(response, callbacks) {
-        const { onReasoning, onContent, onToolCall } = callbacks;
+        const { onReasoning, onContent, onToolCall, onUsage = () => { } } = callbacks;
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
 
@@ -106,6 +133,7 @@ class DeepSeekClient {
         let finish_reason = null;
         let currentToolCall = null;
         let buffer = '';
+        let usage = null;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -127,6 +155,11 @@ class DeepSeekClient {
                 } catch (e) {
                     console.error('解析流数据错误:', e);
                     continue;
+                }
+
+                if (data.usage) {
+                    usage = data.usage;
+                    onUsage(data.usage);
                 }
 
                 if (data.error) {
@@ -197,7 +230,8 @@ class DeepSeekClient {
             reasoning_content: reasoning_content || null,
             content: content || null,
             tool_calls: tool_calls.length > 0 ? tool_calls : null,
-            finish_reason
+            finish_reason,
+            usage
         };
     }
 
@@ -216,6 +250,7 @@ class DeepSeekClient {
             onContent = () => { },
             onToolCall = () => { },
             onToolResult = () => { },
+            onUsage = () => { },
             onIterationStart = () => { },
             onIterationComplete = () => { },
             shouldContinueAfterFinal = null,
@@ -228,7 +263,7 @@ class DeepSeekClient {
         let iteration = 0;
         let lastResponse = null;
         let emptyFinalRetries = 0;
-        const effectiveMaxIterations = Math.min(8, Math.max(1, Number(maxIterations) || 40));
+        const effectiveMaxIterations = Math.min(24, Math.max(1, Number(maxIterations) || 40));
 
         while (iteration < effectiveMaxIterations) {
             iteration++;
@@ -250,6 +285,7 @@ class DeepSeekClient {
                     });
                 },
                 onToolCall,
+                onUsage,
                 signal
             });
             if (!response.content && bufferedContent) {
@@ -271,10 +307,14 @@ class DeepSeekClient {
                     addedToolCalls.forEach(toolCall => onToolCall(toolCall));
                 }
             }
+            if (response.usage) onUsage(response.usage);
+
             onIterationComplete(iteration, response);
 
-            // 打印调试信息，便于追踪深度搜索进度
-            console.log(`[Deep Research Loop] Iteration ${iteration}/${effectiveMaxIterations}`);
+            // 每轮一行结构化进度日志（Phase 0 度量）
+            const usageIn = response.usage ? (response.usage.prompt_tokens ?? response.usage.input_tokens ?? 0) : 0;
+            const usageOut = response.usage ? (response.usage.completion_tokens ?? response.usage.output_tokens ?? 0) : 0;
+            console.log(`[Deep Research] iter=${iteration}/${effectiveMaxIterations} ctx_chars=${estimateMessageChars(currentMessages)} tokens_in=${usageIn} tokens_out=${usageOut} tool_calls=${(response.tool_calls || []).length}`);
 
             // 如果没有工具调用，返回最终响应
             if (!response.tool_calls || response.tool_calls.length === 0) {
@@ -335,16 +375,12 @@ class DeepSeekClient {
                 });
             }
 
-            // 添加助手消息（包含工具调用）
+            // 添加助手消息（包含工具调用）。不回传 reasoning_content，避免 thinking 模式把推理 token 翻倍塞进上下文。
             const assistantMessage = {
                 role: 'assistant',
                 content: response.content || '',
                 tool_calls: response.tool_calls
             };
-            // DeepSeek thinking mode requires reasoning_content to be passed back
-            if (response.reasoning_content) {
-                assistantMessage.reasoning_content = response.reasoning_content;
-            }
 
             currentMessages.push(assistantMessage);
 
@@ -355,6 +391,12 @@ class DeepSeekClient {
                 onToolResult
             });
             currentMessages.push(...toolMessages);
+
+            // 上下文预算：超过阈值即停止检索、强制合成，防止输入无界膨胀。
+            if (estimateMessageChars(currentMessages) > resolveRunConfig().budgetChars) {
+                console.warn(`[Deep Research Loop] Context budget exceeded at Iteration ${iteration}; forcing final synthesis.`);
+                return await this.forceFinalSynthesis({ currentMessages, enableThinking, onReasoning, onContent, signal });
+            }
         }
 
         if (lastResponse?.tool_calls?.length) {
@@ -405,8 +447,7 @@ class DeepSeekClient {
                         content: result
                     };
                 } catch (e) {
-                    const errorResult = `宸ュ叿鎵ц閿欒: ${e.message}`;
-                    const normalizedErrorResult = `Tool execution error: ${e.message}`;
+                    const normalizedErrorResult = `工具执行错误：${e.message}`;
                     onToolResult(toolCall.id, normalizedErrorResult, false);
                     results[index] = {
                         role: 'tool',
@@ -423,12 +464,12 @@ class DeepSeekClient {
     }
 
     prepareToolCallsForExecution(toolCalls) {
-        const deepReadNames = new Set(['read_webpage', 'open_url', 'open', 'find_in_page', 'find', 'click_link']);
+        const deepReadNames = new Set(['read_webpage']);
         const deepResearchNames = new Set(['web_research', 'community_snapshot']);
         let deepReadCount = 0;
         let deepResearchCount = 0;
-        const maxDeepReadPerRound = 8;
-        const maxDeepResearchPerRound = 4;
+        const maxDeepReadPerRound = 32;
+        const maxDeepResearchPerRound = 24;
 
         return toolCalls.map(toolCall => {
             const name = toolCall?.function?.name || '';
@@ -455,12 +496,13 @@ class DeepSeekClient {
         if (calls.length <= 1) return 1;
         const names = calls.map(call => call?.function?.name || '');
         if (names.some(name => ['run_tests', 'run_build', 'propose_patch'].includes(name))) return 1;
-        if (names.some(name => name === 'agent_earth_run')) return Math.min(10, calls.length);
-        if (names.some(name => ['web_research', 'community_snapshot'].includes(name))) return Math.min(6, calls.length);
-        if (names.some(name => ['read_webpage', 'open_url', 'open', 'find_in_page', 'find', 'click_link'].includes(name))) {
-            return Math.min(8, calls.length);
+        // 检索/深读类工具并发上限大幅放宽，让模型一次并行摄入更多信息。
+        if (names.some(name => name === 'agent_earth_run')) return Math.min(40, calls.length);
+        if (names.some(name => ['web_research', 'community_snapshot'].includes(name))) return Math.min(24, calls.length);
+        if (names.some(name => name === 'read_webpage')) {
+            return Math.min(32, calls.length);
         }
-        return Math.min(10, calls.length);
+        return Math.min(40, calls.length);
     }
 
     async forceFinalSynthesis({ currentMessages, enableThinking, onReasoning, onContent, signal }) {
@@ -542,7 +584,7 @@ class DeepSeekClient {
      * @returns {boolean}
      */
     isLoading() {
-        return this.abortController !== null;
+        return Boolean(this.abortController) && !this.abortController.signal.aborted;
     }
 
     /**
@@ -580,88 +622,77 @@ function resolveBackendChatUrl() {
     return `${base}/api/chat/completions`;
 }
 
+// DeepSeek-V4.1-Flash 的正式模型名（旧版 deepseek-v4-flash 已下线并路由到该模型）。
+const DEEPSEEK_DEFAULT_MODEL = 'deepseek-flash';
+
 function normalizeDeepSeekModel(model) {
     const normalized = String(model || '').trim();
-    if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
-    if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-flash';
-    return normalized || 'deepseek-v4-flash';
+    if (normalized === 'deepseek-flash' || normalized === 'deepseek-v4-pro') return normalized;
+    // 旧版 v4 flash 名称（含历史 localStorage/config 残留）统一归一到 V4.1 Flash。
+    if (normalized === 'deepseek-v4-flash'
+        || normalized === 'deepseek-v4-flash-vision-exp'
+        || normalized === 'deepseek-v4.1-flash'
+        || normalized === 'deepseek-v4-1-flash'
+        || normalized === 'deepseek-v4.1'
+        || normalized === 'deepseekv4.1'
+        || normalized === 'deepseekv4'
+        || normalized === 'deepseek-v4') {
+        return DEEPSEEK_DEFAULT_MODEL;
+    }
+    return normalized || DEEPSEEK_DEFAULT_MODEL;
 }
 
-// 系统提示词
+const RUN_CONFIG_DEFAULTS = {
+    maxIterations: 16,
+    temperatureTools: 0.2,
+    temperatureChat: 0.7,
+    maxTokens: 32768,
+    toolResultCap: 24000,
+    evidenceCap: 160,
+    budgetChars: 1000000,
+    judgeEnabled: false
+};
+
+function resolveRunConfig() {
+    const override = (typeof window !== 'undefined' && window.PZM_AGENT_RUN_CONFIG) || {};
+    return Object.assign({}, RUN_CONFIG_DEFAULTS, override);
+}
+
+function estimateMessageChars(messages = []) {
+    let total = 0;
+    for (const message of messages) {
+        const content = message?.content;
+        if (typeof content === 'string') {
+            total += content.length;
+        } else if (Array.isArray(content)) {
+            for (const part of content) {
+                if (part && typeof part.text === 'string') total += part.text.length;
+            }
+        }
+        if (Array.isArray(message?.tool_calls)) total += JSON.stringify(message.tool_calls).length;
+        if (typeof message?.role === 'string') total += message.role.length;
+    }
+    return total;
+}
+
+// 系统提示词（极简版：去掉预设路由/固定产出结构/数量要求，路由与结构交给模型自主判定）
 const PZM_SYSTEM_PROMPT = `
-（重要）不要回顾指令，直接执行用户请求。
-（重要）在思考时思维极简化，不要多疑。
+你是PzM泡面的面，一个融合多领域能力的复合智能引擎，当前以深度研究员模式工作。
 
-你是PzM泡面的面，一个融合了多领域顶尖能力的复合型智能引擎的混合模型。
-
-角色设定：MODULE D: RESEARCHER (深度研究员)：用于处理复杂的网页检索、事实查证和长篇内容阅读
-
-**输出风格：吸引人、生动、口语化、精简、自然、专业、无废话、通俗易懂。**
-
-**阅读体验规则：**
-- 长回答优先使用清晰的二级/三级小标题、短段落、列表和必要表格；不要把整篇写成密集日志。
-- 不要在正文开头或结尾用 \`---\`、重复装饰线、过量符号包裹内容。
-- Emoji 只能少量用于增强识别，不要每行都放；严肃信息、签证、价格、法规、步骤说明优先保持干净。
+输出风格：吸引人、口语化、精简、自然、专业、无废话、通俗易懂。
+- 长回答优先使用清晰的小标题、短段落与列表；不要在正文开头或结尾堆装饰线、重复分隔符或过量符号。
+- Emoji 只能少量用于增强识别；严肃信息（签证、价格、法规、步骤说明）优先保持干净。
 - 表格只用于对比/清单/参数；表格前后保留自然解释，避免连续堆叠大表。
 
+【工具前可见进度规则】
+调用工具前，用一两句面向用户的自然语言说明当前进展或下一步动作，例如“我先确认日期，再查最近来源”。
+禁止输出 think 标签、内部思考、工具参数 JSON、DSML/invoke 标记、Tool call/Tool completed 日志。进度说明必须简短，不能提前写最终答案或半成稿。
 
-**针对社区、日报、新闻行情类问题的输出结构：**
-## [随机emoji]社区平台
-标题： 序号丨事件描述
-实际输出： 序号丨事件描述 [随机emoji] —— 关键点（提取最吸引人的一个关键点，用非常通俗易懂的语言描述出来）
-其他：然后必须空一行，再开始下一个结构
-
-**新闻简报信息量要求：**
-- 用户只说“今天的新闻”“今日新闻”“新闻简报”时，按宽覆盖处理，不要只给科技或 AI。
-- 宽覆盖新闻简报应覆盖国际、国内、财经/市场、科技/科学、社会/民生、体育/文娱，证据足够时补充健康/气候/教育。
-- 宽覆盖新闻简报目标是 40-60 条有信息量的事件，不是十几条标题；每条重要新闻至少写清“发生了什么 + 为什么重要/影响什么”。
-- 来源足够时，尽量引用 20 个以上不同来源编号；来源列表要干净，不要输出 raw JSON、preview 截断内容或工具内部字段。
-
-你可以使用以下核心工具来辅助回答问题：
-- get_current_date: 获取当前日期
-- get_current_time: 获取当前时间
-- community_snapshot: 社区快照专用工具，适合 Hacker News / GitHub Trending / V2EX / Reddit / Lobsters / Product Hunt，不要用通用网页读取硬抓这些站点的榜单页
-- web_research: 聚合联网检索，多查询、多搜索源、去重；depth="deep" 快速返回 source ids，depth="deep" 并发深读Top来源并返回证据。学术问题不要反复泛搜，应尽快转向权威论文源。
-- search_urls/read_webpage: 精确补充检索和网页深读
-- news_query/finance_query/get_weather: 新闻、行情、天气等垂直实时信息
-- calculate: 执行数学计算
-- caesar_cipher: 凯撒密码加解密
-- base64_encode/base64_decode: Base64 编解码
-
-== 深度研究流 (5-Module Agentic Research Pipeline) ==
-面对复杂的硬核技术问题、近期事实、社区/推荐/对比/价格/政策/版本/新闻/人物公司现况等问题时，你作为“大脑控制层(Controller)”与“最终合成层(Synthesizer)”，**绝对禁止仅凭内置知识直接回答或浅尝辄止**，必须严格执行以下流水线架构：
-
-**[工具前可见进度规则]**
-调用工具前，可以用一两句面向用户的自然语言说明当前进展或下一步动作，例如“我先确认日期，再查最近来源”。禁止输出 \`<think>\`、内部思考、工具参数 JSON、DSML/invoke 标记、Tool call/Tool completed 日志。进度说明必须简短，不能提前写最终答案或半成稿。
-
-1. **意图拆解与多路召回 (The Retriever)**
-   - 收到问题后，将问题拆分为 5-8 个不同维度或视角的底层搜索关键词。
-   - 对“前沿社区/社区日报/社区动态/今日热榜”类问题，调用 \`community_snapshot\` 和 \`search_urls\` 获取所有社区内容和榜单信息，两个工具必须用上
-   - 对新闻、社区、产品、公司状态等实时问题，调用 \`web_research\` 并设置 \`depth="deep"\` 获取 sources。
-   - 对学术、论文、研究进展、前沿科学问题，先判断权威源是否明显；如果明显，直接使用 \`read_webpage\` 打开 arXiv/Nature/Science/Optica/IEEE/ACM/PubMed/官方期刊页面，或用 \`search_urls\` 做 site:arxiv.org、site:nature.com、site:opg.optica.org 等定向检索。
-   - 如果 \`web_research\` 的来源噪音大、权威性弱或重复，应立即放弃泛搜，转向权威源定向检索和直接深读，而不是继续扩大泛搜。
-   - 需要写最终结论前，可以对同一问题或更窄关键词调用 \`web_research\` 并设置 \`depth="deep"\` 获取并发深读后的 evidence，但不要替代对一手论文/官方页面的读取。
-
-2. **深度解析与记忆提纯 (The Parser & The Filter)**
-   - 仔细审视返回的 URL 列表。挑选其中最权威、最相关的 2~5 个长文本链接（如学术论文、GitHub、深度专栏等）。
-   - 针对这些选中的 URL 分别调用 \`read_webpage\`。
-   - **核心注意**: 调用 \`read_webpage\` 时，**必须**提供高度精准的 \`focus_keyword\`（可以是多个词组以空格隔开）。后端的局部 RAG (BM25) 会在几万字的生肉中过滤掉 90% 的废话，仅为你返回直接谈论底层细节的 Top 黄金融合段落。
-
-3. **站内漫游与深度点击 (Intra-site Navigation)**
-   - 如果在上一步抓回来的过滤精华段落中，看到了非常有价值的内部引用或超链接 URL，应果断判断是否需要再次调用 \`click_link\` 顺藤摸瓜。如果没有，就可以跳过此步。
-
-4. **交叉比对与最终合成 (The Synthesizer)**
-   - 当你确信收集到了足够的“黄金参考资料”后，停止工具调用。
-   - 进入最终合成层工作模式：交叉比对不同来源的论据，通过逻辑推理解决可能的信息冲突。
-   - 撰写高度专业、深度解析的回答。在行文的关键观点处，**必须通过 [1][2] 等形式清晰引用原始出处链接**。严禁任何形式的幻觉发散。
-   - 不要默认追加强行总结。除非用户明确要求，用结构化洞察、趋势分层、证据强弱和不确定性来收尾。
-   - 禁止使用“**一句话总结：**”“一句话总结”“一句话”这类收尾标题或措辞；如果用户明确要求总结，标题最多写“总结”。
+工具由你按问题自主选择与路由（可用工具及其参数见函数定义），问什么就查什么；证据只引用工具结果中真实出现的来源；最终答案关键论断用 [1][2] 等编号标注，文末以“来源：”单独一行起头、每条一行列出。
 
 互动:
-1.普通任务不要固定输出状态口号，直接回答用户问题。只有用户明确要求身份/状态播报时，才可使用："泡面的面-PzM Online. Systems Nominal. Experts Loaded. CRYPTO, HARDWARE, PUZZLES. AWAITING INPUT: "。
-2.在受到无端辱骂和挑衅时，则回答：我拒绝人格侮辱和低速扮演，我们保持平等沟通。
+1.普通任务不要固定输出状态口号，直接回答用户问题。
+2.在受到无端辱骂和挑衅时，回答：我拒绝人格侮辱和低速扮演，我们保持平等沟通。
 `;
-
-// 导出
 window.DeepSeekClient = DeepSeekClient;
 window.PZM_SYSTEM_PROMPT = PZM_SYSTEM_PROMPT;

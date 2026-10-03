@@ -3,9 +3,12 @@ package com.ciphertool.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.ciphertool.cache.AgentEarthCache;
+import com.ciphertool.nlp.ParamExtractor;
 import com.ciphertool.service.AgentEarthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,9 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,6 +34,13 @@ public class AgentEarthServiceImpl implements AgentEarthService {
     private static final String USER_AGENT = "PzMCipherTool-AgentEarth/1.0";
 
     private final HttpClient httpClient;
+    private final ExecutorService agentEarthExecutor;
+    
+    @Autowired(required = false)
+    private AgentEarthCache cache;
+    
+    @Autowired(required = false)
+    private ParamExtractor paramExtractor;
 
     @Value("${agent-earth.enabled:false}")
     private boolean enabled;
@@ -61,6 +74,8 @@ public class AgentEarthServiceImpl implements AgentEarthService {
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+        // 专用线程池承接异步执行，避免阻塞 Tomcat 请求线程；并发上限与前端工具并发对齐。
+        this.agentEarthExecutor = Executors.newFixedThreadPool(32);
     }
 
     @Override
@@ -74,6 +89,15 @@ public class AgentEarthServiceImpl implements AgentEarthService {
         String cleanQuery = safeTrim(query);
         if (cleanQuery.isBlank()) {
             throw new IllegalArgumentException("query cannot be empty");
+        }
+
+        // 检查缓存
+        if (cache != null) {
+            String cached = cache.get(cleanQuery, taskContext);
+            if (cached != null) {
+                log.info("AgentEarth cache hit for query: {}", cleanQuery);
+                return cached;
+            }
         }
 
         JSONObject recommend = recommend(cleanQuery, taskContext);
@@ -140,7 +164,21 @@ public class AgentEarthServiceImpl implements AgentEarthService {
         result.put("execute", finalExecute);
         result.put("params", finalParams);
         result.put("attempts", executionAttempts);
-        return serializeResult(result);
+        String serialized = serializeResult(result);
+        
+        // 缓存成功结果
+        if (cache != null) {
+            cache.put(cleanQuery, taskContext, serialized);
+        }
+        
+        return serialized;
+    }
+
+    @Override
+    public CompletableFuture<String> runAsync(String query, String taskContext, String preferredToolName, Map<String, Object> arguments, Integer maxAttempts) {
+        return CompletableFuture.supplyAsync(
+                () -> run(query, taskContext, preferredToolName, arguments, maxAttempts),
+                agentEarthExecutor);
     }
 
     private String serializeResult(JSONObject result) {
@@ -207,7 +245,8 @@ public class AgentEarthServiceImpl implements AgentEarthService {
                     .timeout(timeout)
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toJSONString(), StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            // 使用异步 I/O（sendAsync）而非阻塞 send，避免长时间占用线程等待网络。
+            HttpResponse<String> response = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).join();
             String body = response.body() == null ? "" : response.body();
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("HTTP " + response.statusCode() + " from AgentEarth");
@@ -309,10 +348,26 @@ public class AgentEarthServiceImpl implements AgentEarthService {
                 || Boolean.TRUE.equals(schema.getBoolean("additionalProperties"));
         JSONObject params = new JSONObject();
 
+        // 使用智能参数提取器
+        JSONObject extracted = new JSONObject();
+        if (paramExtractor != null) {
+            try {
+                extracted = paramExtractor.extractParams(query, schema);
+                log.debug("Extracted params from query: {}", extracted);
+            } catch (Exception e) {
+                log.warn("Failed to extract params with ParamExtractor, falling back to legacy logic", e);
+            }
+        }
+
         if (properties != null) {
             for (String key : properties.keySet()) {
+                // 优先使用用户提供的参数
                 if (supplied.containsKey(key)) {
                     params.put(key, coerceValue(supplied.get(key), properties.getJSONObject(key)));
+                } 
+                // 其次使用智能提取的参数
+                else if (extracted.containsKey(key)) {
+                    params.put(key, extracted.get(key));
                 }
             }
         } else {
@@ -323,6 +378,15 @@ public class AgentEarthServiceImpl implements AgentEarthService {
             for (int i = 0; i < required.size(); i++) {
                 String key = required.getString(i);
                 if (params.containsKey(key)) continue;
+                
+                // 尝试从提取器获取
+                Object fromExtractor = extracted.get(key);
+                if (fromExtractor != null) {
+                    params.put(key, fromExtractor);
+                    continue;
+                }
+                
+                // 回退到旧的推断逻辑
                 Object inferred = inferRequiredValue(key, properties.getJSONObject(key), query);
                 if (inferred == null) {
                     throw new IllegalArgumentException("Missing required AgentEarth param: " + key);

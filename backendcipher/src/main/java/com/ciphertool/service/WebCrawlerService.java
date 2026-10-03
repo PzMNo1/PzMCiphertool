@@ -62,6 +62,18 @@ public interface WebCrawlerService {
     String readWebpage(String url, String focusKeyword, Integer chunkIndex);
 
     /**
+     * 原样抓取网页 HTML。
+     *
+     * 与 fetchWebpage / readWebpage 的区别：那两个会抽正文或转 Markdown，
+     * 这里必须原样返回 —— 词汇区的 nutrimatic 查词要解析它自己的结果 DOM，
+     * 抽过正文就没法解析了。仅放行 HTTPS，供前端做同源代理用。
+     *
+     * @param url 目标网页 URL（必须是 https）
+     * @return 原始 HTML
+     */
+    String fetchRawHtml(String url);
+
+    /**
      * 聚合检索：多查询扇出、跨搜索源去重、可选深读Top来源。
      */
     String webResearch(String query, List<String> queries, String mode, Integer maxResults, Boolean readTop, String focusKeyword);

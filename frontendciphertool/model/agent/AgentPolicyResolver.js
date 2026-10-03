@@ -1,8 +1,8 @@
 /**
- * AgentPolicyResolver maps intent contracts to executable plan policy.
+ * AgentPolicyResolver —— 极简计划解析。
  *
- * Profile details remain in AgentProfiles. This resolver is the narrow bridge
- * between intent detection and the runtime plan object.
+ * 不再根据意图细分研究模式/写作合同/新闻分类。
+ * 产出统一的中性计划：工具全集交给模型自主路由，轮次上限放宽。
  */
 (function () {
     class AgentPolicyResolver {
@@ -10,65 +10,26 @@
             this.runtime = runtime;
         }
 
-        resolve(intent) {
+        resolve(intent = {}) {
             const selectedTools = this.runtime.routeTools(intent);
-            const parameters = this.runtime.agentProfiles
-                ? this.runtime.agentProfiles.buildPlanParameters({ ...intent, selectedTools })
-                : this.getFallbackParameters(intent);
-            const writingContract = parameters.writingContract || intent?.writingContract || null;
-            const qualityGates = parameters.qualityGates || writingContract?.qualityGates || {};
-
+            const wantsTools = Boolean(intent.wantsTools || selectedTools.length);
             return {
                 selectedTools,
-                researchProfile: parameters.researchProfile,
-                agentEarthTargetCalls: parameters.agentEarthTargetCalls,
-                maxIterations: parameters.maxIterations,
-                sourceTarget: parameters.sourceTarget,
-                citationTarget: parameters.citationTarget,
-                writingContract,
-                qualityGates,
-                policyFlags: this.buildPolicyFlags(intent, writingContract, parameters, selectedTools)
-            };
-        }
-
-        buildPolicyFlags(intent = {}, writingContract = null, parameters = {}, selectedTools = []) {
-            const evidenceSeeking = Boolean(
-                intent.wantsFreshInfo ||
-                intent.wantsNewsBrief ||
-                intent.wantsAcademicResearch ||
-                intent.wantsMarket ||
-                intent.wantsBusinessIntel ||
-                writingContract?.needsResearch
-            );
-            const longform = Boolean(writingContract?.active);
-            const hasNetworkTools = this.runtime.hasNetworkTools(selectedTools);
-            return {
-                needsTools: Boolean(intent.wantsTools || selectedTools.length),
-                needsResearchPlan: Boolean(longform && writingContract?.needsResearch),
-                needsSourceLibrary: Boolean(evidenceSeeking || hasNetworkTools),
-                needsOutline: Boolean(longform && writingContract?.needsOutline),
-                needsCitations: Boolean(writingContract?.needsCitations || evidenceSeeking),
-                needsClaimCheck: Boolean(writingContract?.needsClaimCheck || intent.wantsAcademicResearch),
-                needsCounterEvidence: Boolean(intent.wantsAcademicResearch || writingContract?.deliverable === 'literature_review'),
-                needsStylePass: Boolean(writingContract?.needsStylePass),
-                lightweight: !evidenceSeeking && !longform && !hasNetworkTools,
-                deliverable: writingContract?.active ? writingContract.deliverable : 'answer',
-                citationStyle: writingContract?.citationStyle || 'numeric',
-                sourceTarget: Number(parameters.sourceTarget || 0),
-                citationTarget: Number(parameters.citationTarget || 0)
-            };
-        }
-
-        getFallbackParameters(intent = {}) {
-            return {
-                researchProfile: 'none',
+                researchProfile: 'agentic',
                 agentEarthTargetCalls: 0,
-                maxIterations: intent.mode === 'chat' ? 1 : 6,
+                maxIterations: wantsTools ? 16 : 1,
                 sourceTarget: 0,
                 citationTarget: 0,
-                writingContract: intent.writingContract || null,
-                qualityGates: intent.writingContract?.qualityGates || {},
-                policyFlags: this.buildPolicyFlags(intent, intent.writingContract || null, {}, [])
+                writingContract: null,
+                qualityGates: {},
+                policyFlags: {
+                    needsTools: wantsTools,
+                    lightweight: !wantsTools,
+                    deliverable: 'answer',
+                    citationStyle: 'numeric',
+                    sourceTarget: 0,
+                    citationTarget: 0
+                }
             };
         }
     }

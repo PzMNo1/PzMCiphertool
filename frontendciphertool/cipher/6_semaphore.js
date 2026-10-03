@@ -380,12 +380,14 @@ function getSymbolCipherConfig() {
 	if (type === 'dancingMen') {
 		return {
 			cipher: typeof DancingMenCipher !== 'undefined' ? DancingMenCipher : null,
-			symbolSize: '1.05rem'
+			symbolSize: '1.05rem',
+			html: true
 		};
 	}
 	return {
 		cipher: typeof PigpenCipher !== 'undefined' ? PigpenCipher : null,
-		symbolSize: '1.45rem'
+		symbolSize: '1.45rem',
+		html: false
 	};
 }
 
@@ -395,7 +397,11 @@ function renderSymbolCipherResult() {
 	const config = getSymbolCipherConfig();
 	if (!input || !result || !config.cipher) return;
 	const text = input.value || '';
-	result.textContent = text ? `编码: ${config.cipher.e(text)}\n解码: ${config.cipher.d(text)}` : '';
+	if (!text) { result.textContent = ''; return; }
+	const out = `编码: ${config.cipher.e(text)}\n解码: ${config.cipher.d(text)}`;
+	// 跳舞的小人输出内联 SVG, 需按 HTML 渲染; Pigpen 符号含 < > 等字符, 必须按纯文本渲染
+	if (config.html) result.innerHTML = out;
+	else result.textContent = out;
 }
 
 function buildSymbolCipherPanel() {
@@ -422,8 +428,13 @@ function buildSymbolCipherPanel() {
 		tile.title = letter;
 		tile.style.cssText = 'width:68px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid rgba(64,224,255,.45);border-radius:8px;background:rgba(15,27,51,.72);color:#fff;box-shadow:0 0 8px rgba(64,224,255,.16);cursor:pointer;transition:transform .15s ease,border-color .15s ease;';
 		const symbol = document.createElement('span');
-		symbol.textContent = config.cipher.symbols[index];
-		symbol.style.cssText = `font-size:${config.symbolSize};line-height:1;white-space:nowrap;`;
+		symbol.style.cssText = `font-size:${config.symbolSize};line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center;`;
+		if (config.html && typeof config.cipher.svg === 'function') {
+			// 跳舞的小人: 直接渲染 SVG 小人
+			symbol.innerHTML = config.cipher.svg(letter, false);
+		} else {
+			symbol.textContent = config.cipher.symbols[index];
+		}
 		const label = document.createElement('span');
 		label.textContent = letter;
 		label.style.cssText = 'font-size:.72rem;line-height:1;color:#40e0ff;';

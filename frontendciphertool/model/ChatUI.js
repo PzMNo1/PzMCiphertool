@@ -35,6 +35,7 @@ class ChatUI {
         let inCodeBlock = false;
         let codeBuffer = [];
         let codeLanguage = '';
+        let inSourceSection = false;
 
         const flushMath = () => {
             if (!mathBuffer.length) return;
@@ -143,6 +144,16 @@ class ChatUI {
                 continue;
             }
 
+            if (this.isSourceHeadingLine(trimmed)) {
+                inSourceSection = true;
+            } else if (inSourceSection && /^\[(\d+)\]\s*/.test(trimmed)) {
+                const srcId = trimmed.match(/^\[(\d+)\]/)[1];
+                blocks.push(`<p class="markdown-source-line" id="agent-source-${srcId}">${this.formatInline(line)}</p>`);
+                continue;
+            } else if (inSourceSection && trimmed) {
+                inSourceSection = false;
+            }
+
             if (trimmed.includes(':') && trimmed.length < 100 && !trimmed.includes('http') && !trimmed.includes('//')) {
                 const firstColon = trimmed.indexOf(':');
                 const subtitle = trimmed.substring(0, firstColon).trim();
@@ -191,7 +202,33 @@ class ChatUI {
             return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
         });
 
+        text = text.replace(/\[(\d{1,3})\]/g, (_, n) => {
+            const map = this._activeSourceMap || {};
+            const url = map[String(n)];
+            if (url && /^https?:\/\//i.test(url)) {
+                return `<a class="citation-link" href="${this.escapeHtml(url)}" target="_blank" rel="noopener noreferrer">[${n}]</a>`;
+            }
+            return `<a class="citation-link" href="#agent-source-${n}">[${n}]</a>`;
+        });
+
         return text.replace(/\uE000(\d+)\uE000/g, (_, index) => tokens[Number(index)] || '');
+    }
+
+    isSourceHeadingLine(value) {
+        return /^(#{1,6}\s*)?(来源|参考|引用|Sources|References)\s*[:：]?$/i.test(String(value || '').trim());
+    }
+
+    buildSourceUrlMap(agentRun) {
+        const map = {};
+        const ledger = Array.isArray(agentRun?.evidence_ledger) ? agentRun.evidence_ledger : [];
+        ledger.forEach(entry => {
+            const id = String(entry?.source_id ?? '');
+            const url = String(entry?.url || '');
+            if (id && /^https?:\/\//i.test(url)) {
+                map[id] = url;
+            }
+        });
+        return map;
     }
 
     sanitizeUrl(value) {
@@ -577,7 +614,9 @@ class ChatUI {
      * @param {string} fullContent - 完整的内容文本
      */
     updateContent(container, fullContent) {
+        this._activeSourceMap = container?._sourceUrlMap || null;
         container.contentDiv.innerHTML = this.formatMessage(fullContent);
+        this._activeSourceMap = null;
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
         this.debouncedMathJax(container.contentDiv);
     }
@@ -865,71 +904,117 @@ class ChatUI {
     }
 
     createAgentCollaborationPanel(collaboration) {
-        return null;
-        if (!collaboration?.enabled || !Array.isArray(collaboration.collaborators) || !collaboration.collaborators.length) {
-            return null;
-        }
-        const display = collaboration.display || {};
-        const lanes = Array.isArray(display.lanes) && display.lanes.length
-            ? display.lanes
-            : this.buildFallbackCollaborationLanes(collaboration);
+        if (!collaboration || !collaboration.enabled) return null;
+
+        // 允许 collaborators 为空：专家面板需要在专家启动前就占位，
+        // 随后由 AgentRuntime.renderExpertStatus 填充实时状态。
+        const collaborators = Array.isArray(collaboration.collaborators) ? collaboration.collaborators : [];
+
         const panel = document.createElement('div');
         panel.className = 'agent-collaboration-panel';
 
-        const header = document.createElement('div');
-        header.className = 'agent-collaboration-header';
-        header.innerHTML = `
-            <span class="agent-collaboration-title">AUTO COLLAB</span>
-            <span class="agent-collaboration-strategy">${this.escapeHtml(display.modeLabel || '自动协作')}</span>
-            <span class="agent-collaboration-status">${this.escapeHtml(collaboration.status || 'planned')}</span>
+        const strategyLabels = {
+            expert_panel: '并行专家面板',
+            debate: '观点辩论',
+            single_agent: '单 Agent'
+        };
+        const strategy = strategyLabels[collaboration.strategy] || collaboration.strategy || '协作';
+
+        // 落库快照里的 collaborators 带逐专家状态（status/工具次数/检索词/产出字数），
+        // 历史恢复时必须按同一套行样式渲染，否则回看聊天记录就只有光秃秃的名字。
+        const hasDetail = collaborators.some(item => item && (item.status || item.ok || item.tool_calls || item.duration_ms));
+        const members = hasDetail
+            ? this.buildCollaboratorRows(collaborators)
+            : (collaborators.map(item => {
+                const state = item.ok ? 'ok' : 'fail';
+                const duration = Number.isFinite(Number(item.duration_ms))
+                    ? ` · ${(Number(item.duration_ms) / 1000).toFixed(1)}s`
+                    : '';
+                return `<span class="agent-collaborator ${state}">${this.escapeHtml(item.label || item.role || 'expert')}${duration}</span>`;
+            }).join('') || '<span class="agent-collaborator">准备启动…</span>');
+
+        const okCount = collaborators.filter(item => item.ok).length;
+        const countText = hasDetail
+            ? (this.buildCollaboratorSummary(collaborators) || `${okCount}/${collaborators.length} ok`)
+            : `${okCount}/${collaborators.length} ok`;
+
+        panel.innerHTML = `
+            <div class="agent-collaboration-head">
+                <span class="agent-collaboration-title">COLLABORATION</span>
+                <span class="agent-collaboration-mode">${this.escapeHtml(strategy)}</span>
+                <span class="agent-collaboration-count">${this.escapeHtml(countText)}</span>
+            </div>
+            <div class="agent-collaboration-members">${members}</div>
         `;
-        panel.appendChild(header);
-
-        if (display.summary) {
-            const summary = document.createElement('div');
-            summary.className = 'agent-collaboration-summary';
-            summary.textContent = display.summary;
-            panel.appendChild(summary);
-        }
-
-        const grid = document.createElement('div');
-        grid.className = 'agent-collaboration-grid';
-        lanes.slice(0, 3).forEach(lane => {
-            const card = document.createElement('div');
-            card.className = 'agent-collaborator-card';
-            const internalCount = Array.isArray(lane.sourceAgents) ? lane.sourceAgents.length : 0;
-            const tools = internalCount > 1 ? `${internalCount} internal workers` : 'auto';
-            card.innerHTML = `
-                <div class="agent-collaborator-name">${this.escapeHtml(lane.label || '自动')}</div>
-                <div class="agent-collaborator-mission">${this.escapeHtml(lane.mission || '')}</div>
-                <div class="agent-collaborator-tools">${this.escapeHtml(tools)}</div>
-            `;
-            grid.appendChild(card);
-        });
-        panel.appendChild(grid);
-
         return panel;
     }
 
-    buildFallbackCollaborationLanes(collaboration) {
-        const ids = new Set((collaboration.collaborators || []).map(agent => agent.id));
-        const lanes = [];
-        if (ids.has('researcher')) {
-            lanes.push({ id: 'research', label: '资料', mission: '检索、阅读、整理证据', sourceAgents: ['researcher'] });
-        }
-        if (ids.has('architect') || ids.has('implementer')) {
-            lanes.push({ id: 'execution', label: '执行', mission: '读项目、推进改动、运行验证', sourceAgents: ['architect', 'implementer'].filter(id => ids.has(id)) });
-        } else if (ids.has('writer')) {
-            lanes.push({ id: 'writing', label: '成稿', mission: '把材料整理成最终答复', sourceAgents: ['writer'] });
-        } else if (ids.has('solver')) {
-            lanes.push({ id: 'solving', label: '解题', mission: '计算、转换、校验结果', sourceAgents: ['solver'] });
-        }
-        if (ids.has('verifier') || ids.has('reviewer') || ids.has('editor')) {
-            lanes.push({ id: 'quality', label: '质检', mission: '查来源、风险、遗漏和表达质量', sourceAgents: ['verifier', 'reviewer', 'editor'].filter(id => ids.has(id)) });
-        }
-        return lanes.length
-            ? lanes
-            : [{ id: 'auto', label: '自动', mission: '按任务需要自动分工', sourceAgents: Array.from(ids) }];
+    /**
+     * 专家面板的成员行 HTML —— 运行中实时渲染与历史恢复共用同一份实现。
+     * 同时接受运行时结构（activity.toolCalls/toolsUsed/...）与落库后的扁平结构（tool_calls/tools_used/...）。
+     */
+    buildCollaboratorRows(collaborators = []) {
+        const list = Array.isArray(collaborators) ? collaborators : [];
+        if (!list.length) return '<span class="agent-collaborator">准备启动…</span>';
+
+        return list.map(item => {
+            const activity = item?.activity || {};
+            const status = item?.status || (item?.ok ? 'done' : 'queued');
+            const statusLabel = {
+                queued: '排队',
+                running: '检索中',
+                done: '完成',
+                empty: '无产出',
+                failed: '失败'
+            }[status] || status;
+
+            const state = (status === 'done' || item?.ok)
+                ? 'ok'
+                : (status === 'failed' || status === 'empty' ? 'fail' : '');
+
+            const durationMs = Number(item?.durationMs ?? item?.duration_ms) || 0;
+            const duration = durationMs ? ` · ${(durationMs / 1000).toFixed(1)}s` : '';
+
+            const toolCalls = Number(item?.tool_calls ?? activity.toolCalls) || 0;
+            const iterations = Number(item?.iterations ?? activity.iterations) || 0;
+            const findingsChars = Number(item?.findings_chars ?? activity.findingsChars) || 0;
+            const stats = [];
+            if (toolCalls > 0) stats.push(`工具×${toolCalls}`);
+            if (iterations > 0) stats.push(`轮次${iterations}`);
+            if (findingsChars > 0) stats.push(`${findingsChars}字`);
+            const statsText = stats.length ? ` · ${stats.join(' · ')}` : '';
+
+            const toolsUsed = this.formatCollaboratorList(item?.tools_used ?? activity.toolsUsed);
+            const queries = this.formatCollaboratorList(item?.queries ?? activity.queries, 3);
+            const lastAction = String(item?.last_action ?? activity.lastAction ?? '').slice(0, 90);
+
+            return `<div class="agent-collaborator-row ${state}">`
+                + `<div class="agent-collaborator-head">`
+                + `<span class="agent-collaborator-name">${this.escapeHtml(item?.label || item?.role || item?.key || 'expert')}</span>`
+                + `<span class="agent-collaborator-state">${this.escapeHtml(statusLabel)}${duration}${this.escapeHtml(statsText)}</span>`
+                + `</div>`
+                + (toolsUsed ? `<div class="agent-collaborator-line"><span class="agent-collaborator-tools">${toolsUsed}</span></div>` : '')
+                + (lastAction ? `<div class="agent-collaborator-line"><span class="agent-collaborator-action">${this.escapeHtml(lastAction)}</span></div>` : '')
+                + (queries ? `<div class="agent-collaborator-line"><span class="agent-collaborator-queries">${queries}</span></div>` : '')
+                + `</div>`;
+        }).join('');
+    }
+
+    formatCollaboratorList(value, limit = 0) {
+        const list = Array.isArray(value) ? value.filter(Boolean) : [];
+        const picked = limit > 0 ? list.slice(-limit) : list;
+        return picked.map(item => this.escapeHtml(String(item))).join(limit > 0 ? ' ｜ ' : ', ');
+    }
+
+    buildCollaboratorSummary(collaborators = []) {
+        const list = Array.isArray(collaborators) ? collaborators : [];
+        if (!list.length) return '';
+        const done = list.filter(item => item?.status === 'done' || item?.ok).length;
+        const toolTotal = list.reduce((sum, item) =>
+            sum + (Number(item?.tool_calls ?? item?.activity?.toolCalls) || 0), 0);
+        const findingsTotal = list.reduce((sum, item) =>
+            sum + (Number(item?.findings_chars ?? item?.activity?.findingsChars) || 0), 0);
+        return `${done}/${list.length} ok · 工具×${toolTotal} · 材料${findingsTotal}字`;
     }
 
     setAgentStage(container, stageId, state, note = '') {
@@ -945,9 +1030,6 @@ class ChatUI {
     }
 
     addAgentTrace(container, stage, message) {
-        if (false && (stage === 'route' || stage === 'act' || stage === 'observe')) {
-            this.appendReasoningEvent(container, this.formatTraceForReasoning(stage, message));
-        }
         if (!container.agentTrace) return;
         const row = document.createElement('div');
         row.className = 'agent-trace-row';
@@ -1392,9 +1474,6 @@ class ChatUI {
         resultEl.innerHTML = `<pre>${this.escapeHtml(result)}</pre>`;
     }
 
-    appendToolResultEvent(toolCard, toolCallId, result, success) {
-    }
-
     getPlanStatus(plan) {
         if (plan.mode === 'news_brief') return '\u6b63\u5728\u6574\u7406\u65b0\u95fb\u7b80\u62a5';
         if (plan.mode === 'research') return '正在检索资料';
@@ -1541,7 +1620,9 @@ class ChatUI {
         if (msg.role === 'user') {
             messageContent.textContent = msg.content || '';
         } else {
+            this._activeSourceMap = this.buildSourceUrlMap(msg.agent_run);
             messageContent.innerHTML = this.formatMessage(msg.content);
+            this._activeSourceMap = null;
         }
         // 必须先将 messageContent 添加到 messageElement，
         // 然后再调用 restoreAgentRunPanel（它内部使用 insertBefore 需要 contentDiv 已经是子节点）

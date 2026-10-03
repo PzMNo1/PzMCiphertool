@@ -619,8 +619,326 @@ const CCCHandler = {
       const code = this.charToCode.get(c);
       return code != null ? code.toString().padStart(4, '0') : null;
     });
+  },
+
+  /* ==========================================================================
+   * 汉字编码卡组：区位码 / GB2312 / GBK / GB18030
+   *
+   * 这些都放这里而不是单独开文件，是因为它们和中文电码本来就是同一类东西 ——
+   * 都是「汉字 ↔ 编码」的互转，共用同一张字表和同一套正/反向查找思路。
+   *
+   * 关键点：浏览器只带 GBK/GB18030 的**解码器**，没有编码器。
+   * 所以反向（汉字 → 字节）要自己建索引：一次性把 GBK 双字节区全解一遍建表，
+   * 实测约 2.4 万次 decode、几十毫秒，换来对全部两万余汉字的即时反查。
+   * ======================================================================== */
+
+  isCJK: ch => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch),
+
+  gbkDecoder: null,
+  getGbkDecoder() {
+    if (this.gbkDecoder) return this.gbkDecoder;
+    try { this.gbkDecoder = new TextDecoder('gbk'); } catch (e) { this.gbkDecoder = false; }
+    return this.gbkDecoder;
+  },
+
+  gb18030Decoder: null,
+  getGb18030Decoder() {
+    if (this.gb18030Decoder) return this.gb18030Decoder;
+    try { this.gb18030Decoder = new TextDecoder('gb18030'); } catch (e) { this.gb18030Decoder = false; }
+    return this.gb18030Decoder;
+  },
+
+  gbkMap: null,
+  /** 汉字 → GBK 双字节，全表反查一次 */
+  getGbkMap() {
+    if (this.gbkMap) return this.gbkMap;
+    this.gbkMap = new Map();
+    const dec = this.getGbkDecoder();
+    if (!dec) return this.gbkMap;
+    for (let hi = 0x81; hi <= 0xfe; hi++) {
+      for (let lo = 0x40; lo <= 0xfe; lo++) {
+        if (lo === 0x7f) continue;
+        let decoded;
+        try { decoded = dec.decode(new Uint8Array([hi, lo])); } catch (e) { continue; }
+        if (decoded && [...decoded].length === 1 && !this.gbkMap.has(decoded)) {
+          this.gbkMap.set(decoded, [hi, lo]);
+        }
+      }
+    }
+    return this.gbkMap;
+  },
+
+  hex2: n => n.toString(16).toUpperCase().padStart(2, '0'),
+
+  /** GBK 双字节 → 区位码（区 1-94 / 位 1-94） */
+  gbkToQuwei(hi, lo) {
+    return { qu: hi - 0xa0, wei: lo - 0xa0 };
+  },
+
+  /* GB18030 四字节区：B1 0x81-0xFE、B2 0x30-0x39、B3 0x81-0xFE、B4 0x30-0x39 */
+  G18_SLOTS: 126 * 10 * 126 * 10,
+
+  gb18030SlotBytes(index) {
+    return [
+      0x81 + (Math.floor(index / (10 * 126 * 10)) % 126),
+      0x30 + (Math.floor(index / (126 * 10)) % 10),
+      0x81 + (Math.floor(index / 10) % 126),
+      0x30 + (index % 10)
+    ];
+  },
+
+  gb18030SlotCodePoint(index) {
+    const dec = this.getGb18030Decoder();
+    if (!dec) return null;
+    let txt = '';
+    try { txt = dec.decode(new Uint8Array(this.gb18030SlotBytes(index))); } catch (e) { return null; }
+    if (!txt || [...txt].length !== 1) return null;
+    const cp = txt.codePointAt(0);
+    return cp === 0xfffd ? null : cp;
+  },
+
+  /**
+   * 码点 → 四字节槽位。
+   * 四字节区按码点单调递增，但中间有大段未分配槽位（BMP 结尾到星形区开头之间是空洞），
+   * 所以二分撞到空洞时用 1、2、4… 指数扩张跳到最近有效槽位 —— 跳出来仍是单调的上下界，
+   * 二分照样成立。浏览器没有 GB18030 编码器，只能这样反查。
+   */
+  gb18030IndexForCodePoint(cp) {
+    const total = this.G18_SLOTS;
+    let low = 0, high = total - 1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      let probe = mid;
+      let found = this.gb18030SlotCodePoint(probe);
+      for (let step = 1; found == null && step <= total; step *= 2) {
+        const up = probe + step, down = probe - step;
+        if (up <= high) { const v = this.gb18030SlotCodePoint(up); if (v != null) { found = v; probe = up; break; } }
+        if (down >= low) { const v = this.gb18030SlotCodePoint(down); if (v != null) { found = v; probe = down; break; } }
+      }
+      if (found == null) return null;
+      if (found === cp) return probe;
+      if (found < cp) low = probe + 1; else high = probe - 1;
+    }
+    return null;
+  },
+
+  gb18030Cache: new Map(),
+  /** 单字 → GB18030 字节：GBK 双字节优先，GBK 没有的走四字节区 */
+  gb18030BytesFor(ch) {
+    if (this.gb18030Cache.has(ch)) return this.gb18030Cache.get(ch);
+    let out = this.getGbkMap().get(ch) || null;
+    if (!out) {
+      const cp = ch.codePointAt(0);
+      const idx = cp == null ? null : this.gb18030IndexForCodePoint(cp);
+      out = idx == null ? null : this.gb18030SlotBytes(idx);
+    }
+    this.gb18030Cache.set(ch, out);
+    return out;
+  },
+
+  /**
+   * 汉字 → 编码。tab 取值：
+   *   ccc 中文电码 / quwei 区位码 / gb2312 / gbk / gb18030
+   * 返回 null 表示该字在这个标准里放不下（例如 GB2312 装不了 GBK 扩展汉字）。
+   */
+  encodeOne(tab, ch) {
+    if (tab === 'ccc') {
+      this.ensureMaps();
+      const code = this.charToCode.get(ch);
+      return code != null ? String(code).padStart(4, '0') : null;
+    }
+    const cp = ch.codePointAt(0);
+    if (cp != null && cp < 0x80) return this.hex2(cp);   // ASCII 三种标准都是单字节
+    if (tab === 'gb18030') {
+      const b = this.gb18030BytesFor(ch);
+      return b ? b.map(this.hex2).join('') : null;
+    }
+    const bytes = this.getGbkMap().get(ch);
+    if (!bytes) return null;
+    const { qu, wei } = this.gbkToQuwei(bytes[0], bytes[1]);
+    const inGb2312 = qu >= 1 && qu <= 94 && wei >= 1 && wei <= 94;
+    if (!inGb2312) return null;                          // GB2312 装不下
+    if (tab === 'quwei') return `${String(qu).padStart(2, '0')}${String(wei).padStart(2, '0')}`;
+    return this.hex2(bytes[0]) + this.hex2(bytes[1]);     // gb2312 的字节就是 GBK 字节
+  },
+
+  /** 汉字串 → 编码串，用空格隔开 */
+  encodeText(tab, text) {
+    const chars = [...String(text || '')].filter(ch => !/\s/.test(ch));
+    if (!chars.length) return '';
+    return chars.map(ch => {
+      const one = this.encodeOne(tab, ch);
+      return one == null ? '—' : one;
+    }).join(' ');
+  },
+
+  /**
+   * 编码 → 汉字。
+   * 区位码按位判断边界：GB2312 字节就是 GBK 字节（0xA0+区号, 0xA0+位号），不用查表。
+   */
+  decodeText(tab, raw) {
+    const digits = String(raw || '').replace(/[\s,]+/g, '');
+    const hex = digits.replace(/^0x/i, '');
+
+    if (tab === 'ccc' || tab === 'quwei') {
+      if (!/^\d{4}(\d{4})*$/.test(digits)) {
+        return tab === 'ccc' ? '不是四位电码' : '不是四位区位码';
+      }
+      const chunks = digits.match(/\d{4}/g);
+      if (tab === 'ccc') {
+        this.ensureMaps();
+        return chunks.map(c => this.codeToChar.get(parseInt(c, 10)) || '?').join('');
+      }
+      const dec = this.getGbkDecoder();
+      if (!dec) return '浏览器不支持 GBK 解码';
+      return chunks.map(c => {
+        const qu = parseInt(c.slice(0, 2), 10), wei = parseInt(c.slice(2), 10);
+        if (qu < 1 || qu > 94 || wei < 1 || wei > 94) return '?';
+        try { return dec.decode(new Uint8Array([qu + 0xa0, wei + 0xa0])); } catch (e) { return '?'; }
+      }).join('');
+    }
+
+    if (!/^([0-9a-fA-F]{2})+$/.test(hex)) {
+      return tab === 'gb2312' ? '不是 GB2312 十六进制'
+        : tab === 'gbk' ? '不是 GBK 十六进制' : '不是 GB18030 十六进制';
+    }
+    const bytes = [];
+    for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.substr(i, 2), 16));
+
+    if (tab === 'gb18030') {
+      const dec = this.getGb18030Decoder();
+      if (!dec) return '浏览器不支持 GB18030 解码';
+      try { return dec.decode(new Uint8Array(bytes)); } catch (e) { return '解码失败'; }
+    }
+
+    const dec = this.getGbkDecoder();
+    if (!dec) return '浏览器不支持 GBK 解码';
+    // 单字节 ASCII 直接过；双字节整体交给解码器，GB2312 再校验一遍范围
+    let out = '';
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if (b < 0x80) { out += String.fromCharCode(b); continue; }
+      if (i + 1 >= bytes.length) { out += '?'; break; }
+      const pair = [b, bytes[i + 1]];
+      i++;
+      if (tab === 'gb2312') {
+        const { qu, wei } = this.gbkToQuwei(pair[0], pair[1]);
+        if (qu < 1 || qu > 94 || wei < 1 || wei > 94) { out += '?'; continue; }
+      }
+      try { out += dec.decode(new Uint8Array(pair)); } catch (e) { out += '?'; }
+    }
+    return out;
+  },
+
+  /** 汉字编码卡组的六种查法，顺序即算法索引的显示顺序 */
+  MODES: [
+    { id: 'ccc', label: '中文电码', hint: '四位数字，中=0022' },
+    { id: 'quwei', label: '区位码', hint: '区号+位号，中=5448' },
+    { id: 'gb2312', label: 'GB2312', hint: '十六进制字节，中=D6D0' },
+    { id: 'gbk', label: 'GBK', hint: '十六进制字节，含扩展汉字' },
+    { id: 'gb18030', label: 'GB18030', hint: '含四字节区，覆盖全部 Unicode' },
+    { id: 'radical', label: '康熙部首', hint: '收录 1-100 号' }
+  ],
+
+  /** 当前查法，由卡片内的算法索引调用 setMode() 切换 */
+  mode: 'ccc',
+
+  /**
+   * 切换查法。
+   *
+   * 「当前查法」是这张卡自己的状态，所以切换动作也跟着 MODES 一起放在这里，
+   * 外面的算法索引只负责调用，不负责知道怎么重算。
+   *
+   * 刷新走 scheduleUpdateAll()（解析到「输入 → 下一帧重算」这条既有链路上），
+   * 切完不必自己写结果区：别的卡片就是这么刷的，多一条写结果的路径只会多一种不一致。
+   * 单独打开这张卡、拿不到调度器时（例如单文件调试）才退回同步刷新一次。
+   * @returns {boolean} 是否真的换了查法
+   */
+  setMode(mode) {
+    if (this.mode === mode) return false;
+    this.mode = mode;
+    if (typeof scheduleUpdateAll === 'function') scheduleUpdateAll();
+    else if (typeof refreshHanziCodes === 'function') refreshHanziCodes();
+    return true;
+  },
+
+  // 康熙部首前 100 号：[编号, 部首, 读音, 笔画, 变体]
+  KANGXI_RADICALS: [
+    [1, '一', 'yī', 1, ''], [2, '丨', 'gǔn', 1, ''], [3, '丶', 'zhǔ', 1, ''],
+    [4, '丿', 'piě', 1, ''], [5, '乙', 'yǐ', 1, '乚 乛'], [6, '亅', 'jué', 1, ''],
+    [7, '二', 'èr', 2, ''], [8, '亠', 'tóu', 2, ''], [9, '人', 'rén', 2, '亻'],
+    [10, '儿', 'ér', 2, ''], [11, '入', 'rù', 2, ''], [12, '八', 'bā', 2, '丷'],
+    [13, '冂', 'jiōng', 2, ''], [14, '冖', 'mì', 2, ''], [15, '冫', 'bīng', 2, ''],
+    [16, '几', 'jī', 2, ''], [17, '凵', 'kǎn', 2, ''], [18, '刀', 'dāo', 2, '刂'],
+    [19, '力', 'lì', 2, ''], [20, '勹', 'bāo', 2, ''], [21, '匕', 'bǐ', 2, ''],
+    [22, '匚', 'fāng', 2, ''], [23, '匸', 'xì', 2, ''], [24, '十', 'shí', 2, ''],
+    [25, '卜', 'bǔ', 2, ''], [26, '卩', 'jié', 2, '㔾'], [27, '厂', 'hǎn', 2, ''],
+    [28, '厶', 'sī', 2, ''], [29, '又', 'yòu', 2, ''], [30, '口', 'kǒu', 3, ''],
+    [31, '囗', 'wéi', 3, ''], [32, '土', 'tǔ', 3, ''], [33, '士', 'shì', 3, ''],
+    [34, '夂', 'zhǐ', 3, ''], [35, '夊', 'suī', 3, ''], [36, '夕', 'xī', 3, ''],
+    [37, '大', 'dà', 3, ''], [38, '女', 'nǚ', 3, ''], [39, '子', 'zǐ', 3, '孑 孒'],
+    [40, '宀', 'mián', 3, ''], [41, '寸', 'cùn', 3, ''], [42, '小', 'xiǎo', 3, '⺌'],
+    [43, '尢', 'yóu', 3, '尣'], [44, '尸', 'shī', 3, ''], [45, '屮', 'chè', 3, ''],
+    [46, '山', 'shān', 3, ''], [47, '巛', 'chuān', 3, '川 巜'], [48, '工', 'gōng', 3, ''],
+    [49, '己', 'jǐ', 3, ''], [50, '巾', 'jīn', 3, ''], [51, '干', 'gān', 3, ''],
+    [52, '幺', 'yāo', 3, ''], [53, '广', 'guǎng', 3, ''], [54, '廴', 'yǐn', 3, ''],
+    [55, '廾', 'gǒng', 3, ''], [56, '弋', 'yì', 3, ''], [57, '弓', 'gōng', 3, ''],
+    [58, '彐', 'jì', 3, '彑'], [59, '彡', 'shān', 3, ''], [60, '彳', 'chì', 3, ''],
+    [61, '心', 'xīn', 4, '忄 㣺'], [62, '戈', 'gē', 4, ''], [63, '戶', 'hù', 4, '户 戸'],
+    [64, '手', 'shǒu', 4, '扌 龵'], [65, '支', 'zhī', 4, ''], [66, '攴', 'pū', 4, '攵'],
+    [67, '文', 'wén', 4, ''], [68, '斗', 'dǒu', 4, ''], [69, '斤', 'jīn', 4, ''],
+    [70, '方', 'fāng', 4, ''], [71, '无', 'wú', 4, '旡'], [72, '日', 'rì', 4, ''],
+    [73, '曰', 'yuē', 4, ''], [74, '月', 'yuè', 4, ''], [75, '木', 'mù', 4, ''],
+    [76, '欠', 'qiàn', 4, ''], [77, '止', 'zhǐ', 4, ''], [78, '歹', 'dǎi', 4, '歺'],
+    [79, '殳', 'shū', 4, ''], [80, '毋', 'wú', 4, '母'], [81, '比', 'bǐ', 4, ''],
+    [82, '毛', 'máo', 4, ''], [83, '氏', 'shì', 4, ''], [84, '气', 'qì', 4, ''],
+    [85, '水', 'shuǐ', 4, '氵 氺'], [86, '火', 'huǒ', 4, '灬'], [87, '爪', 'zhǎo', 4, '爫'],
+    [88, '父', 'fù', 4, ''], [89, '爻', 'yáo', 4, ''], [90, '爿', 'pán', 4, ''],
+    [91, '片', 'piàn', 4, ''], [92, '牙', 'yá', 4, ''], [93, '牛', 'niú', 4, '牜'],
+    [94, '犬', 'quǎn', 4, '犭'], [95, '玄', 'xuán', 5, ''], [96, '玉', 'yù', 5, '王'],
+    [97, '瓜', 'guā', 5, ''], [98, '瓦', 'wǎ', 5, ''], [99, '甘', 'gān', 5, ''],
+    [100, '生', 'shēng', 5, '']
+  ],
+
+  renderRadicalTable(keyword) {
+    const q = String(keyword || '').trim();
+    let rows = this.KANGXI_RADICALS;
+    if (q) {
+      // 数字按编号查，汉字按部首本身 / 变体查，其余按笔画数查
+      rows = rows.filter(r =>
+        String(r[0]) === q || r[1].includes(q) || String(r[3]) === q ||
+        (r[4] && r[4].split(/\s+/).some(v => v.includes(q)))
+      );
+      if (!rows.length) return `没有匹配的部首：「${q}」\n（表内收录 1-100 号，可输入编号、部首字、变体或笔画数）`;
+    }
+    // 空查询时列出全表
+    return rows.map(r =>
+      `${String(r[0]).padStart(3, ' ')}  ${r[1]}  ${r[2].padEnd(6, ' ')} ${r[3]}画` +
+      (r[4] ? `   变体: ${r[4]}` : '')
+    ).join('\n');
+  },
+
+  /**
+   * 卡片主入口。
+   * 输出刻意只给结果本身：不加输入字、箭头、表头、分隔线 —— 那种一行一个字的
+   * 详细对照在谜题里反而挡事，需要时用下面的 电码/四角号码 卡片看。
+   */
+  cardConvert(text, tab, direction) {
+    const raw = String(text || '').trim();
+    if (!raw) return '';
+    if (tab === 'radical') return this.renderRadicalTable(raw);
+
+    const digitsOnly = raw.replace(/[\s,]+/g, '');
+    const wantsDecode = direction === 'code2char' ||
+      (direction === 'auto' && ![...raw].some(this.isCJK) && /^[0-9a-fA-F\s,]+$/.test(raw));
+
+    return wantsDecode ? this.decodeText(tab, digitsOnly) : this.encodeText(tab, raw);
   }
 };
+
+
+
+
 
 // 四角号码处理函数
 const fourCCCHandler = {
@@ -657,11 +975,19 @@ const fourCCCHandler = {
 };
 
 // ROT密码转换
+// 键名 = 下拉框 option 的 value = 算法索引里的 value，三者必须一致，
+// 否则「算法索引」点下去会匹配不到下拉项、静默失效（历史 bug：标签写 ROT5，value 却是 char）。
+const ROT_METHODS = {
+  rot5: [[48, 57]],                              // 只转数字
+  rot13: [[65, 90], [97, 122]],                  // 只转字母
+  rot18: [[48, 57], [65, 90], [97, 122]],        // 数字 + 字母
+  rot47: [[33, 126]]                             // 全部可打印 ASCII
+};
 const ROTCipher = {
-  rotMethods: {
-    char: [[48, 57]], dec: [[65, 90], [97, 122]],
-    hex: [[48, 57], [65, 90], [97, 122]], oct: [[33, 126]]
-  },
+  rotMethods: Object.assign({}, ROT_METHODS, {
+    // 兼容旧调用方（workflow / 基准脚本）传的 char/dec/hex/oct
+    char: ROT_METHODS.rot5, dec: ROT_METHODS.rot13, hex: ROT_METHODS.rot18, oct: ROT_METHODS.rot47
+  }),
   _rotate: (cp, ranges) => {
     const range = ranges.find(([s, e]) => cp >= s && cp <= e);
     if (!range) return cp;
@@ -1090,9 +1416,16 @@ const PlayfairCipher = {
 }
 
 // Pigpen 共济会密码
+// 标准符号表: 第一个井字格 A-I; 第二个带点井字格 J-R;
+// 第一个 X 形格 S-V(上∨ 右> 左< 下∧); 第二个带点 X 形格 W-Z
 const PigpenCipher = {
   letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-  symbols: ['⌜','⊓','⌝','⊏','□','⊐','⌞','⊔','⌟','⌜·','⊓·','⌝·','⊏·','□·','⊐·','⌞·','⊔·','⌟·','◇⌜','◇⊓','◇⌝','◇⊏','◇⌞','◇⊔','◇⌟','◇□'],
+  symbols: [
+    '⌜','⊓','⌝','⊏','□','⊐','⌞','⊔','⌟',
+    '⌜·','⊓·','⌝·','⊏·','□·','⊐·','⌞·','⊔·','⌟·',
+    '∨','>','<','∧',
+    '∨·','>·','<·','∧·'
+  ],
   e: t => [...(t || '').toUpperCase()].map(c => {
     const i = PigpenCipher.letters.indexOf(c);
     if (i >= 0) return PigpenCipher.symbols[i];
@@ -1172,19 +1505,73 @@ const SubstitutionTools = {
       `Crib替换: ${SubstitutionTools.replaceCrib(t, cribCipher, cribPlain)}${conflicts}`;
   }
 }
-// 跳舞的小人密码
+
+
+// 跳舞的小人密码 
 const DancingMenCipher = {
   letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-  symbols: ['○╱│╲','╲○│╱','○─│╲','╱○│─','○╱│─','─○│╲','○─│╱','╲○│─','○╱╲','╲○╱','○┌│','┐○│','○│┘','└│○','○┬│','┴○│','○╱┘','└○╲','○─┘','└─○','○╲┐','┌╱○','○┤╱','╲├○','○┬╲','╱┴○'],
-  e: t => [...(t || '').toUpperCase()].map(c => {
-    const i = DancingMenCipher.letters.indexOf(c);
-    if (i >= 0) return DancingMenCipher.symbols[i];
-    if (/\s/.test(c)) return '/';
-    return c;
-  }).join(' '),
+  // 姿势: [左臂, 右臂, 腿, 固有旗帜?] 臂: U=上举 H=平伸 D=下垂; 腿: T=并拢 A=分开
+  poses: [
+    ['D','D','T'], ['D','D','A'], ['U','U','T'], ['U','U','A'],
+    ['U','D','T'], ['U','D','A'], ['D','U','T'], ['D','U','A'],
+    ['H','H','T'], ['H','H','A'], ['U','H','T'], ['U','H','A'],
+    ['H','U','T'], ['H','U','A'], ['D','H','T'], ['D','H','A'],
+    ['H','D','T'], ['H','D','A'],
+    ['D','D','T','F'], ['U','U','T','F'], ['U','D','T','F'], ['D','U','T','F'],
+    ['H','H','T','F'], ['U','H','T','F'], ['H','U','T','F'], ['H','D','T','F']
+  ],
+  html: true,
+  hand: dir => dir === 'U' ? { x: 5, y: 7 } : dir === 'H' ? { x: 3, y: 14 } : { x: 5, y: 22 },
+  svg: (letter, wordEnd = false) => {
+    const up = String(letter || '').toUpperCase();
+    const i = DancingMenCipher.letters.indexOf(up);
+    if (i < 0) return null;
+    const [la, ra, legs, f] = DancingMenCipher.poses[i];
+    const L = DancingMenCipher.hand(la), R0 = DancingMenCipher.hand(ra);
+    const R = { x: 30 - R0.x, y: R0.y };
+    const legPath = legs === 'A'
+      ? '<path d="M15 24 L7.5 39.5 M15 24 L22.5 39.5"/><path d="M5.5 39.5 L9.5 39.5 M20.5 39.5 L24.5 39.5"/>'
+      : '<path d="M15 24 L13.5 39.5 M15 24 L16.5 39.5"/><path d="M11.5 39.5 L18.5 39.5"/>';
+    const hasFlag = wordEnd || f === 'F';
+    const flagPath = hasFlag
+      ? `<path d="M${L.x} ${L.y} L${L.x} 0.8"/><path class="dm-pennant" d="M${L.x} 0.8 L${L.x + 6} 2.8 L${L.x} 4.8 Z"/>`
+      : '';
+    return `<svg class="dm-fig" viewBox="0 0 30 44" xmlns="http://www.w3.org/2000/svg" data-letter="${up}" data-flag="${wordEnd ? 1 : 0}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">` +
+      `<circle cx="15" cy="6.2" r="4.2"/>` +
+      `<path d="M15 10.4 L15 24"/>` +
+      `<path d="M15 14 L${L.x} ${L.y}"/>` +
+      `<path d="M15 14 L${R.x} ${R.y}"/>` +
+      legPath +
+      flagPath +
+      `</svg>`;
+  },
+  escapeHtml: s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+  e: t => {
+    const words = String(t || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return '';
+    return words.map(word => {
+      const figs = [...word].map((c, ci) => {
+        const up = c.toUpperCase();
+        if (DancingMenCipher.letters.indexOf(up) < 0) return DancingMenCipher.escapeHtml(c);
+        return DancingMenCipher.svg(up, ci === word.length - 1);
+      }).join('');
+      return `<span class="dm-word">${figs}</span>`;
+    }).join('');
+  },
   d: t => {
-    const rev = Object.fromEntries(DancingMenCipher.symbols.map((s, i) => [s, DancingMenCipher.letters[i]]));
-    return (t || '').split(/\s+/).map(token => token === '/' ? ' ' : rev[token] || token).join('');
+    const s = String(t || '');
+    if (!/<svg/i.test(s)) return s.toUpperCase();
+    let out = '';
+    const re = /<svg[^>]*data-letter="([A-Za-z])"[^>]*data-flag="([01])"[^>]*>[\s\S]*?<\/svg>/g;
+    let last = 0, m;
+    while ((m = re.exec(s))) {
+      out += s.slice(last, m.index).replace(/<[^>]*>/g, '');
+      out += m[1].toUpperCase();
+      if (m[2] === '1') out += ' ';
+      last = re.lastIndex;
+    }
+    out += s.slice(last).replace(/<[^>]*>/g, '');
+    return out;
   }
 }
 
@@ -1299,3 +1686,4 @@ const SHA1Cipher = createHashCipher('SHA-1')
 const SHA256Cipher = createHashCipher('SHA-256')
 const SHA384Cipher = createHashCipher('SHA-384')
 const SHA512Cipher = createHashCipher('SHA-512')
+

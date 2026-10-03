@@ -1,6 +1,8 @@
 package com.ciphertool.controller;
 
+import com.ciphertool.cache.AgentEarthCache;
 import com.ciphertool.service.AgentEarthService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/agent-earth")
@@ -17,6 +20,9 @@ import java.util.Map;
 public class AgentEarthController {
 
     private final AgentEarthService agentEarthService;
+
+    @Autowired(required = false)
+    private AgentEarthCache agentEarthCache;
 
     @Value("${agent-earth.enabled:false}")
     private boolean enabled;
@@ -41,9 +47,37 @@ public class AgentEarthController {
         );
     }
 
+    /**
+     * AgentEarth 结果缓存状态，便于确认缓存是否生效。
+     */
+    @GetMapping("/cache/stats")
+    public Map<String, Object> cacheStats() {
+        if (agentEarthCache == null) {
+            return Map.of("success", false, "message", "AgentEarth cache is not enabled.");
+        }
+        return Map.of(
+                "success", true,
+                "data", Map.of(
+                        "size", agentEarthCache.size(),
+                        "maxEntries", agentEarthCache.getMaxEntries(),
+                        "ttlMinutes", agentEarthCache.getTtlMinutes()
+                )
+        );
+    }
+
+    @PostMapping("/cache/clear")
+    public Map<String, Object> clearCache() {
+        if (agentEarthCache == null) {
+            return Map.of("success", false, "message", "AgentEarth cache is not enabled.");
+        }
+        int purged = agentEarthCache.purgeExpired();
+        agentEarthCache.clear();
+        return Map.of("success", true, "data", Map.of("purgedExpired", purged, "size", agentEarthCache.size()));
+    }
+
     @SuppressWarnings("unchecked")
     @PostMapping("/run")
-    public Map<String, Object> run(@RequestBody Map<String, Object> request) {
+    public CompletableFuture<Map<String, Object>> run(@RequestBody Map<String, Object> request) {
         try {
             Map<String, Object> safeRequest = request == null ? Map.of() : request;
             String query = readString(safeRequest.get("query"));
@@ -60,14 +94,20 @@ public class AgentEarthController {
             Integer maxAttempts = safeRequest.get("max_attempts") instanceof Number number ? number.intValue() : 0;
 
             if (query.isBlank()) {
-                return Map.of("success", false, "message", "query cannot be empty");
+                return CompletableFuture.completedFuture(Map.of("success", false, "message", "query cannot be empty"));
             }
 
-            String data = agentEarthService.run(query, taskContext, preferredToolName, arguments, maxAttempts);
-            return Map.of("success", true, "data", data);
+            // 异步执行，释放 Tomcat 请求线程，支撑更高并发。
+            return agentEarthService
+                    .runAsync(query, taskContext, preferredToolName, arguments, maxAttempts)
+                    .thenApply(data -> Map.<String, Object>of("success", true, "data", data))
+                    .exceptionally(e -> {
+                        String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                        return Map.<String, Object>of("success", false, "message", "AgentEarth run failed: " + message);
+                    });
         } catch (Exception e) {
             String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            return Map.of("success", false, "message", "AgentEarth run failed: " + message);
+            return CompletableFuture.completedFuture(Map.of("success", false, "message", "AgentEarth run failed: " + message));
         }
     }
 

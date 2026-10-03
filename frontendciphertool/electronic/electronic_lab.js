@@ -5,7 +5,6 @@ function initElectronicLab() {
     console.log("Initializing Electronic Lab...");
     const frame = document.getElementById('circuit-frame');
     const loading = document.getElementById('circuit-loading');
-    const sourceSelect = document.getElementById('circuit-source-select');
     let currentBaseUrl = "./electronic/war/circuitjs.html";
 
     if (!frame || !loading) {
@@ -19,10 +18,6 @@ function initElectronicLab() {
             loading.classList.remove('active');
         }
     }, 5000); 
-
-    if (sourceSelect) {
-        sourceSelect.value = currentBaseUrl;
-    }
 
     // 监听 iframe 加载状态
     frame.onload = function() {

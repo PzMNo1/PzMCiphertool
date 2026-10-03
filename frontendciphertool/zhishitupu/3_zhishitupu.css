@@ -309,6 +309,33 @@
     border-color: #2ecc71;
 }
 
+/* 恢复默认：未导入任何图谱时（本来就处于默认状态）置灰 */
+.zstp-import-btn:disabled,
+.zstp-import-btn.is-idle {
+    cursor: not-allowed;
+    opacity: 0.42;
+    filter: grayscale(0.6);
+}
+
+.zstp-import-btn:disabled:hover,
+.zstp-import-btn.is-idle:hover {
+    transform: none;
+    color: rgba(255, 255, 255, 0.7);
+    border-color: rgba(64, 224, 255, 0.15);
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
+    text-shadow: none;
+    box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+}
+
+.zstp-import-btn:disabled:hover::before,
+.zstp-import-btn.is-idle:hover::before {
+    width: 12px;
+    height: 12px;
+    opacity: 0.6;
+    border-color: rgba(64, 224, 255, 0.5);
+    box-shadow: none;
+}
+
 .zstp-preview-panel {
     position: absolute;
     top: 88px;
@@ -452,6 +479,259 @@
     text-decoration: none;
     border: 1px solid rgba(64, 224, 255, 0.38);
     background: rgba(64, 224, 255, 0.1);
+}
+
+/* --- Obsidian 笔记节点面板 --- */
+
+.zstp-vault-note {
+    display: block;
+}
+
+.zstp-vault-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.zstp-vault-tag {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    color: #a5f1ff;
+    border: 1px solid rgba(64, 224, 255, 0.32);
+    background: rgba(64, 224, 255, 0.08);
+    border-radius: 999px;
+}
+
+.zstp-vault-tag.is-empty {
+    color: rgba(165, 241, 255, 0.45);
+    border-style: dashed;
+}
+
+.zstp-vault-kgnode {
+    margin: 0 0 8px;
+    font-size: 0.76rem;
+    color: rgba(165, 241, 255, 0.75);
+}
+
+.zstp-vault-excerpt {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    color: rgba(224, 255, 255, 0.86);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    border-left: 2px solid rgba(0, 229, 255, 0.5);
+    background: rgba(64, 224, 255, 0.04);
+}
+
+.zstp-vault-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.76rem;
+}
+
+.zstp-vault-table th,
+.zstp-vault-table td {
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-vault-table th {
+    width: 34%;
+    color: #a5f1ff;
+    font-weight: 600;
+}
+
+.zstp-vault-headings {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: rgba(224, 255, 255, 0.8);
+}
+
+.zstp-vault-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.zstp-vault-link {
+    padding: 4px 9px;
+    font-size: 0.74rem;
+    color: #7cf7ff;
+    cursor: pointer;
+    border: 1px solid rgba(124, 247, 255, 0.34);
+    background: rgba(124, 247, 255, 0.08);
+    border-radius: 4px;
+}
+
+.zstp-vault-link:hover {
+    color: #000;
+    background: #7cf7ff;
+}
+
+.zstp-vault-link:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.zstp-vault-empty {
+    margin: 0;
+    font-size: 0.76rem;
+    color: rgba(165, 241, 255, 0.45);
+}
+
+.zstp-vault-fulltext {
+    margin-top: 10px;
+}
+
+/* --- 世界知识区块（节点面板主视图） --- */
+
+.zstp-world {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(0, 229, 255, 0.28);
+    border-left: 3px solid #00e5ff;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.07), rgba(139, 92, 246, 0.05));
+}
+
+.zstp-world.is-missing {
+    border-color: rgba(165, 241, 255, 0.2);
+    border-left-color: rgba(165, 241, 255, 0.4);
+    background: rgba(64, 224, 255, 0.03);
+}
+
+.zstp-world-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.zstp-world-kicker {
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    color: #7cf7ff;
+}
+
+.zstp-world-badge {
+    flex: none;
+    padding: 3px 9px;
+    font-size: 0.68rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.zstp-world-badge.is-confirmed {
+    color: #0b2a16;
+    background: #35d07f;
+    border-color: #35d07f;
+}
+
+.zstp-world-badge.is-candidate {
+    color: #ffd166;
+    border-color: rgba(255, 209, 102, 0.5);
+    background: rgba(255, 209, 102, 0.1);
+}
+
+.zstp-world-badge.is-empty {
+    color: rgba(165, 241, 255, 0.5);
+    border-color: rgba(165, 241, 255, 0.25);
+    border-style: dashed;
+}
+
+.zstp-world-entity {
+    margin-bottom: 4px;
+}
+
+.zstp-world-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+}
+
+.zstp-world-qid {
+    margin-left: 8px;
+    padding: 1px 6px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #7cf7ff;
+    text-decoration: none;
+    border: 1px solid rgba(124, 247, 255, 0.4);
+    border-radius: 3px;
+}
+
+.zstp-world-qid:hover {
+    color: #000;
+    background: #7cf7ff;
+}
+
+.zstp-world-desc {
+    margin: 6px 0 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: rgba(224, 255, 255, 0.9);
+}
+
+.zstp-world-aliases {
+    margin: 6px 0 0;
+    font-size: 0.74rem;
+    color: rgba(165, 241, 255, 0.6);
+}
+
+.zstp-world-claims th {
+    white-space: nowrap;
+    color: #7cf7ff;
+}
+
+.zstp-world-claims code {
+    color: rgba(165, 241, 255, 0.55);
+    font-size: 0.68rem;
+}
+
+.zstp-world-prose {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: rgba(224, 255, 255, 0.88);
+    background: rgba(0, 229, 255, 0.04);
+    border-left: 2px solid rgba(0, 229, 255, 0.35);
+}
+
+.zstp-world-note,
+.zstp-world-empty {
+    margin: 8px 0 0;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: rgba(165, 241, 255, 0.55);
+}
+
+.zstp-world-provenance {
+    margin: 10px 0 0;
+    padding-top: 8px;
+    font-size: 0.7rem;
+    color: rgba(165, 241, 255, 0.42);
+    border-top: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-world-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.zstp-world-sources .zstp-vault-link {
+    text-decoration: none;
 }
 
 @media (max-width: 760px) {

@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>世界模型 · 高斯溅射视口</title>
+    <style>
+        :root { color-scheme: dark; }
+
+        * { box-sizing: border-box; }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #04070c;
+            color: #dbeaf3;
+            font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        }
+
+        #stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+            touch-action: none;
+        }
+
+        .overlay {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .overlay > * { pointer-events: auto; }
+
+        #topbar {
+            top: 0;
+            padding: 10px 12px;
+            background: linear-gradient(180deg, rgba(4, 7, 12, 0.92), rgba(4, 7, 12, 0));
+            flex-wrap: wrap;
+        }
+
+        #title {
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: #8ee7ff;
+            margin-right: auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 42vw;
+        }
+
+        #bottombar {
+            bottom: 0;
+            padding: 10px 12px 12px;
+            background: linear-gradient(0deg, rgba(4, 7, 12, 0.92), rgba(4, 7, 12, 0));
+            flex-wrap: wrap;
+        }
+
+        button,
+        select {
+            appearance: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            color: #dbeaf3;
+            padding: 5px 10px;
+            border: 1px solid rgba(64, 224, 255, 0.28);
+            border-radius: 3px;
+            background: rgba(9, 22, 32, 0.9);
+            transition: background 0.16s, border-color 0.16s;
+        }
+
+        button:hover,
+        select:hover {
+            background: rgba(64, 224, 255, 0.18);
+            border-color: #40e0ff;
+        }
+
+        button.on {
+            border-color: rgba(0, 255, 136, 0.6);
+            background: linear-gradient(120deg, rgba(0, 110, 75, 0.5), rgba(8, 30, 24, 0.9));
+            color: #e6fff4;
+        }
+
+        .field {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: rgba(125, 151, 168, 0.95);
+        }
+
+        .field input[type="range"] {
+            width: 108px;
+            accent-color: #40e0ff;
+        }
+
+        .field output {
+            min-width: 34px;
+            color: #8ee7ff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #hint {
+            position: absolute;
+            left: 50%;
+            bottom: 52px;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: rgba(125, 151, 168, 0.8);
+            letter-spacing: 0.4px;
+            z-index: 2;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        #status {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            text-align: center;
+            padding: 28px;
+            z-index: 4;
+            background: radial-gradient(circle at 50% 42%, rgba(11, 26, 40, 0.92), rgba(4, 7, 12, 0.97));
+        }
+
+        #status.hidden { display: none; }
+
+        #status-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 2px solid rgba(64, 224, 255, 0.25);
+            border-top-color: #40e0ff;
+            animation: spin 0.9s linear infinite;
+        }
+
+        #status.ok #status-icon,
+        #status.error #status-icon { animation: none; border-color: rgba(255, 120, 120, 0.6); }
+
+        #status.ok #status-icon { border-color: rgba(0, 255, 136, 0.55); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #status-text {
+            font-size: 13px;
+            color: #dbeaf3;
+            max-width: 620px;
+            line-height: 1.65;
+        }
+
+        #status-detail {
+            font-size: 11px;
+            color: rgba(125, 151, 168, 0.9);
+            max-width: 620px;
+            line-height: 1.7;
+            word-break: break-all;
+        }
+
+        #progress {
+            width: min(420px, 76vw);
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(64, 224, 255, 0.14);
+            overflow: hidden;
+            display: none;
+        }
+
+        #progress.on { display: block; }
+
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #0066ff, #00ff88);
+            transition: width 0.2s;
+        }
+
+        #status-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    </style>
+
+    <!--
+      用 pinned 的 three r186 原生高斯溅射（SPZLoader + GaussianSplat）。
+      注意：GaussianSplat 依赖 three/webgpu 与 three/tsl，只能配合 WebGPURenderer 使用，
+      所以这里的 three / three/webgpu / three/addons 必须指向同一份包，避免出现两套 three。
+      WebGPURenderer 在不支持 WebGPU 的浏览器上会自动回退到 WebGL2。
+    -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.186.0",
+        "three/webgpu": "https://esm.sh/three@0.186.0/webgpu",
+        "three/tsl": "https://esm.sh/three@0.186.0/tsl",
+        "three/addons/": "https://esm.sh/three@0.186.0/examples/jsm/"
+      }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="stage">
+        <canvas id="view"></canvas>
+
+        <div class="overlay" id="topbar">
+            <span id="title">世界模型视口</span>
+            <span class="field">
+                <label for="res">精度</label>
+                <select id="res">
+                    <option value="500k">500k（快）</option>
+                    <option value="100k">100k（最快）</option>
+                    <option value="full_res">full_res（最清晰）</option>
+                </select>
+            </span>
+            <button type="button" id="reset">回到原点</button>
+            <button type="button" id="fit">适应场景</button>
+            <button type="button" id="demo">载入样片</button>
+        </div>
+
+        <div id="hint">左键拖动转视角 · 滚轮前后移动 · 右键或双指平移 · R 键回到原点</div>
+
+        <div class="overlay" id="bottombar">
+            <span class="field">
+                <label for="offset">地面高度</label>
+                <input type="range" id="offset" min="-5" max="5" step="0.05" value="0" />
+                <output id="offset-value">0.00</output>
+            </span>
+            <span class="field">
+                <label for="scale">模型比例</label>
+                <input type="range" id="scale" min="0.2" max="4" step="0.05" value="1" />
+                <output id="scale-value">1.00</output>
+            </span>
+            <span class="field" id="stats">—</span>
+        </div>
+
+        <div id="status">
+            <div id="status-icon"></div>
+            <div id="status-text">准备加载世界…</div>
+            <div id="progress"><div id="progress-fill"></div></div>
+            <div id="status-detail"></div>
+            <div id="status-actions"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 全部从 three/webgpu 取：渲染器与 GaussianSplat 必须共用同一套 three 实例，
+        // 混用 three 与 three/webgpu 会出现「t.compute is not a function」这类节点系统错配。
+        import * as THREE from 'three/webgpu';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { SPZLoader } from 'three/addons/loaders/SPZLoader.js';
+        import { GaussianSplat } from 'three/addons/objects/GaussianSplat.js';
+
+        const params = new URLSearchParams(location.search);
+        const diagEnabled = params.has('diag');
+        const canvas = document.getElementById('view');
+        const statusBox = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const statusDetail = document.getElementById('status-detail');
+        const statusActions = document.getElementById('status-actions');
+        const progressBox = document.getElementById('progress');
+        const progressFill = document.getElementById('progress-fill');
+        const statsBox = document.getElementById('stats');
+        const titleBox = document.getElementById('title');
+
+        const state = {
+            splat: null,
+            spzUrls: {},
+            resolution: params.get('res') || '500k',
+            metricScale: 1,
+            groundOffset: 0,
+            /** 上游是 OpenCV 坐标系：绕 X 轴转 180° 翻到 OpenGL 的「上」 */
+            rawQuaternion: new THREE.Quaternion(1, 0, 0, 0),
+            userScale: 1,
+            userOffset: 0
+        };
+        let renderProbeFrames = 0;
+        /** 复用的尺寸临时对象，避免每帧分配 */
+        const _sizeScratch = { width: 0, height: 0 };
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x04070c);
+
+        const camera = new THREE.PerspectiveCamera(72, 1, 0.01, 2000);
+        camera.position.set(0, 0, 0);
+
+        let renderer;
+        try {
+            // 优先 WebGPU；不支持的浏览器上 WebGPURenderer 会自动走 WebGL2 后端（GaussianSplat 两种后端都支持）。
+            renderer = new THREE.WebGPURenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        } catch (error) {
+            fail('当前浏览器无法创建 GPU 渲染上下文，没法渲染高斯溅射。', error && error.message);
+        }
+
+        const controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.rotateSpeed = 0.42;
+        controls.zoomSpeed = 0.9;
+        controls.panSpeed = 0.6;
+        controls.screenSpacePanning = true;
+        // 视点固定在原点、目标点放在正前方：拖动就是「站在原地环顾四周」，
+        // 这正是 Marble 里逛世界的操作手感。
+        controls.target.set(0, 0, -1);
+
+        /**
+         * 画布是否具备可渲染尺寸。
+         * 宿主切页签时 iframe 会短暂变成 0×0，此时渲染会去建非法的 0×0 纹理。
+         */
+        function hasRenderableSize() {
+            return canvas.clientWidth > 0 && canvas.clientHeight > 0;
+        }
+
+        function resize() {
+            const width = canvas.clientWidth || window.innerWidth;
+            const height = canvas.clientHeight || window.innerHeight;
+            if (!width || !height) return;
+            if (!renderer) return;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height, false);
+        }
+        window.addEventListener('resize', resize);
+
+        // iframe 被显示/隐藏、父容器尺寸变化时也要重新量一次画布
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => resize()).observe(canvas);
+        }
+
+        function setStatus(mode, text, detail) {
+            statusBox.classList.remove('hidden');
+            statusBox.classList.toggle('ok', mode === 'ok');
+            statusBox.classList.toggle('error', mode === 'error');
+            statusText.textContent = text || '';
+            statusDetail.textContent = detail || '';
+            statusBox.querySelector('#status-icon').style.display = mode === 'loading' ? '' : 'none';
+            progressBox.classList.toggle('on', mode === 'loading');
+        }
+
+        function hideStatus() {
+            statusBox.classList.add('hidden');
+        }
+
+        function fail(text, detail) {
+            setStatus('error', text, detail);
+            statusActions.innerHTML = '';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = '重试加载';
+            retry.onclick = () => loadCurrent();
+            statusActions.appendChild(retry);
+            statsBox.textContent = '加载失败';
+        }
+
+        /** 按当前分辨率重新加载 */
+        function loadCurrent() {
+            const url = state.spzUrls[state.resolution] || state.spzUrls.full_res || firstUrl(state.spzUrls);
+            if (!url) {
+                fail('这个作品没有可用的 SPZ 高斯溅射文件。', '可以改用「Marble 官方查看」或下载该世界的全景图预览。');
+                return;
+            }
+            loadSplat(url);
+        }
+
+        function firstUrl(map) {
+            const keys = Object.keys(map || {});
+            return keys.length ? map[keys[0]] : '';
+        }
+
+        async function loadSplat(url) {
+            if (state.splat) {
+                scene.remove(state.splat);
+                state.splat.geometry?.dispose?.();
+                state.splat = null;
+            }
+            setStatus('loading', '正在下载高斯溅射数据…', url);
+            progressFill.style.width = '0%';
+
+            try {
+                const bytes = await fetchWithProgress(url);
+                setStatus('loading', '正在解压并解析 SPZ…', `已下载 ${formatBytes(bytes.byteLength)}`);
+                const start = performance.now();
+                const geometry = await parseSpz(bytes);
+                const splat = new GaussianSplat(geometry);
+                splat.quaternion.copy(state.rawQuaternion);
+                applyTransform();
+                scene.add(splat);
+                state.splat = splat;
+
+                const count = geometry.getAttribute('position')?.count || 0;
+                statsBox.textContent = `${count.toLocaleString()} 个高斯点 · 解析 ${Math.round(performance.now() - start)}ms`;
+                // 生成出来的世界本来就是「站在场景里」的取景，相机保持在原点即是最佳初始视角，
+                // 所以这里不再自动挪动相机（只有几何中心明显偏离原点时才兜底）。
+                if (shouldFitOnLoad()) fitScene();
+                reportDiagnostics();
+                setTimeout(reportDiagnostics, 500);
+            } catch (error) {
+                console.error('[splat] 加载失败', error);
+                const message = String((error && error.message) || error);
+                const cors = /failed to fetch|networkerror|load failed/i.test(message);
+                fail(
+                    'SPZ 加载失败。',
+                    cors
+                        ? message + '\n（浏览器可能拦了跨域下载。这类 CDN 通常带 CORS 头，若持续失败可改用「Marble 官方查看」。）'
+                        : message
+                );
+            }
+        }
+
+        async function fetchWithProgress(url) {
+            const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
+            if (!response.ok) {
+                throw new Error(`下载失败：HTTP ${response.status}`);
+            }
+            const total = Number(response.headers.get('content-length') || 0);
+            if (!response.body || !total) {
+                return new Uint8Array(await response.arrayBuffer());
+            }
+            const reader = response.body.getReader();
+            const chunks = [];
+            let loaded = 0;
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loaded += value.byteLength;
+                const percent = Math.min(100, (loaded / total) * 100);
+                progressFill.style.width = percent.toFixed(1) + '%';
+                statusDetail.textContent = `${formatBytes(loaded)} / ${formatBytes(total)}（${percent.toFixed(0)}%）`;
+            }
+            const merged = new Uint8Array(loaded);
+            let offset = 0;
+            chunks.forEach(chunk => {
+                merged.set(chunk, offset);
+                offset += chunk.byteLength;
+            });
+            return merged;
+        }
+
+        /**
+         * SPZLoader.parse 对 SPZ v4 会返回 Promise（内部要等 zstd 解码器就绪），
+         * 老版本则是同步返回 BufferGeometry，两种情况都要兜住。
+         */
+        async function parseSpz(bytes) {
+            const loader = new SPZLoader();
+            const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+            const result = loader.parse(buffer, undefined, undefined) ?? new Promise((resolve, reject) => {
+                try {
+                    resolve(loader.parse(buffer, resolve, reject));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            const geometry = await result;
+            if (!geometry || !geometry.getAttribute || !geometry.getAttribute('position')) {
+                throw new Error('SPZ 解析后没有拿到几何数据');
+            }
+            return geometry;
+        }
+
+        /** 把语义元数据里的米制比例和地面偏移应用到对象上 */
+        function applyTransform() {
+            if (!state.splat) return;
+            const scale = state.metricScale * state.userScale;
+            state.splat.scale.setScalar(scale);
+            // 上游生成了 ~2M 个点，整体平移比逐点改坐标省得多。
+            state.splat.position.set(0, -(state.groundOffset * scale) + state.userOffset, 0);
+        }
+
+        /** 用包围球把相机放到能看见场景的位置（原点看不见东西时的兜底） */
+        function fitScene() {
+            if (!state.splat) return;
+            const sphere = state.splat.geometry?.boundingSphere;
+            if (!sphere || !isFinite(sphere.radius) || sphere.radius <= 0) return;
+            const center = sphere.center.clone().applyQuaternion(state.rawQuaternion)
+                .multiplyScalar(state.metricScale * state.userScale);
+            const distance = Math.max(0.6, sphere.radius * state.metricScale * state.userScale * 1.15);
+            camera.position.copy(center);
+            camera.lookAt(center.x, center.y, center.z - distance);
+            controls.target.set(center.x, center.y, center.z - distance);
+            controls.update();
+        }
+
+        function resetView() {
+            camera.position.set(0, 0, 0);
+            camera.quaternion.identity();
+            controls.target.set(0, 0, -1);
+            controls.update();
+        }
+
+        function formatBytes(value) {
+            if (!value) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = value;
+            let index = 0;
+            while (size >= 1024 && index < units.length - 1) {
+                size /= 1024;
+                index += 1;
+            }
+            return `${size.toFixed(size >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
+        }
+
+        /* ---------------- 交互 ---------------- */
+
+        document.getElementById('reset').onclick = resetView;
+        document.getElementById('fit').onclick = fitScene;
+        document.getElementById('demo').onclick = loadDemo;
+
+        document.getElementById('res').value = state.resolution;
+        document.getElementById('res').onchange = event => {
+            state.resolution = event.target.value;
+            loadCurrent();
+        };
+
+        const offsetInput = document.getElementById('offset');
+        const offsetValue = document.getElementById('offset-value');
+        offsetInput.oninput = () => {
+            state.userOffset = Number(offsetInput.value);
+            offsetValue.textContent = state.userOffset.toFixed(2);
+            applyTransform();
+        };
+
+        const scaleInput = document.getElementById('scale');
+        const scaleValue = document.getElementById('scale-value');
+        scaleInput.oninput = () => {
+            state.userScale = Number(scaleInput.value);
+            scaleValue.textContent = state.userScale.toFixed(2);
+            applyTransform();
+        };
+
+        window.addEventListener('keydown', event => {
+            if (event.key === 'r' || event.key === 'R') resetView();
+        });
+
+        /** 宿主页面（建模实验室）通过 postMessage 送新世界进来 */
+        window.addEventListener('message', event => {
+            const data = event.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'worldmodel:load' && data.spzUrls) {
+                setWorld(data);
+            }
+        });
+
+        function setWorld(payload) {
+            state.spzUrls = payload.spzUrls || {};
+            state.metricScale = Number(payload.metricScaleFactor) > 0 ? Number(payload.metricScaleFactor) : 1;
+            state.groundOffset = Number(payload.groundPlaneOffset) || 0;
+            if (payload.title) {
+                titleBox.textContent = payload.title;
+                document.title = payload.title + ' · 世界模型视口';
+            }
+            if (payload.preferResolution && state.spzUrls[payload.preferResolution]) {
+                state.resolution = payload.preferResolution;
+            } else if (!state.spzUrls[state.resolution]) {
+                state.resolution = state.spzUrls['500k'] ? '500k' : (Object.keys(state.spzUrls)[0] || '500k');
+            }
+            document.getElementById('res').value = state.resolution;
+            state.userOffset = 0;
+            state.userScale = 1;
+            offsetInput.value = '0';
+            offsetValue.textContent = '0.00';
+            scaleInput.value = '1';
+            scaleValue.textContent = '1.00';
+            loadCurrent();
+        }
+
+        // 对外暴露，便于宿主页面直接调用（同源 iframe 场景）
+        window.__SPLAT_VIEW__ = {
+            load: setWorld,
+            reset: resetView,
+            fit: fitScene,
+            diag: diagnosis,
+            state
+        };
+
+        /** 诊断信息：排查「加载成功但画面全黑」时非常有用（?diag=1 或控制台 __SPLAT_VIEW__.diag()） */        function diagnosis() {
+            const box = state.splat?.geometry?.boundingBox;
+            const sphere = state.splat?.geometry?.boundingSphere;
+            const info = renderer?.info;
+            return {
+                resolution: state.resolution,
+                hasSplat: Boolean(state.splat),
+                pointCount: state.splat?.geometry?.getAttribute('position')?.count || 0,
+                boundingBox: box ? { min: box.min.toArray(), max: box.max.toArray() } : null,
+                boundingSphere: sphere ? { center: sphere.center.toArray(), radius: sphere.radius } : null,
+                background: scene.background ? scene.background.getHexString() : null,
+                camera: { position: camera.position.toArray(), near: camera.near, far: camera.far },
+                target: controls.target.toArray(),
+                splatScale: state.splat ? state.splat.scale.toArray() : null,
+                splatPosition: state.splat ? state.splat.position.toArray() : null,
+                materialType: state.splat?.material?.type || null,
+                visible: state.splat ? state.splat.visible : null,
+                backend: renderer?.backend ? (renderer.backend.isWebGPUBackend ? 'webgpu' : 'webgl2') : 'none',
+                renderCalls: info ? info.render.calls : null,
+                renderTriangles: info ? info.render.triangles : null
+            };
+        }
+
+        function reportDiagnostics() {
+            const payload = diagnosis();
+            if (diagEnabled) {
+                statusDetail.textContent = JSON.stringify(payload);
+                console.log('[splat] diag', JSON.stringify(payload));
+            }
+            // 首帧真正画出来之后才算加载完成，这时才收起遮罩。
+            if (payload.renderCalls > 0) hideStatus();
+        }
+
+        /**
+         * 是否需要在加载后自动挪相机。
+         * Marble 的世界是「站在场景里」生成的，相机留在原点就是最佳视角；
+         * 只有几何中心明显偏离原点（偏离超过 2 米）时才兜底移过去。
+         */
+        function shouldFitOnLoad() {
+            const center = state.splat?.geometry?.boundingSphere?.center;
+            if (!center) return false;
+            return center.length() > 2;
+        }
+
+        /* ---------------- 启动 ---------------- */
+
+        /** 内置样片：不消耗额度就能验证视口链路是否正常 */
+        const DEMO_SPZ = './assets/demo-kitchen-500k.spz';
+
+        function loadDemo() {
+            state.spzUrls = { '500k': DEMO_SPZ };
+            state.resolution = '500k';
+            state.metricScale = 1;
+            state.groundOffset = 0;
+            state.userScale = 1;
+            state.userOffset = 0;
+            offsetInput.value = '0';
+            offsetValue.textContent = '0.00';
+            scaleInput.value = '1';
+            scaleValue.textContent = '1.00';
+            titleBox.textContent = '内置样片 · 阳光厨房（World Labs 官方示例）';
+            document.getElementById('res').value = '500k';
+            loadSplat(DEMO_SPZ);
+        }
+
+        resize();
+
+        const initialUrl = params.get('spz');
+        if (initialUrl) {
+            state.spzUrls = { [state.resolution]: initialUrl };
+            if (params.get('title')) {
+                titleBox.textContent = params.get('title');
+            }
+            state.metricScale = Number(params.get('metricScale')) > 0 ? Number(params.get('metricScale')) : 1;
+            state.groundOffset = Number(params.get('groundOffset')) || 0;
+            loadSplat(initialUrl);
+        } else {
+            setStatus('loading', '等待宿主页面传入世界数据…', '在建模实验室的「世界模型」页签里生成或选择一个作品即可自动加载。');
+            const demoButton = document.createElement('button');
+            demoButton.type = 'button';
+            demoButton.textContent = '先看内置样片';
+            demoButton.onclick = loadDemo;
+            statusActions.appendChild(demoButton);
+        }
+
+        renderer.setAnimationLoop(() => {
+            // 宿主切页签时画布会是 0×0；这时候直接渲染会让 WebGPU 去建 0×0 的
+            // 颜色/深度纹理并抛 GPUValidationError。以真实 drawingBuffer 为准跳过。
+            if (!hasRenderableSize()) return;
+            controls.update();
+            renderer.render(scene, camera);
+
+            // 首帧之后把真实的绘制统计写出来：加载成功但画面全黑时，这是最直接的证据。
+            if (state.splat && renderProbeFrames < 5) {
+                renderProbeFrames += 1;
+                if (renderProbeFrames === 5) {
+                    const info = renderer.info;
+                    statsBox.textContent += ` · 绘制调用 ${info.render.calls} / 三角形 ${info.render.triangles} / 点数 ${state.splat.geometry.getAttribute('position').count}`;
+                    reportDiagnostics();
+                }
+            }
+        });
+
+        // WebGPURenderer 是异步初始化的：先把后端备好，再告诉用户当前跑在哪条路径上。
+        renderer.init?.().then(() => {
+            const isWebGPU = renderer.backend && renderer.backend.isWebGPUBackend === true;
+            document.getElementById('hint').textContent = isWebGPU
+                ? '渲染后端 WebGPU · 左键拖动转视角 · 滚轮前后移动 · 右键平移 · R 键回到原点'
+                : '渲染后端 WebGL2（未启用 WebGPU）· 左键拖动转视角 · 滚轮前后移动 · 右键平移 · R 键回到原点';
+        }).catch(error => {
+            console.error('[splat] 渲染器初始化失败', error);
+            fail('GPU 渲染器初始化失败。', String((error && error.message) || error));
+        });
+    </script>
+</body>
+
+</html>

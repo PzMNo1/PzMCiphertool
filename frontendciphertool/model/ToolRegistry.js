@@ -23,7 +23,6 @@ class ToolRegistry {
         };
 
         this.registerBuiltinTools();
-        this.refreshAgentEarthAvailability({ timeoutMs: 900 }).catch(() => {});
     }
 
     getLocalBackendBase() {
@@ -155,21 +154,31 @@ class ToolRegistry {
         // 获取当前时间
         this.register({
             name: 'get_current_time',
-            description: '获取当前时间，包含日期和时间',
+            description: '获取当前时间，包含日期和时间。可指定 timezone（IANA 时区名）或 utc_offset（如 +08:00）。',
             parameters: {
                 type: 'object',
-                properties: {}
+                properties: {
+                    timezone: { type: 'string', description: '可选 IANA 时区，如 Asia/Shanghai、UTC' },
+                    utc_offset: { type: 'string', description: '可选 UTC 偏移，如 +08:00（与 timezone 二选一）' }
+                }
             },
-            execute: () => {
-                return new Date().toLocaleString('zh-CN', {
-                    timeZone: 'Asia/Shanghai',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
+            execute: ({ timezone = '', utc_offset = '' }) => {
+                const offset = String(utc_offset || '').trim();
+                if (offset) {
+                    const match = offset.match(/^([+-])(\d{2}):?(\d{2})$/);
+                    if (!match) return 'Invalid utc_offset. Use +08:00 format.';
+                    const sign = match[1] === '+' ? 1 : -1;
+                    const minutes = sign * (Number(match[2]) * 60 + Number(match[3]));
+                    const date = new Date(Date.now() + minutes * 60 * 1000);
+                    return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ` UTC${offset}`);
+                }
+                const tz = String(timezone || '').trim();
+                const opts = {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                };
+                if (tz) opts.timeZone = tz;
+                return new Date().toLocaleString('zh-CN', opts);
             }
         });
 
@@ -216,108 +225,9 @@ class ToolRegistry {
             }
         });
 
-        // 凯撒密码加解密
-        this.register({
-            name: 'caesar_cipher',
-            description: '使用凯撒密码进行加密或解密',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要加密或解密的文本'
-                    },
-                    shift: {
-                        type: 'integer',
-                        description: '偏移量，正数为加密，负数为解密'
-                    }
-                },
-                required: ['text', 'shift']
-            },
-            execute: ({ text, shift }) => {
-                return text.split('').map(char => {
-                    if (char.match(/[a-z]/i)) {
-                        const code = char.charCodeAt(0);
-                        const base = code >= 65 && code <= 90 ? 65 : 97;
-                        return String.fromCharCode(((code - base + shift + 26) % 26) + base);
-                    }
-                    return char;
-                }).join('');
-            }
-        });
 
-        // Base64 编解码
-        this.register({
-            name: 'base64_encode',
-            description: 'Base64 编码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要编码的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                try {
-                    return btoa(unescape(encodeURIComponent(text)));
-                } catch (e) {
-                    return `编码错误: ${e.message}`;
-                }
-            }
-        });
 
-        this.register({
-            name: 'base64_decode',
-            description: 'Base64 解码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要解码的 Base64 文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                try {
-                    return decodeURIComponent(escape(atob(text)));
-                } catch (e) {
-                    return `解码错误: ${e.message}`;
-                }
-            }
-        });
 
-        // 摩尔斯电码
-        this.register({
-            name: 'morse_encode',
-            description: '将文本转换为摩尔斯电码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要转换的文本（只支持字母和数字）'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                const morseCode = {
-                    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
-                    'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
-                    'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
-                    'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-                    'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---',
-                    '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...',
-                    '8': '---..', '9': '----.', ' ': '/'
-                };
-                return text.toUpperCase().split('').map(c => morseCode[c] || c).join(' ');
-            }
-        });
 
         // 随机数生成
         this.register({
@@ -377,257 +287,15 @@ class ToolRegistry {
 
         // ========== 新增工具 ==========
 
-        // 摩尔斯电码解码
-        this.register({
-            name: 'morse_decode',
-            description: '将摩尔斯电码转换为文本',
-            parameters: {
-                type: 'object',
-                properties: {
-                    morse: {
-                        type: 'string',
-                        description: '摩尔斯电码，用空格分隔字符，用/分隔单词'
-                    }
-                },
-                required: ['morse']
-            },
-            execute: ({ morse }) => {
-                const morseToChar = {
-                    '.-': 'A', '-...': 'B', '-.-.': 'C', '-..': 'D', '.': 'E', '..-.': 'F',
-                    '--.': 'G', '....': 'H', '..': 'I', '.---': 'J', '-.-': 'K', '.-..': 'L',
-                    '--': 'M', '-.': 'N', '---': 'O', '.--.': 'P', '--.-': 'Q', '.-.': 'R',
-                    '...': 'S', '-': 'T', '..-': 'U', '...-': 'V', '.--': 'W', '-..-': 'X',
-                    '-.--': 'Y', '--..': 'Z', '-----': '0', '.----': '1', '..---': '2',
-                    '...--': '3', '....-': '4', '.....': '5', '-....': '6', '--...': '7',
-                    '---..': '8', '----.': '9', '/': ' '
-                };
-                return morse.split(' ').map(code => morseToChar[code] || code).join('');
-            }
-        });
 
-        // ROT13 加解密
-        this.register({
-            name: 'rot13',
-            description: 'ROT13 加密/解密（字母偏移13位，加密和解密是同一操作）',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要处理的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                return text.replace(/[a-zA-Z]/g, char => {
-                    const code = char.charCodeAt(0);
-                    const base = code >= 65 && code <= 90 ? 65 : 97;
-                    return String.fromCharCode(((code - base + 13) % 26) + base);
-                });
-            }
-        });
 
-        // 十六进制编码
-        this.register({
-            name: 'hex_encode',
-            description: '将文本转换为十六进制编码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要编码的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                return Array.from(text).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
-            }
-        });
 
-        // 十六进制解码
-        this.register({
-            name: 'hex_decode',
-            description: '将十六进制编码转换为文本',
-            parameters: {
-                type: 'object',
-                properties: {
-                    hex: {
-                        type: 'string',
-                        description: '十六进制字符串（可用空格分隔）'
-                    }
-                },
-                required: ['hex']
-            },
-            execute: ({ hex }) => {
-                try {
-                    const clean = hex.replace(/\s/g, '');
-                    let result = '';
-                    for (let i = 0; i < clean.length; i += 2) {
-                        result += String.fromCharCode(parseInt(clean.substr(i, 2), 16));
-                    }
-                    return result;
-                } catch (e) {
-                    return `解码错误: ${e.message}`;
-                }
-            }
-        });
 
-        // URL 编码
-        this.register({
-            name: 'url_encode',
-            description: 'URL 编码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要编码的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => encodeURIComponent(text)
-        });
 
-        // URL 解码
-        this.register({
-            name: 'url_decode',
-            description: 'URL 解码',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要解码的URL编码文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                try {
-                    return decodeURIComponent(text);
-                } catch (e) {
-                    return `解码错误: ${e.message}`;
-                }
-            }
-        });
 
-        // 文本反转
-        this.register({
-            name: 'reverse_text',
-            description: '反转文本字符顺序',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要反转的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => [...text].reverse().join('')
-        });
 
-        // Atbash 密码
-        this.register({
-            name: 'atbash_cipher',
-            description: 'Atbash 密码（字母表反转：A↔Z, B↔Y...）',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要加密/解密的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                return text.replace(/[a-zA-Z]/g, char => {
-                    const code = char.charCodeAt(0);
-                    if (code >= 65 && code <= 90) {
-                        return String.fromCharCode(90 - (code - 65));
-                    } else {
-                        return String.fromCharCode(122 - (code - 97));
-                    }
-                });
-            }
-        });
 
-        // 维吉尼亚密码
-        this.register({
-            name: 'vigenere_cipher',
-            description: '维吉尼亚密码加密或解密',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要处理的文本'
-                    },
-                    key: {
-                        type: 'string',
-                        description: '密钥（只含字母）'
-                    },
-                    decrypt: {
-                        type: 'boolean',
-                        description: '是否解密（true=解密，false=加密）'
-                    }
-                },
-                required: ['text', 'key']
-            },
-            execute: ({ text, key, decrypt = false }) => {
-                const keyUpper = key.toUpperCase().replace(/[^A-Z]/g, '');
-                if (!keyUpper) return '错误: 密钥必须包含字母';
 
-                let keyIndex = 0;
-                return text.replace(/[a-zA-Z]/g, char => {
-                    const code = char.charCodeAt(0);
-                    const base = code >= 65 && code <= 90 ? 65 : 97;
-                    const shift = keyUpper.charCodeAt(keyIndex % keyUpper.length) - 65;
-                    keyIndex++;
-                    const newCode = decrypt
-                        ? ((code - base - shift + 26) % 26) + base
-                        : ((code - base + shift) % 26) + base;
-                    return String.fromCharCode(newCode);
-                });
-            }
-        });
-
-        // 二进制转换
-        this.register({
-            name: 'binary_convert',
-            description: '文本与二进制互转',
-            parameters: {
-                type: 'object',
-                properties: {
-                    input: {
-                        type: 'string',
-                        description: '要转换的内容'
-                    },
-                    to_binary: {
-                        type: 'boolean',
-                        description: 'true=文本转二进制, false=二进制转文本'
-                    }
-                },
-                required: ['input', 'to_binary']
-            },
-            execute: ({ input, to_binary }) => {
-                if (to_binary) {
-                    return Array.from(input).map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
-                } else {
-                    try {
-                        return input.split(' ').map(b => String.fromCharCode(parseInt(b, 2))).join('');
-                    } catch (e) {
-                        return `转换错误: ${e.message}`;
-                    }
-                }
-            }
-        });
 
         // UUID 生成
         this.register({
@@ -646,58 +314,7 @@ class ToolRegistry {
             }
         });
 
-        // 简单哈希（非加密用途）
-        this.register({
-            name: 'hash_text',
-            description: '计算文本的简单哈希值（用于校验，非加密安全）',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要计算哈希的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                let hash = 0;
-                for (let i = 0; i < text.length; i++) {
-                    const char = text.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
-                }
-                return `Hash: ${Math.abs(hash).toString(16).padStart(8, '0')}`;
-            }
-        });
 
-        // 字母频率分析
-        this.register({
-            name: 'frequency_analysis',
-            description: '分析文本中字母出现的频率',
-            parameters: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string',
-                        description: '要分析的文本'
-                    }
-                },
-                required: ['text']
-            },
-            execute: ({ text }) => {
-                const freq = {};
-                const letters = text.toUpperCase().match(/[A-Z]/g) || [];
-                letters.forEach(c => freq[c] = (freq[c] || 0) + 1);
-
-                const sorted = Object.entries(freq)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([char, count]) => `${char}: ${count} (${(count / letters.length * 100).toFixed(1)}%)`)
-                    .join('\n');
-
-                return sorted || '无字母字符';
-            }
-        });
 
         // 单位换算
         this.register({
@@ -998,36 +615,6 @@ class ToolRegistry {
             }
         });
 
-        // 站内漫游与深度点击
-        this.register({
-            name: 'click_link',
-            description: '点击并深度读取网页底部的相关文章或页面中的任何链接。用于顺藤摸瓜，实现多轮的信息溯源挖掘。',
-            parameters: {
-                type: 'object',
-                properties: {
-                    url: {
-                        type: 'string',
-                        description: '要想深入挖掘的新网页链接'
-                    }
-                },
-                required: ['url']
-            },
-            execute: async ({ url }) => {
-                try {
-                    const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        // 复用 read_webpage 接口以获取全文 Markdown
-                        body: JSON.stringify({ url, focus_keyword: '', chunk_index: 0 })
-                    });
-                    const result = await response.json();
-                    return result.success ? result.data : `页面抓取失败: ${result.message}`;
-                } catch (e) {
-                    return `请求失败: ${e.message}`;
-                }
-            }
-        });
-
         // 获取天气
         this.register({
             name: 'get_weather',
@@ -1059,148 +646,6 @@ class ToolRegistry {
                     return `请求失败: ${e.message}`;
                 }
             }
-        });
-
-        this.register({
-            name: 'search_query',
-            description: 'Search the web for current information and return result URLs, titles, and snippets.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    query: { type: 'string', description: 'Search query' }
-                },
-                required: ['query']
-            },
-            execute: async ({ query }) => {
-                const response = await this.fetchWithAbort(`${this.getApiBase()}/search_urls`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-                const result = await response.json();
-                return result.success ? result.data : `Search failed: ${result.message}`;
-            }
-        });
-
-        this.register({
-            name: 'open_url',
-            description: 'Open a URL and return readable page content as markdown-like text.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    url: { type: 'string', description: 'URL to open' },
-                    focus_keyword: { type: 'string', description: 'Optional keyword to focus returned passages' },
-                    chunk_index: { type: 'integer', description: 'Optional chunk index for long pages' }
-                },
-                required: ['url']
-            },
-            execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
-                const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, focus_keyword, chunk_index })
-                });
-                const result = await response.json();
-                return result.success ? result.data : `Open URL failed: ${result.message}`;
-            }
-        });
-
-        this.register({
-            name: 'find_in_page',
-            description: 'Find passages in a URL that match a keyword or phrase.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    url: { type: 'string', description: 'URL to search within' },
-                    pattern: { type: 'string', description: 'Keyword or phrase to find' }
-                },
-                required: ['url', 'pattern']
-            },
-            execute: async ({ url, pattern }) => {
-                const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, focus_keyword: pattern, chunk_index: 0 })
-                });
-                const result = await response.json();
-                return result.success ? result.data : `Find failed: ${result.message}`;
-            }
-        });
-
-        this.register({
-            name: 'open',
-            description: 'Codex-style alias for open_url. Open a URL and return readable content.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    url: { type: 'string', description: 'URL to open' },
-                    focus_keyword: { type: 'string', description: 'Optional keyword to focus returned passages' },
-                    chunk_index: { type: 'integer', description: 'Optional chunk index for long pages' }
-                },
-                required: ['url']
-            },
-            execute: async (args) => this.execute('open_url', args)
-        });
-
-        this.register({
-            name: 'find',
-            description: 'Codex-style alias for find_in_page. Find matching passages in a URL.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    url: { type: 'string', description: 'URL to search within' },
-                    pattern: { type: 'string', description: 'Keyword or phrase to find' }
-                },
-                required: ['url', 'pattern']
-            },
-            execute: async (args) => this.execute('find_in_page', args)
-        });
-
-        this.register({
-            name: 'get_time',
-            description: 'Get the current time for a UTC offset such as +08:00 or -05:00.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    utc_offset: { type: 'string', description: 'UTC offset, for example +08:00' }
-                },
-                required: ['utc_offset']
-            },
-            execute: ({ utc_offset }) => {
-                const match = String(utc_offset || '').match(/^([+-])(\d{2}):?(\d{2})$/);
-                if (!match) return 'Invalid utc_offset. Use +08:00 format.';
-                const sign = match[1] === '+' ? 1 : -1;
-                const minutes = sign * (Number(match[2]) * 60 + Number(match[3]));
-                const date = new Date(Date.now() + minutes * 60 * 1000);
-                return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ` UTC${utc_offset}`);
-            }
-        });
-
-        this.register({
-            name: 'time',
-            description: 'Codex-style alias for get_time.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    utc_offset: { type: 'string', description: 'UTC offset, for example +08:00' }
-                },
-                required: ['utc_offset']
-            },
-            execute: async (args) => this.execute('get_time', args)
-        });
-
-        this.register({
-            name: 'weather',
-            description: 'Codex-style alias for get_weather.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    city: { type: 'string', description: 'City name' },
-                    detailed: { type: 'boolean', description: 'Whether to return detailed forecast' }
-                },
-                required: ['city']
-            },
-            execute: async (args) => this.execute('get_weather', args)
         });
 
         this.register({
@@ -1341,31 +786,6 @@ class ToolRegistry {
                 });
                 const result = await response.json();
                 return result.success ? result.data : `File info failed: ${result.message}`;
-            }
-        });
-
-        this.register({
-            name: 'update_plan',
-            description: 'Create or update a concise visible task plan for a multi-step agent run.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    steps: {
-                        type: 'array',
-                        items: {
-                            type: 'object',
-                            properties: {
-                                step: { type: 'string' },
-                                status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] }
-                            },
-                            required: ['step', 'status']
-                        }
-                    }
-                },
-                required: ['steps']
-            },
-            execute: ({ steps }) => {
-                return JSON.stringify({ plan: steps }, null, 2);
             }
         });
 
@@ -1715,14 +1135,7 @@ class ToolRegistry {
             'web_research',
             'search_urls',
             'read_webpage',
-            'click_link',
             'get_weather',
-            'search_query',
-            'open_url',
-            'find_in_page',
-            'open',
-            'find',
-            'weather',
             'news_query',
             'finance_query',
             'agent_earth_run'
@@ -1748,8 +1161,6 @@ class ToolRegistry {
             timeoutMs: projectExec.has(tool.name) ? 90000 : networkRead.has(tool.name) ? 45000 : 5000,
             maxInputChars: 6000,
             maxOutputChars: projectExec.has(tool.name) || projectRead.has(tool.name) ? 16000 : 12000,
-            cachePolicy: networkRead.has(tool.name) ? 'per_run' : 'none',
-            retryPolicy: networkRead.has(tool.name) ? 'once' : 'none',
             networkAccess: networkRead.has(tool.name),
             projectAccess: projectExec.has(tool.name) ? 'exec' : projectRead.has(tool.name) ? 'read' : 'none',
             owner: projectExec.has(tool.name) || projectRead.has(tool.name) || networkRead.has(tool.name) ? 'backend' : 'frontend',
@@ -1771,8 +1182,6 @@ class ToolRegistry {
                 timeoutMs: metadata.timeoutMs,
                 maxInputChars: metadata.maxInputChars,
                 maxOutputChars: metadata.maxOutputChars,
-                cachePolicy: metadata.cachePolicy,
-                retryPolicy: metadata.retryPolicy,
                 networkAccess: metadata.networkAccess,
                 projectAccess: metadata.projectAccess,
                 owner: metadata.owner,

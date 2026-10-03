@@ -53,8 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
-                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch.',
+                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
+                'Use generate_world when the user asks to create or generate a 3D world / scene / environment with the world model (世界模型, Marble, 世界生成, 生成场景, 文生世界). Put the scene description in the "prompt" argument. Set "confirm" to true to only fill the description and wait for the user to press 生成世界; omit it and the generation starts immediately.',
+                'World generation is a long-running job (about 5 minutes) and consumes paid API credits, so for vague or very short requests prefer filling the prompt first instead of starting generation immediately.',
                 'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
                 'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. Skill/MCP实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
                 'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu. Use yuliu for 空间类 / space puzzle.',
@@ -91,7 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             'select_option',
                             'press_key',
                             'snapshot',
-                            'batch'
+                            'batch',
+                            'generate_world'
                         ],
                         description: 'The UI operation to execute.'
                     },
@@ -102,6 +105,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     value: {
                         type: 'string',
                         description: 'Text/value for set_value or search.'
+                    },
+                    prompt: {
+                        type: 'string',
+                        description: 'Scene description for generate_world. Write a vivid, concrete environment description (materials, lighting, layout, atmosphere).'
+                    },
+                    displayName: {
+                        type: 'string',
+                        description: 'Optional title for the generated world, max 64 characters.'
+                    },
+                    worldModel: {
+                        type: 'string',
+                        description: 'Optional world model id for generate_world: marble-1.1, marble-1.1-plus, marble-1.0, marble-1.0-draft.'
+                    },
+                    confirm: {
+                        type: 'boolean',
+                        description: 'For generate_world: true fills the description only and waits for the user to confirm; false or omitted starts generation right away.'
                     },
                     append: {
                         type: 'boolean',
@@ -173,31 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 required: ['action']
-            }
-        }
-    };
-
-    const knowledgeGraphRetrieveTool = {
-        type: 'function',
-        function: {
-            name: 'knowledge_graph_retrieve',
-            description: 'Retrieve the current knowledge-graph node knowledge base. Use this when the user asks what the selected knowledge graph node is, what it means, or asks to explain it.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    query: {
-                        type: 'string',
-                        description: 'Short natural-language query about the selected node.'
-                    },
-                    nodeName: {
-                        type: 'string',
-                        description: 'Optional node name. If omitted, use the active selected knowledge-graph node.'
-                    },
-                    topK: {
-                        type: 'number',
-                        description: 'Maximum number of retrieval records to return.'
-                    }
-                }
             }
         }
     };
@@ -676,19 +670,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const allowAgentTools = shouldAllowAgentTools(text);
+        // 原生工具模式下始终挂载页面工具，由模型按系统提示词自主决定是否调用；
+        // 关键词预闸仅保留给 inline-block fallback 模式（防注入必需）。
+        const allowAgentTools = AGENT_USE_NATIVE_TOOLS ? true : shouldAllowAgentTools(text);
         const loader = showLoading();
 
         try {
             const payload = {
-                messages: buildRequestMessages(messages, allowAgentTools, allowKnowledgeGraphRetrieval),
+                messages: buildRequestMessages(messages, allowAgentTools),
                 stream: true
             };
             if (AGENT_MODEL) payload.model = AGENT_MODEL;
 
             const tools = [];
             if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) tools.push(uiActionTool, browserActionTool);
-            if (allowKnowledgeGraphRetrieval) tools.push(knowledgeGraphRetrieveTool);
             if (tools.length) payload.tools = tools;
 
             const res = await fetch(AGENT_API_URL, {
@@ -715,18 +710,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     ...await executeToolCalls(toolCalls),
                     ...(allowAgentTools ? await executeInlineActions(inlineActions) : [])
                 ];
-                if (allowKnowledgeGraphRetrieval && !reply && executed.length) {
-                    await answerWithKnowledgeGraphRetrieval(text, executed);
-                } else if (!reply) {
+                if (!reply) {
                     messages.push({ role: 'assistant', content: executed.join('\n') || 'Action completed.' });
                 }
                 if (!allowAgentTools && inlineActions.length > 0) {
                     addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
                 }
-            } else if (allowKnowledgeGraphRetrieval) {
-                const retrieved = await executeKnowledgeGraphRetrieve({ query: text });
-                addToolMsg('已检索当前知识图谱节点知识库。');
-                await answerWithKnowledgeGraphRetrieval(text, [retrieved.message]);
             }
 
             if (reply) {
@@ -741,78 +730,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function runKnowledgeGraphRag(userText) {
         const loader = showLoading();
         try {
-            const toolCalls = await requestKnowledgeGraphToolCalls(userText);
-            const retrievedMessages = [];
-            for (const call of toolCalls) {
-                if (call.name !== 'knowledge_graph_retrieve') continue;
-                let args = {};
-                try {
-                    args = JSON.parse(call.arguments || '{}');
-                } catch {
-                    args = { query: userText };
-                }
-                const result = await executeKnowledgeGraphRetrieve({ query: userText, ...args });
-                retrievedMessages.push(result.message);
-            }
-            if (!retrievedMessages.length) {
-                const fallback = await executeKnowledgeGraphRetrieve({ query: userText });
-                retrievedMessages.push(fallback.message);
-            }
+            const result = await executeKnowledgeGraphRetrieve({ query: userText, topK: 8, liveExternal: false });
             loader.remove();
-            addToolMsg('已检索当前知识图谱节点知识库。');
-            await answerWithKnowledgeGraphRetrieval(userText, retrievedMessages);
+            await answerWithKnowledgeGraphRetrieval(userText, [result.message]);
         } catch (err) {
             loader.remove();
             addMsg('ai', `**[Knowledge Graph Retrieval Error]** ${err.message}`);
         }
-    }
-
-    async function requestKnowledgeGraphToolCalls(userText) {
-        const payload = {
-            messages: buildRequestMessages(messages, false, true),
-            stream: true,
-            tools: [knowledgeGraphRetrieveTool],
-            tool_choice: {
-                type: 'function',
-                function: { name: 'knowledge_graph_retrieve' }
-            }
-        };
-        if (AGENT_MODEL) payload.model = AGENT_MODEL;
-
-        const res = await fetch(AGENT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-            return [];
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        const toolCalls = [];
-        let buf = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += decoder.decode(value, { stream: true });
-            const lines = buf.split('\n');
-            buf = lines.pop();
-
-            for (const line of lines) {
-                const t = line.trim();
-                if (!t.startsWith('data: ') || t === 'data: [DONE]') continue;
-                try {
-                    const data = JSON.parse(t.slice(6));
-                    const delta = data.choices?.[0]?.delta;
-                    if (delta?.tool_calls) mergeToolCalls(toolCalls, delta.tool_calls);
-                } catch {
-                    // Ignore malformed SSE fragments from compatible providers.
-                }
-            }
-        }
-        return compactToolCalls(toolCalls);
     }
 
     function buildRequestMessages(baseMessages, allowTools, allowKnowledgeGraphRetrieval = false) {
@@ -978,11 +902,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await retriever({
             query: args.query || '',
             nodeName: args.nodeName || pendingKnowledgeGraphContext?.nodeName || '',
-            topK: Number.isFinite(args.topK) ? args.topK : 12
+            topK: Number.isFinite(args.topK) ? args.topK : 8,
+            liveExternal: args.liveExternal === true
         });
         return {
-            message: JSON.stringify(result, null, 2),
+            message: JSON.stringify(compactKnowledgeGraphResult(result), null, 2),
             tool: 'knowledge_graph_retrieve'
+        };
+    }
+
+    function compactKnowledgeGraphResult(result) {
+        if (!result || result.error) return result;
+        const records = (result.localRecords || []).slice(0, 8).map(record => ({
+            type: record.type,
+            title: record.title,
+            content: String(record.content || record.snippet || '').slice(0, 1400),
+            source: record.source || '',
+            evidenceUsability: record.evidenceUsability || (record.type === 'node-knowledge-base' ? 'analysis-framework' : ''),
+            citation: record.citation || null,
+            graphRelation: record.graphRelation || ''
+        }));
+        const claims = (result.evidenceGraph?.nodes || [])
+            .filter(node => node.type === 'claim')
+            .slice(0, 4)
+            .map(node => ({ statement: String(node.statement || '').slice(0, 1000), qualifiers: node.qualifiers, citation: node.citation }));
+        return {
+            node: result.node,
+            graph: {
+                path: result.graph?.path || [],
+                parent: result.graph?.parent || '',
+                children: (result.graph?.children || []).slice(0, 8),
+                siblings: (result.graph?.siblings || []).slice(0, 6)
+            },
+            records,
+            claims,
+            mode: result.mode || 'local-only'
         };
     }
 
@@ -994,9 +948,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 role: 'system',
                 content: [
                     'Answer the user in Chinese using the retrieved knowledge graph context below.',
-                    'Keep the answer concise and explanatory. Do not mention internal JSON unless useful.',
-                    'Cover: node meaning, why it matters, graph neighborhood, maturity/applications/risks, and next retrieval directions.',
-                    'If evidence is thin, say so explicitly.',
+                    'Write at expert or doctoral depth. Use established Chinese and English disciplinary terminology; do not invent substitute terms or dilute technical concepts into generic slogans.',
+                    'Structure the answer around: operational definition and boundary; mechanism or formal model; key metrics and validation protocol; strongest available evidence; graph neighborhood; engineering maturity; failure modes and risks; frontier disputes and open problems.',
+                    'For empirical claims, name the supporting retrieved source and its year when available. Distinguish consensus, replicated evidence, single-study findings, preprints, engineering demonstrations and community anecdotes.',
+                    'Only records marked evidenceUsability=claim-supporting may support concrete empirical claims. Treat discovery-only records as reading leads and analysis-framework records as reasoning scaffolds, never as factual citations.',
+                    'Use evidenceGraph claim nodes as source-asserted claim candidates, not automatically verified truth. Preserve each claim qualifier and cite its linked evidence node citation object.',
+                    'When evidenceGraph contains competing or differently scoped claims, present the disagreement and conditions instead of collapsing them into one answer.',
+                    'Never fabricate a paper, metric, result or citation. If retrieved evidence is thin, stale, indirect or conflicting, state the exact limitation and propose a professional follow-up query.',
+                    'Do not mention internal JSON or retrieval implementation details unless the user asks.',
                     '',
                     'Retrieved context:',
                     retrievalText
@@ -1065,13 +1024,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 return snapshotPage(args.reason);
             case 'batch':
                 return executeUiBatch(args.steps, args.reason);
+            case 'generate_world':
+                return generateWorld(args);
             default:
                 throw new Error(`unknown action "${action}"`);
         }
     }
 
+    /**
+     * 世界模型入口：切到建模实验室·世界模型页，把描述填好，
+     * 按 confirm 决定「只填表等用户点生成」还是「直接发起生成」。
+     *
+     * 实际执行发生在 worldmodel 的 iframe 里，这里只负责下发指令。
+     */
+    function generateWorld(args = {}) {
+        if (typeof window.worldModelRun !== 'function') {
+            throw new Error('世界模型未就绪：请确认建模实验室模块已加载');
+        }
+        const prompt = String(args.prompt ?? args.value ?? args.text ?? args.content ?? '').trim();
+        const confirmOnly = args.confirm === true;
+        const result = window.worldModelRun({
+            prompt,
+            displayName: args.displayName || args.name || '',
+            model: args.worldModel || args.model || '',
+            generate: !confirmOnly
+        });
+        if (!prompt && !confirmOnly) {
+            // 没给描述就别贸然烧额度，退回到只填表。
+            window.worldModelRun({ generate: false });
+            return ok('已打开世界模型页。没有收到场景描述，先不发起生成，等用户确认。', args.reason);
+        }
+        return ok(result && result.message ? result.message : '已打开世界模型页。', args.reason);
+    }
+
     function resolveActionTarget(args, action) {
         if (!args || typeof args !== 'object') return '';
+        // 世界生成没有元素目标，别让 prompt 被当成 CSS 选择器去 normalize
+        if (action === 'generate_world') return '';
         const direct = args.target ?? args.selector ?? args.element ?? args.id ?? args.name;
         if (action === 'open_logic_puzzle') return args.puzzle ?? args.logic_puzzle ?? args.logicPuzzle ?? args.puzzle_target ?? args.puzzleTarget ?? direct ?? '';
         if (action === 'open_space_puzzle') {
@@ -1119,7 +1108,16 @@ document.addEventListener('DOMContentLoaded', () => {
             set_input: 'set_value',
             click_element: 'click',
             press_button: 'click',
-            find: 'search'
+            find: 'search',
+            generate_world: 'generate_world',
+            create_world: 'generate_world',
+            make_world: 'generate_world',
+            world_generate: 'generate_world',
+            world_model_generate: 'generate_world',
+            generate_scene: 'generate_world',
+            create_scene: 'generate_world',
+            text_to_world: 'generate_world',
+            image_to_world: 'generate_world'
         };
         return aliases[raw] || aliases[raw.toLowerCase()] || raw;
     }
@@ -1162,6 +1160,11 @@ document.addEventListener('DOMContentLoaded', () => {
             '电路': 'electroniclab',
             '建模实验室': 'jianmoshiyanshi',
             '建模': 'jianmoshiyanshi',
+            '世界模型': 'jianmoshiyanshi',
+            '世界模型实验室': 'jianmoshiyanshi',
+            '世界生成': 'jianmoshiyanshi',
+            'marble': 'jianmoshiyanshi',
+            'Marble': 'jianmoshiyanshi',
             '工作流': 'workflow',
             '知识图谱': 'zhishitupu',
             '大模型': 'damoxing',
@@ -1210,6 +1213,11 @@ document.addEventListener('DOMContentLoaded', () => {
         aliases['建模实验室模块'] = 'jianmoshiyanshi';
         aliases['modeling lab'] = 'jianmoshiyanshi';
         aliases['modeling laboratory'] = 'jianmoshiyanshi';
+        aliases['世界模型'] = 'jianmoshiyanshi';
+        aliases['世界模型实验室'] = 'jianmoshiyanshi';
+        aliases['世界生成'] = 'jianmoshiyanshi';
+        aliases['marble'] = 'jianmoshiyanshi';
+        aliases['Marble'] = 'jianmoshiyanshi';
         aliases['API中转站'] = 'apizhongzhuanzhan';
         aliases['api中转站'] = 'apizhongzhuanzhan';
         aliases['中转站'] = 'apizhongzhuanzhan';
@@ -1359,14 +1367,6 @@ document.addEventListener('DOMContentLoaded', () => {
             item.names.some(name => normalizeText(name) === normalized)
         );
         return found ? found.target : raw;
-    }
-
-    function findContactSubmoduleTargetInText(text) {
-        const normalized = normalizeText(text);
-        const found = getContactSubmoduleAliases().find(item =>
-            item.names.some(name => normalized.includes(normalizeText(name)))
-        );
-        return found ? found.target : '';
     }
 
     function getContactSubmoduleAliases() {
@@ -2045,96 +2045,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    function matchFastUiCommand(raw, normalized) {
-        if (['apizhongzhuanzhan', 'apirouter', 'api中转站', 'api中轉站', '中转站'].includes(normalized)) {
-            return { action: 'navigate_section', target: 'apizhongzhuanzhan' };
-        }
-
-        const sections = {
-            jiamishiyanshi: ['jiamishiyanshi', 'cipher', 'ciphers', '加密实验室', '密码', '密码区'],
-            electroniclab: ['electroniclab', 'electronics', 'circuit', '电子实验室', '电路'],
-            jianmoshiyanshi: ['jianmoshiyanshi', '建模实验室', '建模', '建模模块', 'modeling lab', 'modeling laboratory'],
-            workflow: ['workflow', '工作流'],
-            zhishitupu: ['zhishitupu', 'graph', '知识图谱'],
-            damoxing: ['damoxing', 'agent', 'agent模块', '大模型', '大模型模块', '模型', '模型模块'],
-            mcpskilllab: ['mcpskilllab', 'skill/mcp实验室', 'skill / mcp 实验室', 'mcp实验室', 'skill实验室', '技能实验室', 'skillmcp', 'mcp lab', 'skill lab'],
-            yijianfankui: ['yijianfankui', 'feedback', '反馈', '联系我们']
-        };
-        for (const [target, names] of Object.entries(sections)) {
-            if (names.some(name => isFastSectionCommand(normalized, name))) {
-                return { action: 'navigate_section', target };
-            }
-        }
-
-        const contactSubmoduleTarget = findContactSubmoduleTargetInText(raw);
-        if (contactSubmoduleTarget && hasFastOpenIntent(normalized)) {
-            return { action: 'switch_contact_submodule', target: contactSubmoduleTarget };
-        }
-
-        // Space-puzzle requests intentionally stay on the model-driven agent path.
-
-        const submodules = {
-            mimaqu: ['mimaqu', '经典区', '经典'],
-            xiandaiqu: ['xiandaiqu', '现代区', '现代'],
-            luojimiti: ['luojimiti', '逻辑区', '逻辑谜题'],
-            cihuiqu: ['cihuiqu', '词汇区', '词汇'],
-            yuliu: ['yuliu']
-        };
-        for (const [target, names] of Object.entries(submodules)) {
-            if (names.some(name => normalized === normalizeText(name) || normalized === normalizeText(`切换${name}`) || normalized === normalizeText(`打开${name}`))) {
-                return { action: 'switch_submodule', target };
-            }
-        }
-
-        let match = raw.match(/^(?:搜索|search)\s+(.+)$/i);
-        if (match) return { action: 'search', value: match[1].trim() };
-
-        if (/^(清空搜索|clearsearch|clear search)$/.test(normalized)) return { action: 'clear_search' };
-
-        match = raw.match(/^(?:输入|填入|set|type)\s+(.+)$/i);
-        if (match) return { action: 'set_value', target: '#mainInput', value: match[1] };
-
-        match = raw.match(/^(?:点击|click)\s+(.+)$/i);
-        if (match) return { action: 'click', target: match[1].trim() };
-
-        match = raw.match(/^(?:高亮|highlight)\s+(.+)$/i);
-        if (match) return { action: 'highlight', target: match[1].trim() };
-
-        if (/^(页面快照|snapshot|page snapshot)$/.test(normalized)) return { action: 'snapshot' };
-
-        return null;
-    }
-
-    function hasFastOpenIntent(normalized) {
-        normalized = stripFastCommandHelperPrefix(normalized);
-        return ['打开', '开启', '进入', '转到', '去', 'open', 'show', 'goto', 'switch']
-            .some(term => normalized.includes(normalizeText(term)));
-    }
-
-    function isFastSectionCommand(normalized, name) {
-        normalized = stripFastCommandHelperPrefix(normalized);
-        const section = normalizeText(name);
-        if (normalized === section) return true;
-
-        const commandPrefixes = ['打开', '开启', '进入', '切换到', '转到', '去', 'goto', 'open', 'show', 'switch'];
-        for (const prefix of commandPrefixes) {
-            const prefixNorm = normalizeText(prefix);
-            if (normalized.startsWith(prefixNorm) && normalized.slice(prefixNorm.length) === section) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function stripFastCommandHelperPrefix(normalized) {
-        const helperPrefixes = ['请帮我', '帮我', '帮忙', '麻烦', '替我', '给我', '现在', '直接', 'please']
-            .map(normalizeText);
-        for (const prefix of helperPrefixes) {
-            if (normalized.startsWith(prefix)) return normalized.slice(prefix.length);
-        }
-        return normalized;
-    }
-
     async function executeBrowserAction(args) {
         const action = args.action;
         switch (action) {
@@ -2202,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         registerSelf();
         channel?.postMessage({ type: 'agent-window-hello', id: selfId, state: getSelfState() });
-        setInterval(registerSelf, 2500);
+        setInterval(registerSelf, 30000);
 
         return api;
 
@@ -2486,7 +2396,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getAgentConfig() {
         const config = window.AGENTMASTER_CONFIG || {};
-        const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-v4-flash';
+        const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-flash';
         return {
             chatUrl: config.chatUrl || localStorage.getItem('CIPHERTOOL_CHAT_API_URL') || resolveBackendChatUrl(),
             model: normalizeDeepSeekModel(model),
@@ -2496,9 +2406,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function normalizeDeepSeekModel(model) {
         const normalized = String(model || '').trim();
-        if (normalized === 'deepseek-v4-pro' || normalized === 'deepseek-v4-flash') return normalized;
-        if (normalized === 'deepseekv4' || normalized === 'deepseek-v4') return 'deepseek-v4-flash';
-        return normalized || 'deepseek-v4-flash';
+        if (normalized === 'deepseek-flash' || normalized === 'deepseek-v4-pro') return normalized;
+        // 旧版 v4 flash 名称（含历史 localStorage/config 残留）统一归一到 V4.1 Flash。
+        if (normalized === 'deepseek-v4-flash'
+            || normalized === 'deepseek-v4-flash-vision-exp'
+            || normalized === 'deepseek-v4.1-flash'
+            || normalized === 'deepseek-v4-1-flash'
+            || normalized === 'deepseek-v4.1'
+            || normalized === 'deepseekv4.1'
+            || normalized === 'deepseekv4'
+            || normalized === 'deepseek-v4') {
+            return 'deepseek-flash';
+        }
+        return normalized || 'deepseek-flash';
     }
 
     function resolveBackendChatUrl() {

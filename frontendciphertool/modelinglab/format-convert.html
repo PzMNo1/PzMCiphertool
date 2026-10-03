@@ -1,0 +1,1776 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模型格式转换台 / MODEL FORMAT CONVERTER</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23050d16'/%3E%3Cpath d='M16 4 28 11v10L16 28 4 21V11z' fill='none' stroke='%2340e0ff' stroke-width='2'/%3E%3C/svg%3E" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.185.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.185.1/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #030609;
+      --panel: rgba(6, 12, 18, 0.94);
+      --line: rgba(64, 224, 255, 0.22);
+      --line-soft: rgba(142, 231, 255, 0.12);
+      --cyan: #40e0ff;
+      --green: #00ff88;
+      --text: #dbeaf3;
+      --muted: #7d97a8;
+      --danger: #ff5f6d;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(64, 224, 255, 0.07), transparent 32%),
+        radial-gradient(circle at 88% 88%, rgba(0, 255, 136, 0.06), transparent 30%),
+        var(--bg);
+    }
+
+    /* ---------- 顶栏 ---------- */
+    .fc-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(4, 10, 18, 0.9);
+      flex: 0 0 auto;
+    }
+
+    .fc-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .fc-title .en {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    .fc-top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .fc-btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: rgba(9, 22, 32, 0.9);
+      color: var(--text);
+      padding: 6px 13px;
+      font-size: 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: .5px;
+      transition: background .18s, border-color .18s, color .18s;
+    }
+
+    .fc-btn:hover:not(:disabled) {
+      background: rgba(64, 224, 255, 0.16);
+      border-color: var(--cyan);
+    }
+
+    .fc-btn:disabled { opacity: .38; cursor: not-allowed; }
+
+    .fc-btn.primary {
+      border-color: rgba(0, 255, 136, 0.55);
+      color: #d6ffe9;
+      background: linear-gradient(120deg, rgba(0, 120, 80, 0.55), rgba(10, 40, 30, 0.9));
+    }
+
+    .fc-btn.primary:hover:not(:disabled) {
+      background: linear-gradient(120deg, rgba(0, 180, 115, 0.6), rgba(12, 60, 44, 0.95));
+    }
+
+    /* ---------- 主体 ---------- */
+    .fc-main {
+      flex: 1 1 auto;
+      display: flex;
+      min-height: 0;
+    }
+
+    .fc-side {
+      width: 336px;
+      flex: 0 0 auto;
+      border-right: 1px solid var(--line-soft);
+      background: var(--panel);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .fc-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 4px;
+      background: rgba(8, 16, 24, 0.7);
+      padding: 10px;
+    }
+
+    .fc-card > h3 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.4px;
+      color: var(--cyan);
+      text-transform: uppercase;
+    }
+
+    .fc-drop {
+      border: 1px dashed rgba(64, 224, 255, 0.45);
+      border-radius: 5px;
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .18s, border-color .18s;
+      background: rgba(4, 14, 22, 0.6);
+    }
+
+    .fc-drop:hover, .fc-drop.hot {
+      background: rgba(64, 224, 255, 0.1);
+      border-color: var(--cyan);
+    }
+
+    .fc-drop strong { display: block; font-size: 13px; margin-bottom: 4px; }
+    .fc-drop span { display: block; font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+    .fc-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .fc-meta {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.8;
+      word-break: break-all;
+    }
+
+    .fc-meta b { color: var(--text); font-weight: 500; }
+
+    .fc-model-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .fc-model {
+      border: 1px solid var(--line-soft);
+      border-radius: 4px;
+      padding: 8px 9px;
+      font-size: 11px;
+      line-height: 1.7;
+      cursor: pointer;
+      background: rgba(9, 18, 27, 0.8);
+    }
+
+    .fc-model.active {
+      border-color: var(--green);
+      box-shadow: inset 0 0 14px rgba(0, 255, 136, 0.12);
+    }
+
+    .fc-model .name {
+      font-size: 12px;
+      color: var(--text);
+      display: block;
+      margin-bottom: 2px;
+      word-break: break-all;
+    }
+
+    .fc-model .tag {
+      display: inline-block;
+      padding: 0 5px;
+      margin-right: 4px;
+      border-radius: 2px;
+      border: 1px solid var(--line);
+      color: var(--cyan);
+      font-size: 10px;
+    }
+
+    .fc-switch {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text);
+      margin: 5px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .fc-switch input { accent-color: #00d4a0; }
+
+    .fc-select {
+      width: 100%;
+      margin-top: 4px;
+      background: rgba(6, 16, 24, 0.95);
+      color: var(--text);
+      border: 1px solid var(--line-soft);
+      border-radius: 3px;
+      padding: 5px;
+      font-size: 12px;
+    }
+
+    /* ---------- 预览 ---------- */
+    .fc-stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    #fc-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .fc-hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: rgba(5, 12, 20, 0.82);
+      font-size: 11px;
+      line-height: 1.85;
+      color: var(--muted);
+      pointer-events: none;
+      max-width: 60%;
+      white-space: pre-wrap;
+    }
+
+    .fc-hud b { color: var(--cyan); font-weight: 500; }
+
+    .fc-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      pointer-events: none;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .fc-empty strong {
+      display: block;
+      font-size: 17px;
+      color: var(--text);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .fc-busy {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(3, 6, 9, 0.72);
+      z-index: 5;
+      font-size: 13px;
+      color: var(--cyan);
+      letter-spacing: 1px;
+    }
+
+    .fc-busy.on { display: grid; }
+
+    .fc-toast {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      max-width: 78%;
+      padding: 9px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: rgba(5, 14, 22, 0.94);
+      font-size: 12px;
+      line-height: 1.7;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .fc-toast.on { opacity: 1; }
+    .fc-toast.err { border-color: rgba(255, 95, 109, 0.6); color: #ffd7db; }
+    .fc-toast.ok { border-color: rgba(0, 255, 136, 0.5); color: #d5ffea; }
+
+    /* ---------- 使用说明 ---------- */
+    .fc-guide {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      background: rgba(2, 5, 8, 0.82);
+      padding: 24px;
+    }
+
+    .fc-guide.on { display: grid; }
+
+    .fc-guide-box {
+      width: min(760px, 100%);
+      max-height: 84vh;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: linear-gradient(150deg, rgba(7, 14, 22, 0.99), rgba(12, 20, 28, 0.97));
+      padding: 20px 22px;
+      font-size: 13px;
+      line-height: 1.95;
+    }
+
+    .fc-guide-box h2 {
+      margin: 0 0 4px;
+      font-size: 17px;
+      letter-spacing: 2px;
+      color: var(--cyan);
+    }
+
+    .fc-guide-box h4 {
+      margin: 16px 0 4px;
+      font-size: 13px;
+      color: var(--green);
+    }
+
+    .fc-guide-box ul { margin: 4px 0; padding-left: 20px; }
+    .fc-guide-box code {
+      background: rgba(64, 224, 255, 0.12);
+      border-radius: 2px;
+      padding: 0 4px;
+      font-size: 12px;
+    }
+    .fc-guide-box .muted { color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 860px) {
+      .fc-main { flex-direction: column; }
+      .fc-side { width: 100%; max-height: 46vh; border-right: 0; border-bottom: 1px solid var(--line-soft); }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="fc-top">
+    <div class="fc-title">
+      模型格式转换台 <span class="en">MODEL FORMAT CONVERTER → GLB</span>
+    </div>
+    <div class="fc-top-actions">
+      <button type="button" class="fc-btn" id="fc-guide-btn">使用说明</button>
+      <button type="button" class="fc-btn" id="fc-open-editor">前往建模编辑器</button>
+    </div>
+  </header>
+
+  <div class="fc-main">
+    <aside class="fc-side">
+      <section class="fc-card">
+        <h3>1 · 导入模型</h3>
+        <div class="fc-drop" id="fc-drop">
+          <strong>拖拽模型文件 / 整个文件夹到这里</strong>
+          <span>OBJ · STL · PLY · GLTF · GLB · FBX · DAE · 3DS<br />带贴图的模型请把贴图、.mtl、.bin 一起选中或直接拖文件夹</span>
+        </div>
+        <div class="fc-row">
+          <button type="button" class="fc-btn" id="fc-pick-files">选择文件</button>
+          <button type="button" class="fc-btn" id="fc-pick-dir">选择文件夹</button>
+          <button type="button" class="fc-btn" id="fc-demo">载入示例模型</button>
+        </div>
+        <input type="file" id="fc-file-input" multiple style="display:none"
+          accept=".obj,.mtl,.stl,.ply,.gltf,.glb,.fbx,.dae,.3ds,.bin,.png,.jpg,.jpeg,.webp,.tga,.bmp,.ktx2,.hdr,.exr" />
+        <input type="file" id="fc-dir-input" webkitdirectory multiple style="display:none" />
+        <div class="fc-meta" id="fc-import-meta" style="margin-top:9px">尚未导入任何文件。</div>
+      </section>
+
+      <section class="fc-card">
+        <h3>2 · 模型列表</h3>
+        <div class="fc-model-list" id="fc-model-list">
+          <div class="fc-meta">导入后在这里切换、查看统计。</div>
+        </div>
+      </section>
+
+      <section class="fc-card">
+        <h3>3 · 导出 GLB</h3>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-center" checked /> 自动居中到原点</label>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-ground" checked /> 底部对齐到地面 (Y=0)</label>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-bake" checked /> 烘焙贴图（导出兼容性最好）</label>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-anim" checked /> 导出动画（FBX/GLB 骨骼动画）</label>
+        <div id="fc-anim-wrap" style="display:none">
+          <select class="fc-select" id="fc-anim-select"></select>
+        </div>
+        <div class="fc-row">
+          <button type="button" class="fc-btn primary" id="fc-export" disabled>导出 GLB 并下载</button>
+        </div>
+        <div class="fc-meta" id="fc-export-meta" style="margin-top:9px">
+          导出的 GLB 可直接在建模编辑器里用「本地导入」打开。
+        </div>
+      </section>
+
+      <section class="fc-card">
+        <h3>视图</h3>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-grid" checked /> 显示网格</label>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-wire" /> 线框</label>
+        <label class="fc-switch"><input type="checkbox" id="fc-opt-env" checked /> 环境反射（内置程序化环境）</label>
+        <div class="fc-row">
+          <button type="button" class="fc-btn" id="fc-fit">重新取景</button>
+          <button type="button" class="fc-btn" id="fc-clear">清空</button>
+        </div>
+      </section>
+    </aside>
+
+    <div class="fc-stage">
+      <canvas id="fc-canvas"></canvas>
+      <div class="fc-hud" id="fc-hud">等待导入模型…</div>
+      <div class="fc-empty" id="fc-empty">
+        <div>
+          <strong>MODEL FORMAT CONVERTER</strong>
+          左侧导入或直接拖入模型文件<br />
+          任意格式 → 预览 → 导出 GLB → 建模编辑器本地导入
+        </div>
+      </div>
+      <div class="fc-busy" id="fc-busy">正在解析模型…</div>
+      <div class="fc-toast" id="fc-toast"></div>
+    </div>
+  </div>
+
+  <div class="fc-guide" id="fc-guide">
+    <div class="fc-guide-box">
+      <h2>使用说明 · 模型格式转换台</h2>
+      <p class="muted">把各种常见 3D 格式统一转成 GLB，再放进建模实验室的编辑器里使用。</p>
+
+      <h4>为什么需要这一步</h4>
+      <p>建模实验室的编辑器本体基于 Three.js（WebGPU 渲染，自动回退 WebGL2），它的「本地导入」只接受
+        <code>.glb</code> / <code>.fbx</code>。其余格式（OBJ、STL、PLY、GLTF 文本、DAE 等）不是渲染引擎的限制，
+        而是导入入口只做了这两种后缀的校验，所以先用本页转成 GLB 是最省事的通路。</p>
+
+      <h4>支持导入的格式</h4>
+      <ul>
+        <li><b>OBJ</b>（可选 .mtl + 贴图，同目录一起导入可保留材质）</li>
+        <li><b>STL</b>（二进制 / ASCII 自动识别）</li>
+        <li><b>PLY</b>（含顶点色点云/网格）</li>
+        <li><b>GLTF / GLB</b>（含 Draco 压缩、KTX2 贴图、.bin 与外部贴图）</li>
+        <li><b>FBX</b>（含骨骼动画，动画会随 GLB 导出）</li>
+        <li><b>DAE / 3DS</b>（兼容性加载，贴图需同目录）</li>
+      </ul>
+
+      <h4>操作步骤</h4>
+      <ul>
+        <li>1. 拖入模型文件；带贴图的模型建议直接拖<b>整个文件夹</b>，程序会自动关联贴图与 .bin。</li>
+        <li>2. 在「模型列表」里切换已导入的模型，右侧预览可左键旋转 / 右键平移 / 滚轮缩放。</li>
+        <li>3. 需要时打开「自动居中」「底部对齐地面」，方便在编辑器里摆位。</li>
+        <li>4. 点「导出 GLB 并下载」，得到 <code>&lt;模型名&gt;.glb</code>。</li>
+        <li>5. 回到建模实验室（ORBITAL HARDWARE STUDIO），用工具栏「本地导入」选择这个 GLB；或直接点本页顶部
+          「前往建模编辑器」。</li>
+      </ul>
+
+      <h4>注意事项</h4>
+      <ul>
+        <li>本页依赖 CDN（<code>unpkg.com</code>）加载 Three.js 与各格式解析器，首次打开需要联网；预览用的环境反射是内置程序化生成的，不需要额外下载。</li>
+        <li>File 格式导出的 GLB 贴图内嵌，不会再有外部依赖；<code>.gltf</code> + 分离贴图转成 GLB 后更不容易丢图。</li>
+        <li>源文件如果做过 Draco 压缩（体积很小），导出时会解压成完整几何，GLB 会明显变大，属正常现象；导出结果里会给出提示。</li>
+        <li>顶点数很大的模型（如城市、扫描件）导出会比较慢，注意浏览器内存。</li>
+        <li>导出不会包含预览用的灯光、网格、环境反射，只有模型本体。</li>
+        <li>自检：打开 <code>format-convert.html?autotest=1</code> 可跑一遍「导入 → 导出 → 回读」自检，结果输出到页面与控制台。</li>
+      </ul>
+
+      <div class="fc-row" style="justify-content:flex-end">
+        <button type="button" class="fc-btn" id="fc-guide-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+    import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+    import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+    import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+    import { TDSLoader } from 'three/addons/loaders/TDSLoader.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    const THREE_VERSION = '0.185.1';
+    const CDN = `https://unpkg.com/three@${THREE_VERSION}/examples/jsm/`;
+    const MODEL_EXT = ['obj', 'stl', 'ply', 'gltf', 'glb', 'fbx', 'dae', '3ds'];
+    const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'tga', 'bmp', 'ktx2', 'hdr', 'exr'];
+
+    const $ = id => document.getElementById(id);
+    const toastEl = $('fc-toast');
+    let toastTimer = 0;
+
+    function toast(message, kind = '') {
+      toastEl.textContent = message;
+      toastEl.className = 'fc-toast on ' + kind;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.className = 'fc-toast ' + kind; }, kind === 'err' ? 9000 : 4200);
+    }
+
+    function extOf(nameOrUrl) {
+      // 同时兼容 "a/b/c.glb?x=1"、"c.obj"、"模型名(在线)" 这类输入：
+      // 取最后一段路径、去掉 query/hash 后再取后缀
+      const clean = String(nameOrUrl || '').split(/[?#]/)[0];
+      const last = clean.split(/[\\/]/).pop() || '';
+      const i = last.lastIndexOf('.');
+      if (i <= 0) return '';
+      const ext = last.slice(i + 1).toLowerCase();
+      return /^[a-z0-9]{1,6}$/.test(ext) ? ext : '';
+    }
+
+    function baseOf(name) {
+      const clean = String(name || '').split(/[?#]/)[0];
+      const i = clean.lastIndexOf('.');
+      return i < 0 ? clean : clean.slice(0, i);
+    }
+
+    function fmtBytes(n) {
+      if (!Number.isFinite(n) || n <= 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let i = 0;
+      let v = n;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function fmtNum(n) {
+      return Number(n || 0).toLocaleString('en-US');
+    }
+
+    function normPath(p) {
+      return String(p || '').replace(/\\/g, '/').replace(/^\.\//, '');
+    }
+
+    /* ==================================================================
+       场景 / 渲染
+       ================================================================== */
+    const canvas = $('fc-canvas');
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      preserveDrawingBuffer: false
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070d14);
+    scene.fog = new THREE.Fog(0x070d14, 60, 320);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 8000);
+    camera.position.set(6, 4.5, 9);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = true;
+
+    scene.add(new THREE.HemisphereLight(0xbfe9ff, 0x0a1620, 1.5));
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(6, 10, 7);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x66d9ff, 0.9);
+    fillLight.position.set(-8, 4, -6);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0x00ffa6, 0.55);
+    rimLight.position.set(0, 3, -9);
+    scene.add(rimLight);
+
+    const grid = new THREE.GridHelper(200, 200, 0x2a6f8c, 0x123040);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.55;
+    scene.add(grid);
+
+    const axes = new THREE.AxesHelper(1.6);
+    axes.position.y = 0.001;
+    axes.visible = false;
+    scene.add(axes);
+
+    /* ==================================================================
+       加载器
+       ================================================================== */
+    let manager = null;
+    let dracoLoader = null;
+    let ktx2Loader = null;
+    let externalResources = [];
+
+    function newLoadingManager() {
+      const m = new THREE.LoadingManager();
+      m.onError = url => console.warn('[format-convert] 资源加载失败:', url);
+      m.setURLModifier(url => {
+        if (!url || /^(blob:|data:|https?:|file:)/i.test(url)) return url;
+        const hit = (m.__map && m.__map.get(url)) || resolveResource(url);
+        return hit || url;
+      });
+      m.__map = new Map();
+      m.__byBase = new Map();
+      return m;
+    }
+
+    /**
+     * 保证 manager / draco / ktx2 已就绪，且只初始化一次。
+     * 文件导入与 URL 导入都会先调用它。
+     */
+    function ensureManager() {
+      if (!manager) manager = newLoadingManager();
+      if (!dracoLoader) {
+        dracoLoader = new DRACOLoader(manager);
+        dracoLoader.setDecoderPath(CDN + 'libs/draco/gltf/');
+      }
+      if (!ktx2Loader) {
+        ktx2Loader = new KTX2Loader(manager);
+        ktx2Loader.setTranscoderPath(CDN + 'libs/basis/');
+        ktx2Loader.detectSupport(renderer);
+      }
+      return manager;
+    }
+
+    function disposeLoaders() {
+      try { dracoLoader?.dispose(); } catch (e) { /* noop */ }
+      try { ktx2Loader?.dispose(); } catch (e) { /* noop */ }
+      dracoLoader = null;
+      ktx2Loader = null;
+    }
+
+    /* ---------- 外部资源（贴图 / .bin / .mtl）解析 ---------- */
+    function refreshResourceIndex() {
+      ensureManager();
+      const byPath = new Map();
+      const byBase = new Map();
+      for (const res of externalResources) {
+        byPath.set(normPath(res.path).toLowerCase(), res.url);
+        const base = baseOf(normPath(res.path)).toLowerCase();
+        const list = byBase.get(base) || [];
+        list.push(res.url);
+        byBase.set(base, list);
+      }
+      manager.__map = byPath;
+      manager.__byBase = byBase;
+    }
+
+    function resolveResource(url) {
+      if (!manager || !externalResources.length) return null;
+      let q = normPath(String(url).split(/[?#]/)[0]).replace(/^\/+/, '');
+      try { q = decodeURIComponent(q); } catch (e) { /* noop */ }
+      const lower = q.toLowerCase();
+
+      if (manager.__map.has(lower)) return manager.__map.get(lower);
+
+      const segs = lower.split('/').filter(Boolean);
+      if (segs.length) {
+        const tail = segs[segs.length - 1];
+        if (manager.__map.has(tail)) return manager.__map.get(tail);
+        for (const cand of manager.__map.keys()) {
+          if (cand.endsWith('/' + lower) || lower.endsWith('/' + cand)) return manager.__map.get(cand);
+        }
+      }
+
+      const byBase = manager.__byBase.get(baseOf(lower));
+      if (byBase && byBase.length) return byBase[0];
+      return null;
+    }
+
+    function findResourceUrl(path) {
+      return resolveResource(path);
+    }
+
+    /* ==================================================================
+       状态
+       ================================================================== */
+    const state = {
+      models: [],
+      nextId: 0,
+      activeEntry: null,
+      busy: false
+    };
+
+    let viewRoot = null;        // 预览用容器（含灯光网格外的模型本体）
+    let contentRoot = null;     // 纯模型根节点，用于导出
+    let wireframeOn = false;
+    const originalMaterials = new WeakMap();
+
+    /* ==================================================================
+       导入
+       ================================================================== */
+    const fileInput = $('fc-file-input');
+    const dirInput = $('fc-dir-input');
+    const dropEl = $('fc-drop');
+
+    $('fc-pick-files').onclick = () => fileInput.click();
+    $('fc-pick-dir').onclick = () => dirInput.click();
+    dropEl.onclick = () => fileInput.click();
+
+    fileInput.onchange = () => {
+      const files = Array.from(fileInput.files || []);
+      fileInput.value = '';
+      if (files.length) handleIncoming(files);
+    };
+    dirInput.onchange = () => {
+      const files = Array.from(dirInput.files || []);
+      dirInput.value = '';
+      if (files.length) handleIncoming(files);
+    };
+
+    ['dragenter', 'dragover'].forEach(ev => {
+      dropEl.addEventListener(ev, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropEl.classList.add('hot');
+      });
+    });
+    ['dragleave', 'drop'].forEach(ev => {
+      dropEl.addEventListener(ev, e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (ev === 'dragleave') dropEl.classList.remove('hot');
+      });
+    });
+    dropEl.addEventListener('drop', e => {
+      dropEl.classList.remove('hot');
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) handleIncoming(files);
+    });
+
+    // 整页拖拽兜底
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+      if (e.target.closest && e.target.closest('.fc-drop')) return;
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) handleIncoming(files);
+    });
+
+    async function handleIncoming(fileList) {
+      setBusy(true, '正在读取文件…');
+      try {
+        ensureManager();
+        // 只保留有路径信息的条目，并去掉目录条目
+        const files = fileList.filter(f => f && typeof f.name === 'string' && f.name && f.size >= 0);
+        const models = files.filter(f => MODEL_EXT.includes(extOf(f.name)));
+        const others = files.filter(f => !MODEL_EXT.includes(extOf(f.name)));
+        const textures = others.filter(f => IMAGE_EXT.includes(extOf(f.name)) || ['mtl', 'bin'].includes(extOf(f.name)));
+
+        let added = 0;
+        for (const f of others) {
+          if (!IMAGE_EXT.includes(extOf(f.name)) && !['mtl', 'bin'].includes(extOf(f.name))) continue;
+          const path = normPath(f.webkitRelativePath || f.name);
+          if (resolveResource(path)) continue;           // 已有同名资源，复用
+          externalResources.push({ path, url: URL.createObjectURL(f), name: f.name, size: f.size });
+          added++;
+        }
+        refreshResourceIndex();
+
+        if (!models.length) {
+          toast('没找到可识别的模型文件，支持 ' + MODEL_EXT.map(e => '.' + e).join(' / '), 'err');
+          return;
+        }
+
+        updateImportMeta(files.length, added);
+
+        for (const f of models) {
+          await loadModelFile(f);
+        }
+
+        if (!state.models.length) return;
+        selectModel(state.models[state.models.length - 1].id);
+      } catch (err) {
+        console.error(err);
+        toast('导入失败：' + (err?.message || err), 'err');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function updateImportMeta(total, resources) {
+      const resList = externalResources.slice(-400);
+      const names = resList.map(r => r.name).slice(0, 8).join('、');
+      $('fc-import-meta').innerHTML =
+        `本次选择 <b>${total}</b> 个文件，其中外部资源 <b>${resources}</b> 个。<br />` +
+        (resList.length ? `资源索引：${names}${resList.length > 8 ? ' …' : ''}` : '未附带外部资源。');
+    }
+
+    async function loadModelFile(file) {
+      const ext = extOf(file.name);
+      const label = file.name;
+      setBusy(true, `正在解析 ${label} …`);
+      await nextFrame();
+
+      const ctx = {
+        name: baseOf(label),
+        sourceExt: ext.toUpperCase(),
+        sourceSize: file.size,
+        animations: [],
+        scenes: null,
+        model: null
+      };
+
+      if (ext === 'gltf' || ext === 'glb') await loadGltf(file, ctx);
+      else if (ext === 'fbx') await loadFbx(file, ctx);
+      else if (ext === 'obj') await loadObj(file, ctx);
+      else if (ext === 'stl') await loadStl(file, ctx);
+      else if (ext === 'ply') await loadPly(file, ctx);
+      else if (ext === 'dae') await loadDae(file, ctx);
+      else if (ext === '3ds') await load3ds(file, ctx);
+      else throw new Error('暂不支持 .' + ext + ' 格式');
+
+      if (!ctx.model) throw new Error('未能从 ' + label + ' 中解析出模型');
+
+      finalizeModel(ctx);
+    }
+
+    function nextFrame() {
+      return new Promise(r => requestAnimationFrame(() => r()));
+    }
+
+    /* ---------- 各格式解析 ---------- */
+
+    /** 文件所在的相对目录（仅"选择文件夹"导入时才有），末尾带 / */
+    function dirOf(file) {
+      const p = normPath(file.webkitRelativePath || '');
+      return p.includes('/') ? p.slice(0, p.lastIndexOf('/') + 1) : '';
+    }
+
+    /** 仅当确实有目录前缀时才设置 path，避免把相对引用拼成坏 URL */
+    function sameOriginBase(loader, file) {
+      const dir = dirOf(file);
+      if (dir) loader.setPath(dir);
+      return dir;
+    }
+
+    async function loadGltf(file, ctx) {
+      ensureManager();
+      const loader = new GLTFLoader(manager);
+      loader.setDRACOLoader(dracoLoader);
+      loader.setKTX2Loader(ktx2Loader);
+
+      const ext = extOf(file.name);
+      const url = await prepareGltfUrl(file);
+
+      try {
+        const gltf = await loader.loadAsync(url);
+        ctx.model = gltf.scene || gltf.scenes?.[0];
+        ctx.animations = gltf.animations || [];
+        ctx.scenes = gltf.scenes || null;
+        ctx.gltf = gltf;
+        if (ext === 'gltf' && ctx.notes === undefined) ctx.notes = ['已把外部 .bin / 贴图引用改写为内联资源'];
+      } finally {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      }
+    }
+
+    /**
+     * 准备给 GLTFLoader 的入口 URL。
+     * .glb 直接用 blob URL；.gltf 先解析 JSON，把 buffers[].uri / images[].uri
+     * 这类外部引用替换成对应文件的 blob URL 再喂给 loader。
+     *
+     * 原因：GLTFLoader 会把 glTF 内部的相对引用按入口 URL 去 resolve，
+     * 入口是 blob: 时会拼出 `blob:http://host/quad.bin` 这种不存在的地址，
+     * 导致外部 .bin / 贴图必然加载失败。
+     */
+    async function prepareGltfUrl(file) {
+      const ext = extOf(file.name);
+      if (ext !== 'gltf') return URL.createObjectURL(file);
+
+      let json;
+      try {
+        json = JSON.parse(await file.text());
+      } catch (e) {
+        // 解析不了就退回原样加载（交给 loader 报错）
+        return URL.createObjectURL(file);
+      }
+
+      let rewritten = 0;
+      const rewrite = uri => {
+        if (!uri || /^(data:|https?:|blob:)/i.test(uri)) return uri;
+        const hit = resolveResource(uri);
+        if (hit) { rewritten++; return hit; }
+        return uri;
+      };
+
+      (json.buffers || []).forEach(b => { if (b && b.uri) b.uri = rewrite(b.uri); });
+      (json.images || []).forEach(im => { if (im && im.uri) im.uri = rewrite(im.uri); });
+
+      const blob = new Blob([JSON.stringify(json)], { type: 'model/gltf+json' });
+      const url = URL.createObjectURL(blob);
+      console.log(`[format-convert] .gltf 外部引用已改写 ${rewritten} 处`);
+      return url;
+    }
+
+    async function loadFbx(file, ctx) {
+      ensureManager();
+      const loader = new FBXLoader(manager);
+      sameOriginBase(loader, file);
+      const url = URL.createObjectURL(file);
+      try {
+        const fbx = await loader.loadAsync(url);
+        ctx.model = fbx;
+        ctx.animations = fbx.animations || [];
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function loadObj(file, ctx) {
+      ensureManager();
+      const dir = dirOf(file);
+
+      const mtlPath = dir + baseOf(file.name) + '.mtl';
+      const mtlUrl = findResourceUrl(mtlPath) || findResourceUrl(baseOf(file.name) + '.mtl');
+
+      const loader = new OBJLoader(manager);
+      sameOriginBase(loader, file);
+
+      if (mtlUrl) {
+        try {
+          const mtlText = await fetch(mtlUrl).then(r => r.text());
+          const mtlLoader = new MTLLoader(manager);
+          mtlLoader.setResourcePath(dir);
+          mtlLoader.setMaterialOptions({ side: THREE.DoubleSide });
+          const materials = mtlLoader.parse(mtlText, dir);
+          materials.preload();
+          loader.setMaterials(materials);
+          ctx.notes = [`已关联材质 ${baseOf(mtlPath)}`];
+        } catch (e) {
+          console.warn('[format-convert] MTL 解析失败', e);
+          ctx.notes = ['MTL 解析失败，使用默认材质'];
+        }
+      }
+
+      const url = URL.createObjectURL(file);
+      try {
+        ctx.model = await loader.loadAsync(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function loadStl(file, ctx) {
+      ensureManager();
+      const loader = new STLLoader(manager);
+      const buffer = await file.arrayBuffer();
+      const geometry = loader.parse(buffer);
+      prepareLooseGeometry(geometry);
+      const mesh = new THREE.Mesh(geometry, defaultSurfaceMaterial());
+      mesh.name = baseOf(file.name);
+      ctx.model = mesh;
+      ctx.notes = ['STL 为无材质网格，已应用默认表面材质'];
+    }
+
+    async function loadPly(file, ctx) {
+      ensureManager();
+      const loader = new PLYLoader(manager);
+      const buffer = await file.arrayBuffer();
+      const geometry = loader.parse(buffer);
+      prepareLooseGeometry(geometry);
+      const mesh = new THREE.Mesh(geometry, defaultSurfaceMaterial());
+      mesh.name = baseOf(file.name);
+      ctx.model = mesh;
+      ctx.notes = ['PLY 按网格解析，顶点色如存在会一同导出'];
+    }
+
+    async function loadDae(file, ctx) {
+      ensureManager();
+      const loader = new ColladaLoader(manager);
+      const dir = dirOf(file);
+      if (dir) loader.setPath(dir);
+      const url = URL.createObjectURL(file);
+      try {
+        const collada = await loader.loadAsync(url);
+        ctx.model = collada.scene;
+        ctx.animations = collada.animations || [];
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function load3ds(file, ctx) {
+      ensureManager();
+      const loader = new TDSLoader(manager);
+      const url = URL.createObjectURL(file);
+      try {
+        ctx.model = await loader.loadAsync(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      ctx.notes = ['3DS 兼容性加载，材质较老可能不完整'];
+    }
+
+    /* ---------- 几何/材质整理 ---------- */
+    function defaultSurfaceMaterial() {
+      return new THREE.MeshStandardMaterial({
+        color: 0xb9c6cf,
+        metalness: 0.15,
+        roughness: 0.55,
+        side: THREE.DoubleSide
+      });
+    }
+
+    function prepareLooseGeometry(geometry) {
+      if (!geometry) return;
+      if (!geometry.attributes.normal) geometry.computeVertexNormals();
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+    }
+
+    function sanitizeMaterials(root) {
+      const seen = new Set();
+      root.traverse(obj => {
+        if (!obj.isMesh && !obj.isPoints && !obj.isLine) return;
+        if (!obj.geometry) return;
+        if (!obj.geometry.attributes.normal && obj.geometry.attributes.position) {
+          obj.geometry.computeVertexNormals();
+        }
+        obj.visible = true;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(mat => {
+          if (!mat || seen.has(mat)) return;
+          seen.add(mat);
+          mat.visible = true;
+          mat.side = THREE.DoubleSide;
+          if (mat.transparent !== undefined && mat.opacity === 0 && mat.transparent) mat.opacity = 1;
+          if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+          if ('envMapIntensity' in mat && !Number.isFinite(mat.envMapIntensity)) mat.envMapIntensity = 1;
+          mat.needsUpdate = true;
+        });
+      });
+    }
+
+    function finalizeModel(ctx) {
+      const model = ctx.model;
+      model.updateMatrixWorld(true);
+
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      let meshes = 0;
+      let triangles = 0;
+      let vertices = 0;
+      let materials = new Set();
+      let textures = new Set();
+      model.traverse(o => {
+        if (o.isMesh || o.isPoints || o.isLine) {
+          meshes++;
+          const g = o.geometry;
+          if (g) {
+            const pos = g.attributes.position;
+            if (pos) {
+              vertices += pos.count;
+              if (g.index) triangles += g.index.count / 3;
+              else if (o.isMesh) triangles += pos.count / 3;
+            }
+          }
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => {
+            if (!m) return;
+            materials.add(m.uuid);
+            ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap'].forEach(k => {
+              if (m[k]) textures.add(m[k].uuid);
+            });
+          });
+        }
+      });
+
+      const entry = {
+        id: ++state.nextId,
+        name: ctx.name,
+        sourceExt: ctx.sourceExt,
+        sourceSize: ctx.sourceSize,
+        model,
+        animations: ctx.animations || [],
+        animationName: ctx.animations?.[0]?.name || '',
+        size, center, box,
+        stats: {
+          meshes,
+          triangles: Math.round(triangles),
+          vertices,
+          materials: materials.size,
+          textures: textures.size
+        },
+        notes: ctx.notes || []
+      };
+
+      state.models.push(entry);
+      renderModelList();
+    }
+
+    /* ==================================================================
+       预览
+       ================================================================== */
+    function selectModel(id) {
+      const entry = state.models.find(m => m.id === id);
+      if (!entry) return;
+      state.activeEntry = entry;
+
+      if (viewRoot) {
+        scene.remove(viewRoot);
+        viewRoot = null;
+        contentRoot = null;
+      }
+
+      contentRoot = entry.model;
+      contentRoot.updateMatrixWorld(true);
+
+      viewRoot = new THREE.Group();
+      viewRoot.name = '__format_convert_preview__';
+      viewRoot.add(contentRoot);
+      scene.add(viewRoot);
+
+      applyPlacement(entry);
+      applyWireframe(wireframeOn);
+      frameObject();
+
+      $('fc-empty').style.display = 'none';
+      $('fc-export').disabled = false;
+      renderModelList();
+      renderAnimationPicker(entry);
+      updateHud(entry);
+    }
+
+    function applyPlacement(entry) {
+      if (!contentRoot) return;
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      const box = new THREE.Box3().setFromObject(contentRoot);
+      box.getCenter(center);
+      box.getSize(size);
+
+      const doCenter = $('fc-opt-center').checked;
+      const doGround = $('fc-opt-ground').checked;
+
+      const off = new THREE.Vector3(
+        doCenter ? -center.x : 0,
+        doGround ? -box.min.y : 0,
+        doCenter ? -center.z : 0
+      );
+      contentRoot.position.copy(off);
+      contentRoot.updateMatrixWorld(true);
+
+      entry.placement = { x: off.x, y: off.y, z: off.z };
+    }
+
+    function frameObject() {
+      if (!contentRoot) return;
+      const box = new THREE.Box3().setFromObject(contentRoot);
+      if (box.isEmpty()) return;
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      const radius = Math.max(size.length() * 0.5, 0.001);
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+      const dist = (radius / Math.sin(fov / 2)) * 1.35;
+
+      const dir = new THREE.Vector3(0.75, 0.5, 1).normalize();
+      camera.position.copy(center).addScaledVector(dir, dist);
+      camera.near = Math.max(dist / 2000, 0.01);
+      camera.far = dist * 40 + 100;
+      camera.updateProjectionMatrix();
+
+      controls.target.copy(center);
+      controls.update();
+
+      const gridSpan = Math.max(size.x, size.z) * 2.2;
+      if (gridSpan > 0 && Number.isFinite(gridSpan)) {
+        grid.scale.setScalar(Math.max(0.05, gridSpan / 200));
+      }
+      axes.scale.setScalar(Math.max(0.4, radius * 0.35));
+    }
+
+    function updateHud(entry) {
+      const s = entry.stats;
+      const lines = [
+        `<b>${entry.name}</b>  ·  ${entry.sourceExt}  ·  ${fmtBytes(entry.sourceSize)}`,
+        `网格 <b>${fmtNum(s.meshes)}</b> · 三角面 <b>${fmtNum(s.triangles)}</b> · 顶点 <b>${fmtNum(s.vertices)}</b>`,
+        `材质 <b>${fmtNum(s.materials)}</b> · 贴图 <b>${fmtNum(s.textures)}</b> · 动画 <b>${fmtNum(entry.animations.length)}</b>`,
+        `尺寸 <b>${entry.size.x.toFixed(2)} × ${entry.size.y.toFixed(2)} × ${entry.size.z.toFixed(2)}</b>`
+      ];
+      if (entry.notes.length) lines.push(entry.notes.join(' / '));
+      lines.push('左键旋转 · 右键平移 · 滚轮缩放');
+      $('fc-hud').innerHTML = lines.join('\n');
+    }
+
+    /* ---------- 模型列表 ---------- */
+    function renderModelList() {
+      const list = $('fc-model-list');
+      if (!state.models.length) {
+        list.innerHTML = '<div class="fc-meta">导入后在这里切换、查看统计。</div>';
+        return;
+      }
+      const activeId = currentEntry()?.id;
+      list.innerHTML = '';
+      state.models.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'fc-model' + (m.id === activeId ? ' active' : '');
+        div.innerHTML =
+          `<span class="tag">${m.sourceExt}</span><span class="name">${m.name}</span>` +
+          `三角面 ${fmtNum(m.stats.triangles)} · 材质 ${fmtNum(m.stats.materials)}` +
+          (m.animations.length ? ` · 动画 ${m.animations.length}` : '');
+        div.onclick = () => selectModel(m.id);
+        list.appendChild(div);
+      });
+    }
+
+    function currentEntry() {
+      return state.activeEntry || state.models[state.models.length - 1] || null;
+    }
+
+    function renderAnimationPicker(entry) {
+      const wrap = $('fc-anim-wrap');
+      const sel = $('fc-anim-select');
+      if (!entry.animations.length) {
+        wrap.style.display = 'none';
+        sel.innerHTML = '';
+        return;
+      }
+      wrap.style.display = 'block';
+      sel.innerHTML = entry.animations
+        .map((clip, i) => `<option value="${i}">${clip.name || 'clip_' + i} (${clip.duration.toFixed(2)}s)</option>`)
+        .join('');
+      sel.value = String(Math.max(0, entry.animations.findIndex(c => c === entry.animationClip)));
+    }
+
+    /* ---------- 视图开关 ---------- */
+    function applyWireframe(on) {
+      if (!contentRoot) return;
+      contentRoot.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => {
+          if (!originalMaterials.has(m)) originalMaterials.set(m, m.wireframe);
+          m.wireframe = on;
+        });
+      });
+    }
+
+    $('fc-opt-wire').onchange = e => {
+      wireframeOn = e.target.checked;
+      applyWireframe(wireframeOn);
+    };
+
+    $('fc-opt-grid').onchange = e => {
+      grid.visible = e.target.checked;
+      axes.visible = e.target.checked && !!contentRoot;
+    };
+
+    $('fc-opt-center').onchange = () => {
+      const entry = currentEntry();
+      if (entry) applyPlacement(entry);
+    };
+    $('fc-opt-ground').onchange = () => {
+      const entry = currentEntry();
+      if (entry) applyPlacement(entry);
+    };
+
+    $('fc-fit').onclick = () => frameObject();
+    $('fc-clear').onclick = () => clearAll();
+
+    function clearAll() {
+      state.models.forEach(m => {
+        if (viewRoot && viewRoot.children.includes(m.model)) viewRoot.remove(m.model);
+      });
+      state.models = [];
+      state.activeEntry = null;
+      if (viewRoot) {
+        scene.remove(viewRoot);
+        viewRoot = null;
+        contentRoot = null;
+      }
+      externalResources.forEach(r => URL.revokeObjectURL(r.url));
+      externalResources = [];
+      if (manager) refreshResourceIndex();
+      $('fc-empty').style.display = 'grid';
+      $('fc-export').disabled = true;
+      $('fc-anim-wrap').style.display = 'none';
+      $('fc-hud').innerHTML = '等待导入模型…';
+      $('fc-import-meta').textContent = '尚未导入任何文件。';
+      $('fc-export-meta').textContent = '导出的 GLB 可直接在建模编辑器里用「本地导入」打开。';
+      renderModelList();
+      toast('已清空。');
+    }
+
+    /* ==================================================================
+       环境反射：用 three 内置的程序化房间环境，离线可用且无需 CORS
+       ================================================================== */
+    let envTexture = null;
+    (function setupEnv() {
+      try {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        scene.environment = envTexture;
+        scene.environmentIntensity = 0.75;
+        pmrem.dispose();
+      } catch (e) {
+        console.warn('[format-convert] 程序化环境生成失败，仅使用灯光', e);
+        const toggle = $('fc-opt-env');
+        toggle.checked = false;
+        toggle.disabled = true;
+      }
+    })();
+
+    $('fc-opt-env').onchange = e => {
+      scene.environment = e.target.checked ? envTexture : null;
+    };
+
+    /* ==================================================================
+       渲染循环
+       ================================================================== */
+    function resize() {
+      const w = canvas.clientWidth || 1;
+      const h = canvas.clientHeight || 1;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(canvas);
+    window.addEventListener('resize', resize);
+    resize();
+
+    renderer.setAnimationLoop(() => {
+      controls.update();
+      renderer.render(scene, camera);
+    });
+
+    /* ==================================================================
+       导出 GLB
+       ================================================================== */
+    $('fc-export').onclick = async () => {
+      const entry = currentEntry();
+      if (!entry) return;
+      setBusy(true, '正在导出 GLB…');
+      await nextFrame();
+      try {
+        const result = await exportEntry(entry);
+        downloadBlob(result.blob, `${entry.name || 'model'}.glb`);
+        const ratio = entry.sourceSize > 0 ? result.blob.size / entry.sourceSize : 0;
+        const heavy = result.blob.size > 100 * 1024 * 1024;
+        const growNote = (ratio > 2 && entry.sourceSize > 0)
+          ? `<br /><span style="color:#ffb44d">注意：源文件是压缩过的（${fmtBytes(entry.sourceSize)}，可能是 Draco），导出后展开为 ${fmtBytes(result.blob.size)}，属正常现象。</span>`
+          : '';
+        $('fc-export-meta').innerHTML =
+          `已导出 <b>${entry.name}.glb</b>（${fmtBytes(result.blob.size)}，` +
+          `验证：mesh ${result.report.meshes} / 三角面 ${fmtNum(result.report.triangles)}` +
+          `${result.report.animations ? ` / 动画 ${result.report.animations}` : ''}` +
+          `${result.report.images ? ` / 内嵌贴图 ${result.report.images}` : ''}）。<br />` +
+          `在建模编辑器里用「本地导入」选择该文件即可。` + growNote +
+          (heavy ? '<br /><span style="color:#ff5f6d">模型较大，导入编辑器可能需要较长加载时间。</span>' : '');
+        toast('导出成功，已开始下载。', 'ok');
+      } catch (err) {
+        console.error(err);
+        $('fc-export-meta').textContent = '导出失败：' + (err?.message || err);
+        toast('导出失败：' + (err?.message || err), 'err');
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    async function exportEntry(entry) {
+      const root = entry.model;
+      root.updateMatrixWorld(true);
+
+      if ($('fc-opt-bake').checked) await bakeTextures(root);
+
+      const animations = $('fc-opt-anim').checked ? entry.animations.slice() : [];
+      const exporter = new GLTFExporter();
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        exporter.parse(root, resolve, reject, {
+          binary: true,
+          animations,
+          onlyVisible: false,
+          embedImages: true,
+          includeCustomExtensions: false,
+          maxTextureSize: 4096
+        });
+      });
+
+      const report = inspectGlb(arrayBuffer);
+      return { blob: new Blob([arrayBuffer], { type: 'model/gltf-binary' }), report };
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+
+    /**
+     * 把 TGA/BLOB 等来源的贴图转成 canvas，GLTFExporter 才能内嵌。
+     */
+    async function bakeTextures(root) {
+      const jobs = [];
+      const seen = new Set();
+      root.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(mat => {
+          if (!mat) return;
+          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'specularMap'].forEach(slot => {
+            const tex = mat[slot];
+            if (!tex || !tex.image || seen.has(tex)) return;
+            seen.add(tex);
+            jobs.push(bakeTexture(tex));
+          });
+        });
+      });
+      await Promise.all(jobs);
+    }
+
+    function bakeTexture(tex) {
+      return new Promise(resolve => {
+        try {
+          const img = tex.image;
+          if (img instanceof HTMLCanvasElement || (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap)) {
+            resolve();
+            return;
+          }
+          const w = img.naturalWidth || img.videoWidth || img.width;
+          const h = img.naturalHeight || img.videoHeight || img.height;
+          if (!w || !h) { resolve(); return; }
+
+          const max = 4096;
+          const scale = Math.min(1, max / Math.max(w, h));
+          const cw = Math.max(1, Math.round(w * scale));
+          const ch = Math.max(1, Math.round(h * scale));
+          const cv = document.createElement('canvas');
+          cv.width = cw;
+          cv.height = ch;
+          const ctx2d = cv.getContext('2d');
+          ctx2d.drawImage(img, 0, 0, cw, ch);
+          tex.image = cv;
+          tex.needsUpdate = true;
+          resolve();
+        } catch (e) {
+          console.warn('[format-convert] 贴图烘焙失败，保留原引用', e);
+          resolve();
+        }
+      });
+    }
+
+    /**
+     * 读取 GLB 头与 JSON chunk，做导出后的自校验。
+     */
+    function inspectGlb(buffer) {
+      const dv = new DataView(buffer);
+      const magic = dv.getUint32(0, true);
+      const version = dv.getUint32(4, true);
+      const total = dv.getUint32(8, true);
+      if (magic !== 0x46546c67) throw new Error('导出的文件不是合法 GLB');
+      const jsonLen = dv.getUint32(12, true);
+      const jsonType = dv.getUint32(16, true);
+      if (jsonType !== 0x4e4f534a) throw new Error('GLB JSON chunk 异常');
+      const jsonText = new TextDecoder().decode(new Uint8Array(buffer, 20, jsonLen));
+      const json = JSON.parse(jsonText);
+
+      let triangles = 0;
+      (json.meshes || []).forEach(mesh => {
+        (mesh.primitives || []).forEach(p => {
+          const idx = json.accessors?.[p.indices];
+          if (idx) {
+            triangles += (idx.count || 0) / (p.mode === 4 || p.mode === undefined ? 3 : 1);
+          } else {
+            // 非索引几何（如 STL）用 POSITION 数量估算
+            const pos = json.accessors?.[p.attributes?.POSITION];
+            if (pos && (p.mode === 4 || p.mode === undefined)) triangles += (pos.count || 0) / 3;
+          }
+        });
+      });
+
+      return {
+        version,
+        byteLength: total,
+        meshes: (json.meshes || []).length,
+        materials: (json.materials || []).length,
+        images: (json.images || []).length,
+        animations: (json.animations || []).length,
+        nodes: (json.nodes || []).length,
+        triangles: Math.round(triangles)
+      };
+    }
+
+    /* ==================================================================
+       杂项 UI
+       ================================================================== */
+    function setBusy(on, text) {
+      state.busy = on;
+      const el = $('fc-busy');
+      if (text) el.textContent = text;
+      el.classList.toggle('on', on);
+    }
+
+    $('fc-guide-btn').onclick = () => $('fc-guide').classList.add('on');
+    $('fc-guide-close').onclick = () => $('fc-guide').classList.remove('on');
+    $('fc-guide').addEventListener('click', e => {
+      if (e.target === $('fc-guide')) $('fc-guide').classList.remove('on');
+    });
+
+    $('fc-open-editor').onclick = () => {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: 'modelinglab:open-editor' }, '*');
+          return;
+        }
+      } catch (e) { /* 跨域则直接跳转 */ }
+      location.href = './three-webgpu-editor/docs/index.html';
+    };
+
+    /* ---------- 示例模型（用于快速验证链路） ---------- */
+    $('fc-demo').onclick = async () => {
+      setBusy(true, '正在载入示例模型…');
+      try {
+        const url = 'https://unpkg.com/three@0.185.1/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf';
+        ensureManager();
+        const loader = new GLTFLoader(manager);
+        loader.setDRACOLoader(dracoLoader);
+        loader.setKTX2Loader(ktx2Loader);
+        const gltf = await loader.loadAsync(url);
+        const model = gltf.scene || gltf.scenes?.[0];
+        await loadAndRegister({
+          name: 'DamagedHelmet',
+          sourceExt: 'GLTF',
+          sourceSize: 0,
+          model,
+          animations: gltf.animations || [],
+          notes: ['在线示例']
+        });
+      } catch (err) {
+        console.error(err);
+        toast('示例模型加载失败（需要联网）：' + (err?.message || err), 'err');
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    async function loadAndRegister(ctx) {
+      finalizeModel(ctx);
+      selectModel(state.models[state.models.length - 1].id);
+    }
+
+    /* ==================================================================
+       自检钩子（?autotest=1 触发；也可在控制台调用 window.__FC__）
+       ================================================================== */
+    window.__FC__ = {
+      version: THREE_VERSION,
+      importUrl: async (url, name, timeoutMs = 45000) => {
+        // 导入到界面时用显示名，但格式始终以真实 URL 的后缀为准
+        const isDataUrl = /^data:/i.test(String(url));
+        const dataExt = isDataUrl ? (String(url).slice(5).split(/[;,]/)[0].split('/')[1] || 'gltf').replace('+json', '') : '';
+        const urlExt = extOf(url);
+        const nameExt = extOf(name);
+        const ext = isDataUrl ? (dataExt || 'gltf') : (urlExt || nameExt);
+        const displayName = isDataUrl
+          ? `内嵌样例.${ext}`
+          : ((name && nameExt) ? name : (name || url).split(/[?#]/)[0].split(/[\\/]/).pop());
+        ensureManager();
+        setBusy(true, '正在加载 ' + displayName + ' …');
+        const timer = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`加载超时（${timeoutMs}ms）: ${displayName}`)), timeoutMs));
+        try {
+          await Promise.race([timer, (async () => {
+            if (ext === 'gltf' || ext === 'glb') {
+              const loader = new GLTFLoader(manager);
+              loader.setDRACOLoader(dracoLoader);
+              loader.setKTX2Loader(ktx2Loader);
+              const gltf = await loader.loadAsync(url);
+              await loadAndRegister({
+                name: baseOf(displayName) || 'remote',
+                sourceExt: ext.toUpperCase(),
+                sourceSize: 0,
+                model: gltf.scene || gltf.scenes?.[0],
+                animations: gltf.animations || [],
+                notes: ['URL 导入']
+              });
+            } else if (MODEL_EXT.includes(ext)) {
+              const res = await fetch(url);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const buf = await res.arrayBuffer();
+              const file = new File([buf], displayName);
+              await loadModelFile(file);
+              selectModel(state.models[state.models.length - 1].id);
+            } else {
+              throw new Error('无法识别的扩展名: ' + (ext || '(空)'));
+            }
+          })()]);
+          return { ok: true, count: state.models.length, name: currentEntry()?.name || '' };
+        } catch (err) {
+          return { ok: false, error: String(err?.message || err) };
+        } finally {
+          setBusy(false);
+        }
+      },
+      importText: async (text, name) => {
+        ensureManager();
+        try {
+          const file = new File([text], name);
+          await loadModelFile(file);
+          selectModel(state.models[state.models.length - 1].id);
+          return { ok: true, count: state.models.length, name: currentEntry()?.name || '' };
+        } catch (err) {
+          return { ok: false, error: String(err?.message || err) };
+        }
+      },
+      exportActive: async () => {
+        const entry = currentEntry();
+        if (!entry) return { ok: false, error: '当前没有模型' };
+        try {
+          const { blob, report } = await exportEntry(entry);
+          const buffer = await blob.arrayBuffer();
+          let binaryOk = false;
+          try {
+            const check = new GLTFLoader(manager);
+            check.setDRACOLoader(dracoLoader);
+            check.setKTX2Loader(ktx2Loader);
+            const url = URL.createObjectURL(new Blob([buffer], { type: 'model/gltf-binary' }));
+            const parsed = await check.loadAsync(url);
+            URL.revokeObjectURL(url);
+            let meshes = 0;
+            parsed.scene.traverse(o => { if (o.isMesh) meshes++; });
+            binaryOk = meshes > 0;
+          } catch (e) {
+            console.warn('回读校验失败', e);
+          }
+          return {
+            ok: true,
+            name: entry.name,
+            byteLength: buffer.byteLength,
+            report,
+            reloadOk: binaryOk,
+            stats: entry.stats
+          };
+        } catch (err) {
+          return { ok: false, error: String(err?.message || err) };
+        }
+      },
+      stats: () => ({ count: state.models.length, models: state.models.map(m => ({ name: m.name, ext: m.sourceExt, ...m.stats })) }),
+      // 诊断用：查看外部资源索引与 blob URL 是否仍然可用
+      debugResources: async () => {
+        const probe = [];
+        for (const r of externalResources) {
+          let alive = false;
+          let bytes = -1;
+          try {
+            const res = await fetch(r.url);
+            const buf = await res.arrayBuffer();
+            alive = true;
+            bytes = buf.byteLength;
+          } catch (e) { alive = false; }
+          probe.push({ path: r.path, url: r.url, name: r.name, size: r.size, alive, bytes });
+        }
+        return {
+          managerReady: !!manager,
+          mapSize: manager && manager.__map ? manager.__map.size : -1,
+          mapKeys: manager && manager.__map ? Array.from(manager.__map.keys()) : [],
+          resources: probe
+        };
+      }
+    };
+    document.body.dataset.fcReady = '1';
+
+    /* ---------- ?autotest=… 自检：验证「导入 → 统计 → 导出 GLB → 回读」链路 ---------- */
+
+    // 自检基线样例：自包含立方体（几何为内联 data URI），不依赖任何外部文件
+    const SELFTEST_GLTF = 'data:model/gltf+json;base64,eyJhc3NldCI6eyJ2ZXJzaW9uIjoiMi4wIiwiZ2VuZXJhdG9yIjoiZm9ybWF0LWNvbnZlcnQgc2VsZnRlc3QifSwic2NlbmUiOjAsInNjZW5lcyI6W3sibm9kZXMiOlswXX1dLCJub2RlcyI6W3sibWVzaCI6MCwibmFtZSI6IlNlbGZ0ZXN0Q3ViZSJ9XSwibWVzaGVzIjpbeyJuYW1lIjoiU2VsZnRlc3RDdWJlIiwicHJpbWl0aXZlcyI6W3siYXR0cmlidXRlcyI6eyJQT1NJVElPTiI6MH0sImluZGljZXMiOjEsIm1hdGVyaWFsIjowfV19XSwibWF0ZXJpYWxzIjpbeyJuYW1lIjoiU2VsZiIsInBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzAuMzUsMC44LDAuOTUsMV0sIm1ldGFsbGljRmFjdG9yIjowLjIsInJvdWdobmVzc0ZhY3RvciI6MC41fX1dLCJidWZmZXJzIjpbeyJ1cmkiOiJkYXRhOmFwcGxpY2F0aW9uL29jdGV0LXN0cmVhbTtiYXNlNjQsQUFDQXZ3QUFnTDhBQUlDL0FBQ0FQd0FBZ0w4QUFJQy9BQUNBUHdBQWdEOEFBSUMvQUFDQXZ3QUFnRDhBQUlDL0FBQ0F2d0FBZ0w4QUFJQS9BQUNBUHdBQWdMOEFBSUEvQUFDQVB3QUFnRDhBQUlBL0FBQ0F2d0FBZ0Q4QUFJQS9BQUFCQUFJQUFBQUNBQU1BQkFBR0FBVUFCQUFIQUFZQUFBQUVBQVVBQUFBRkFBRUFBUUFGQUFZQUFRQUdBQUlBQWdBR0FBY0FBZ0FIQUFNQUF3QUhBQVFBQXdBRUFBQUEiLCJieXRlTGVuZ3RoIjoxNjh9XSwiYnVmZmVyVmlld3MiOlt7ImJ1ZmZlciI6MCwiYnl0ZU9mZnNldCI6MCwiYnl0ZUxlbmd0aCI6OTYsInRhcmdldCI6MzQ5NjJ9LHsiYnVmZmVyIjowLCJieXRlT2Zmc2V0Ijo5NiwiYnl0ZUxlbmd0aCI6NzIsInRhcmdldCI6MzQ5NjN9XSwiYWNjZXNzb3JzIjpbeyJidWZmZXJWaWV3IjowLCJjb21wb25lbnRUeXBlIjo1MTI2LCJjb3VudCI6OCwidHlwZSI6IlZFQzMiLCJtaW4iOlstMSwtMSwtMV0sIm1heCI6WzEsMSwxXX0seyJidWZmZXJWaWV3IjoxLCJjb21wb25lbnRUeXBlIjo1MTIzLCJjb3VudCI6MzYsInR5cGUiOiJTQ0FMQVIifV19';
+
+    (async function maybeSelfTest() {
+      const param = new URLSearchParams(location.search).get('autotest');
+      if (param === null) return;
+
+      // autotest=1 用内嵌基线样例 + 仓库内 GLB；也可传 JSON：?autotest={"名字":"./路径.glb"}
+      const isPlain = v => v && typeof v === 'object' && !Array.isArray(v);
+      let cases = null;
+      if (param === '' || param === '1' || param === 'true') {
+        // 内嵌样例永远可用；另外两条为仓库内样例（缺失时会各自报错，不影响自检完成）
+        cases = {
+          '内嵌立方体（data URI gltf）': SELFTEST_GLTF,
+          'ferrari_glb': './three-webgpu-editor/docs/models/future/ferrari.glb',
+          'damaged_helmet_glb': './three-webgpu-editor/docs/models/future/damaged_helmet.glb'
+        };
+      } else if (param === 'online') {
+        cases = {
+          'DamagedHelmet_gltf': 'https://unpkg.com/three@0.185.1/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+        };
+      } else {
+        try {
+          const parsed = JSON.parse(param);
+          if (isPlain(parsed)) cases = parsed;
+        } catch (e) { /* 忽略 */ }
+      }
+      if (!cases) return;
+
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+      const results = { three: THREE_VERSION, cases: {} };
+
+      for (const [name, url] of Object.entries(cases)) {
+        const one = { url, import: null, export: null };
+        one.import = await window.__FC__.importUrl(url, name);
+        if (one.import && one.import.ok) {
+          one.export = await window.__FC__.exportActive();
+        }
+        results.cases[name] = one;
+        await sleep(80);
+      }
+      results.stats = window.__FC__.stats();
+
+      const text = JSON.stringify(results, null, 2);
+      document.body.dataset.fcSelfTest = 'done';
+      const pre = document.createElement('pre');
+      pre.id = 'fc-selftest-result';
+      pre.textContent = text;
+      pre.style.cssText = 'position:fixed;left:-9999px;top:0;white-space:pre-wrap;font-size:11px';
+      document.body.appendChild(pre);
+      console.log('[format-convert] 自检结果', results);
+    })();
+  </script>
+</body>
+
+</html>

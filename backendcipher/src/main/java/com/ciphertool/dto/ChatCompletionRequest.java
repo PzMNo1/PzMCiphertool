@@ -11,6 +11,9 @@ public class ChatCompletionRequest {
     private Boolean stream;
     private List<Tool> tools;  // 工具定义
 
+    // 仅透传 max_tokens（输出上限），不透传 temperature/top_p：保留上游默认采样行为。
+    private Integer max_tokens;
+
     @Data
     public static class Message {
         private String role;

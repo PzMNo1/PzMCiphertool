@@ -198,6 +198,23 @@
   font-style: normal;
 }
 
+.message-text a.citation-link {
+  color: #40e0ff;
+  text-decoration: none;
+  border-bottom: none;
+  font-size: 0.8em;
+  vertical-align: super;
+  padding: 0 1px;
+}
+
+.message-text a.citation-link:hover {
+  text-decoration: underline;
+}
+
+.message-text .markdown-source-line {
+  scroll-margin-top: 80px;
+}
+
 .message-text a {
   color: #8ee7ff;
   text-decoration: none;
@@ -527,6 +544,126 @@
   flex-direction: column;
   gap: 8px;
   pointer-events: auto;
+  position: relative;
+}
+
+/* 输入框包裹层：为右下角圆环提供定位参照 */
+.input-field-wrap {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 上下文窗口圆环进度条（输入框右下角） */
+.context-progress-ring {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.context-progress-ring.visible {
+  opacity: 1;
+}
+
+.context-progress-ring svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.context-ring-track {
+  fill: none;
+  stroke: rgba(142, 231, 255, 0.16);
+  stroke-width: 3.5;
+}
+
+.context-ring-value {
+  fill: none;
+  stroke: #40e0d0;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 113.1;
+  stroke-dashoffset: 113.1;
+  transition: stroke-dashoffset 0.4s ease, stroke 0.4s ease;
+}
+
+.context-ring-label {
+  position: relative;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #8ee7ff;
+  font-family: "Consolas", "Monaco", monospace;
+  letter-spacing: -0.02em;
+}
+
+.context-progress-ring.warn .context-ring-value {
+  stroke: #f5a524;
+}
+
+.context-progress-ring.warn .context-ring-label {
+  color: #f5a524;
+}
+
+.context-progress-ring.danger .context-ring-value {
+  stroke: #ff5c70;
+}
+
+.context-progress-ring.danger .context-ring-label {
+  color: #ff5c70;
+}
+
+/* 性能监控信息（输入框下方） */
+.performance-monitor {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: rgba(142, 231, 255, 0.8);
+  background: rgba(10, 18, 26, 0.42);
+  border: 1px solid rgba(64, 224, 255, 0.14);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-family: "Consolas", "Monaco", monospace;
+}
+
+.performance-monitor.visible {
+  display: flex;
+}
+
+.performance-monitor .perf-item {
+  white-space: nowrap;
+}
+
+.performance-monitor .perf-item strong {
+  color: #8bffb9;
+  font-weight: 600;
+}
+
+.performance-monitor .perf-sep {
+  color: rgba(142, 231, 255, 0.3);
+}
+
+.performance-monitor .perf-lead {
+  color: rgba(142, 231, 255, 0.55);
 }
 
 .attachment-list {
@@ -703,7 +840,8 @@
   width: 100%;
   min-height: 80px;
   max-height: 150px;
-  padding: 12px 16px;
+  padding: 12px 60px 12px 16px;
+  /* 右侧留空间给圆环进度条 */
   border-radius: 10px;
   background-color: rgba(13, 23, 38, 0.34);
   border: 1px solid rgba(142, 231, 255, 0.22);
@@ -712,6 +850,7 @@
   color: var(--text);
   resize: none;
   transition: border-color 0.3s, box-shadow 0.3s;
+  position: relative;
 }
 
 #user-input:focus {
@@ -997,7 +1136,24 @@
   #user-input {
     min-height: 75px;
     height: auto;
-    padding: 10px;
+    padding: 10px 52px 10px 10px;
+  }
+
+  .context-progress-ring {
+    right: 4px;
+    bottom: 4px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .context-ring-label {
+    font-size: 0.52rem;
+  }
+
+  .performance-monitor {
+    font-size: 0.62rem;
+    gap: 3px 8px;
+    padding: 5px 8px;
   }
 
   #sidebar-toggle,
@@ -2062,6 +2218,165 @@
   display: grid;
   gap: 5px;
   margin-top: 10px;
+}
+
+/* 多 Agent 协作面板 */
+.agent-collaboration-panel {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 176, 46, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 176, 46, 0.05);
+}
+
+.agent-collaboration-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agent-collaboration-title {
+  font-family: 'Orbitron', 'Consolas', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 176, 46, 0.92);
+}
+
+.agent-collaboration-mode {
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 176, 46, 0.26);
+  border-radius: 999px;
+  font-size: 0.62rem;
+  color: rgba(255, 214, 150, 0.92);
+  background: rgba(255, 176, 46, 0.08);
+}
+
+.agent-collaboration-count {
+  margin-left: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.62rem;
+  color: rgba(230, 250, 255, 0.6);
+}
+
+.agent-collaboration-members {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.agent-collaborator {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(142, 231, 255, 0.2);
+  background: rgba(142, 231, 255, 0.06);
+  color: rgba(224, 247, 255, 0.84);
+  font-size: 0.64rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* 专家活动明细：让"专家到底在做什么、有没有用过工具"可见 */
+.agent-collaborator-row {
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(142, 231, 255, 0.18);
+  background: rgba(142, 231, 255, 0.05);
+}
+
+.agent-collaborator-row.ok {
+  border-color: rgba(139, 255, 185, 0.28);
+  background: rgba(139, 255, 185, 0.06);
+}
+
+.agent-collaborator-row.fail {
+  border-color: rgba(255, 92, 112, 0.3);
+  background: rgba(255, 92, 112, 0.07);
+}
+
+.agent-collaborator-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-collaborator-name {
+  color: rgba(240, 252, 255, 0.95);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.agent-collaborator-state {
+  color: rgba(200, 230, 245, 0.7);
+  font-size: 0.62rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: nowrap;
+}
+
+.agent-collaborator-line {
+  display: block;
+  margin-top: 3px;
+  color: rgba(190, 220, 235, 0.62);
+  font-size: 0.6rem;
+  line-height: 1.4;
+  font-family: 'Consolas', 'Monaco', monospace;
+  word-break: break-all;
+}
+
+.agent-collaborator-tools {
+  color: rgba(142, 231, 255, 0.8);
+}
+
+.agent-collaborator-queries {
+  color: rgba(255, 214, 150, 0.78);
+}
+
+.agent-collaborator-action {
+  color: rgba(200, 230, 245, 0.72);
+}
+
+/* Mermaid 图表容器 */
+.agent-diagram {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid rgba(142, 231, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(8, 18, 28, 0.42);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.agent-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 图表语法有误时保留源码，并给出说明 */
+pre.language-mermaid[data-mermaid-state="error"]::after {
+  content: "（图表语法有误，以上为源码）";
+  display: block;
+  margin-top: 6px;
+  color: rgba(255, 150, 165, 0.85);
+  font-size: 0.7rem;
+}
+
+pre.language-mermaid[data-mermaid-state="error"] {
+  border-color: rgba(255, 92, 112, 0.32);
+}
+
+.agent-collaborator.ok {
+  border-color: rgba(139, 255, 185, 0.3);
+  background: rgba(139, 255, 185, 0.08);
+  color: rgba(180, 255, 210, 0.92);
+}
+
+.agent-collaborator.fail {
+  border-color: rgba(255, 92, 112, 0.3);
+  background: rgba(255, 92, 112, 0.08);
+  color: rgba(255, 170, 180, 0.92);
 }
 
 .agent-trace-row {

@@ -436,4 +436,68 @@ ujtosc.txt Unijunction Oscillator
 3motor.txt 3-Phase Motor
 latchingrelay.txt Latching Relay
 -
++Semiconductor
++PN Junctions and Diodes
+diodevar.txt Diode
+diodecurve.txt Diode I/V Curve
+rectify.txt Half-Wave Rectifier
+fullrect.txt Full-Wave Rectifier
+fullrectf.txt Full-Wave Rectifier w/ Filter
+zeneriv.txt Zener I/V Curve
+zenerref.txt Voltage Reference
+zenerreffollow.txt Voltage Reference w/ Follower
+dcrestoration.txt DC Restoration
+-
++Bipolar Transistors (BJT)
+npn.txt NPN Transistor
+pnp.txt PNP Transistor
+transswitch.txt Switch
+follower.txt Emitter Follower
+ceamp.txt Common-Emitter Amplifier
+phasesplit.txt Unity-Gain Phase Splitter
+mirror.txt Current Mirror
+currentsrc.txt Current Source
+darlington.txt Darlington Pair
+trans-diffamp.txt Differential Input
+trans-diffamp-common.txt Common-Mode Input
+multivib-a.txt Astable Multivib
+colpitts.txt Colpitts Oscillator
+hartley.txt Hartley Oscillator
+-
++Field-Effect Transistors (MOSFET)
+nmosfet.txt n-MOSFET
+pmosfet.txt p-MOSFET
+mosswitch.txt Switch
+mosfollower.txt Source Follower
+mosfetamp.txt Common-Source Amplifier
+moscurrentsrc.txt Current Source
+mosmirror.txt Current Mirror
+cmosinverter.txt CMOS Inverter
+cmosinvertercap.txt CMOS Inverter (w/capacitance)
+cmostransgate.txt CMOS Transmission Gate
+cmosnand.txt CMOS NAND
+cmosnor.txt CMOS NOR
+cmosxor.txt CMOS XOR
+cmosff.txt CMOS Flip-Flop
+-
++JFETs
+jfetcurrentsrc.txt JFET Current Source
+jfetfollower.txt JFET Follower
+jfetfollower-nooff.txt JFET Follower w/zero offset
+jfetamp.txt Common-Source Amplifier
+lambda-diode.txt Lambda Diode
+-
++IC Internals and Logic Families
+opint.txt 741 Internals
+opint-invert-amp.txt 741 (inverting amplifier)
+opint-slew.txt 741 Slew Rate
+555int.txt 555 Timer Internals
+rtlinverter.txt RTL Inverter
+dtlnand.txt DTL NAND
+ttlnand.txt TTL NAND
+nmosinverter.txt NMOS Inverter
+cmosmsff.txt CMOS Master-Slave Flip-Flop
+eclnor.txt ECL NOR/OR
+-
+-
 blank.txt Blank Circuit

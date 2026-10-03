@@ -25,21 +25,18 @@ if exist "%PROJECT_ROOT%\.env" (
     )
 )
 if not defined OPENAI_BASE_URL set OPENAI_BASE_URL=https://api.deepseek.com/v1
-if not defined OPENAI_MODEL set OPENAI_MODEL=deepseek-v4-flash
+REM DeepSeek-V4.1-Flash (official model name: deepseek-flash)
+if not defined OPENAI_MODEL set OPENAI_MODEL=deepseek-flash
 
 REM ============ Portable Environment Override ============
 set LOCAL_TOOLS=%SCRIPT_DIR%.tools
-if exist "%LOCAL_TOOLS%\jdk\bin\java.exe" (
-    set JAVA_HOME=%LOCAL_TOOLS%\jdk
-    set PATH=%JAVA_HOME%\bin;%PATH%
-)
-if exist "%LOCAL_TOOLS%\maven\bin\mvn.cmd" (
-    set MAVEN_HOME=%LOCAL_TOOLS%\maven
-    set PATH=%MAVEN_HOME%\bin;%PATH%
-)
-if exist "%LOCAL_TOOLS%\redis\redis-server.exe" (
-    set REDIS_HOME=%LOCAL_TOOLS%\redis
-)
+if exist "%LOCAL_TOOLS%\jdk\bin\java.exe"     set "JAVA_HOME=%LOCAL_TOOLS%\jdk"
+if exist "%LOCAL_TOOLS%\jdk\bin\java.exe"     set "PATH=%LOCAL_TOOLS%\jdk\bin;%PATH%"
+if exist "%LOCAL_TOOLS%\maven\bin\mvn.cmd"    set "MAVEN_HOME=%LOCAL_TOOLS%\maven"
+if exist "%LOCAL_TOOLS%\maven\bin\mvn.cmd"    set "PATH=%LOCAL_TOOLS%\maven\bin;%PATH%"
+if exist "%LOCAL_TOOLS%\redis\redis-server.exe" set "REDIS_HOME=%LOCAL_TOOLS%\redis"
+if exist "%LOCAL_TOOLS%\node\node.exe"        set "NODE_HOME=%LOCAL_TOOLS%\node"
+if exist "%LOCAL_TOOLS%\node\node.exe"        set "PATH=%LOCAL_TOOLS%\node;%PATH%"
 
 REM ============ Aliyun SMS Configuration ============
 REM set ALIYUN_ACCESS_KEY_ID=your_key_id

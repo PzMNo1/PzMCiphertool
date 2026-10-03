@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>世界模型 · World Model Studio</title>
+    <link rel="stylesheet" href="./worldmodel.css" />
+</head>
+
+<body>
+    <div class="wm-shell" id="wm-shell" data-wm-status="booting">
+        <div class="wm-notice" id="wm-notice" hidden>
+            <span class="wm-notice-text" id="wm-notice-text"></span>
+            <button type="button" class="wm-btn ghost" id="wm-notice-retry">重新检测</button>
+        </div>
+
+        <div class="wm-body">
+            <!-- ============ 左栏：生成 + 作品库 ============ -->
+            <aside class="wm-side">
+                <section class="wm-card">
+                    <h3 class="wm-card-title">生成新世界</h3>
+
+                    <div class="wm-modes" role="tablist" aria-label="输入方式">
+                        <button type="button" class="wm-mode on" data-mode="text" role="tab" aria-selected="true">文字生成</button>
+                        <button type="button" class="wm-mode" data-mode="image" role="tab" aria-selected="false">图片生成</button>
+                    </div>
+
+                    <div class="wm-field" id="wm-prompt-field">
+                        <label for="wm-prompt">场景描述</label>
+                        <textarea id="wm-prompt" rows="5"
+                            placeholder="例如：一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪"></textarea>
+                        <div class="wm-tips">
+                            <button type="button" class="wm-chip" data-prompt="一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪">临海木工房</button>
+                            <button type="button" class="wm-chip" data-prompt="雨夜霓虹灯下的赛博朋克小巷，湿漉漉的地面反射着招牌的光，两侧是密集的店铺和蒸汽管道">雨夜赛博小巷</button>
+                            <button type="button" class="wm-chip" data-prompt="一间安静的材料实验室，白色实验台上整齐摆放着样品和显微镜，环形灯带提供了均匀的顶光">材料实验室</button>
+                            <button type="button" class="wm-chip" data-prompt="悬浮在云海之上的未来观测站，环形平台边缘是可穿透的透明地板，远处有缓慢移动的巨型结构">云海观测站</button>
+                        </div>
+                    </div>
+
+                    <div class="wm-field" id="wm-image-field" hidden>
+                        <label for="wm-image">参考图片</label>
+                        <div class="wm-drop" id="wm-drop">
+                            <input type="file" id="wm-image" accept="image/png,image/jpeg,image/webp" hidden />
+                            <img id="wm-image-preview" alt="参考图预览" hidden />
+                            <div class="wm-drop-text" id="wm-drop-text">点击或拖入图片（png / jpg / webp，≤ 8MB）</div>
+                        </div>
+                        <button type="button" class="wm-btn ghost" id="wm-image-clear" hidden>清除图片</button>
+                    </div>
+
+                    <div class="wm-field">
+                        <label for="wm-name">作品名称（可选）</label>
+                        <input type="text" id="wm-name" maxlength="64" placeholder="留空则由上游自动命名" />
+                    </div>
+
+                    <details class="wm-advanced">
+                        <summary>高级选项</summary>
+                        <div class="wm-field">
+                            <label for="wm-model">模型</label>
+                            <select id="wm-model">
+                                <option value="marble-1.1">Marble 1.1（默认）</option>
+                                <option value="marble-1.1-plus">Marble 1.1 Plus（更大场景，消耗更多额度）</option>
+                                <option value="marble-1.0">Marble 1.0</option>
+                                <option value="marble-1.0-draft">Marble 1.0 Draft（最快，质量较低）</option>
+                            </select>
+                        </div>
+                        <label class="wm-check">
+                            <input type="checkbox" id="wm-recaption" checked />
+                            <span>自动优化提示词（关闭则严格按我写的词生成）</span>
+                        </label>
+                        <label class="wm-check">
+                            <input type="checkbox" id="wm-public" />
+                            <span>公开这个作品（默认私有，仅自己可见）</span>
+                        </label>
+                    </details>
+
+                    <button type="button" class="wm-btn primary" id="wm-generate">生成世界</button>
+
+                    <div class="wm-progress" id="wm-progress" hidden>
+                        <div class="wm-progress-head">
+                            <span id="wm-progress-text">已提交…</span>
+                            <span id="wm-progress-time"></span>
+                        </div>
+                        <div class="wm-progress-bar"><span id="wm-progress-fill"></span></div>
+                        <div class="wm-progress-foot">
+                            <span id="wm-progress-hint">世界生成通常需要 5 分钟左右，可以先去干别的。</span>
+                            <button type="button" class="wm-btn ghost tiny" id="wm-cancel">取消等待</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wm-card wm-grow">
+                    <div class="wm-card-head">
+                        <h3 class="wm-card-title">作品库</h3>
+                        <button type="button" class="wm-btn ghost tiny" id="wm-refresh">刷新</button>
+                    </div>
+                    <div class="wm-list" id="wm-list">
+                        <div class="wm-empty">还没有作品。左边写一句场景描述，试试生成第一个世界。</div>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- ============ 右栏：视口 ============ -->
+            <main class="wm-stage">
+                <div class="wm-stage-head">
+                    <div class="wm-stage-tabs" role="tablist" aria-label="视口模式">
+                        <button type="button" class="wm-stage-tab on" data-view="splat" role="tab" aria-selected="true">高斯溅射 3D</button>
+                        <button type="button" class="wm-stage-tab" data-view="pano" role="tab" aria-selected="false">全景图</button>
+                    </div>
+                    <div class="wm-stage-title" id="wm-stage-title">未选择作品</div>
+                    <div class="wm-stage-actions" id="wm-stage-actions"></div>
+                </div>
+
+                <div class="wm-stage-view">
+                    <iframe id="wm-splat-frame" class="wm-frame" src="./splat-view.html"
+                        title="世界模型高斯溅射视口" allowfullscreen></iframe>
+                    <div class="wm-pano-wrap" id="wm-pano-wrap" hidden>
+                        <img id="wm-pano" alt="世界全景图" />
+                        <div class="wm-pano-empty" id="wm-pano-empty">这个作品还没有可用的全景图。</div>
+                    </div>
+
+                    <div class="wm-stage-empty" id="wm-stage-empty">
+                        <div class="wm-stage-empty-title">世界模型工作台</div>
+                        <p>用一句文字或一张图片生成一个可进入的三维世界。</p>
+                        <ul>
+                            <li><b>高斯溅射 3D</b>：真实的 Marble 观感，可自由转动视角逛场景</li>
+                            <li><b>碰撞网格</b>：导出 GLB 进建模编辑器，做尺寸测量和二次加工</li>
+                            <li><b>全景图</b>：一张图快速看整体氛围</li>
+                        </ul>
+                        <p class="wm-dim">首次使用需要先在后端配置 WORLD_LABS_API_KEY（API 额度与 Marble 网页版额度不通用）。</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="./worldmodel-client.js"></script>
+    <script src="./worldmodel.js"></script>
+</body>
+
+</html>

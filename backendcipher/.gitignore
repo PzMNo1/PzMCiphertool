@@ -49,3 +49,6 @@ Thumbs.db
 .env
 .env.local
 application-local.yml
+
+# Portable runtime tools (JDK/Maven/Redis/Node) - DO NOT COMMIT
+.tools/

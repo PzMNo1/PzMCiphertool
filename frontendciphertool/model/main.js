@@ -19,6 +19,8 @@
     const runningRunOrderByChat = new Map();
 
     const MAX_ATTACHMENTS = 80;
+    // 本地 checkpoint 恢复提示语：所有写入/比较都必须走这个常量，避免再有第二份字面量口径不一致。
+    const RECOVERY_PLACEHOLDER_TEXT = '运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。';
     const MAX_TEXT_BYTES_PER_FILE = 512 * 1024;
     const MAX_TEXT_CHARS_PER_FILE = 12000;
     const MAX_TOTAL_TEXT_CHARS = 60000;
@@ -888,7 +890,7 @@
             window.historyManager.updateMessage(record.chatId, record.messageId, {
                 ...existing,
                 status: 'recoverable',
-                content: existing.content || record.content || '运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。',
+                content: existing.content || record.content || RECOVERY_PLACEHOLDER_TEXT,
                 agent_run: existing.agent_run || record.agent_run || null,
                 durable_run_id: record.durableRunId,
                 resume_prompt: record.resume_prompt || '',
@@ -934,15 +936,76 @@
         ].filter(Boolean).join('\n');
     }
 
+    /**
+     * 只有本页确实不再持有活跃运行时，checkpoint 才有资格决定这条消息渲染成什么。
+     *
+     * 之前的实现无条件用 checkpoint 补正文：只要切走再切回时正文还是空的
+     * （Agent 运行开头有几十秒只做分类/计划/并行专家，正文区确实是空的），
+     * 就会把"已恢复到本地检查点"这句占位正文写进历史、并把状态降级成 recoverable，
+     * 于是界面停在占位句上，而真正的运行还在往一个已经脱离文档的容器里继续写内容。
+     */
+    function hydrateLiveRunMessage(chatId, msg) {
+        const messageId = msg.message_id || msg.id;
+        const entry = getActiveRun(chatId, messageId);
+        // registry 里还有这条消息的条目 = 运行仍然活着（running / aborting 都算），
+        // 完成时 completeActiveRun 会把条目删掉。
+        if (!entry) return null;
+
+        const storedContent = String(msg.content || '');
+        const liveContent = String(entry.latestContent || '');
+        const content = liveContent || (storedContent === RECOVERY_PLACEHOLDER_TEXT ? '' : storedContent);
+        const restored = {
+            ...msg,
+            status: 'running',
+            content,
+            agent_run: entry.latestAgentRun || msg.agent_run || null,
+            durable_run_id: msg.durable_run_id || entry.durableRunId || null
+        };
+
+        const dirty = msg.status !== 'running'
+            || storedContent === RECOVERY_PLACEHOLDER_TEXT
+            || (liveContent && storedContent !== content);
+        if (dirty) {
+            window.historyManager.updateMessage(chatId, messageId, {
+                content,
+                status: 'running',
+                durable_run_id: restored.durable_run_id,
+                resume_prompt: null,
+                error_message: null
+            });
+        }
+        return restored;
+    }
+
     function hydrateMessageFromDurableCheckpoint(chatId, msg) {
         if (!msg || msg.role !== 'assistant') return msg;
-        if (String(msg.content || '').trim()) return msg;
-        if (!['running', 'aborting', 'recoverable'].includes(msg.status)) return msg;
+
+        // 活跃运行优先：运行还在本页跑，就不允许 checkpoint 覆盖正文或降级状态。
+        const live = hydrateLiveRunMessage(chatId, msg);
+        if (live) return live;
 
         const store = getDurableStore();
         const record = msg.durable_run_id
             ? store?.get?.(msg.durable_run_id)
             : store?.getByMessage?.(chatId, msg.message_id || msg.id);
+
+        // 修复：运行已完成（durable 记录 completed），但最终消息状态因持久化失败仍停在 running；
+        // 此时正文已存在，应据 durable 记录纠正为 completed，避免历史渲染成无限 spinner。
+        if (['running', 'aborting'].includes(msg.status)
+            && record && record.status === 'completed'
+            && String(msg.content || '').trim()) {
+            const fixed = {
+                ...msg,
+                status: 'completed',
+                agent_run: msg.agent_run || record.agent_run || null,
+                error_message: msg.error_message || ''
+            };
+            window.historyManager.updateMessage(chatId, fixed.message_id || fixed.id, fixed);
+            return fixed;
+        }
+
+        if (String(msg.content || '').trim()) return msg;
+        if (!['running', 'aborting', 'recoverable'].includes(msg.status)) return msg;
         if (!record) return msg;
 
         const recoveredContent = String(record.content || record.content_preview || '').trim();
@@ -965,7 +1028,7 @@
 
         if (msg.status === 'running') {
             recovered.status = 'recoverable';
-            recovered.content = '运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。';
+            recovered.content = RECOVERY_PLACEHOLDER_TEXT;
             recovered.agent_run = msg.agent_run || record.agent_run || null;
             recovered.error_message = msg.error_message || '历史正文为空；本地 checkpoint 没有可恢复正文。';
             window.historyManager.updateMessage(chatId, recovered.message_id || recovered.id, recovered);
@@ -1229,6 +1292,11 @@
                         if (meta.content !== undefined) {
                             finalContent = meta.content || finalContent;
                         }
+                        // 持久化白名单：仅在关键节点落盘，避免每个事件/每个流式增量都触发全量快照序列化。
+                        const persistReasons = new Set(['panel.created', 'content.updated', 'run.completed']);
+                        if (!persistReasons.has(meta.reason) && meta.content === undefined) {
+                            return;
+                        }
                         persistActiveRun(activeRun, {
                             content: finalContent,
                             agent_run: agentRunSnapshot,
@@ -1241,55 +1309,6 @@
                 finalReasoning = '';
                 collectedToolCalls = response?.agent_tool_calls || response?.tool_calls || collectedToolCalls;
                 agentRunSnapshot = response?.agent_run || null;
-            } else if (isToolEnabled) {
-                // 带工具调用的对话
-                const tools = window.toolRegistry.getToolDefinitions();
-
-                const response = await runClient.chatWithTools({
-                    messages,
-                    tools,
-                    enableThinking: isDeepThinkEnabled,
-                    signal: abortController.signal,
-                    onReasoning: (text) => {
-                        finalReasoning += text;
-                        window.chatUI.appendReasoningContent(container, text);
-                        persistActiveRun(activeRun, { reasoning_content: finalReasoning });
-                    },
-                    onContent: (delta, full) => {
-                        if (container.reasoningDetails.classList.contains('thinking-state')) {
-                            window.chatUI.finishReasoning(container);
-                        }
-                        finalContent = full;
-                        window.chatUI.updateContent(container, full);
-                        persistActiveRun(activeRun, {
-                            content: finalContent,
-                            reasoning_content: finalReasoning || null
-                        });
-                    },
-                    onToolCall: (toolCall) => {
-                        // 收集工具调用信息用于保存到历史
-                        collectedToolCalls.push({
-                            id: toolCall.id,
-                            type: 'function',
-                            function: {
-                                name: toolCall.function.name,
-                                arguments: toolCall.function.arguments
-                            }
-                        });
-                        window.chatUI.displayToolCall(container, toolCall);
-                        persistActiveRun(activeRun, { tool_calls: collectedToolCalls }, { immediate: true });
-                    },
-                    onToolResult: (toolCallId, result, success) => {
-                        window.chatUI.updateToolResult(toolCallId, result, success);
-                    },
-                    executeToolFn: async (name, args) => {
-                        return await window.toolRegistry.execute(name, args);
-                    }
-                });
-
-                finalContent = response.content || finalContent;
-                finalReasoning = response.reasoning_content || finalReasoning;
-
             } else {
                 // 普通对话（无工具）
                 const response = await runClient.chat({

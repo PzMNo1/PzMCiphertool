@@ -10,7 +10,7 @@
 	.triggerLabel {
 		display: initial;
 		border-radius: 10px 0px 0px 10px;
-		background: white;
+		background: #000510;
 		width: 20px;
 		height: 50px;
 		position: absolute;
@@ -67,7 +67,7 @@
 	/* selects the side panel */
 	.trigger+.triggerLabel+div {
 		width: 0 !important;
-		background: white;
+		background: #000510;
 		z-index: 1;
 		transition: width 1s;
 	}
@@ -82,7 +82,7 @@
 		width: 100%;
 		text-align: center;
 		top: 30px;
-		background: white;
+		background: #000510;
 		z-index: 2;
 	}
 	.gwt-MenuBar-horizontal * {
@@ -114,7 +114,7 @@
 	.menuPopupTopLeft, .menuPopupTopCenter, .menuPopupTopRight,
 		.menuPopupMiddleLeft, .menuPopupMiddleRight, .menuPopupMiddleCenter,
 		.menuPopupBottomLeft, .menuPopupBottomCenter, .menuPopupBottomRight {
-		background: white !important;
+		background: #000510 !important;
 	}
 
 	/* selects the div containing the canvas */

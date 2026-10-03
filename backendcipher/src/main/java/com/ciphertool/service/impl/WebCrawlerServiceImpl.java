@@ -38,38 +38,28 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private String tavilyApiKey;
     
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-    private static final int DEEP_READ_LIMIT = 24;
+    private static final int DEEP_READ_LIMIT = 48;
     private static final int DEEP_READ_REQUEST_TIMEOUT_SECONDS = 18;
     private static final int DEEP_READ_FUTURE_TIMEOUT_SECONDS = 22;
     private static final int SEARCH_REQUEST_TIMEOUT_SECONDS = 6;
     private static final int SEARCH_FUTURE_TIMEOUT_SECONDS = 8;
-    private static final int RESEARCH_QUERY_BATCH_PARALLELISM = 6;
+    private static final int RESEARCH_QUERY_BATCH_PARALLELISM = 24;
     private static final int RESEARCH_QUERY_FUTURE_TIMEOUT_SECONDS = 18;
-    private static final int NEWS_RESULT_LIMIT = 8;
-    private static final int NEWS_CANDIDATE_LIMIT = 64;
+    private static final int NEWS_RESULT_LIMIT = 16;
+    private static final int NEWS_CANDIDATE_LIMIT = 128;
     private static final int NEWS_PER_DOMAIN_LIMIT = 2;
     private static final int NEWS_STRICT_SCORE_FLOOR = 18;
     private static final int NEWS_FILL_SCORE_FLOOR = 12;
     private static final int NEWS_REDIRECT_RESOLVE_LIMIT = 10;
 
-    // 新闻源定义
-    private static final String[] TECH_SITES = {"site:36kr.com", "site:qbitai.com", "site:ifanr.com", "site:ithome.com"};
-    private static final String[] FINANCE_SITES = {
-            "site:caixin.com", "site:jiemian.com", "site:wallstreetcn.com", "site:cls.cn",
-            "site:yicai.com", "site:stcn.com", "site:21jingji.com", "site:cs.com.cn",
-            "site:cnstock.com", "site:nbd.com.cn"
-    };
-    private static final String[] OFFICIAL_SITES = {
-            "site:xinhuanet.com", "site:people.com.cn", "site:thepaper.cn",
-            "site:pbc.gov.cn", "site:csrc.gov.cn", "site:ndrc.gov.cn", "site:mof.gov.cn"
-    };
+    // 预设新闻源清单已移除：新闻/检索路由交给模型与搜索引擎自主决定。
 
     public WebCrawlerServiceImpl() {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-        this.researchExecutor = Executors.newFixedThreadPool(24);
+        this.researchExecutor = Executors.newFixedThreadPool(48);
     }
 
     @PreDestroy
@@ -116,7 +106,21 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
     }
 
+    
     @Override
+    public String fetchRawHtml(String url) {
+        if (url == null || !url.startsWith("https://")) {
+            return "获取网页失败: 只允许 https 地址";
+        }
+        try {
+            return fetchHtml(url, Duration.ofSeconds(20));
+        } catch (Exception e) {
+            log.error("Fetch raw html failed: {}", e.getMessage());
+            return "获取网页失败: " + e.getMessage();
+        }
+    }
+
+@Override
     public String getNews(String keyword, String category) {
         try {
             return getNewsViaSearchPipeline(keyword, category);
@@ -126,49 +130,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         }
     }
 
-    private String getLegacyNews(String keyword, String category) {
-        try {
-            // 构建增强查询
-            StringBuilder queryBuilder = new StringBuilder(keyword);
-            
-            // 如果有分类，添加特定站点限定
-            if (category != null && !category.isEmpty()) {
-                String sites = "";
-                switch (category.toLowerCase()) {
-                    case "tech":
-                    case "technology":
-                    case "科技":
-                        sites = " (" + String.join(" OR ", TECH_SITES) + ")";
-                        break;
-                    case "finance":
-                    case "economics":
-                    case "财经":
-                    case "经济":
-                        sites = " (" + String.join(" OR ", FINANCE_SITES) + ")";
-                        break;
-                    case "politics":
-                    case "political":
-                    case "政治":
-                        sites = " (" + String.join(" OR ", OFFICIAL_SITES) + ")";
-                        break;
-                    default:
-                        // 默认添加"新闻"关键词
-                        if (!keyword.contains("新闻")) queryBuilder.append(" 新闻");
-                }
-                queryBuilder.append(sites);
-            } else if (!keyword.contains("新闻")) {
-                 queryBuilder.append(" 新闻");
-            }
-            
-            // 使用 Bing 搜索新闻 (强制一周内)
-            return search(queryBuilder.toString(), "bing", "w");
-            
-        } catch (Exception e) {
-            log.error("Get news failed: {}", e.getMessage());
-            return "获取新闻失败: " + e.getMessage();
-        }
-    }
-
+    // getLegacyNews 已移除：预设站点路由死代码（新闻走 getNewsViaSearchPipeline）。
     private String getNewsViaSearchPipeline(String keyword, String category) {
         String baseKeyword = keyword == null ? "" : keyword.trim();
         String categoryTerm = newsCategoryTerm(category);
@@ -217,29 +179,11 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     private String newsSourceHint(String category) {
-        String normalized = category == null ? "" : category.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "tech", "technology" -> "site:reuters.com/technology OR site:apnews.com OR site:techcrunch.com OR site:theverge.com";
-            case "finance", "financial", "economics", "economy", "market", "markets" -> "site:reuters.com/markets OR site:apnews.com OR site:cnbc.com OR site:ft.com";
-            case "politics", "political", "world", "international" -> "site:reuters.com/world OR site:apnews.com OR site:bbc.com/news OR site:theguardian.com/world";
-            default -> "";
-        };
+        return "";
     }
 
     private List<String> newsAuthoritySites(String category) {
-        String normalized = category == null ? "" : category.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "tech", "technology" -> List.of(
-                    "site:reuters.com", "site:apnews.com", "site:techcrunch.com",
-                    "site:theverge.com", "site:arstechnica.com", "site:wired.com");
-            case "finance", "financial", "economics", "economy", "market", "markets" -> List.of(
-                    "site:reuters.com", "site:apnews.com", "site:cnbc.com",
-                    "site:ft.com", "site:wsj.com", "site:bloomberg.com");
-            case "politics", "political", "world", "international" -> List.of(
-                    "site:reuters.com", "site:apnews.com", "site:bbc.com",
-                    "site:theguardian.com", "site:nytimes.com", "site:washingtonpost.com");
-            default -> List.of("site:reuters.com", "site:apnews.com", "site:bbc.com", "site:theguardian.com");
-        };
+        return List.of();
     }
 
     private String buildPrimaryNewsQuery(String baseKeyword, String categoryTerm) {
@@ -285,36 +229,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     private List<JSONObject> directNewsSourceCandidates(String category) {
-        String normalized = category == null ? "" : category.trim().toLowerCase(Locale.ROOT);
-        List<JSONObject> results = new ArrayList<>();
-        if (containsAny(normalized, "tech", "technology")) {
-            results.add(searchResult("official-source", "Tech News | Today's Latest Technology News | Reuters", "https://www.reuters.com/technology/", "Official Reuters technology section"));
-            results.add(searchResult("official-source", "Technology: Latest Tech News Articles Today | AP News", "https://apnews.com/technology", "Official AP technology section"));
-            results.add(searchResult("official-source", "TechCrunch | Startup and Technology News", "https://techcrunch.com/", "Official TechCrunch front page"));
-            results.add(searchResult("official-source", "The Verge - Technology, science, art, and culture news", "https://www.theverge.com/tech", "Official The Verge technology section"));
-        } else if (containsAny(normalized, "finance", "financial", "economics", "economy", "market", "markets")) {
-            results.add(searchResult("official-source", "Latest Finance News | Today's Top Headlines | Reuters", "https://www.reuters.com/business/finance/", "Official Reuters finance section"));
-            results.add(searchResult("official-source", "Markets | Reuters", "https://www.reuters.com/markets/", "Official Reuters markets section"));
-            results.add(searchResult("official-source", "Stock Markets, Business News, Financials, Earnings - CNBC", "https://www.cnbc.com/markets/", "Official CNBC markets section"));
-            results.add(searchResult("official-source", "Markets data and financial news | Financial Times", "https://www.ft.com/markets", "Official Financial Times markets section"));
-        } else if (containsAny(normalized, "politics", "political", "world", "international")) {
-            results.add(searchResult("official-source", "World News | Latest Top Stories | Reuters", "https://www.reuters.com/world/", "Official Reuters world section"));
-            results.add(searchResult("official-source", "World News: Top & Breaking World News Today | AP News", "https://apnews.com/world-news", "Official AP world section"));
-            results.add(searchResult("official-source", "World | Latest News & Updates | BBC News", "https://www.bbc.com/news/world", "Official BBC world section"));
-            results.add(searchResult("official-source", "World news | The Guardian", "https://www.theguardian.com/world", "Official Guardian world section"));
-        } else {
-            results.add(searchResult("official-source", "BBC News", "https://www.bbc.com/news", "BBC general, world, business, technology and culture news"));
-            results.add(searchResult("official-source", "Reuters World News", "https://www.reuters.com/world/", "Reuters world and international news section"));
-            results.add(searchResult("official-source", "Reuters Business News", "https://www.reuters.com/business/", "Reuters business, economy, finance and market news"));
-            results.add(searchResult("official-source", "AP News", "https://apnews.com/", "Associated Press top news, world, business, politics and society"));
-            results.add(searchResult("official-source", "AP World News", "https://apnews.com/world-news", "Associated Press world and international news"));
-            results.add(searchResult("official-source", "Sina News", "https://news.sina.com.cn/", "Sina Chinese domestic, international, society, finance and rolling news"));
-            results.add(searchResult("official-source", "China News Service", "https://www.chinanews.com.cn/", "China News Service domestic, international, finance, society and culture news"));
-            results.add(searchResult("official-source", "NetEase Latest News", "https://news.163.com/latest/", "NetEase rolling news, China, world, society, finance and technology"));
-            results.add(searchResult("official-source", "CCTV News 30", "https://tv.cctv.com/lm/xw30f/", "CCTV daily Chinese news broadcast and major headlines"));
-            results.add(searchResult("official-source", "National Business Daily", "https://www.nbd.com.cn/", "Chinese finance, markets, companies and economy news"));
-        }
-        return results;
+        // 预设直达源已移除：新闻候选全部来自搜索引擎结果，检索站点/平台由模型与搜索自主决定。
+        return new ArrayList<>();
     }
 
     private void addNewsCandidates(List<JSONObject> combined, Set<String> seen, List<JSONObject> incoming,
@@ -1110,12 +1026,12 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         boolean newsLike = lowerMode.contains("news");
         boolean academicLike = lowerMode.contains("academic");
         int limit = shouldReadTop
-                ? (newsLike ? 18 : academicLike ? 16 : 16)
-                : 18;
+                ? (newsLike ? 24 : academicLike ? 20 : 20)
+                : 24;
         if (plan.size() <= limit) return plan;
 
         LinkedHashSet<String> selected = new LinkedHashSet<>();
-        int headCount = Math.min(8, limit);
+        int headCount = Math.min(12, limit);
         for (int i = 0; i < headCount && i < plan.size(); i++) {
             selected.add(plan.get(i));
         }
@@ -1797,7 +1713,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
                 plan.add("site:v2ex.com " + q);
             }
         }
-        return plan.stream().limit(18).collect(Collectors.toList());
+        return plan.stream().limit(24).collect(Collectors.toList());
     }
 
     private String buildMarketSearchIntent(String query) {
@@ -2296,11 +2212,31 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
         int score = 0;
         if (!q.isBlank() && (title.contains(q) || snippet.contains(q))) score += 8;
+        List<String> phraseParts = new ArrayList<>();
         for (String term : q.split("[\\s,，。;；:：|/]+")) {
             if (term.length() < 2) continue;
+            phraseParts.add(term);
             if (title.contains(term)) score += 4;
             if (snippet.contains(term)) score += 2;
             if (url.contains(term)) score += 1;
+        }
+        // 查询覆盖度：标题/摘要命中的查询词比例越高越相关（0~8 分）。
+        Set<String> distinctTerms = new LinkedHashSet<>(phraseParts);
+        int matchedTerms = 0;
+        for (String term : distinctTerms) {
+            if (title.contains(term) || snippet.contains(term)) matchedTerms++;
+        }
+        if (distinctTerms.size() >= 2) {
+            score += (int) Math.round(8.0 * matchedTerms / distinctTerms.size());
+        }
+        // 连续短语命中（2-3 词）：标题/摘要出现整段短语权重更高，提升相关匹配与排序稳健性。
+        for (int n = 2; n <= 3; n++) {
+            for (int i = 0; i + n <= phraseParts.size(); i++) {
+                String phrase = String.join(" ", phraseParts.subList(i, i + n));
+                if (phrase.length() < 5) continue;
+                if (title.contains(phrase)) score += 6;
+                if (snippet.contains(phrase)) score += 3;
+            }
         }
         String tier = Optional.ofNullable(result.getString("source_tier")).orElse(classifySourceTier(url));
         if ("official_policy".equals(tier)) score += 12;

@@ -1,13 +1,22 @@
 /**
  * AgentRuntime - front-end agent orchestration layer.
- * It keeps the model module closer to a modern run loop: plan, route, act,
- * observe, then synthesize, while keeping noisy tool details inside one panel.
+ *
+ * 执行链路：classify → plan →（并行专家面板）→ act/observe（补缺）→ 长文合成 → 交付校验
+ *
+ * 关键设计：
+ * - 交付档位由 AgentResearchContract 按意图信号判定（不用字符数门槛），决定篇幅/表格/图表/引用下限，
+ *   以及并行专家面板的规模。
+ * - 检索主体由 AgentExpertPanel 并行承担：每个专家跑自己的完整工具循环，墙钟时间从
+ *   「所有轮次之和」变成「最慢那个专家的耗时」。
+ * - 主模型循环退化为"补缺与交叉验证"，轮次大幅压缩；最终长篇交付物由独立合成 pass 产出，
+ *   并做交付校验（不达标则补充一次），因此不会再出现"模型自己决定写多短"。
  */
 class AgentRuntime {
-    constructor({ client, registry, ui }) {
+    constructor({ client, registry, ui, clientFactory = null }) {
         this.client = client;
         this.registry = registry;
         this.ui = ui;
+        this.clientFactory = clientFactory;
         this.agentProfiles = window.AgentProfiles
             ? new window.AgentProfiles(this)
             : null;
@@ -17,27 +26,77 @@ class AgentRuntime {
         this.policyResolver = window.AgentPolicyResolver
             ? new window.AgentPolicyResolver(this)
             : null;
-        this.researchPlanService = window.AgentResearchPlan
-            ? new window.AgentResearchPlan(this)
+        
+        // 性能监控（每次运行独立统计）
+        this.performanceMonitor = window.AgentPerformanceMonitor
+            ? new window.AgentPerformanceMonitor()
             : null;
-        this.sourceLibraryService = window.AgentSourceLibrary
-            ? new window.AgentSourceLibrary(this)
+        
+        // 上下文窗口管理（跨运行共享，因为同一会话的上下文是累积的）
+        this.contextManager = window.agentContextManager
+            || (window.AgentContextManager ? new window.AgentContextManager({ maxTokens: 180000 }) : null);
+        if (this.contextManager && !window.agentContextManager) {
+            window.agentContextManager = this.contextManager;
+        }
+        
+        // 研究交付契约：决定档位与硬性交付指标
+        this.researchContract = window.agentResearchContract
+            || (window.AgentResearchContract ? new window.AgentResearchContract() : null);
+        
+        // 并行专家研究面板
+        this.expertPanel = window.AgentExpertPanel
+            ? new window.AgentExpertPanel(this, {
+                maxConcurrency: this.resolvePanelConfig().maxConcurrency,
+                maxIterationsPerExpert: this.resolvePanelConfig().maxIterationsPerExpert
+            })
             : null;
-        this.toolRiskPolicy = window.AgentToolRiskPolicy
-            ? new window.AgentToolRiskPolicy(this)
-            : null;
-        this.evidenceLedgerService = window.AgentEvidenceLedger
-            ? new window.AgentEvidenceLedger(this)
-            : null;
-        this.citationNormalizer = window.AgentCitationNormalizer
-            ? new window.AgentCitationNormalizer(this)
-            : null;
-        this.citationVerifier = window.AgentCitationVerifier
-            ? new window.AgentCitationVerifier(this)
-            : null;
-        this.collaborationService = window.AgentCollaboration
-            ? new window.AgentCollaboration(this)
-            : null;
+    }
+
+    resolvePanelConfig() {
+        const override = (typeof window !== 'undefined' && window.PZM_AGENT_RUN_CONFIG) || {};
+        const style = (typeof window !== 'undefined' && window.PZM_AGENT_STYLE) || {};
+        return {
+            maxConcurrency: Number(override.expertConcurrency) > 0 ? Number(override.expertConcurrency) : 4,
+            maxIterationsPerExpert: Number(override.expertIterations) > 0 ? Number(override.expertIterations) : 3,
+            mainLoopIterations: Number(override.mainLoopIterations) > 0 ? Number(override.mainLoopIterations) : 4,
+            // 18000 中文字约需 27000+ token；实测上游接受 max_tokens=65536
+            synthesisMaxTokens: Number(override.synthesisMaxTokens) > 0 ? Number(override.synthesisMaxTokens) : 56000,
+            // 实测单次调用自然收敛在 ~15000 中文字，18000 档需要补充阶段兜底，故默认允许 2 次
+            repairPasses: Number.isFinite(Number(override.repairPasses)) ? Number(override.repairPasses) : 2,
+            // 语言清洗：只做确定性的标签剥离（实测破坏性 -1.5%，不动来源与图表）。
+            // 范式审计与整篇重写已按用户要求移除；如需彻底关闭清洗，设 window.PZM_AGENT_STYLE = { normalize: false }。
+            styleNormalize: style.normalize !== false
+        };
+    }
+
+    /**
+     * 为每个并行专家创建独立客户端，避免共享实例上的 abortController 互相覆盖。
+     */
+    createExpertClient() {
+        try {
+            if (typeof this.clientFactory === 'function') return this.clientFactory();
+            if (window.DeepSeekClient) return new window.DeepSeekClient();
+        } catch (error) {
+            console.warn('Failed to create dedicated expert client, reusing runtime client.', error);
+        }
+        return this.client;
+    }
+
+    /**
+     * 绑定 Agent 模块输入框下方/右下角的性能与上下文 UI。
+     * 只在 Agent 模块（#damoxing-container）内查找，避免影响其他模块。
+     */
+    attachPerformanceUI() {
+        try {
+            if (this.performanceMonitor) {
+                this.performanceMonitor.attach('#agent-performance-monitor');
+            }
+            if (this.contextManager) {
+                this.contextManager.attach('#context-progress-ring');
+            }
+        } catch (error) {
+            console.warn('Failed to attach agent performance UI.', error);
+        }
     }
 
     createPlan(userMessage, options = {}) {
@@ -48,22 +107,15 @@ class AgentRuntime {
             ? this.policyResolver.resolve(intent)
             : {
                 selectedTools: [],
-                researchProfile: 'none',
+                researchProfile: 'agentic',
                 agentEarthTargetCalls: 0,
-                maxIterations: intent.mode === 'chat' ? 1 : 6,
+                maxIterations: intent.mode === 'chat' ? 1 : 12,
                 sourceTarget: 0,
                 citationTarget: 0,
-                writingContract: intent.writingContract || null,
-                qualityGates: intent.writingContract?.qualityGates || {},
+                writingContract: null,
+                qualityGates: {},
                 policyFlags: {
                     needsTools: intent.mode !== 'chat',
-                    needsResearchPlan: false,
-                    needsSourceLibrary: false,
-                    needsOutline: false,
-                    needsCitations: false,
-                    needsClaimCheck: false,
-                    needsCounterEvidence: false,
-                    needsStylePass: false,
                     lightweight: intent.mode === 'chat',
                     deliverable: 'answer',
                     citationStyle: 'numeric',
@@ -71,32 +123,28 @@ class AgentRuntime {
                     citationTarget: 0
                 }
             };
-
-        const plan = {
-            runId: `run-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
+        return {
+            runId: 'run-' + Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 7),
             mode: intent.mode,
-            researchProfile: policy.researchProfile,
-            newsBriefScope: intent.newsBriefScope,
-            writingContract: policy.writingContract || null,
-            qualityGates: policy.qualityGates || {},
+            researchProfile: policy.researchProfile || 'agentic',
+            newsBriefScope: null,
+            writingContract: null,
+            qualityGates: {},
             policyFlags: policy.policyFlags || {},
             selectedTools: policy.selectedTools,
-            agentEarthTargetCalls: policy.agentEarthTargetCalls,
+            agentEarthTargetCalls: 0,
             maxIterations: policy.maxIterations,
-            sourceTarget: policy.sourceTarget,
-            citationTarget: policy.citationTarget,
+            sourceTarget: 0,
+            citationTarget: 0,
             stages: [
                 { id: 'plan', label: 'Plan' },
                 { id: 'route', label: 'Route' },
                 { id: 'act', label: 'Act' },
                 { id: 'observe', label: 'Observe' },
                 { id: 'synthesize', label: 'Synthesize' }
-            ]
+            ],
+            collaboration: { enabled: false, strategy: 'single_agent', collaborators: [], handoffs: [], quality_gates: [] }
         };
-        plan.collaboration = this.collaborationService
-            ? this.collaborationService.createPlan(intent, { ...policy, selectedTools: policy.selectedTools })
-            : { enabled: false, strategy: 'single_agent', collaborators: [], handoffs: [], quality_gates: [] };
-        return plan;
     }
 
     buildFallbackIntentContract(userMessage, options = {}) {
@@ -109,7 +157,7 @@ class AgentRuntime {
             hasAttachments,
             toolEnabled: Boolean(options.toolEnabled),
             wantsTools: mode === 'agent',
-            newsBriefScope: null
+            writingContract: null
         };
     }
 
@@ -133,45 +181,16 @@ class AgentRuntime {
         }
     }
 
-    hasNetworkTools(toolNames = []) {
-        const networkTools = new Set([
-            'community_snapshot',
-            'web_research',
-            'search_urls',
-            'read_webpage',
-            'news_query',
-            'open_url',
-            'find_in_page',
-            'open',
-            'find',
-            'weather',
-            'get_weather',
-            'finance_query',
-            'agent_earth_run'
-        ]);
-        return (Array.isArray(toolNames) ? toolNames : []).some(name => networkTools.has(name));
-    }
-
     buildAgentSystemPrompt(plan, contextPack = null) {
-        const basePrompt = this.agentProfiles
-            ? this.agentProfiles.buildSystemPrompt(plan, contextPack)
-            : [
+        if (this.agentProfiles) {
+            return this.agentProfiles.buildSystemPrompt(plan, contextPack);
+        }
+        return [
             'Agent runtime policy:',
             '- Treat the conversation as a bounded run with these phases: plan, route, act, observe, synthesize.',
-            '- Use routed tools when needed, record evidence, and synthesize a direct final answer.',
-            `- Research profile: ${plan?.researchProfile || 'none'}.`,
-            `- Current run mode: ${plan?.mode || 'chat'}.`
+            '- Choose and use tools autonomously, observe results, and synthesize a direct final answer.',
+            '- Current run mode: ' + (plan?.mode || 'chat') + '.'
         ].join('\n');
-        const collaborationLines = this.collaborationService?.buildPromptLines(plan) || [];
-        return collaborationLines.length
-            ? [basePrompt, ...collaborationLines].join('\n')
-            : basePrompt;
-    }
-
-    buildNewsBriefPolicy(sourceTarget, citationTarget, scope = null) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildNewsBriefPolicy(sourceTarget, citationTarget, scope)
-            : [];
     }
 
     buildContextMemoryPolicy(contextPack) {
@@ -180,19 +199,83 @@ class AgentRuntime {
         return [
             '- Prior AgentRun context memory is available below. Use it for continuity, follow-up questions, and avoiding duplicate reads of unchanged sources.',
             '- Do not treat prior AgentRun memory as fresh evidence when the user asks for latest/today/current facts; refresh sources in that case.',
-            '- If prior citation verification has unmatched or weak citations, treat those claims as uncertain unless refreshed or supported by stronger evidence.',
             'Prior AgentRun context compact JSON:',
             this.previewValue(JSON.stringify(runs, null, 2), 3600)
         ];
     }
 
+    /**
+     * 在基础策略提示词之后追加「交付契约」。
+     * 研究档位下还要明确告诉工具循环：这一轮只做检索与补缺，长篇交付物由后续独立写作阶段产出。
+     */
+    buildContractAwareSystemPrompt(plan, contextPack, contract) {
+        const base = this.buildAgentSystemPrompt(plan, contextPack);
+        if (!contract || contract.tier === 'chat' || !this.researchContract) return base;
+
+        const parts = [base, '', this.researchContract.buildContractPrompt(contract)];
+
+        if (contract.isResearch) {
+            parts.push(
+                '',
+                '【本轮阶段说明 - 重要】',
+                '- 检索由并行的维度专家承担，你这一轮只负责：补齐专家遗漏的关键信息、交叉验证互相矛盾的论断、抓取可进表格的硬数据。',
+                '- 因此本轮不要撰写最终交付物，也不要把篇幅用在铺陈上；请把发现写成紧凑要点，并按维度标注来源。',
+                '- 长篇交付物会在检索结束后由专门的写作阶段一次性产出，届时会用到你与专家沉淀的全部证据。'
+            );
+        }
+
+        return parts.join('\n');
+    }
+
     async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null, toolContext = null, onRunSnapshot = null, signal = null }) {
-        await this.refreshDynamicToolAvailability();
         const plan = this.createPlan(userMessage, { toolEnabled, hasAttachments, messages });
         const runState = this.createRunState(plan, contextPack, toolContext, userMessage);
-        this.collaborationService?.annotateRunState(runState);
         runState.uiContainer = container;
         runState.onSnapshot = typeof onRunSnapshot === 'function' ? onRunSnapshot : null;
+
+        // 交付档位：按意图信号判定（不再使用字符数门槛，避免 9 个字符的研究请求被判为普通问答）
+        const contract = this.researchContract
+            ? this.researchContract.classify({
+                query: userMessage,
+                mode: plan.mode,
+                toolEnabled: Boolean(toolEnabled),
+                deepThink: Boolean(enableThinking)
+            })
+            : null;
+        plan.contract = contract;
+        runState.contract = contract;
+        const runtimeConfig = this.resolvePanelConfig();
+
+        // 让运行面板提前准备好专家状态容器（面板在 createAgentRunPanel 时据此创建）
+        if (contract && contract.needsExpertPanel && this.expertPanel && this.expertPanel.isEnabled()) {
+            plan.collaboration = {
+                enabled: true,
+                strategy: 'expert_panel',
+                collaborators: [],
+                handoffs: [],
+                quality_gates: []
+            };
+            // 同一份结构必须从第一刻起就挂在 runState 上：
+            // snapshotRun() 取的是 runState.collaboration，如果等专家跑完才赋值，
+            // 运行途中落盘的快照里 collaboration 就是 null，
+            // 于是切走再切回来（或回看聊天记录）时整个 COLLABORATION 面板都不存在。
+            runState.collaboration = {
+                enabled: true,
+                strategy: 'expert_panel',
+                status: 'running',
+                started_at: new Date().toISOString(),
+                collaborators: [],
+                handoffs: [],
+                quality_gates: []
+            };
+        }
+        
+        // 启动性能监控并绑定 Agent 模块输入框下方的监控条与右下角上下文圆环
+        this.attachPerformanceUI();
+        if (this.performanceMonitor) {
+            this.performanceMonitor.startRun(plan.runId);
+        }
+        
         this.emitEvent(runState, 'run.started', {
             mode: plan.mode,
             researchProfile: plan.researchProfile,
@@ -211,69 +294,207 @@ class AgentRuntime {
             researchProfile: plan.researchProfile,
             newsBriefScope: plan.newsBriefScope || null,
             maxIterations: plan.maxIterations,
-            writingContract: plan.writingContract || null,
-            qualityGates: plan.qualityGates || {},
             policyFlags: plan.policyFlags || {},
-            researchPlan: runState.researchPlan ? {
-                id: runState.researchPlan.id,
-                status: runState.researchPlan.status,
-                question_count: runState.researchPlan.questions?.length || 0
-            } : null,
-            sourceLibrary: runState.sourceLibrary ? {
-                id: runState.sourceLibrary.id,
-                status: runState.sourceLibrary.status
-            } : null,
-            collaboration: plan.collaboration?.enabled ? {
-                strategy: plan.collaboration.strategy,
-                collaborator_count: plan.collaboration.collaborators?.length || 0,
-                collaborators: plan.collaboration.collaborators?.map(item => item.label) || []
+            deliverable_tier: contract ? contract.tier : null,
+            deliverable_label: contract ? contract.tierLabel : null,
+            deliverable_targets: contract ? {
+                min_chars: contract.minChars,
+                min_tables: contract.minTables,
+                min_diagrams: contract.minDiagrams,
+                min_citations: contract.minCitations,
+                panel_size: contract.panelSize
             } : null
         }, { stage: 'plan', visibility: 'history' });
-        this.collaborationService?.emitStart(this, runState);
-        if (runState.researchPlan) {
-            this.emitEvent(runState, 'research.plan.created', {
-                research_plan_id: runState.researchPlan.id,
-                deliverable: runState.researchPlan.deliverable,
-                question_count: runState.researchPlan.questions.length,
-                softTargets: runState.researchPlan.coverage_goals?.softTargets === true
-            }, { stage: 'plan', visibility: 'history' });
-        }
-        if (runState.sourceLibrary) {
-            this.emitEvent(runState, 'source_library.created', {
-                source_library_id: runState.sourceLibrary.id,
-                status: runState.sourceLibrary.status
-            }, { stage: 'plan', visibility: 'history' });
-        }
         this.ui.createAgentRunPanel(container, plan);
         this.ui.setAgentStage(container, 'plan', 'active', '解析任务目标');
-        this.ui.addAgentTrace(container, 'plan', `Run ${plan.runId} initialized in ${plan.mode} mode.`);
-        if (plan.collaboration?.enabled) {
+        this.ui.addAgentTrace(container, 'plan', 'Run ' + plan.runId + ' initialized in ' + plan.mode + ' mode.');
+        if (contract) {
             this.ui.addAgentTrace(
                 container,
                 'plan',
-                `Collaboration enabled: ${plan.collaboration.collaborators.map(item => item.label).join(' -> ')}.`
+                '交付档位：' + contract.tierLabel
+                + '（正文≥' + contract.minChars + '字，表格≥' + contract.minTables
+                + '，图表≥' + contract.minDiagrams + '，引用≥' + contract.minCitations
+                + '，并行专家 ' + contract.panelSize + ' 路）'
             );
         }
         this.notifyRunSnapshot(runState, 'panel.created');
 
-        const agentSystemMessage = { role: 'system', content: this.buildAgentSystemPrompt(plan, contextPack) };
-        const agentMessages = [
+        // 系统提示词 = 基础策略 + 交付契约 + （研究档位）"循环只做补缺、长文单独撰写"的说明
+        const agentSystemMessage = { role: 'system', content: this.buildContractAwareSystemPrompt(plan, contextPack, contract) };
+        let agentMessages = [
             ...messages.filter(message => message?.role === 'system'),
             agentSystemMessage,
             ...messages.filter(message => message?.role !== 'system')
         ];
+        
+        // 上下文窗口管理：先按本地估算刷新圆环，超限则压缩历史
+        if (this.contextManager) {
+            if (this.contextManager.shouldCompress(agentMessages)) {
+                const compressed = this.contextManager.compressMessages(agentMessages);
+                if (compressed.compressed) {
+                    agentMessages = compressed.messages;
+                    this.ui.addAgentTrace(
+                        container,
+                        'plan',
+                        '上下文接近上限，已折叠 ' + compressed.removedCount + ' 条历史消息（'
+                        + compressed.tokensBefore + ' → ' + compressed.tokensAfter + ' tok）'
+                    );
+                }
+            }
+            this.contextManager.updateFromMessages(agentMessages);
+        }
+        
+        runState.metrics.context_chars = this.estimateContextChars(agentMessages);
+
+        // 【Plan】由模型先出执行计划（真正的模型决策，而非硬策略状态机）
+        let routeResolved = false;
+        if (plan.selectedTools.length) {
+            try {
+                // 记录 LLM 调用开始
+                const planCallId = this.performanceMonitor
+                    ? this.performanceMonitor.beginLLMCall('plan')
+                    : null;
+                let planFirstTokenSeen = false;
+                
+                const planResponse = await this.client.chat({
+                    messages: [...agentMessages, {
+                        role: 'user',
+                        content: '请先制定一个深入的执行计划（10-15 行）：\n1) 任务定位：这个问题要回答到什么程度才算答透。\n2) 信息维度：拆出 6-10 个必须覆盖的维度/视角（按问题实际需要，例如政策/技术路线/产业链上下游/市场格局/竞争/地缘/人才/资本等）。\n3) 检索策略：每个维度用什么工具、并行怎么铺、检索关键词方向、优先哪些一手/权威来源。\n4) 输出形态：最终答案的结构与篇幅规划。\n只写计划本身，不要调用工具，不要开始写正文。'
+                    }],
+                    enableThinking,
+                    signal,
+                    maxTokens: 1600,
+                    onReasoning: () => { },
+                    onContent: (delta, full) => {
+                        if (this.performanceMonitor && planCallId && !planFirstTokenSeen && delta) {
+                            planFirstTokenSeen = true;
+                            this.performanceMonitor.markFirstToken(planCallId);
+                        }
+                        if (container.reasoningDetails.classList.contains('thinking-state')) {
+                            this.ui.finishReasoning(container);
+                        }
+                        this.ui.updateContent(container, full);
+                        this.notifyRunSnapshot(runState, 'plan.updated', { content: full || '' });
+                    }
+                });
+                
+                // 记录 LLM 调用结束与 token 用量
+                if (this.performanceMonitor && planCallId) {
+                    this.performanceMonitor.completeLLMCall(planCallId, planResponse?.usage);
+                }
+                if (this.contextManager && planResponse?.usage) {
+                    this.contextManager.updateFromUsage(planResponse.usage);
+                }
+                
+                const planText = String(planResponse?.content || '').trim();
+                if (planText) {
+                    agentMessages.splice(agentMessages.indexOf(agentSystemMessage) + 1, 0, {
+                        role: 'system',
+                        content: '[你的初始执行计划，作为后续执行的参考]\n' + planText
+                    });
+                    this.ui.addAgentTrace(container, 'plan', '模型计划：' + this.previewValue(planText, 240));
+                }
+            } catch (error) {
+                console.warn('Plan call failed, continuing without a pre-plan.', error);
+            }
+        }
+
+        // 【Collaborate】并行专家研究面板
+        // 关键区别：每位专家跑自己的完整工具循环，Promise 并行走；
+        // 墙钟时间 = 最慢专家的耗时，而不是所有轮次之和。
+        let expertDigest = '';
+        let panelUsage = null;
+        if (this.expertPanel && contract && contract.needsExpertPanel) {
+            try {
+                this.ui.setAgentStage(container, 'route', 'active', '并行专家研究');
+                const panel = await this.expertPanel.run({
+                    query: userMessage,
+                    contract,
+                    plan,
+                    signal,
+                    perfMonitor: this.performanceMonitor,
+                    clientFactory: () => this.createExpertClient(),
+                    executeTool: async (name, args, toolCall) => {
+                        this.assertToolInput(name, args);
+                        const execution = await this.prepareToolExecution(runState, name, args, toolCall, container);
+                        this.assertToolInput(name, execution.args);
+                        const result = await this.registry.execute(name, execution.args);
+                        return this.capToolResultForModel(result, name);
+                    },
+                    onTrace: (type, message) => {
+                        this.ui.addAgentTrace(container, 'route', message);
+                        this.emitEvent(runState, type, { message }, { stage: 'route', visibility: 'history' });
+                    },
+                    onStatus: experts => this.renderExpertStatus(container, experts, runState)
+                });
+
+                if (panel && panel.digest) {
+                    expertDigest = panel.digest;
+                    panelUsage = panel.usage;
+                    // 保留 renderExpertStatus 逐轮写入的逐专家明细（工具次数/检索词/产出字数），
+                    // 只在缺失时才退化为基础字段，否则回看历史时专家行会变成只剩名字的空壳。
+                    const syncedCollaborators = runState.collaboration?.collaborators || [];
+                    runState.collaboration = {
+                        ...(runState.collaboration || {}),
+                        enabled: true,
+                        strategy: panel.mode,
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        collaborators: syncedCollaborators.length
+                            ? syncedCollaborators
+                            : panel.experts.map(expert => ({
+                                id: expert.key,
+                                label: expert.label,
+                                ok: Boolean(expert.ok),
+                                status: expert.status,
+                                duration_ms: expert.durationMs
+                            })),
+                        handoffs: [],
+                        quality_gates: []
+                    };
+                    runState.metrics.collaboration_experts = panel.experts.length;
+                    runState.metrics.collaboration_success = panel.successCount;
+                    runState.metrics.expert_wall_ms = Math.round(panel.wallMs);
+                    runState.metrics.expert_serial_equivalent_ms = Math.round(panel.serialEquivalentMs);
+
+                    const anchor = agentMessages.indexOf(agentSystemMessage);
+                    agentMessages.splice(anchor >= 0 ? anchor + 1 : agentMessages.length, 0, {
+                        role: 'system',
+                        content: expertDigest
+                    });
+
+                    const speedup = panel.serialEquivalentMs > 0
+                        ? (panel.serialEquivalentMs / Math.max(1, panel.wallMs)).toFixed(1)
+                        : '1.0';
+                    this.ui.addAgentTrace(
+                        container,
+                        'route',
+                        '专家面板完成：成功 ' + panel.successCount + '/' + panel.experts.length
+                        + '，并行墙钟 ' + (panel.wallMs / 1000).toFixed(1) + 's'
+                        + '（串行等价 ' + (panel.serialEquivalentMs / 1000).toFixed(1) + 's，提速约 ' + speedup + '×）'
+                    );
+                }
+            } catch (error) {
+                console.warn('Expert panel failed, continuing with single agent.', error);
+                this.ui.addAgentTrace(container, 'route', '专家面板失败，回退为单 Agent 检索。');
+            }
+        }
 
         this.ui.setAgentStage(container, 'plan', 'done', '计划完成');
-        this.ui.setAgentStage(container, 'route', 'active', `${plan.selectedTools.length} tools`);
+
+        // 【Route】由模型在工具循环里自主路由：第一个工具调用到达时才标记路由完成
+        this.ui.setAgentStage(container, 'route', 'active', '等待模型路由');
         this.ui.addAgentTrace(container, 'route', plan.selectedTools.length
-            ? `Routed tools: ${plan.selectedTools.join(', ')}`
+            ? 'Available tools for model-driven routing: ' + plan.selectedTools.join(', ')
             : 'No external tools routed for this run.');
-        this.ui.setAgentStage(container, 'route', 'done', `${plan.selectedTools.length} tools`);
-        this.emitEvent(runState, 'route.completed', {
-            selectedTools: plan.selectedTools,
-            toolContracts: this.getSelectedToolContracts(plan.selectedTools)
-        }, { stage: 'route', visibility: 'history' });
-        this.emitCollaborationReady(runState);
+        if (!plan.selectedTools.length) {
+            this.ui.setAgentStage(container, 'route', 'done', '无工具');
+            this.emitEvent(runState, 'route.completed', {
+                selectedTools: [],
+                toolContracts: []
+            }, { stage: 'route', visibility: 'history' });
+        }
 
         if (!plan.selectedTools.length) {
             this.ui.setAgentStage(container, 'synthesize', 'active', '生成回复');
@@ -281,12 +502,29 @@ class AgentRuntime {
                 toolsEnabled: false,
                 enableThinking: Boolean(enableThinking)
             }, { stage: 'synthesize', visibility: 'history' });
+            
+            // 记录 LLM 调用开始
+            const llmCallId = this.performanceMonitor ? this.performanceMonitor.beginLLMCall('synthesize') : null;
+            let firstTokenRecorded = false;
+            
             const response = await this.client.chat({
                 messages: agentMessages,
                 enableThinking,
                 signal,
                 onReasoning: () => { },
+                onUsage: usage => {
+                    this.recordModelUsage(runState, usage);
+                    if (this.contextManager) {
+                        this.contextManager.updateFromUsage(usage);
+                    }
+                },
                 onContent: (delta, full) => {
+                    // 记录首 token
+                    if (this.performanceMonitor && llmCallId && !firstTokenRecorded && delta) {
+                        this.performanceMonitor.markFirstToken(llmCallId);
+                        firstTokenRecorded = true;
+                    }
+                    
                     if (container.reasoningDetails.classList.contains('thinking-state')) {
                         this.ui.finishReasoning(container);
                     }
@@ -295,14 +533,46 @@ class AgentRuntime {
                     this.notifyRunSnapshot(runState, 'content.updated', { content: full || '' });
                 }
             });
+            
+            if (this.performanceMonitor && llmCallId) {
+                this.performanceMonitor.completeLLMCall(llmCallId, response?.usage);
+            }
+
+            // 无工具分支同样要遵守交付契约：用户关掉工具但要求深度报告时，
+            // 一次普通对话回复达不到篇幅/表格/图表要求，需要再走一遍长文交付阶段。
+            let noToolContent = String(response?.content || '');
+            if (contract && contract.minChars > 0 && this.researchContract) {
+                const deliverable = await this.runDeliverablePass({
+                    plan,
+                    contract,
+                    runState,
+                    container,
+                    enableThinking,
+                    signal,
+                    expertDigest: '',
+                    runtimeConfig,
+                    latestStreamedContent: noToolContent
+                });
+                if (deliverable && deliverable.content) {
+                    noToolContent = deliverable.content;
+                    if (response) response.content = noToolContent;
+                    runState.metrics.deliverable_ok = Boolean(deliverable.verification?.ok);
+                    runState.metrics.deliverable_chars = deliverable.verification?.stats?.chars || 0;
+                }
+            }
+
             this.ui.setAgentStage(container, 'synthesize', 'done', '完成');
             this.emitEvent(runState, 'model.completed', {
                 finish_reason: response?.finish_reason || null,
-                content_chars: String(response?.content || '').length
+                content_chars: String(noToolContent || '').length
             }, { stage: 'synthesize', visibility: 'history' });
-            this.finalizeRunState(runState, response?.content || '');
-            this.collaborationService?.finalize(runState);
-            this.emitCollaborationCompleted(runState);
+            this.finalizeRunState(runState, noToolContent || '');
+            
+            // 完成性能监控
+            if (this.performanceMonitor) {
+                this.performanceMonitor.finishRun();
+            }
+            
             this.emitEvent(runState, 'run.completed', {
                 content_chars: String(response?.content || '').length,
                 warnings: runState.warnings
@@ -319,84 +589,103 @@ class AgentRuntime {
         let finalResponse = null;
         let latestStreamedContent = '';
         let hasDisplayedContent = false;
-        let hasSuppressedToolIterationContent = false;
-        let shouldReplayFinalContent = false;
-        let forcedAgentEarthFollowups = 0;
-        let forcedNewsBriefDensityFollowups = 0;
-        let forcedCoverageFollowups = 0;
-        let forcedCitationQualityFollowups = 0;
+        let observedOnce = false;
+        let iterationToolCallSeen = false;
+        let synthesisStageActive = false;
         const collectedToolCalls = [];
-        const progressLines = [];
-        let latestProgressContent = '';
-        let progressDisplayed = false;
-        let draftPlaceholderDisplayed = false;
-        const renderProgress = () => {
-            const progressContent = this.buildAgentProgressContent(progressLines, latestProgressContent);
-            if (!progressContent) return;
-            if (container.reasoningDetails.classList.contains('thinking-state')) {
-                this.ui.finishReasoning(container);
+        const beginSynthesisStage = () => {
+            if (synthesisStageActive) return;
+            synthesisStageActive = true;
+            if (!routeResolved) {
+                routeResolved = true;
+                this.ui.setAgentStage(container, 'route', 'done', '模型已选定工具');
             }
-            progressDisplayed = true;
-            this.ui.updateContent(container, progressContent);
-            this.notifyRunSnapshot(runState, 'progress.updated', { content: progressContent });
+            this.ui.setAgentStage(container, 'act', 'done', '执行完成');
+            if (observedOnce) {
+                this.ui.setAgentStage(container, 'observe', 'done', '观察完成');
+            }
+            this.ui.setAgentStage(container, 'synthesize', 'active', '正在合成最终答案');
         };
+        // 主循环退化为"补缺与交叉验证"：检索主体已由并行专家承担，因此轮次大幅压缩
+        const mainLoopIterations = contract && contract.isResearch
+            ? runtimeConfig.mainLoopIterations
+            : plan.maxIterations;
         this.ui.setAgentStage(container, 'act', 'active', '等待模型选择工具');
+        if (contract && contract.isResearch) {
+            this.ui.addAgentTrace(
+                container,
+                'act',
+                '主循环轮次压缩为 ' + mainLoopIterations + ' 轮（检索已由 ' + contract.panelSize + ' 路并行专家承担）'
+            );
+        }
+
+        let iterationLLMCallId = null;
+        let iterationFirstTokenSeen = false;
 
         finalResponse = await this.client.chatWithTools({
             messages: agentMessages,
             tools,
             enableThinking,
-            maxIterations: plan.maxIterations,
+            maxIterations: mainLoopIterations,
             signal,
             onReasoning: () => { },
             onContent: (delta, full, meta = {}) => {
-                const previousStreamedContent = latestStreamedContent;
+                // 全部内容实时流式渲染：每轮进度句与最终答案都直接刷新到正文。
                 latestStreamedContent = full || latestStreamedContent;
                 if (!latestStreamedContent) return;
+                // 每轮首个 token 用于计算首 token 延迟
+                if (this.performanceMonitor && iterationLLMCallId && !iterationFirstTokenSeen && delta) {
+                    iterationFirstTokenSeen = true;
+                    this.performanceMonitor.markFirstToken(iterationLLMCallId);
+                }
                 if (container.reasoningDetails.classList.contains('thinking-state')) {
                     this.ui.finishReasoning(container);
                 }
                 this.recordModelDelta(runState, delta, latestStreamedContent, 'act');
-                const isToolIterationContent = meta?.phase === 'tool_iteration' || meta?.phase === 'tool_iteration_stream';
-                if (isToolIterationContent) {
-                    hasSuppressedToolIterationContent = true;
-                    const progressContent = this.extractToolIterationProgress(latestStreamedContent, meta);
-                    if (progressContent) {
-                        latestProgressContent = progressContent;
-                        draftPlaceholderDisplayed = false;
-                        renderProgress();
-                    } else if (this.isSuppressedIntermediateDraft(latestStreamedContent)) {
-                        const placeholder = this.getSuppressedDraftPlaceholder(plan);
-                        if (!draftPlaceholderDisplayed || latestProgressContent !== placeholder) {
-                            latestProgressContent = placeholder;
-                            draftPlaceholderDisplayed = true;
-                            renderProgress();
-                        }
-                    }
-                    return;
-                }
-                if (hasSuppressedToolIterationContent && delta === full && full === previousStreamedContent) {
-                    shouldReplayFinalContent = true;
-                    return;
-                }
                 hasDisplayedContent = true;
-                progressDisplayed = false;
-                latestProgressContent = '';
-                draftPlaceholderDisplayed = false;
+                const isToolIteration = meta?.phase === 'tool_iteration' || meta?.phase === 'tool_iteration_stream';
+                if (!isToolIteration) {
+                    beginSynthesisStage();
+                } else if (!iterationToolCallSeen && latestStreamedContent.length > 400) {
+                    // 本轮还没出现工具调用且正文已经较长：模型在直接产出最终答案 → 切到 Synthesize
+                    beginSynthesisStage();
+                }
                 this.ui.updateContent(container, latestStreamedContent);
                 this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
             },
             onIterationStart: iteration => {
                 this.recordIteration(runState, iteration);
+                iterationToolCallSeen = false;
+                iterationFirstTokenSeen = false;
+                // 逐轮登记模型请求：这是上一版最大的埋点缺口（26 次请求只记了 1 次）
+                iterationLLMCallId = this.performanceMonitor
+                    ? this.performanceMonitor.beginLLMCall('loop#' + iteration)
+                    : null;
+                if (observedOnce) {
+                    this.ui.setAgentStage(container, 'observe', 'done', '观察完成');
+                }
                 this.emitEvent(runState, 'model.started', {
                     iteration,
                     toolsEnabled: true,
                     enableThinking: Boolean(enableThinking)
                 }, { stage: 'act', visibility: 'history' });
-                this.ui.setAgentStage(container, 'act', 'active', `Iteration ${iteration}`);
-                this.ui.addAgentTrace(container, 'act', `Iteration ${iteration}: model turn started.`);
+                this.ui.setAgentStage(container, 'act', 'active', 'Iteration ' + iteration);
+                this.ui.addAgentTrace(container, 'act', 'Iteration ' + iteration + ': model turn started.');
             },
             onToolCall: toolCall => {
+                iterationToolCallSeen = true;
+                if (synthesisStageActive) {
+                    synthesisStageActive = false;
+                    this.ui.setAgentStage(container, 'synthesize', 'pending', '');
+                }
+                if (!routeResolved) {
+                    routeResolved = true;
+                    this.ui.setAgentStage(container, 'route', 'done', '模型已选定工具');
+                    this.emitEvent(runState, 'route.completed', {
+                        selectedTools: Array.from(new Set([...plan.selectedTools, toolCall.function.name])),
+                        toolContracts: this.getSelectedToolContracts(plan.selectedTools)
+                    }, { stage: 'route', visibility: 'history' });
+                }
                 this.recordToolCall(runState, toolCall);
                 collectedToolCalls.push({
                     id: toolCall.id,
@@ -408,86 +697,48 @@ class AgentRuntime {
                 });
                 this.ui.setAgentStage(container, 'act', 'active', toolCall.function.name);
                 this.ui.displayToolCall(container, toolCall);
+                
+                // 记录工具调用开始（用于性能监控计时）
+                if (this.performanceMonitor) {
+                    this.performanceMonitor.beginToolCall(toolCall.id, toolCall.function.name);
+                }
             },
             onToolResult: (toolCallId, result, success) => {
+                observedOnce = true;
                 this.recordToolResult(runState, toolCallId, result, success);
                 this.ui.setAgentStage(container, 'observe', success ? 'active' : 'error', success ? '观察完成' : '工具失败');
                 this.ui.updateToolResult(toolCallId, this.summarizeToolResult(result), success);
+                
+                // 记录工具调用耗时
+                if (this.performanceMonitor) {
+                    this.performanceMonitor.completeToolCall(toolCallId);
+                }
             },
             onIterationComplete: (iteration, response) => {
                 const count = response.tool_calls ? response.tool_calls.length : 0;
+                // 收口本轮的 LLM 计时与 token（覆盖全部 26 次请求的关键）
+                if (this.performanceMonitor && iterationLLMCallId) {
+                    this.performanceMonitor.completeLLMCall(iterationLLMCallId, response?.usage);
+                    iterationLLMCallId = null;
+                }
+                if (count === 0) {
+                    beginSynthesisStage();
+                }
                 this.emitEvent(runState, 'model.completed', {
                     iteration,
                     finish_reason: response?.finish_reason || null,
                     tool_call_count: count,
                     content_chars: String(response?.content || '').length
                 }, { stage: count ? 'observe' : 'synthesize', visibility: 'history' });
-                this.ui.addAgentTrace(container, 'observe', `Iteration ${iteration}: ${count} tool call(s) observed.`);
+                this.ui.addAgentTrace(container, 'observe', 'Iteration ' + iteration + ': ' + count + ' tool call(s) observed.');
             },
-            augmentToolCalls: ({ iteration, toolCalls }) => {
-                const injected = this.buildEarlyAgentEarthToolCalls(plan, runState, userMessage, iteration, toolCalls);
-                injected.forEach(toolCall => {
-                    this.emitEvent(runState, 'agent_earth.early_injected', {
-                        iteration,
-                        tool_call_id: toolCall.id,
-                        name: toolCall.function?.name || '',
-                        arguments_preview: this.previewValue(toolCall.function?.arguments || '', 1200)
-                    }, { stage: 'act', visibility: 'history' });
-                });
-                if (injected.length) {
-                    this.ui.addAgentTrace(container, 'act', `Iteration ${iteration}: injected ${injected.length} early AgentEarth call(s).`);
+            onUsage: usage => {
+                this.recordModelUsage(runState, usage);
+                
+                // 用真实 prompt_tokens 校正上下文圆环
+                if (this.contextManager) {
+                    this.contextManager.updateFromUsage(usage);
                 }
-                return injected;
-            },
-            shouldContinueAfterFinal: ({ iteration, response }) => {
-                const agentEarthFollowUp = this.buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedAgentEarthFollowups);
-                if (agentEarthFollowUp) {
-                    forcedAgentEarthFollowups += 1;
-                    this.ui.setAgentStage(container, 'act', 'active', 'AgentEarth collaboration');
-                    this.ui.addAgentTrace(container, 'act', `AgentEarth collaboration request added a bounded tool pass at iteration ${iteration}.`);
-                    this.emitEvent(runState, 'agent_earth.collaboration_required', {
-                        iteration,
-                        forcedFollowups: forcedAgentEarthFollowups
-                    }, { stage: 'act', visibility: 'history' });
-                    return { continue: true, message: agentEarthFollowUp };
-                }
-                const densityFollowUp = this.buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedNewsBriefDensityFollowups);
-                if (densityFollowUp) {
-                    forcedNewsBriefDensityFollowups += 1;
-                    this.ui.setAgentStage(container, 'act', 'active', `News brief expansion ${forcedNewsBriefDensityFollowups}`);
-                    this.ui.addAgentTrace(container, 'act', `News brief expansion request asked for a fuller answer at iteration ${iteration}.`);
-                    this.emitEvent(runState, 'research.answer_density_gap', {
-                        iteration,
-                        forcedFollowups: forcedNewsBriefDensityFollowups
-                    }, { stage: 'act', visibility: 'history' });
-                    return { continue: true, message: densityFollowUp };
-                }
-                const citationQualityFollowUp = this.buildForcedCitationQualityFollowUp(plan, runState, response, forcedCitationQualityFollowups);
-                if (citationQualityFollowUp) {
-                    forcedCitationQualityFollowups += 1;
-                    this.ui.setAgentStage(container, 'act', 'active', `Citation repair ${forcedCitationQualityFollowups}`);
-                    this.ui.addAgentTrace(container, 'act', `Citation quality request asked for a better sourced final answer at iteration ${iteration}.`);
-                    this.emitEvent(runState, 'research.citation_density_gap', {
-                        iteration,
-                        forcedFollowups: forcedCitationQualityFollowups,
-                        unique_source_urls: runState.metrics.unique_source_urls,
-                        evidence_items: runState.metrics.evidence_items
-                    }, { stage: 'act', visibility: 'history' });
-                    return { continue: true, message: citationQualityFollowUp };
-                }
-                const followUp = this.buildForcedResearchFollowUp(plan, runState, userMessage, forcedCoverageFollowups);
-                if (!followUp) return null;
-                forcedCoverageFollowups += 1;
-                this.ui.setAgentStage(container, 'act', 'active', `Coverage follow-up ${forcedCoverageFollowups}`);
-                this.ui.addAgentTrace(container, 'act', `Coverage improvement request added one bounded evidence pass at iteration ${iteration}.`);
-                this.emitEvent(runState, 'research.coverage_gap', {
-                    iteration,
-                    forcedFollowups: forcedCoverageFollowups,
-                    newsBriefScope: plan.newsBriefScope || null,
-                    unique_source_urls: runState.metrics.unique_source_urls,
-                    evidence_items: runState.metrics.evidence_items
-                }, { stage: 'act', visibility: 'history' });
-                return { continue: true, message: followUp };
             },
             executeToolFn: async (name, args, toolCall = null) => {
                 this.assertToolInput(name, args);
@@ -498,58 +749,79 @@ class AgentRuntime {
             }
         });
 
-        this.ui.setAgentStage(container, 'act', 'done', 'Tool loop complete');
-        this.ui.setAgentStage(container, 'observe', 'done', 'Results summarized');
-        this.ui.setAgentStage(container, 'synthesize', 'active', 'Final synthesis');
+        beginSynthesisStage();
         this.emitEvent(runState, 'synthesis.started', {
             tool_calls: runState.metrics.tool_calls,
             evidence_items: runState.metrics.evidence_items
         }, { stage: 'synthesize', visibility: 'history' });
-        /*
-        this.ui.setAgentStage(container, 'act', 'done', '工具循环结束');
-        this.ui.setAgentStage(container, 'observe', 'done', '结果已汇总');
-        this.ui.setAgentStage(container, 'synthesize', 'active', '最终合成');
 
-        */
-        let normalizedFinalContentChanged = false;
-        if (finalResponse) {
-            const originalFinalContent = finalResponse.content || latestStreamedContent || '';
-            const normalizedContent = this.normalizeFinalResearchAnswer(
-                originalFinalContent,
+        // 【Deliverable】独立长文合成阶段
+        // 与工具循环解耦，因此不会被"轮次耗尽"打断；这是拿到万字级交付物的关键。
+        let deliverableContent = '';
+        let deliverableVerification = null;
+        if (contract && contract.minChars > 0 && this.researchContract) {
+            const deliverable = await this.runDeliverablePass({
                 plan,
-                runState
-            );
-            if (normalizedContent) {
-                normalizedFinalContentChanged = normalizedContent !== originalFinalContent;
-                finalResponse.content = normalizedContent;
-                latestStreamedContent = normalizedContent;
+                contract,
+                runState,
+                container,
+                enableThinking,
+                signal,
+                expertDigest,
+                runtimeConfig,
+                latestStreamedContent
+            });
+            if (deliverable && deliverable.content) {
+                // 交付物优先于工具循环的进度句：循环阶段只写要点，最终正文必须用交付物
+                deliverableContent = deliverable.content;
+                deliverableVerification = deliverable.verification;
+                latestStreamedContent = deliverable.content;
             }
         }
-        if (finalResponse?.content) {
-            if (container.reasoningDetails.classList.contains('thinking-state')) {
-                this.ui.finishReasoning(container);
+
+        if (finalResponse) {
+            // 有交付物时，以交付物为准覆盖循环输出
+            if (deliverableContent) {
+                finalResponse.content = deliverableContent;
             }
-            if (!hasDisplayedContent || shouldReplayFinalContent || progressDisplayed) {
-                await this.streamFinalContent(container, finalResponse.content);
-                hasDisplayedContent = true;
-                progressDisplayed = false;
-                latestProgressContent = '';
-                draftPlaceholderDisplayed = false;
-                latestStreamedContent = finalResponse.content;
-                this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
-            } else if (normalizedFinalContentChanged || finalResponse.content !== latestStreamedContent) {
+            const originalFinalContent = finalResponse.content || latestStreamedContent || '';
+            const normalizedContent = this.normalizeFinalResearchAnswer(originalFinalContent, plan, runState);
+            if (normalizedContent && normalizedContent !== originalFinalContent) {
+                finalResponse.content = normalizedContent;
+                latestStreamedContent = normalizedContent;
+                if (container.reasoningDetails.classList.contains('thinking-state')) {
+                    this.ui.finishReasoning(container);
+                }
+                this.ui.updateContent(container, normalizedContent);
+                this.notifyRunSnapshot(runState, 'content.updated', { content: normalizedContent });
+            } else if (!latestStreamedContent && finalResponse.content) {
+                if (container.reasoningDetails.classList.contains('thinking-state')) {
+                    this.ui.finishReasoning(container);
+                }
                 this.ui.updateContent(container, finalResponse.content);
                 this.notifyRunSnapshot(runState, 'content.updated', { content: finalResponse.content || '' });
             }
+        } else if (latestStreamedContent) {
+            // 长文合成阶段可能已经产出正文（主循环没有 finalResponse 的情况）
+            finalResponse = { content: latestStreamedContent, tool_calls: [], finish_reason: 'stop' };
+        }
+
+        if (deliverableVerification) {
+            runState.metrics.deliverable_ok = Boolean(deliverableVerification.ok);
+            runState.metrics.deliverable_chars = deliverableVerification.stats.chars;
         }
 
         this.ui.setAgentStage(container, 'synthesize', 'done', '完成');
         this.ui.addAgentTrace(container, 'synthesize', 'Final answer synthesized from the run state.');
+        
+        // 完成性能监控
+        if (this.performanceMonitor) {
+            this.performanceMonitor.finishRun();
+        }
+        
         if (finalResponse) {
             finalResponse.reasoning_content = null;
             this.finalizeRunState(runState, finalResponse.content || latestStreamedContent || '');
-            this.collaborationService?.finalize(runState);
-            this.emitCollaborationCompleted(runState);
             this.emitEvent(runState, 'run.completed', {
                 content_chars: String(finalResponse.content || latestStreamedContent || '').length,
                 warnings: runState.warnings
@@ -561,1331 +833,380 @@ class AgentRuntime {
         return finalResponse;
     }
 
-    getAgentEarthTargetCalls(plan = null) {
-        if (this.agentProfiles) {
-            return this.agentProfiles.getAgentEarthTargetCalls(plan);
-        }
-        const configured = Number(plan?.agentEarthTargetCalls || 0);
-        if (configured > 0) return Math.min(10, Math.max(8, configured));
-        if (Array.isArray(plan?.selectedTools) && plan.selectedTools.includes('agent_earth_run')) return 8;
-        return 0;
-    }
-
-    buildEarlyAgentEarthToolCalls(plan, runState, userMessage, iteration, existingToolCalls = []) {
-        if (!Array.isArray(plan?.selectedTools) || !plan.selectedTools.includes('agent_earth_run')) return [];
-        const currentIteration = Number(iteration) || 0;
-        if (currentIteration < 1 || currentIteration > 2) return [];
-        const targetCalls = this.getAgentEarthTargetCalls(plan);
-        if (targetCalls <= 0) return [];
-
-        const existingCount = Array.isArray(runState?.toolCalls)
-            ? runState.toolCalls.filter(call => call.name === 'agent_earth_run').length
-            : 0;
-        const pendingCount = Array.isArray(existingToolCalls)
-            ? existingToolCalls.filter(call => call?.function?.name === 'agent_earth_run').length
-            : 0;
-        const remaining = Math.max(0, targetCalls - existingCount - pendingCount);
-        if (remaining <= 0) return [];
-
-        const perTurnLimit = currentIteration === 1 ? 6 : 4;
-        const count = Math.min(remaining, perTurnLimit);
-        const queries = this.buildEarlyAgentEarthQueries(userMessage, plan, count);
-        return queries.map((query, index) => this.createInjectedToolCall('agent_earth_run', {
-            query,
-            task_context: '',
-            max_attempts: 0
-        }, `early-${currentIteration}-${index + 1}`));
-    }
-
-    buildEarlyAgentEarthQueries(userMessage, plan, count) {
-        const task = String(userMessage || '').trim() || 'Research this user request with current external sources.';
-        const profile = plan?.researchProfile || '';
-        const broadNews = profile === 'news_brief';
-        const baseQueries = broadNews
-            ? [
-                `${task}\nFocus: international and domestic top news, broad daily briefing evidence. Prefer AgentEarth tools for Reuters, Bloomberg, Google News, BrightData/news extraction, X/Twitter, YouTube, Facebook, Reddit, and other available news/social platforms when useful.`,
-                `${task}\nFocus: finance, markets, business, economy, and policy signals. Prefer Reuters, Bloomberg, WSJ/CNBC, 财联社, Google News, Tushare/market-data, and other AgentEarth finance/news tools when useful.`,
-                `${task}\nFocus: technology, science, health, climate, and education developments. Include Google News, Reuters/AP, official sources, Reddit/X/Twitter, YouTube, and specialist AgentEarth tools when useful.`,
-                `${task}\nFocus: society, livelihood, sports, culture, and public-interest stories. Include Google News, YouTube, Facebook, Reddit, X/Twitter, and reputable media tools when useful.`,
-                `${task}\nFocus: cross-check missing angles and source diversity for the final brief. Use all relevant AgentEarth news, social, data, and extraction tools without limiting to one candidate.`,
-                `${task}\nFocus: reputable primary or high-authority sources with URLs. If normal foreign-source search is blocked or thin, fall back to AgentEarth platform tools repeatedly until useful candidates are exhausted.`
-            ]
-            : [
-                `${task}\nFocus: current facts and authoritative sources. Use AgentEarth platform tools such as Google News, Reuters, Bloomberg, BrightData extraction, X/Twitter, Reddit, YouTube, Facebook, finance/data, and other relevant tools when available.`,
-                `${task}\nFocus: specialist tools, data, reports, and comparisons. Let AgentEarth choose from all matching professional tools.`,
-                `${task}\nFocus: primary sources, official pages, and verification. If ordinary web search fails, keep using AgentEarth alternatives.`,
-                `${task}\nFocus: missing angles, risks, community or market signals across X/Twitter, Reddit, Facebook, YouTube, news wires, market-data, and other available sources.`,
-                `${task}\nFocus: source diversity and citation-ready URLs from multiple platforms.`,
-                `${task}\nFocus: concise evidence useful for final synthesis, not raw JSON.`
-            ];
-        return baseQueries.slice(0, Math.max(0, count));
-    }
-
-    createInjectedToolCall(name, args, suffix = '') {
-        const idSuffix = suffix || Math.random().toString(16).slice(2, 8);
-        return {
-            id: `call_${Date.now().toString(36)}_${idSuffix}`,
-            type: 'function',
-            function: {
-                name,
-                arguments: JSON.stringify(args || {})
-            }
-        };
-    }
-
-    emitCollaborationReady(runState) {
-        const collaboration = runState?.plan?.collaboration;
-        if (!collaboration?.enabled) return;
-        (collaboration.collaborators || []).forEach(collaborator => {
-            this.collaborationService?.emitStage(this, runState, collaborator.id, 'active', {
-                stage: 'route',
-                status: 'ready',
-                toolFocus: collaborator.toolFocus || []
-            });
-        });
-        (collaboration.handoffs || []).slice(0, 8).forEach(handoff => {
-            this.emitEvent(runState, 'collaboration.handoff', {
-                from: handoff.from || '',
-                to: handoff.to || '',
-                reason: handoff.reason || ''
-            }, { stage: 'route', visibility: 'history' });
-        });
-    }
-
-    emitCollaborationCompleted(runState) {
-        const collaboration = runState?.collaboration || runState?.plan?.collaboration;
-        if (!collaboration?.enabled) return;
-        this.emitEvent(runState, 'collaboration.completed', {
-            strategy: collaboration.strategy || '',
-            collaborator_count: collaboration.collaborators?.length || 0,
-            status: collaboration.status || 'completed'
-        }, { stage: 'synthesize', visibility: 'history' });
-    }
-
-    buildAgentProgressContent(progressLines = [], latestProgressContent = '') {
-        const parts = [];
-        const current = String(latestProgressContent || '').trim();
-        if (current) parts.push(current);
-        const lines = Array.isArray(progressLines) ? progressLines : [];
-        lines.slice(-18).forEach(line => {
-            const text = String(line || '').trim();
-            if (text) parts.push(text);
-        });
-        return parts.join('\n');
-    }
-
-    extractToolIterationProgress(content, meta = {}) {
-        const text = this.cleanToolProgressText(content);
-        if (!text || this.isLikelyIntermediateDraft(text)) return '';
-        if (meta?.phase === 'tool_iteration_stream' && text.length < 8) return '';
-        return this.previewValue(text, 900);
-    }
-
-    isSuppressedIntermediateDraft(content) {
-        const text = this.cleanToolProgressText(content);
-        return Boolean(text && this.isLikelyIntermediateDraft(text));
-    }
-
-    getSuppressedDraftPlaceholder(plan = null) {
-        if (plan?.mode === 'news_brief') {
-            return '正在整理新闻材料，稍后输出完整简报。';
-        }
-        if (this.isResearchLikeMode(plan?.mode)) {
-            return '正在整理资料，稍后输出完整正文。';
-        }
-        return '正在整理内容，稍后输出完整正文。';
-    }
-
-    cleanToolProgressText(content) {
-        const text = String(content || '')
-            .replace(/<\/?think>/gi, '')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-        return text
-            .split('\n')
-            .filter(line => !this.isToolLogProgressLine(line))
-            .join('\n')
-            .trim();
-    }
-
-    isToolLogProgressLine(line) {
-        const value = String(line || '').trim();
-        if (/^(Tool call|Tool completed|Tool failed|\u8c03\u7528\u5de5\u5177|\u5de5\u5177\u5b8c\u6210|\u5de5\u5177\u5931\u8d25)\s*[:\uff1a]/i.test(value)
-            || /^\u8c03\u7528\u5de5\u5177\s*[:\uff1a]?\s*[a-z_]+\s*\{/i.test(value)
-            || /^\u5de5\u5177\u5b8c\u6210\s*[:\uff1a]?\s*[a-z_]+/i.test(value)) {
-            return true;
-        }
-        return /^(Tool call|Tool completed|Tool failed|调用工具|工具完成|工具失败)\s*[:：]/i.test(value)
-            || /^调用工具\s*[:：]?\s*[a-z_]+\s*\{/i.test(value)
-            || /^工具完成\s*[:：]?\s*[a-z_]+/i.test(value);
-    }
-
-    isLikelyIntermediateDraft(text) {
-        const value = String(text || '').trim();
-        if (!value) return false;
-        const citationCount = (value.match(/\[\d+\]/g) || []).length;
-        const headingCount = (value.match(/^#{1,4}\s+/gm) || []).length;
-        const sourceLike = /(^|\n)\s*(来源|参考|引用|Sources|References)\s*[:：]?/i.test(value);
-        const finalLike = /(最终答案|最终回答|总结如下|结论|综合来看|下面是|以下是)/i.test(value);
-        const sourceLikeSafe = /(^|\n)\s*(\u6765\u6e90|\u53c2\u8003|\u5f15\u7528|Sources|References)\s*[:\uff1a]?/i.test(value);
-        const finalLikeSafe = /(\u6700\u7ec8\u7b54\u6848|\u6700\u7ec8\u56de\u7b54|\u603b\u7ed3\u5982\u4e0b|\u7ed3\u8bba|\u7efc\u5408\u6765\u770b|\u4e0b\u9762\u662f|\u4ee5\u4e0b\u662f|final answer|summary|conclusion)/i.test(value);
-        const synthesisLike = /(synthesize|synthesis|compile\s+(the\s+)?final|final\s+answer|proper\s+citations|well-structured|daily\s+news\s+briefing|news\s+briefing|\u5f00\u59cb\u5408\u6210|\u5f00\u59cb\u6574\u7406|\u5f00\u59cb\u5199|\u6570\u636e\u91cf\u591f|\u8d44\u6599\u591f|\u8bc1\u636e\u591f|\u7efc\u5408\u6210|\u6574\u7406\u6210|\u6700\u7ec8\u7b54\u6848|\u6b63\u5f0f\u56de\u7b54|\u65b0\u95fb\u7b80\u62a5|\u4eca\u65e5\u65b0\u95fb|\u65b0\u95fb\u665a\u62a5|\u65b0\u95fb\u901f\u62a5|\u8be6\u7ec6\u76d8\u70b9|\u4ee5\u4e0b\u662f\u5404)/i.test(value);
-        const numberedLines = (value.match(/(^|\n)\s*\d+[.)]\s+/g) || []).length;
-        if (synthesisLike) return true;
-        if (headingCount >= 1 && value.length > 160) return true;
-        if (numberedLines >= 2 && value.length > 220) return true;
-        if (value.length > 1200) return true;
-        if (value.length > 520 && (citationCount >= 3 || headingCount >= 2 || sourceLikeSafe || finalLikeSafe)) return true;
-        return false;
-    }
-
-    formatToolCallProgress(toolCall) {
-        return '';
-    }
-
-    formatToolResultProgress(runState, toolCallId, result, success = true) {
-        return '';
-    }
-
-    safeParseToolArguments(value) {
-        const text = String(value || '').trim();
-        if (!text) return {};
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            return text;
-        }
-    }
-
-    formatToolIterationContent(content, meta = {}) {
-        const iteration = Number(meta.iteration) || 0;
-        const hasToolCount = Array.isArray(meta.toolCalls);
-        const toolCount = hasToolCount ? meta.toolCalls.length : 0;
-        const note = hasToolCount ? `准备调用 ${toolCount} 个工具` : '正在分析并规划工具调用';
-        const header = `研究进度（第 ${iteration || '?'} 轮，${note}）`;
-        const body = String(content || '').trim();
-        return body ? `${header}\n\n${body}` : header;
-    }
-
-    async streamFinalContent(container, content) {
-        const text = String(content || '');
-        if (!text) {
-            this.ui.updateContent(container, '');
-            return;
-        }
-
-        const frameCount = Math.min(72, Math.max(12, Math.ceil(text.length / 120)));
-        const chunkSize = Math.max(48, Math.ceil(text.length / frameCount));
-        for (let index = chunkSize; index < text.length; index += chunkSize) {
-            this.ui.updateContent(container, text.slice(0, index));
-            await new Promise(resolve => setTimeout(resolve, 8));
-        }
-        this.ui.updateContent(container, text);
-    }
 
     normalizeFinalResearchAnswer(content, plan, runState = null) {
-        // Citation/source-section mechanics live in AgentCitationNormalizer.
-        // Keep AgentRuntime focused on run orchestration and shared evidence helpers.
-        const input = this.normalizeFinalAnswerText(content);
-        if (this.citationNormalizer) {
-            return this.normalizeFinalAnswerText(this.citationNormalizer.normalizeFinalResearchAnswer(input, plan, runState));
-        }
-        const text = input;
-        const hasEvidence = Array.isArray(runState?.evidenceLedger) && runState.evidenceLedger.length > 0;
-        const hasSourceSection = this.hasSourceHeading(text);
-        if (!text || (!this.isResearchLikeMode(plan?.mode) && !hasEvidence && !hasSourceSection)) return text;
-        return this.normalizeFinalAnswerText(this.normalizeSourceSection(text, runState, plan));
-    }
-
-    normalizeFinalAnswerText(content) {
         const text = String(content || '');
-        if (!text) return text;
-        return text
-            .split('\n')
-            .map(line => this.normalizeSummaryHeadingLine(line))
-            .join('\n');
-    }
-
-    normalizeSummaryHeadingLine(line) {
-        const raw = String(line || '');
-        if (!/一句话/.test(raw)) return raw;
-
-        const heading = raw.match(/^(\s{0,3}#{1,6}\s+).*一句话.*$/u);
-        if (heading) return `${heading[1]}总结`;
-
-        const trimmed = raw.trim();
-        if (/^\d+[.)、]\s+/.test(trimmed)) return raw;
-        const labelish = /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?\s*[:：]/u.test(trimmed)
-            || /^(\*\*)?[^:：\n]{0,28}一句话[^:：\n]{0,28}(\*\*)?$/u.test(trimmed)
-            || /^[\-*+> ]{0,4}[^:：\n]{0,16}一句话[^:：\n]{0,16}\s*[:：]/u.test(trimmed);
-        if (!labelish) return raw;
-
-        const boldLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}([:：])(\*\*)?\s*(.*)$/u);
-        if (boldLabel) {
-            const prefix = boldLabel[1] || '';
-            const marker = boldLabel[2] || boldLabel[4] ? '**' : '';
-            const suffix = boldLabel[5] ? ` ${boldLabel[5].replace(/^\*\*\s*/, '').trim()}` : '';
-            return `${prefix}${marker}总结${boldLabel[3]}${marker}${suffix}`.trimEnd();
-        }
-
-        const plainLabel = raw.match(/^(\s*(?:[-*+]\s+|>\s*)?)(\*\*)?[^:：\n]{0,40}一句话[^:：\n]{0,40}(\*\*)?\s*$/u);
-        if (plainLabel) {
-            const prefix = plainLabel[1] || '';
-            const marker = plainLabel[2] || plainLabel[3] ? '**' : '';
-            return `${prefix}${marker}总结${marker}`.trimEnd();
-        }
-
-        const indent = raw.match(/^\s*/)?.[0] || '';
-        const labelCandidate = raw.trim().replace(/^[^\p{L}\p{N}\u4e00-\u9fff]+/u, '');
-        if (labelCandidate.length <= 40 && /一句话/.test(labelCandidate)) {
-            return `${indent}总结`;
-        }
-
-        return raw;
-    }
-
-    normalizeSourceSection(text, runState = null, plan = null) {
-        const value = String(text || '').trimEnd();
-        const matches = Array.from(value.matchAll(this.sourceHeadingPattern()));
-        if (!matches.length) return value;
-        const sourcePolicyPlan = this.resolveSourcePolicyPlan(plan, runState, value);
-        const academicMode = this.isAcademicResearchPlan(sourcePolicyPlan);
-
-        const match = matches[matches.length - 1];
-        const headingStart = match.index + (match[1] ? match[1].length : 0);
-        const before = this.stripTrailingSourceSections(value.slice(0, headingStart));
-        const sourceBlock = value.slice(headingStart);
-        const heading = this.matchSourceHeadingAtStart(sourceBlock);
-        if (!heading) return value;
-
-        const rawSources = sourceBlock.slice(heading[0].length).trim();
-        const sourceMatches = Array.from(rawSources.matchAll(/\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]\s*|$)/g));
-        if (!sourceMatches.length) return value;
-
-        const rawSourceMap = new Map();
-        sourceMatches.forEach(item => {
-            const id = String(item[1]);
-            const body = this.cleanSourceEntryText(item[2]);
-            if (body && !rawSourceMap.has(id)) rawSourceMap.set(id, body);
-        });
-        const evidenceIndex = this.buildEvidenceSourceIndex(runState?.evidenceLedger || [], sourcePolicyPlan);
-        const evidenceCatalog = this.buildEvidenceCitationCatalog(runState?.evidenceLedger || [], sourcePolicyPlan);
-        const enriched = this.enrichCitationSpecificity(before, rawSourceMap, evidenceIndex, evidenceCatalog, sourcePolicyPlan);
-        enriched.extraSources.forEach((body, id) => {
-            if (body && !rawSourceMap.has(id)) rawSourceMap.set(id, body);
-        });
-        const bodyForCitations = enriched.text || before;
-        const citedIds = this.extractCitationMarkers(bodyForCitations);
-        const rawSourceIds = sourceMatches.map(item => String(item[1]));
-        const preservableRawSourceIds = citedIds.length
-            ? rawSourceIds.filter(id => this.citationNormalizer?.shouldPreserveRawSourceEntry
-                ? this.citationNormalizer.shouldPreserveRawSourceEntry(rawSourceMap.get(id), sourcePolicyPlan)
-                : true)
-            : rawSourceIds;
-        const sourceOrder = citedIds.length
-            ? Array.from(new Set([...citedIds, ...preservableRawSourceIds]))
-            : preservableRawSourceIds;
-
-        const idMap = new Map();
-        const droppedIds = new Set();
-        const seenEntries = new Map();
-        const entries = [];
-        sourceOrder.forEach(oldId => {
-            const body = this.buildDetailedSourceBody(oldId, rawSourceMap, evidenceIndex, sourcePolicyPlan);
-            if (!body) {
-                droppedIds.add(String(oldId));
-                return;
-            }
-            if (academicMode && !this.isAllowedAcademicSourceBody(body)) {
-                droppedIds.add(String(oldId));
-                return;
-            }
-            const dedupeKey = body.toLowerCase();
-            if (seenEntries.has(dedupeKey)) {
-                if (!idMap.has(oldId)) idMap.set(oldId, seenEntries.get(dedupeKey));
-                return;
-            }
-            const newId = String(entries.length + 1);
-            if (!idMap.has(oldId)) idMap.set(oldId, newId);
-            seenEntries.set(dedupeKey, newId);
-            entries.push({ oldId, newId, body });
-        });
-        if (!entries.length) {
-            const cleanedBodyWithoutMarkers = this.cleanRepeatedCitationMarkers(this.stripCitationMarkers(bodyForCitations)).trimEnd();
-            if (academicMode) {
-                return `${cleanedBodyWithoutMarkers}\n\n来源：\n未找到可用于学术引用的论文级来源。`;
-            }
-            return `${cleanedBodyWithoutMarkers}\n\n来源：\n未找到可用的来源详情。`;
-        }
-
-        const normalizedBody = this.replaceCitationGroups(bodyForCitations, id => {
-            if (droppedIds.has(id)) return '';
-            return idMap.has(id) ? idMap.get(id) : id;
-        });
-        const cleanedBody = this.cleanRepeatedCitationMarkers(normalizedBody);
-        const sourceLines = entries.map(entry => `[${entry.newId}] ${entry.body}`);
-        return `${cleanedBody}\n\n来源：\n${sourceLines.join('\n')}`;
-    }
-
-    sourceHeadingPattern() {
-        return /(^|\n)\s*(?:#{1,6}\s*)?(?:\*\*)?\s*(来源|参考|Sources|References)\s*(?:\*\*)?\s*[:：]?\s*(?:\*\*)?\s*(?=\n|$)/gi;
-    }
-
-    matchSourceHeadingAtStart(value) {
-        return String(value || '').match(/^\s*(?:#{1,6}\s*)?(?:\*\*)?\s*(来源|参考|Sources|References)\s*(?:\*\*)?\s*[:：]?\s*(?:\*\*)?\s*/i);
-    }
-
-    hasSourceHeading(value) {
-        return this.sourceHeadingPattern().test(String(value || ''));
-    }
-
-    stripTrailingSourceSections(value) {
-        let body = String(value || '').trimEnd();
-        while (body) {
-            const matches = Array.from(body.matchAll(this.sourceHeadingPattern()));
-            if (!matches.length) return body;
-            const match = matches[matches.length - 1];
-            const headingStart = match.index + (match[1] ? match[1].length : 0);
-            const trailing = body.slice(headingStart);
-            if (!this.looksLikeSourceSection(trailing)) return body;
-            body = body.slice(0, headingStart).trimEnd();
-        }
-        return body;
-    }
-
-    looksLikeSourceSection(value) {
-        const heading = this.matchSourceHeadingAtStart(value);
-        const body = heading ? String(value || '').slice(heading[0].length).trim() : String(value || '').trim();
-        if (!body) return true;
-        const sourceLikeLines = body
-            .split('\n')
-            .map(line => line.trim())
-            .filter(Boolean)
-            .filter(line => /\[\d+\]|https?:\/\/|agentearth\.ai|[\u2014-]{2,}/i.test(line));
-        return sourceLikeLines.length >= 2 || /https?:\/\/|\[\d+\]/.test(body);
-    }
-
-    enrichCitationSpecificity(body, rawSourceMap, evidenceIndex, evidenceCatalog, plan = null) {
-        const text = String(body || '');
-        const catalog = Array.isArray(evidenceCatalog) ? evidenceCatalog : [];
-        if (!text || catalog.length === 0) {
-            return { text, extraSources: new Map() };
-        }
-
-        const citationCounts = this.countCitationMarkers(text);
-        const extraSources = new Map();
-        const usedEvidenceKeys = new Set();
-        let nextSourceId = this.getNextCitationSourceId(rawSourceMap, evidenceIndex);
-
-        const lines = text.split('\n').map(line => {
-            const ids = this.extractCitationMarkers(line);
-            if (!ids.length) return line;
-            const improvementIds = ids.filter(id => this.shouldImproveCitationSource(id, citationCounts, rawSourceMap, evidenceIndex, plan));
-            if (!improvementIds.length) return line;
-
-            const claimText = this.stripCitationMarkers(line);
-            const missingSource = improvementIds.some(id => this.isMissingCitationSource(id, rawSourceMap, evidenceIndex));
-            const targetMatches = Math.min(3, Math.max(1, improvementIds.length));
-            const matches = this.findBestEvidenceMatchesForClaim(claimText, catalog, usedEvidenceKeys, targetMatches);
-            const minScore = missingSource ? 5 : 8;
-            const replacementIds = [];
-            matches.forEach(match => {
-                if (!match || match.score < minScore) return;
-                const sourceBody = this.formatEvidenceSource(match.entry);
-                if (!sourceBody) return;
-                const sourceId = String(nextSourceId++);
-                extraSources.set(sourceId, sourceBody);
-                usedEvidenceKeys.add(this.getEvidenceCandidateKey(match.entry));
-                replacementIds.push(sourceId);
-            });
-            if (!replacementIds.length) return line;
-            const retainedIds = ids.filter(id => !improvementIds.includes(id)
-                && this.buildDetailedSourceBody(id, rawSourceMap, evidenceIndex, plan));
-            const replacement = [...retainedIds, ...replacementIds].map(id => `[${id}]`).join(' ');
-
-            const trailingCitationPattern = /(?:\s*\[(?:\d+\s*(?:[,，]\s*\d+\s*)*)\])+\s*$/;
-            if (trailingCitationPattern.test(line)) {
-                return line.replace(trailingCitationPattern, ` ${replacement}`);
-            }
-            return `${line} ${replacement}`;
-        });
-
-        return { text: lines.join('\n'), extraSources };
-    }
-
-    countCitationMarkers(text) {
-        const counts = new Map();
-        this.extractCitationMarkersWithDuplicates(text).forEach(id => {
-            counts.set(id, (counts.get(id) || 0) + 1);
-        });
-        return counts;
-    }
-
-    extractCitationMarkersWithDuplicates(text) {
-        const markers = [];
-        Array.from(String(text || '').matchAll(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g)).forEach(match => {
-            this.parseCitationGroup(match[1]).forEach(id => markers.push(id));
-        });
-        return markers;
-    }
-
-    parseCitationGroup(value) {
-        return String(value || '')
-            .split(/[,，]/)
-            .map(item => item.trim())
-            .filter(item => /^\d+$/.test(item));
-    }
-
-    stripCitationMarkers(value) {
-        return String(value || '').replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, ' ');
-    }
-
-    replaceCitationGroups(value, mapper) {
-        return String(value || '').replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, (marker, group) => {
-            const mapped = this.parseCitationGroup(group)
-                .map(id => mapper(id))
-                .filter(Boolean);
-            return mapped.length ? `[${mapped.join(',')}]` : '';
-        });
-    }
-
-    getNextCitationSourceId(rawSourceMap, evidenceIndex) {
-        const ids = [
-            ...Array.from(rawSourceMap?.keys?.() || []),
-            ...Array.from(evidenceIndex?.keys?.() || [])
-        ]
-            .map(id => Number(id))
-            .filter(id => Number.isFinite(id));
-        return Math.max(1000, ...ids) + 1;
-    }
-
-    shouldImproveCitationSource(sourceId, citationCounts, rawSourceMap, evidenceIndex, plan = null) {
-        const id = String(sourceId);
-        const repeated = (citationCounts.get(id) || 0) >= 3;
-        if (this.isMissingCitationSource(id, rawSourceMap, evidenceIndex)) return true;
-        const body = this.buildDetailedSourceBody(id, rawSourceMap, evidenceIndex, plan);
-        if (!body) return true;
-        return repeated
-            || this.isFallbackSourceReference(body)
-            || this.isGenericSourceReference(body)
-            || (this.isAcademicResearchPlan(plan) && !this.isAllowedAcademicSourceBody(body));
-    }
-
-    isMissingCitationSource(sourceId, rawSourceMap, evidenceIndex) {
-        const id = String(sourceId);
-        return !rawSourceMap?.has?.(id) && !evidenceIndex?.has?.(id);
-    }
-
-    isFallbackSourceReference(body) {
-        const text = this.cleanOneLine(body || '').toLowerCase();
-        return /工具来源\s*id|详情未返回|details?\s+not\s+returned|missing\s+source|source\s+id\s+\d+/i.test(text);
-    }
-
-    isGenericSourceReference(body) {
-        const text = this.cleanOneLine(body || '').toLowerCase();
-        if (!text) return true;
-        return /general index page|no specific article url returned|\/news\/?$|\/news\/world\/?$|news\.sina\.com\.cn\/?$|news\.163\.com\/latest\/?$|people\.com\.cn\/?$|nbd\.com\.cn\/?$/i.test(text)
-            || /^(bbc news|bbc world|reuters|ap news|associated press|guardian|cnbc|sina news|netease news|source|sources|references|来源|参考)/i.test(text);
-    }
-
-    resolveSourcePolicyPlan(plan = null, runState = null, finalText = '') {
-        const basePlan = plan || runState?.plan || null;
-        if (this.isNewsBriefPlan(basePlan)) {
-            if (basePlan?.researchProfile === 'academic' || basePlan?.inferredResearchProfile === 'academic') {
-                const { inferredResearchProfile, ...rest } = basePlan || {};
-                return { ...rest, researchProfile: 'news_brief' };
-            }
-            return basePlan;
-        }
-        if (basePlan?.researchProfile === 'industry') return basePlan;
-        if (this.isAcademicResearchPlan(basePlan)) return basePlan;
         const evidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
-        const usableEvidence = evidence.filter(entry => entry && !entry.error && (entry.title || entry.url));
-        const academicEvidenceCount = evidence.filter(entry => this.isAllowedAcademicEvidence(entry)).length;
-        const academicEvidenceDominant = academicEvidenceCount >= 4
-            && academicEvidenceCount >= Math.ceil(Math.max(usableEvidence.length, 1) * 0.65);
-        if ((this.hasAcademicCitationSignal(finalText) && academicEvidenceCount >= 2) || academicEvidenceDominant) {
-            return { ...(basePlan || {}), researchProfile: 'academic', inferredResearchProfile: 'academic' };
-        }
-        return basePlan;
+        if (!text || !evidence.length) return text;
+        return this.completeSourceLinks(text, evidence);
     }
 
-    isAcademicResearchPlan(plan = null) {
-        return plan?.researchProfile === 'academic' || plan?.inferredResearchProfile === 'academic';
-    }
-
-    hasAcademicCitationSignal(value) {
-        const text = String(value || '');
-        return /(学术|论文|期刊|会议|同行评审|正式发表|文献综述|只要论文|不要新闻|非新闻|academic|literature\s+review|peer[-\s]?reviewed|journal\s+article|conference\s+paper|conference\s+proceedings|formal\s+publication|published\s+paper|research\s+paper)/i.test(text);
-    }
-
-    isAllowedAcademicEvidence(entry) {
-        if (!entry || entry.error) return false;
-        const title = this.cleanOneLine(entry.title || '');
-        const url = this.cleanUrl(entry.url || '');
-        const snippet = this.cleanOneLine(entry.snippet || entry.content_preview || '');
-        const combined = `${title} ${url} ${snippet}`;
-        if (!title && !url) return false;
-        if (this.isFailedAcademicReadText(combined)) return false;
-        if (this.isDisallowedAcademicMediaSource(combined)) return false;
-        if (url) return this.isAcademicSourceUrl(url, title);
-        if (/\b(arxiv|doi|pubmed|pmid|journal|proceedings|conference|preprint|paper|publication|nature|science|ieee|acm|optica|osa|springer|elsevier|sciencedirect|wiley|frontiers|plos|cell|lancet|nejm|bmj)\b/i.test(combined)) {
-            return true;
-        }
-        return /\.(edu|gov)(\/|$)/i.test(url) || /\.ac\.[a-z]{2,}(\/|$)/i.test(url);
-    }
-
-    isAllowedAcademicSourceBody(body) {
-        const text = this.cleanOneLine(body || '');
-        if (!text) return false;
-        if (this.isFailedAcademicReadText(text)) return false;
-        if (this.isDisallowedAcademicMediaSource(text)) return false;
-        const url = this.extractFirstUrlFromText(text);
-        if (url) return this.isAcademicSourceUrl(url, text);
-        return /\b(arxiv|doi|pubmed|pmid|journal|proceedings|conference|preprint|paper|publication|nature|science|ieee|acm|optica|osa|springer|elsevier|sciencedirect|wiley|frontiers|plos|cell|lancet|nejm|bmj)\b/i.test(text);
-    }
-
-    isAcademicSourceUrl(url, title = '') {
-        const cleanUrl = this.cleanUrl(url || '');
-        const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
-        if (!cleanUrl) return false;
-        let parsed = null;
+    /**
+     * 在 Agent 运行面板中渲染专家面板的实时状态。
+     * 每个专家显示：维度 · 状态 · 已用工具次数 · 最近检索词 · 产出字数。
+     */
+    renderExpertStatus(container, experts = [], runState = null) {
+        if (!container) return;
         try {
-            parsed = new URL(/^https?:\/\//i.test(cleanUrl) ? cleanUrl : `https://${cleanUrl}`);
-        } catch (e) {
-            return false;
-        }
-        const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
-        const path = parsed.pathname.toLowerCase();
-        if (this.isDisallowedAcademicMediaSource(`${host}${path} ${cleanTitle}`)) return false;
-        if (host === 'arxiv.org') return /^\/(abs|pdf)\//.test(path);
-        if (host === 'doi.org' || host.endsWith('.doi.org')) return path.length > 1;
-        if (host === 'pubmed.ncbi.nlm.nih.gov') return /^\/\d+/.test(path);
-        if (host === 'dl.acm.org') return /^\/doi\//.test(path);
-        if (host === 'ieeexplore.ieee.org') return /^\/(document|abstract)\//.test(path);
-        if (host === 'science.org') return /^\/doi\//.test(path);
-        if (host.endsWith('nature.com')) return /^\/articles\//.test(path);
-        if (host === 'link.springer.com') return /^\/(article|chapter|book)\//.test(path);
-        if (host.endsWith('sciencedirect.com')) return /^\/science\/article\//.test(path);
-        if (host.endsWith('wiley.com')) return /\/doi\//.test(path);
-        if (host.endsWith('tandfonline.com')) return /\/doi\//.test(path);
-        if (host.endsWith('optica.org') || host.endsWith('osa.org')) return /\/(abstract|articles|doi|fulltext)\//.test(path) || /doi|abstract|article/.test(cleanTitle);
-        if (/(frontiersin\.org|plos\.org|cell\.com|thelancet\.com|nejm\.org|bmj\.com|mdpi\.com)$/.test(host)) return path.length > 1;
-        if (/\.(edu|gov)$/.test(host) || /\.ac\.[a-z]{2,}$/.test(host)) return path.length > 1;
-        return false;
-    }
+            // 状态先同步进 runState：快照/落库都取 runState.collaboration，
+            // 这样即使这一刻没有 DOM（切到别的会话去了），专家进度也不会丢。
+            this.syncCollaborationState(runState, experts);
 
-    isDisallowedAcademicMediaSource(value) {
-        const text = String(value || '').toLowerCase();
-        return /(bbc\.com|reuters\.com|apnews\.com|cnbc\.com|theguardian\.com|cnn\.com|nytimes\.com|washingtonpost\.com|bloomberg\.com|forbes\.com|news\.sina\.com\.cn|news\.163\.com|people\.com\.cn|nbd\.com\.cn|paperswithcode\.com|huggingface\.co|medium\.com|substack\.com)/i.test(text);
-    }
+            const panel = this.resolveCollaborationPanel(container);
+            if (!panel) return;
 
-    isFailedAcademicReadText(value) {
-        const text = String(value || '').toLowerCase();
-        return /(\u672a\u627e\u5230|\u8bf7\u5c1d\u8bd5\u66f4\u6362\u5173\u952e\u8bcd|no relevant|not relevant|not found|no matching|focus_keyword|focus_k)/i.test(text);
-    }
+            const members = panel.querySelector('.agent-collaboration-members');
+            if (members) {
+                members.innerHTML = this.ui.buildCollaboratorRows
+                    ? this.ui.buildCollaboratorRows(experts)
+                    : this.buildExpertRowsFallback(experts);
+            }
 
-    extractFirstUrlFromText(value) {
-        const text = String(value || '');
-        const fullUrl = (text.match(/https?:\/\/[^\s"'<>]+/i) || [])[0];
-        if (fullUrl) return fullUrl;
-        const domain = (text.match(/\b(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|ai|cn|uk|de|jp|fr|au|ca)(?:\/[^\s"'<>]*)?/i) || [])[0];
-        return domain || '';
-    }
-
-    buildEvidenceCitationCatalog(evidence = [], plan = null) {
-        const academicMode = this.isAcademicResearchPlan(plan);
-        const industryMode = plan?.researchProfile === 'industry';
-        const byKey = new Map();
-        (Array.isArray(evidence) ? evidence : [])
-            .filter(entry => entry && !entry.error && (entry.title || entry.url))
-            .filter(entry => !academicMode || this.isAllowedAcademicEvidence(entry))
-            .filter(entry => this.isUsableFinalCitationEvidence(entry, { academicMode, industryMode, plan }))
-            .filter(entry => !this.isGenericSourceHomepage(entry.title || '', entry.url || ''))
-            .forEach(entry => {
-                const candidate = { ...entry, _candidateKey: this.getEvidenceCandidateKey(entry) };
-                if (!candidate._candidateKey) return;
-                const existing = byKey.get(candidate._candidateKey);
-                if (!existing || this.scoreEvidenceSource(candidate) > this.scoreEvidenceSource(existing)) {
-                    byKey.set(candidate._candidateKey, this.mergeEvidenceCitationEntries(candidate, existing));
-                } else {
-                    byKey.set(candidate._candidateKey, this.mergeEvidenceCitationEntries(existing, candidate));
-                }
-            });
-        return Array.from(byKey.values())
-            .sort((a, b) => this.scoreEvidenceSource(b) - this.scoreEvidenceSource(a))
-            .slice(0, 80);
-    }
-
-    isUsableFinalCitationEvidence(entry = {}, options = {}) {
-        if (!entry || entry.error) return false;
-        const kind = String(entry.kind || '');
-        const trust = String(entry.trustLevel || 'unknown');
-        const sourceType = String(entry.sourceType || 'unknown');
-        if (['page_read_error', 'source_read_error'].includes(kind)) return false;
-        if (this.isNewsBriefPlan(options.plan) && entry.url && this.isLowValueNewsCitationUrl(entry.url || '', entry.title || '')) {
-            return false;
-        }
-        if (kind === 'raw_url_reference') {
-            return this.isNewsBriefPlan(options.plan)
-                && entry.tool === 'news_query'
-                && Boolean(entry.url)
-                && ['medium', 'high', 'primary'].includes(trust)
-                && !this.isGenericSourceHomepage(entry.title || '', entry.url || '');
-        }
-        if (kind === 'news_result') {
-            return this.isNewsBriefPlan(options.plan)
-                && Boolean(entry.url)
-                && !['low', 'unknown'].includes(trust)
-                && !this.isGenericSourceHomepage(entry.title || '', entry.url || '');
-        }
-        if (['source_candidate', 'search_result'].includes(kind)) {
-            const strongCandidate = this.isStrongStableCitationCandidate(entry);
-            return strongCandidate && (Boolean(options.industryMode) || Boolean(options.academicMode));
-        }
-        if (['low', 'unknown'].includes(trust) && Number(entry.authorityScore || 0) < 0.55) return false;
-        if (!options.academicMode && sourceType === 'encyclopedia') return false;
-        return true;
-    }
-
-    isLowValueNewsCitationUrl(url = '', title = '') {
-        const cleanUrl = this.cleanUrl(url || '').toLowerCase();
-        const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
-        if (!cleanUrl) return true;
-        if (/(dictionary|translate|word|lingoland|iciba|runoob|csdn|zhihu\.com\/topic|baike|wikipedia|extendoffice|excel[-_\s]?today|today\s+function|how\s+to\s+use\s+today)/i.test(`${cleanUrl} ${cleanTitle}`)) {
-            return true;
-        }
-        try {
-            const parsed = new URL(cleanUrl);
-            const host = parsed.hostname.replace(/^www\./i, '');
-            const path = parsed.pathname.replace(/\/+$/, '');
-            const sectionOnly = path === ''
-                || /^\/(news|world|business|markets|technology|tech|china|international|latest|politics|finance|economy|sports|culture)$/i.test(path);
-            const trustedNewsSection = /(reuters\.com|apnews\.com|bbc\.com|bloomberg\.com|wsj\.com|ft\.com|nytimes\.com|theguardian\.com|cnbc\.com|npr\.org|economist\.com|caixin\.com|chinanews\.com|news\.cn|xinhuanet\.com|people\.com\.cn|news\.163\.com|cctv\.com|tv\.cctv\.com)$/i.test(host);
-            const officialSection = /(home\.treasury\.gov|gov\.cn|ndrc\.gov\.cn|mof\.gov\.cn|pbc\.gov\.cn|csrc\.gov\.cn)$/i.test(host);
-            if (sectionOnly && !trustedNewsSection && !officialSection) {
-                return true;
+            const count = panel.querySelector('.agent-collaboration-count');
+            if (count) {
+                count.textContent = this.ui.buildCollaboratorSummary
+                    ? this.ui.buildCollaboratorSummary(experts)
+                    : `${experts.filter(item => item.status === 'done').length}/${experts.length} ok`;
             }
         } catch (error) {
-            return false;
+            console.warn('Failed to render expert status.', error);
         }
-        return false;
     }
 
-    isStrongStableCitationCandidate(entry = {}) {
-        if (!entry || entry.error || !entry.url) return false;
-        if (this.isGenericSourceHomepage(entry.title || '', entry.url || '')) return false;
-        const url = this.cleanUrl(entry.url || '').toLowerCase();
-        const authority = Number(entry.authorityScore || 0);
-        if (authority >= 0.72) return true;
-        return /(?:pubmed\.ncbi\.nlm\.nih\.gov\/\d+|arxiv\.org\/abs\/[0-9]{4}\.[0-9]{4,5}|doi\.org\/10\.|nature\.com\/articles\/|science\.org\/doi\/|dl\.acm\.org\/doi\/|ieeexplore\.ieee\.org\/(?:document|abstract)\/|github\.com\/[^/]+\/[^/]+|docs\.|developer\.|\.gov\/|\.edu\/)/i.test(url);
+    /**
+     * 找到当前**可见**的协作面板。
+     * 会话切走再切回来时，消息是重新渲染出来的新 DOM，container.agentCollaboration
+     * 还指着已经脱离文档的旧面板；这里按 container.element 重新定位，
+     * 否则专家行会被写进不可见的旧节点，用户看到的就是"专家面板消失了"。
+     */
+    resolveCollaborationPanel(container) {
+        const current = container.agentCollaboration;
+        if (current?.isConnected) return current;
+        const found = container.element?.querySelector?.('.agent-collaboration-panel') || null;
+        if (found) {
+            container.agentCollaboration = found;
+            return found;
+        }
+        return current || null;
     }
 
-    mergeEvidenceCitationEntries(primary, secondary) {
-        if (!secondary) return primary;
-        const merged = { ...primary };
-        const snippets = [primary?.snippet, primary?.content_preview, secondary?.snippet, secondary?.content_preview]
-            .map(value => this.cleanOneLine(value || ''))
-            .filter(Boolean);
-        const uniqueSnippets = [];
-        snippets.forEach(snippet => {
-            const duplicate = uniqueSnippets.some(item => item.includes(snippet) || snippet.includes(item));
-            if (!duplicate) uniqueSnippets.push(snippet);
+    /**
+     * 把专家实时状态写回 runState.collaboration，字段名与 HistoryManager 落库后的口径一致。
+     */
+    syncCollaborationState(runState, experts = []) {
+        const collaboration = runState?.collaboration;
+        if (!collaboration || !Array.isArray(experts) || !experts.length) return;
+        collaboration.collaborators = experts.map(expert => {
+            const activity = expert.activity || {};
+            return {
+                id: expert.key || '',
+                label: expert.label || expert.key || '',
+                ok: Boolean(expert.ok),
+                status: expert.status || '',
+                duration_ms: Number(expert.durationMs) || 0,
+                tool_calls: Number(activity.toolCalls) || 0,
+                iterations: Number(activity.iterations) || 0,
+                findings_chars: Number(activity.findingsChars) || 0,
+                tools_used: Array.isArray(activity.toolsUsed) ? activity.toolsUsed.slice(0, 6) : [],
+                queries: Array.isArray(activity.queries) ? activity.queries.slice(-3) : [],
+                last_action: activity.lastAction || ''
+            };
         });
-        if (!merged.snippet && secondary?.snippet) merged.snippet = secondary.snippet;
-        if (uniqueSnippets.length) {
-            merged.content_preview = this.previewValue(uniqueSnippets.join(' ... '), 1800);
+    }
+
+    buildExpertRowsFallback(experts = []) {
+        return experts.map(expert => {
+            const statusLabel = {
+                queued: '排队', running: '检索中', done: '完成', empty: '无产出', failed: '失败'
+            }[expert.status] || expert.status;
+            return `<div class="agent-collaborator-row ${expert.ok ? 'ok' : ''}">`
+                + `<div class="agent-collaborator-head">`
+                + `<span class="agent-collaborator-name">${this.escapeForHtml(expert.label)}</span>`
+                + `<span class="agent-collaborator-state">${this.escapeForHtml(statusLabel)}</span>`
+                + `</div></div>`;
+        }).join('') || '<span class="agent-collaborator">准备启动…</span>';
+    }
+
+    escapeForHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    /**
+     * 数据与方法说明：告诉写作模型哪些方向证据薄弱，用于**校准主张强度**。
+     * 刻意只输出"写作指引"而不是检索过程日志——把过程日志喂给写作模型，
+     * 会诱导它在正文里汇报检索过程（「本轮未取得…」），这是语言污染的主要来源之一。
+     */
+    buildCalibrationNote(runState) {
+        const notes = [];
+        const calls = Array.isArray(runState?.toolCalls) ? runState.toolCalls : [];
+        const failed = calls.filter(call => call.status === 'error');
+
+        const weakExperts = (runState?.collaboration?.collaborators || []).filter(item => !item.ok);
+        if (weakExperts.length) {
+            notes.push(`以下方向可用材料较少：${weakExperts.map(item => item.label).join('、')}。涉及这些方向的结论请使用较弱表述。`);
         }
-        return merged;
-    }
-
-    getEvidenceCandidateKey(entry) {
-        return this.normalizeCitationUrl(entry?.url || '')
-            || this.normalizeCitationTitle(entry?.title || '')
-            || String(entry?.id || entry?.source_id || '');
-    }
-
-    findBestEvidenceForClaim(claimText, catalog, usedEvidenceKeys = new Set()) {
-        const claim = this.cleanClaimForCitationMatch(claimText);
-        if (!claim) return null;
-        let best = null;
-        catalog.forEach(entry => {
-            const key = this.getEvidenceCandidateKey(entry);
-            const score = this.scoreEvidenceClaimMatch(claim, entry) - (usedEvidenceKeys.has(key) ? 3 : 0);
-            if (!best || score > best.score) {
-                best = { entry, score };
-            }
-        });
-        return best;
-    }
-
-    findBestEvidenceMatchesForClaim(claimText, catalog, usedEvidenceKeys = new Set(), limit = 1) {
-        const claim = this.cleanClaimForCitationMatch(claimText);
-        if (!claim) return [];
-        return (Array.isArray(catalog) ? catalog : [])
-            .map(entry => {
-                const key = this.getEvidenceCandidateKey(entry);
-                return {
-                    entry,
-                    key,
-                    score: this.scoreEvidenceClaimMatch(claim, entry) - (usedEvidenceKeys.has(key) ? 3 : 0)
-                };
-            })
-            .filter(item => item.key)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, Math.max(1, limit));
-    }
-
-    cleanClaimForCitationMatch(value) {
-        return this.cleanOneLine(value || '')
-            .replace(/^#+\s*/, '')
-            .replace(/^\s*[\d一二三四五六七八九十]+[.)、\s-]+/, '')
-            .replace(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g, ' ')
-            .trim();
-    }
-
-    scoreEvidenceClaimMatch(claimText, entry) {
-        const claimNorm = this.normalizeCitationMatchText(claimText);
-        const title = this.cleanOneLine(entry?.title || '');
-        const snippet = this.cleanOneLine(entry?.snippet || entry?.content_preview || '');
-        const titleNorm = this.normalizeCitationMatchText(title);
-        const snippetNorm = this.normalizeCitationMatchText(snippet);
-        if (!claimNorm || (!titleNorm && !snippetNorm)) return 0;
-
-        let score = 0;
-        if (titleNorm && (claimNorm.includes(titleNorm) || titleNorm.includes(claimNorm))) score += 14;
-        const claimTokens = this.tokenizeCitationMatchText(claimText);
-        const titleTokens = this.tokenizeCitationMatchText(title);
-        const snippetTokens = this.tokenizeCitationMatchText(snippet);
-        titleTokens.forEach(token => {
-            if (claimTokens.has(token)) score += token.length >= 4 ? 4 : 2;
-        });
-        snippetTokens.forEach(token => {
-            if (claimTokens.has(token)) score += 1;
-        });
-        if (entry?.url) score += 1;
-        if (['opened_source', 'opened_page', 'community_snapshot_item'].includes(entry?.kind)) score += 2;
-        if (this.isGenericSourceHomepage(title, entry?.url || '')) score -= 8;
-        return score;
-    }
-
-    normalizeCitationMatchText(value) {
-        return String(value || '')
-            .toLowerCase()
-            .replace(/https?:\/\/\S+/g, ' ')
-            .replace(/[^\p{L}\p{N}\u4e00-\u9fff]+/gu, '')
-            .trim();
-    }
-
-    tokenizeCitationMatchText(value) {
-        const text = String(value || '').toLowerCase();
-        const tokens = new Set();
-        (text.match(/[a-z0-9][a-z0-9_-]{2,}/g) || []).forEach(token => tokens.add(token));
-        (text.match(/[\u4e00-\u9fff]{2,}/g) || []).forEach(chunk => {
-            if (chunk.length <= 8) {
-                tokens.add(chunk);
-            }
-            for (let size = 2; size <= Math.min(4, chunk.length); size += 1) {
-                for (let index = 0; index <= chunk.length - size; index += 1) {
-                    tokens.add(chunk.slice(index, index + size));
-                }
-            }
-        });
-        return tokens;
-    }
-
-    buildDetailedSourceBody(sourceId, rawSourceMap, evidenceIndex, plan = null) {
-        const body = rawSourceMap.get(String(sourceId));
-        if (this.isAcademicResearchPlan(plan) && body && !this.isAllowedAcademicSourceBody(body)) return '';
-        if (body) return body;
-        const evidence = evidenceIndex.get(String(sourceId));
-        if (evidence) return this.formatEvidenceSource(evidence);
-        return '';
-    }
-
-    buildEvidenceSourceIndex(evidence = [], plan = null) {
-        const academicMode = this.isAcademicResearchPlan(plan);
-        const buckets = new Map();
-        (Array.isArray(evidence) ? evidence : []).forEach(entry => {
-            if (academicMode && !this.isAllowedAcademicEvidence(entry)) return;
-            const sourceId = String(entry?.source_id ?? '').trim();
-            if (!sourceId) return;
-            if (!entry?.title && !entry?.url) return;
-            this.pushMapValue(buckets, sourceId, entry);
-        });
-        const index = new Map();
-        buckets.forEach((entries, sourceId) => {
-            const byCandidate = new Map();
-            entries.forEach(entry => {
-                const key = this.getEvidenceCandidateKey(entry);
-                if (!key) return;
-                const existing = byCandidate.get(key);
-                if (!existing || this.scoreEvidenceSource(entry) > this.scoreEvidenceSource(existing)) {
-                    byCandidate.set(key, entry);
-                }
-            });
-            const candidates = Array.from(byCandidate.values());
-            if (candidates.length !== 1) return;
-            index.set(sourceId, candidates[0]);
-        });
-        return index;
-    }
-
-    scoreEvidenceSource(entry) {
-        if (this.evidenceLedgerService) {
-            return this.evidenceLedgerService.scoreSource(entry);
-        }
-        let score = 0;
-        if (entry?.url) score += 4;
-        if (entry?.title) score += 3;
-        if (entry?.snippet || entry?.content_preview) score += 1;
-        if (['opened_source', 'opened_page'].includes(entry?.kind)) score += 4;
-        if (entry?.error) score -= 8;
-        return score;
-    }
-
-    formatEvidenceSource(entry) {
-        const rawTitle = this.cleanOneLine(entry?.title || '');
-        const rawSnippet = this.cleanOneLine(entry?.snippet || entry?.content_preview || '');
-        const title = this.cleanEvidenceSourceTitle(rawTitle, rawSnippet);
-        const snippet = this.cleanEvidenceSourceSnippet(rawSnippet, title);
-        const stableRef = this.extractStableSourceReference(entry, `${rawTitle} ${rawSnippet}`);
-        const rawUrl = this.cleanUrl(entry?.url || '');
-        const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : (stableRef.url || rawUrl);
-        const host = this.extractHostname(url);
-        const siteLabel = this.getSourceSiteLabel(entry, host, stableRef);
-        const parts = [];
-        const sourceLabel = siteLabel || host;
-
-        if (sourceLabel) {
-            parts.push(sourceLabel);
-        }
-        if (title && !this.sourceLabelContainsHost(title, sourceLabel) && !this.sourceLabelContainsHost(title, host)) {
-            parts.push(title);
-        } else if (title && !parts.length) {
-            parts.push(title);
+        if (failed.length) {
+            const names = Array.from(new Set(failed.map(call => call.name))).slice(0, 6);
+            notes.push(`${names.join('、')} 类来源未成功返回，依赖这些来源的判断请勿写成定论。`);
         }
 
-        if (url) parts.push(url);
-        else if (stableRef.label) parts.push(stableRef.label);
-        else if (entry?.community) parts.push(`${entry.community} tool snapshot`);
-        else if (entry?.kind === 'external_tool_result') parts.push('AgentEarth 工具快照');
-
-        if (!url && entry?.kind === 'external_tool_result' && snippet) {
-            parts.push(this.parentheticalSourceNote(snippet, 90));
+        const ledger = runState?.evidenceLedger || [];
+        const withSnippet = ledger.filter(item => String(item.snippet || '').length > 20).length;
+        if (ledger.length && withSnippet / ledger.length < 0.3) {
+            notes.push('多数来源只有页面链接而无正文摘录，涉及具体数值的结论应写明数字来源类型（如厂商自报、媒体转述），不要写成第三方实测。');
         }
-
-        return this.dedupeSourceParts(parts).join(' — ');
-    }
-
-    cleanEvidenceSourceTitle(title = '', snippet = '') {
-        let clean = this.cleanOneLine(title || '')
-            .replace(/\s*\[preview truncated\]\s*$/i, '')
-            .replace(/^\s*(title|标题)\s*[:：]\s*/i, '')
-            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
-            .replace(/^#+\s*/, '')
-            .replace(/\s+\|\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
-            .replace(/\s+[-—]\s*(Nature|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
-            .trim();
-        const extracted = this.extractTitleFromEvidenceText(snippet);
-        if (!clean
-            || /^(source|sources|reference|references|来源|参考)$/i.test(clean)
-            || /^(pmid|arxiv|doi)\s*[:：]?\s*[\w./-]+$/i.test(clean)
-            || /\.\.\.|preview truncated/i.test(clean)) {
-            clean = extracted || clean;
-        }
-        return this.compactSourceTitle(this.cleanOneLine(clean)
-            .replace(/\s*\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
-            .replace(/\s*\[preview truncated\]\s*$/i, '')
-            .trim());
-    }
-
-    extractTitleFromEvidenceText(value = '') {
-        const text = String(value || '');
-        const explicit = text.match(/(?:^|\n|\.\.\.)\s*(?:Title|标题)\s*[:：]\s*([^\n.。]+)/i);
-        if (explicit?.[1]) return this.cleanExtractedSourceTitle(explicit[1]);
-        const heading = text.match(/(?:^|\n|\.\.\.)\s*#{1,6}\s*([^\n.]+)/);
-        if (heading?.[1]) return this.cleanExtractedSourceTitle(heading[1]);
-        const markdownLink = text.match(/\[([^\]]{8,180})\]\((https?:\/\/[^)]+)\)/);
-        if (markdownLink?.[1]) return this.cleanExtractedSourceTitle(markdownLink[1]);
-        const fallback = text
-            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
-            .replace(/\b(?:pmid|arxiv|doi)\s*[:：]?\s*(?:10\.\d{4,9}\/[^\s"'<>）)]+|[0-9]{4}\.[0-9]{4,5}(?:v\d+)?|\d{5,10})\b/ig, ' ')
-            .replace(/https?:\/\/\S+/ig, ' ')
-            .replace(/\.\.\./g, '\n')
-            .split(/\n|[。.!?]\s+/)
-            .map(line => this.cleanExtractedSourceTitle(line))
-            .find(line => line.length >= 12);
-        return fallback || '';
-    }
-
-    cleanExtractedSourceTitle(value = '') {
-        return this.compactSourceTitle(this.cleanOneLine(value || '')
-            .replace(/^[-*•#\s]+/, '')
-            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
-            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
-            .replace(/\s+\|\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
-            .replace(/\s+[-—]\s*(?:Nature(?:\s+Photonics)?|Science|BBC News|Reuters|AP News|GitHub|PubMed|arXiv)\s*$/i, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim());
-    }
-
-    compactSourceTitle(value = '', maxLength = 110) {
-        let clean = this.cleanOneLine(value || '')
-            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*$/i, '')
-            .replace(/\s*[|｜]\s*.*$/u, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-        if (this.isMojibakeText(clean)) return '';
-        if (clean.length <= maxLength) return clean;
-        const clipped = clean.slice(0, maxLength);
-        const boundary = clipped.replace(/[，,。；;：:、\s_-][^，,。；;：:、\s_-]*$/u, '').trim();
-        return (boundary.length >= 24 ? boundary : clipped.trim()).replace(/[，,。；;：:、_-]+$/u, '').trim();
-    }
-
-    isMojibakeText(value = '') {
-        const text = String(value || '');
-        if (!text) return false;
-        const replacementCount = (text.match(/\uFFFD/g) || []).length;
-        if (replacementCount >= 2) return true;
-        return replacementCount > 0 && replacementCount / Math.max(text.length, 1) > 0.04;
-    }
-
-    cleanEvidenceSourceSnippet(snippet = '', title = '') {
-        const titleNorm = this.normalizeCitationMatchText(title || '');
-        const seen = new Set();
-        const segments = String(snippet || '')
-            .replace(/\s*\[preview truncated\]\s*/ig, ' ')
-            .replace(/\.\.\./g, '\n')
-            .split(/\n+/)
-            .map(line => this.cleanOneLine(line)
-                .replace(/^[-*•]\s*/, '')
-                .replace(/^#+\s*/, '')
-                .replace(/^!\[[^\]]*]\([^)]+\)\s*/, '')
-                .replace(/\[([^\]]+)]\((https?:\/\/[^)]+)\)/g, '$1')
-                .replace(/^(Title|标题)\s*[:：]\s*/i, '')
-                .trim())
-            .filter(line => line.length >= 12)
-            .filter(line => !/^image\s+\d+$/i.test(line))
-            .filter(line => {
-                const norm = this.normalizeCitationMatchText(line);
-                if (!norm || norm === titleNorm) return false;
-                if (seen.has(norm)) return false;
-                seen.add(norm);
-                return true;
-            });
-        return segments[0] || '';
-    }
-
-    extractStableSourceReference(entry = {}, fallbackText = '') {
-        const url = this.cleanUrl(entry?.url || '');
-        const text = `${entry?.source_id || ''} ${entry?.sourceId || ''} ${entry?.url || ''} ${entry?.title || ''} ${entry?.snippet || ''} ${entry?.content_preview || ''} ${fallbackText || ''}`;
-        const arxivFromUrl = url.match(/arxiv\.org\/(?:abs|pdf)\/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i);
-        const arxiv = arxivFromUrl?.[1]
-            || (text.match(/\barxiv\s*[:：]?\s*([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)/i) || [])[1];
-        if (arxiv) {
-            const cleanId = arxiv.replace(/\.pdf$/i, '');
-            return { type: 'arxiv', id: cleanId, label: `arXiv: ${cleanId}`, url: `https://arxiv.org/abs/${cleanId.replace(/v\d+$/i, '')}` };
-        }
-        const pmidFromUrl = url.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i);
-        const pmid = pmidFromUrl?.[1]
-            || (text.match(/\bpmid\s*[:：]?\s*(\d{5,10})\b/i) || [])[1];
-        if (pmid) {
-            return { type: 'pmid', id: pmid, label: `PMID: ${pmid}`, url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` };
-        }
-        const doiFromUrl = url.match(/doi\.org\/(10\.\d{4,9}\/[^\s"'<>）)]+)/i);
-        const doi = doiFromUrl?.[1]
-            || (text.match(/\bdoi\s*[:：]?\s*(10\.\d{4,9}\/[^\s"'<>）)]+)/i) || [])[1];
-        if (doi) {
-            const cleanDoi = doi.replace(/[.,;]+$/g, '');
-            return { type: 'doi', id: cleanDoi, label: `DOI: ${cleanDoi}`, url: `https://doi.org/${cleanDoi}` };
-        }
-        return { type: '', id: '', label: '', url: '' };
-    }
-
-    getSourceSiteLabel(entry = {}, host = '', stableRef = {}) {
-        if (entry?.domain) return this.cleanOneLine(entry.domain);
-        if (stableRef?.type === 'pmid') return 'PubMed';
-        if (stableRef?.type === 'arxiv') return 'arXiv';
-        if (stableRef?.type === 'doi') return 'DOI';
-        if (!host) return '';
-        const labels = {
-            'pubmed.ncbi.nlm.nih.gov': 'PubMed',
-            'arxiv.org': 'arXiv',
-            'github.com': 'GitHub',
-            'nature.com': 'nature.com',
-            'reuters.com': 'Reuters',
-            'apnews.com': 'AP News',
-            'bbc.com': 'BBC News',
-            'bbc.co.uk': 'BBC News',
-            'theguardian.com': 'The Guardian',
-            'people.com.cn': '人民网',
-            'world.people.com.cn': '人民网',
-            'news.163.com': '网易新闻'
-        };
-        return labels[host] || host;
-    }
-
-    sourceLabelContainsHost(label = '', host = '') {
-        const cleanLabel = this.cleanOneLine(label || '').toLowerCase();
-        const cleanHost = String(host || '').toLowerCase().replace(/^www\./, '');
-        if (!cleanLabel || !cleanHost) return false;
-        return cleanLabel.includes(cleanHost) || cleanHost.split('.').some(part => part.length >= 4 && cleanLabel.includes(part));
-    }
-
-    shouldIncludeSourceSnippet(title = '', snippet = '', entry = {}) {
-        if (!snippet) return false;
-        if (!title || title.length < 24) return true;
-        if (entry?.kind === 'external_tool_result') return true;
-        return /^(bbc news|bbc world|reuters|ap news|associated press|guardian|cnbc|网易新闻中心|新浪新闻|来源|source)$/i.test(title);
-    }
-
-    parentheticalSourceNote(value = '', max = 100) {
-        const clean = this.previewValue(this.cleanOneLine(value || ''), max)
-            .replace(/\s*\[preview truncated\]\s*$/i, '')
-            .trim();
-        return clean ? `(${clean})` : '';
-    }
-
-    dedupeSourceParts(parts = []) {
-        const result = [];
-        const seen = new Set();
-        parts
-            .map(part => this.cleanOneLine(part || ''))
-            .filter(Boolean)
-            .forEach(part => {
-                const key = part.toLowerCase();
-                if (seen.has(key)) return;
-                const isUrl = /^https?:\/\//i.test(part);
-                if (!isUrl && result.some(existing => {
-                    const existingKey = existing.toLowerCase();
-                    const existingIsUrl = /^https?:\/\//i.test(existing);
-                    if (existingIsUrl) return existingKey.includes(key);
-                    return existingKey.includes(key) || key.includes(existingKey);
-                })) return;
-                seen.add(key);
-                result.push(part);
-            });
-        return result;
-    }
-
-    isGenericSourceHomepage(title, url) {
-        const cleanTitle = this.cleanOneLine(title || '').toLowerCase();
-        const cleanUrl = this.cleanUrl(url || '').replace(/\/+$/, '').toLowerCase();
-        const genericTitle = /^(bbc news|bbc world|reuters|ap news|associated press|guardian|cnbc|网易新闻中心|新浪新闻|每日经济新闻|source|来源)$/i.test(cleanTitle);
-        const genericUrl = /:\/\/[^/]+\/?(news|world|business|markets)?$/i.test(cleanUrl)
-            || /:\/\/news\.163\.com\/latest$/i.test(cleanUrl)
-            || /:\/\/news\.sina\.com\.cn$/i.test(cleanUrl)
-            || /:\/\/www\.nbd\.com\.cn$/i.test(cleanUrl);
-        return Boolean(genericTitle && genericUrl);
-    }
-
-    cleanRepeatedCitationMarkers(text) {
-        return String(text || '')
-            .replace(/\[(\d+)\](?:\s*\[\1\])+/g, '[$1]')
-            .replace(/(\[[0-9]+\](?:\[[0-9]+\]){0,3})(?:\s+\1)+/g, '$1');
-    }
-
-    cleanSourceEntryText(value) {
-        const original = String(value || '');
-        const url = this.extractFirstUrlFromText(original);
-        const host = this.extractHostname(url);
-        let text = original
-            .replace(/\s+—\s+\.\.\.\s*\{[\s\S]*$/g, '')
-            .replace(/\s+\.\.\.\s*\{[\s\S]*$/g, '')
-            .replace(/\s+(?:内容|Content)\s*[:：][\s\S]*?(?=\s+—\s+(?:https?:\/\/|[a-z0-9.-]+\.[a-z]{2,})|$)/i, '')
-            .replace(/\s*\[preview truncated]\s*$/i, '')
-            .replace(/\s+/g, ' ')
-            .replace(/^[\-—–:：]\s*/, '')
-            .trim();
-        const parts = text
-            .split(/\s+—\s+/)
-            .map(part => this.cleanOneLine(part))
-            .filter(Boolean)
-            .filter(part => /^https?:\/\//i.test(part) || !this.isMojibakeText(part))
-            .map(part => /^https?:\/\//i.test(part) ? this.cleanUrl(part) : this.compactSourceTitle(part, 110))
-            .filter(Boolean);
-        if (!parts.some(part => /^https?:\/\//i.test(part)) && url) parts.push(url);
-        if (host && parts.length === 1 && /^https?:\/\//i.test(parts[0])) {
-            parts.unshift(host);
-        }
-        return this.dedupeSourceParts(parts).join(' — ');
-    }
-
-    buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedCount = 0) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildForcedAgentEarthFollowUp(plan, runState, userMessage, forcedCount)
-            : null;
-    }
-
-    buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedCount = 0) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildForcedNewsBriefDensityFollowUp(plan, runState, response, userMessage, forcedCount)
-            : null;
-    }
-
-    analyzeNewsBriefAnswer(content, scope = null) {
-        return this.agentProfiles
-            ? this.agentProfiles.analyzeNewsBriefAnswer(content, scope)
-            : { citationCount: 0, storyCount: 0, sectionCount: 0, contentChars: String(content || '').trim().length };
-    }
-
-    escapeRegex(value) {
-        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    buildForcedResearchFollowUp(plan, runState, userMessage, forcedCount = 0) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildForcedResearchFollowUp(plan, runState, userMessage, forcedCount)
-            : null;
-    }
-
-    buildForcedCitationQualityFollowUp(plan, runState, response, forcedCount = 0) {
-        if (forcedCount >= 1 || !this.isEvidenceSeekingPlan(plan)) return null;
-        const content = String(response?.content || '').trim();
-        if (!content) return null;
-        const evidence = Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : [];
-        const stats = this.getResearchEvidenceStats(evidence);
-        const citationCount = this.extractCitationMarkers(content).length;
-        const hasSources = this.hasSourceHeading(content);
-        const candidateLines = this.citationNormalizer?.countCitationCandidateLines
-            ? this.citationNormalizer.countCitationCandidateLines(
-                this.citationNormalizer.splitFinalSourceSection(content).body || content
-            )
-            : String(content).split('\n').filter(line => line.trim().length > 30).length;
-        const target = this.getMinimumFinalCitationTarget(plan, stats, candidateLines);
-        if (stats.uniqueUrls < Math.min(8, target) || citationCount >= target) return null;
+        if (!notes.length) return '';
 
         return [
-            'Citation quality request: the draft uses too few source markers for the evidence already collected.',
-            `Current draft has ${citationCount} distinct citation marker(s), source section present: ${hasSources ? 'yes' : 'no'}, while the evidence ledger has ${stats.uniqueUrls} unique URLs and ${stats.readableCount} readable items.`,
-            `Rewrite the final answer now using the existing tool evidence first. Cite at least ${target} distinct sources when available, keep source markers consecutive, and include a 来源 section with one source per line.`,
-            'Do not invent source ids. Do not collapse many unrelated claims onto one generic homepage or one old source. If a claim cannot be supported by the available evidence, remove it or label it as an inference.',
-            'Keep the answer more information-dense and practitioner-grade: use precise domain terminology, concrete figures only when sourced, and sharper section names. Do not call more tools unless a specific missing citation requires it.'
+            '【证据强度提示】以下内容用于校准主张强度，不要把这些句子或类似表述写进正文，也不要提及检索过程：',
+            ...notes.map(note => '- ' + note)
         ].join('\n');
     }
 
-    getMinimumFinalCitationTarget(plan, stats = {}, candidateLines = 0) {
-        const configured = Number(plan?.citationTarget || 0);
-        const evidenceBound = Math.max(0, Number(stats.uniqueUrls || 0));
-        const byProfile = this.isNewsBriefPlan(plan)
-            ? 18
-            : plan?.researchProfile === 'industry'
-                ? 16
-                : this.isAcademicResearchPlan(plan)
-                    ? 12
-                    : 10;
-        const byBody = Math.max(6, Math.ceil((Number(candidateLines) || 0) * (this.isNewsBriefPlan(plan) ? 0.35 : 0.45)));
-        const desired = configured > 0 ? Math.min(configured, Math.max(byProfile, byBody)) : Math.max(byProfile, byBody);
-        return Math.max(4, Math.min(desired, evidenceBound || desired));
-    }
+    /**
+     * 独立的长文交付阶段：
+     * 1. 证据消化（编号摘要，让写作模型真的能引用到采集结果）
+     * 2. 交付契约 + 语言范式 + 大纲 → 一次高 maxTokens 的写作请求
+     * 3. 结构校验（篇幅/表格/图表/引用）→ 不达标则补充
+     * 4. 语言范式审计 → 不达标则重写（去污染）
+     * 5. 确定性清洗（去掉残留标签前缀）
+     */
+    async runDeliverablePass({ plan, contract, runState, container, enableThinking, signal, expertDigest, runtimeConfig, latestStreamedContent }) {
+        if (!this.researchContract || !contract) return null;
+        const styleContract = window.agentStyleContract || (window.AgentStyleContract ? new window.AgentStyleContract() : null);
 
-    buildGenericResearchFollowUp(plan, runState, userMessage) {
-        return this.agentProfiles
-            ? this.agentProfiles.buildGenericResearchFollowUp(plan, runState, userMessage)
-            : null;
-    }
-
-    hasFreshInfoSignal(userMessage) {
-        return this.intentContractBuilder
-            ? this.intentContractBuilder.hasFreshInfoSignal(userMessage)
-            : false;
-    }
-
-    isBroadDailyNewsRequest(userMessage) {
-        return this.intentContractBuilder
-            ? this.intentContractBuilder.isBroadDailyNewsRequest(userMessage)
-            : false;
-    }
-
-    getNewsBriefScope(userMessage) {
-        return this.intentContractBuilder
-            ? this.intentContractBuilder.getNewsBriefScope(userMessage)
-            : { focus: 'broad', categories: [], broad: true };
-    }
-
-    getNewsBriefCategoryMatches(userMessage) {
-        return this.intentContractBuilder
-            ? this.intentContractBuilder.getNewsBriefCategoryMatches(userMessage)
-            : [];
-    }
-
-    getRequiredNewsCoverageKeys(scope = null) {
-        return this.agentProfiles
-            ? this.agentProfiles.getRequiredNewsCoverageKeys(scope)
-            : ['domestic', 'international', 'finance', 'technology', 'society'];
-    }
-
-    getNewsBriefScopeLabel(scope = null) {
-        return this.agentProfiles
-            ? this.agentProfiles.getNewsBriefScopeLabel(scope)
-            : this.getNewsBriefCoverageLabel(scope?.focus || 'broad');
-    }
-
-    getNewsBriefCoverageLabel(key) {
-        return this.agentProfiles
-            ? this.agentProfiles.getNewsBriefCoverageLabel(key)
-            : 'news';
-    }
-
-    isResearchLikeMode(mode) {
-        return mode === 'research' || mode === 'news_brief';
-    }
-
-    isNewsBriefPlan(plan = null) {
-        return plan?.mode === 'news_brief' || plan?.researchProfile === 'news_brief';
-    }
-
-    isEvidenceSeekingPlan(plan = null) {
-        return this.isResearchLikeMode(plan?.mode)
-            || (plan?.mode === 'agent' && Number(plan?.sourceTarget || 0) > 0);
-    }
-
-    getEvidenceDomains(evidence = []) {
-        if (this.evidenceLedgerService) {
-            return this.evidenceLedgerService.getDomains(evidence);
-        }
-        return new Set((Array.isArray(evidence) ? evidence : [])
-            .map(entry => this.extractHostname(entry?.url || ''))
-            .filter(Boolean));
-    }
-
-    getResearchEvidenceStats(evidence = []) {
-        if (this.evidenceLedgerService) {
-            return this.evidenceLedgerService.getResearchStats(evidence);
-        }
-        const items = Array.isArray(evidence) ? evidence : [];
-        const uniqueUrls = new Set(items.map(entry => this.cleanUrl(entry?.url || '')).filter(Boolean));
-        const hosts = this.getEvidenceDomains(items);
-        const readableKinds = new Set(['opened_source', 'opened_page', 'community_snapshot_item']);
-        const candidateKinds = new Set(['source_candidate', 'search_result', 'community_snapshot_item']);
-        return {
-            uniqueUrls: uniqueUrls.size,
-            hosts,
-            readableCount: items.filter(entry => readableKinds.has(entry?.kind) && !entry?.error).length,
-            candidateCount: items.filter(entry => candidateKinds.has(entry?.kind) && !entry?.error).length,
-            errorCount: items.filter(entry => entry?.error || /error/i.test(entry?.kind || '')).length
-        };
-    }
-
-    getDailyNewsCoverage(evidence = []) {
-        return this.agentProfiles
-            ? this.agentProfiles.getDailyNewsCoverage(evidence)
-            : {};
-    }
-
-    matchesAny(text, terms = []) {
-        return this.agentProfiles
-            ? this.agentProfiles.matchesAny(text, terms)
-            : terms.some(term => String(text || '').toLowerCase().includes(String(term || '').toLowerCase()));
-    }
-
-    extractHostname(url) {
+        // 1) 证据消化：挑选可引用来源并**稠密重编号**（1..N），
+        //    同时把 runState.evidenceLedger 换成这批编号，保证正文引用 / 参考资料 / 文末来源三者编号一致、不跳号。
+        let evidenceDigest = '';
+        let citationSources = [];
         try {
-            return new URL(this.cleanUrl(url)).hostname.replace(/^www\./i, '').toLowerCase();
-        } catch (e) {
-            return '';
+            const prepared = this.researchContract.buildCitationSources(runState.evidenceLedger || [], {});
+            citationSources = prepared.entries;
+            evidenceDigest = prepared.digest;
+            if (citationSources.length) {
+                runState.metrics.evidence_items = (runState.evidenceLedger || []).length;
+                runState.evidenceLedger = citationSources;
+            }
+        } catch (error) {
+            console.warn('Failed to build citation sources.', error);
         }
+
+        const outline = contract.sections && contract.sections.length
+            ? contract.sections.map((section, index) => `${index + 1}. ${section}`).join('\n')
+            : '';
+
+        this.ui.addAgentTrace(
+            container,
+            'synthesize',
+            '进入长文交付阶段：目标 ' + contract.minChars + ' 中文字 / 表格 '
+            + contract.minTables + ' / 图表 ' + contract.minDiagrams
+            + '（可用引用来源 ' + citationSources.length + ' 条）'
+        );
+
+        const instruction = this.researchContract.buildSynthesisInstruction(contract, {
+            outline,
+            evidenceDigest,
+            // 专家面板的实质发现必须进写作阶段：这是并行检索的全部价值所在
+            expertDigest,
+            stylePrompt: styleContract ? styleContract.buildStylePrompt() : ''
+        });
+
+        const calibration = this.buildCalibrationNote(runState);
+        const systemParts = [this.buildAgentSystemPrompt(plan, runState.contextPack)];
+        if (styleContract) systemParts.push(styleContract.buildStyleSystemLine());
+        const writingMessages = [
+            { role: 'system', content: systemParts.join('\n\n') },
+            { role: 'user', content: calibration ? `${instruction}\n\n${calibration}` : instruction }
+        ];
+        runState.metrics.synthesis_prompt_chars = instruction.length + calibration.length;
+        runState.metrics.expert_material_chars = String(expertDigest || '').length;
+
+        let content = await this.streamDeliverable({
+            messages: writingMessages,
+            enableThinking,
+            signal,
+            container,
+            runState,
+            maxTokens: runtimeConfig.synthesisMaxTokens,
+            stageNote: '正在撰写交付物'
+        });
+
+        // 3) 交付校验 + 一次补充
+        let verification = this.researchContract.verify(content, contract);
+        runState.metrics.deliverable = {
+            tier: contract.tier,
+            chars: verification.stats.chars,
+            tables: verification.stats.tables,
+            diagrams: verification.stats.diagrams,
+            citations: verification.stats.citations,
+            repairs: 0,
+            ok: verification.ok
+        };
+        this.ui.addAgentTrace(
+            container,
+            'synthesize',
+            '交付校验：' + verification.stats.chars + ' 中文字 / 表格 ' + verification.stats.tables
+            + ' / 图表 ' + verification.stats.diagrams + ' / 引用 ' + verification.stats.citations
+            + (verification.ok ? ' → 达标' : ' → 未达标，补充一次')
+        );
+
+        const maxRepairs = Math.max(0, Number(runtimeConfig.repairPasses) || 0);
+        for (let attempt = 0; attempt < maxRepairs && !verification.ok; attempt += 1) {
+            const repairInstruction = this.researchContract.buildRepairInstruction(contract, verification.issues);
+            const repaired = await this.streamDeliverable({
+                messages: [
+                    { role: 'system', content: this.buildAgentSystemPrompt(plan, runState.contextPack) },
+                    { role: 'user', content: instruction },
+                    { role: 'assistant', content: this.clipForContext(content, 24000) },
+                    { role: 'user', content: repairInstruction }
+                ],
+                enableThinking,
+                signal,
+                container,
+                runState,
+                maxTokens: runtimeConfig.synthesisMaxTokens,
+                stageNote: '正在补充交付物（第 ' + (attempt + 1) + ' 次）'
+            });
+            if (repaired && repaired.length > content.length * 0.6) {
+                content = repaired;
+            }
+            verification = this.researchContract.verify(content, contract);
+            runState.metrics.deliverable.repairs = attempt + 1;
+            runState.metrics.deliverable.chars = verification.stats.chars;
+            runState.metrics.deliverable.tables = verification.stats.tables;
+            runState.metrics.deliverable.diagrams = verification.stats.diagrams;
+            runState.metrics.deliverable.citations = verification.stats.citations;
+            runState.metrics.deliverable.ok = verification.ok;
+            this.ui.addAgentTrace(
+                container,
+                'synthesize',
+                '补充后校验：' + verification.stats.chars + ' 中文字 / 表格 ' + verification.stats.tables
+                + ' / 图表 ' + verification.stats.diagrams + ' / 引用 ' + verification.stats.citations
+                + (verification.ok ? ' → 达标' : ' → 仍未达标')
+            );
+        }
+
+        if (!verification.ok) {
+            runState.warnings.push('交付物未完全达标：' + verification.issues.join(' '));
+        }
+
+        // 4) 语言清洗（确定性，不重写、不删内容）
+        // 范式审计与"整篇重写"已按用户要求移除：实测那次重写会把正文与来源砍掉一大半。
+        // 这里只做标签前缀剥离与「而不是→而非」的书面化，实测字符变化 -1.5%~-2.4%，
+        // 来源条数、表格数、图表数完全不变。如需彻底关闭：window.PZM_AGENT_STYLE = { normalize: false }。
+        if (styleContract && runtimeConfig.styleNormalize) {
+            const before = content.length;
+            const cleaned = styleContract.normalize(content);
+            const structuralAfter = this.researchContract.verify(cleaned, contract);
+            // 安全阀：清洗后若结构性指标下降，则放弃清洗（宁可留标签，不可丢内容）
+            const safe = structuralAfter.stats.tables >= verification.stats.tables
+                && structuralAfter.stats.diagrams >= verification.stats.diagrams
+                && structuralAfter.stats.chars >= verification.stats.chars * 0.95;
+            if (safe) {
+                content = cleaned;
+                verification = structuralAfter;
+                runState.metrics.deliverable.chars = structuralAfter.stats.chars;
+                runState.metrics.deliverable.tables = structuralAfter.stats.tables;
+                runState.metrics.deliverable.diagrams = structuralAfter.stats.diagrams;
+                runState.metrics.deliverable.citations = structuralAfter.stats.citations;
+                runState.metrics.style_clean = { enabled: true, charsBefore: before, charsAfter: content.length };
+                this.ui.addAgentTrace(
+                    container,
+                    'synthesize',
+                    '语言清洗：剥离标签前缀 ' + (before - content.length) + ' 字符，'
+                    + '正文 ' + structuralAfter.stats.chars + ' 中文字 / 表格 ' + structuralAfter.stats.tables
+                    + ' / 图表 ' + structuralAfter.stats.diagrams + ' 保持不变'
+                );
+            } else {
+                runState.metrics.style_clean = { enabled: false, reason: 'structural-regression-guard' };
+                this.ui.addAgentTrace(container, 'synthesize', '语言清洗已跳过：检测到结构性指标会下降，保留原文。');
+            }
+        }
+
+        return { content, verification };
+    }
+
+    /**
+     * 流式执行一次写作请求，把内容实时刷到正文。
+     */
+    async streamDeliverable({ messages, enableThinking, signal, container, runState, maxTokens, stageNote }) {
+        const callId = this.performanceMonitor ? this.performanceMonitor.beginLLMCall('deliverable') : null;
+        let firstTokenSeen = false;
+        let full = '';
+
+        this.ui.setAgentStage(container, 'synthesize', 'active', stageNote || '撰写中');
+
+        try {
+            const response = await this.client.chat({
+                messages,
+                enableThinking,
+                signal,
+                maxTokens,
+                onReasoning: () => { },
+                onUsage: usage => {
+                    this.recordModelUsage(runState, usage);
+                    if (this.contextManager) this.contextManager.updateFromUsage(usage);
+                },
+                onContent: (delta, content) => {
+                    if (this.performanceMonitor && callId && !firstTokenSeen && delta) {
+                        firstTokenSeen = true;
+                        this.performanceMonitor.markFirstToken(callId);
+                    }
+                    full = content || full;
+                    if (container.reasoningDetails.classList.contains('thinking-state')) {
+                        this.ui.finishReasoning(container);
+                    }
+                    this.ui.updateContent(container, full);
+                    this.notifyRunSnapshot(runState, 'content.updated', { content: full });
+                }
+            });
+
+            if (this.performanceMonitor && callId) {
+                this.performanceMonitor.completeLLMCall(callId, response?.usage);
+            }
+            return String(response?.content || full || '');
+        } catch (error) {
+            if (this.performanceMonitor && callId) {
+                this.performanceMonitor.completeLLMCall(callId, null);
+            }
+            console.warn('Deliverable pass failed.', error);
+            this.ui.addAgentTrace(container, 'synthesize', '长文写作失败：' + (error?.message || error));
+            return full;
+        }
+    }
+
+    clipForContext(text, max) {
+        const str = String(text || '');
+        if (str.length <= max) return str;
+        // 保留开头（结论）与结尾（来源），中间省略，避免丢引用
+        const head = str.slice(0, Math.floor(max * 0.6));
+        const tail = str.slice(-Math.floor(max * 0.35));
+        return `${head}\n\n…[中间内容已省略以控制上下文]…\n\n${tail}`;
+    }
+
+    completeSourceLinks(text, evidence) {
+        const sourceHeading = /^\s*(#{1,6}\s*)?(来源|参考|引用|Sources|References)\s*[:：]?\s*$/i;
+        const lines = String(text || '').split('\n');
+        let inSources = false;
+        return lines.map(line => {
+            if (!inSources && sourceHeading.test(line.trim())) {
+                inSources = true;
+                return line;
+            }
+            if (!inSources) return line;
+            const match = line.match(/^(\s*)\[(\d+)\]\s*(.*)$/);
+            if (!match) return line;
+            const body = (match[3] || '').trim();
+            if (/https?:\/\//i.test(body)) return line;
+            const num = Number(match[2]);
+            const entry = evidence.find(item => String(item.source_id) === String(num)) || evidence[num - 1];
+            const url = entry && /^https?:\/\//i.test(String(entry.url || '')) ? String(entry.url) : '';
+            if (!url) return line;
+            return match[1] + '[' + num + '] ' + (body ? body + ' — ' : '') + url;
+        }).join('\n');
     }
 
     snapshotRun(container, plan, runState = null) {
@@ -1904,12 +1225,12 @@ class AgentRuntime {
             runId: plan.runId,
             mode: plan.mode,
             researchProfile: plan.researchProfile,
-            newsBriefScope: plan.newsBriefScope || null,
-            writing_contract: plan.writingContract || null,
-            quality_gates: plan.qualityGates || {},
+            newsBriefScope: null,
+            writing_contract: null,
+            quality_gates: {},
             policy_flags: plan.policyFlags || {},
             selectedTools: plan.selectedTools,
-            agentEarthTargetCalls: plan.agentEarthTargetCalls || 0,
+            agentEarthTargetCalls: 0,
             maxIterations: plan.maxIterations,
             stages,
             traces,
@@ -1920,22 +1241,17 @@ class AgentRuntime {
             warnings: runState?.warnings || [],
             tool_results: runState?.toolCalls || [],
             evidence_ledger: runState?.evidenceLedger || [],
-            research_plan: runState?.researchPlan || null,
-            source_library: runState?.sourceLibrary || null,
-            citation_verification: runState?.citationVerification || null,
-            collaboration: runState?.collaboration || plan.collaboration || null,
-            artifacts: runState?.artifacts || []
+            research_plan: null,
+            source_library: null,
+            citation_verification: null,
+            collaboration: runState?.collaboration || null,
+            performance: this.performanceMonitor ? this.performanceMonitor.getSummary() : null,
+            context_usage: this.contextManager ? this.contextManager.getStats() : null,
+            artifacts: []
         };
     }
 
     createRunState(plan, contextPack = null, toolContext = null, userMessage = '') {
-        const researchPlan = this.researchPlanService
-            ? this.researchPlanService.create(plan, userMessage)
-            : null;
-        const sourceLibrary = this.sourceLibraryService
-            ? this.sourceLibraryService.create(plan)
-            : null;
-        const artifacts = [researchPlan, sourceLibrary].filter(Boolean);
         return {
             contract_version: window.AgentContract?.CONTRACT_VERSION || 'agent-contract-v1',
             runId: plan.runId,
@@ -1944,40 +1260,29 @@ class AgentRuntime {
             finishedAt: null,
             contextPack,
             toolContext,
-            writingContract: plan.writingContract || null,
-            qualityGates: plan.qualityGates || {},
             policyFlags: plan.policyFlags || {},
             metrics: {
                 iterations: 0,
                 tool_calls: 0,
                 successful_tool_calls: 0,
                 failed_tool_calls: 0,
-                approval_count: 0,
-                approval_required_count: 0,
                 evidence_items: 0,
                 unique_source_urls: 0,
                 citation_markers: 0,
-                matched_citation_markers: 0,
-                unmatched_citation_markers: 0,
-                weak_citation_markers: 0,
-                cited_evidence_items: 0,
-                has_sources_section: false
+                has_sources_section: false,
+                tokens_in: 0,
+                tokens_out: 0,
+                model_requests: 0,
+                context_chars: 0,
+                duration_ms: 0,
+                collaboration_experts: 0,
+                collaboration_success: 0
             },
             toolCalls: [],
             evidenceLedger: [],
-            researchPlan,
-            sourceLibrary,
-            artifacts,
-            collaboration: plan.collaboration?.enabled ? {
-                ...plan.collaboration,
-                status: 'pending',
-                started_at: null,
-                completed_at: null
-            } : null,
-            citationVerification: null,
+            collaboration: null,
             events: [],
             eventSeq: 0,
-            modelDeltaEvents: 0,
             warnings: [],
             onSnapshot: null
         };
@@ -1986,7 +1291,17 @@ class AgentRuntime {
     notifyRunSnapshot(runState, reason = 'update', meta = {}) {
         if (!runState?.onSnapshot || !runState?.plan || !runState?.uiContainer) return;
         try {
-            const snapshot = this.snapshotRun(runState.uiContainer, runState.plan, runState);
+            const now = Date.now();
+            const lastAt = Number(runState._lastSnapshotAt || 0);
+            const important = reason === 'panel.created' || reason === 'run.completed';
+            let snapshot;
+            if (important || now - lastAt >= 250 || !runState._lastSnapshot) {
+                snapshot = this.snapshotRun(runState.uiContainer, runState.plan, runState);
+                runState._lastSnapshotAt = now;
+                runState._lastSnapshot = snapshot;
+            } else {
+                snapshot = runState._lastSnapshot;
+            }
             runState.onSnapshot(snapshot, {
                 reason,
                 runId: runState.runId,
@@ -1999,7 +1314,7 @@ class AgentRuntime {
 
     emitEvent(runState, type, payload = {}, options = {}) {
         if (!runState) return null;
-        if (type !== 'model.delta' && runState.events.length >= 3000) return null;
+        if (type !== 'model.delta' && runState.events.length >= 2000) return null;
         runState.eventSeq += 1;
         const factory = window.AgentContract?.createAgentEvent;
         const event = factory
@@ -2012,7 +1327,7 @@ class AgentRuntime {
                 visibility: options.visibility || 'history'
             })
             : {
-                id: `evt-${Date.now().toString(36)}-${runState.eventSeq}`,
+                id: 'evt-' + Date.now().toString(36) + '-' + runState.eventSeq,
                 contract_version: 'agent-contract-v1',
                 runId: runState.runId,
                 seq: runState.eventSeq,
@@ -2021,7 +1336,7 @@ class AgentRuntime {
                 stage: options.stage,
                 payload,
                 visibility: options.visibility || 'history'
-        };
+            };
         if (type !== 'model.delta') {
             runState.events.push(event);
         }
@@ -2029,18 +1344,12 @@ class AgentRuntime {
         if (type !== 'model.delta') {
             this.notifyRunSnapshot(runState, type, { event });
         }
-
         return event;
     }
 
     recordModelDelta(runState, delta, full, stage) {
-        if (!runState) return;
-        runState.modelDeltaEvents += 1;
-        if (runState.modelDeltaEvents > 12) return;
-        this.emitEvent(runState, 'model.delta', {
-            delta_chars: String(delta || '').length,
-            content_chars: String(full || '').length
-        }, { stage, visibility: 'history' });
+        // 流式 delta 事件已移除：不再逐段产生事件/快照，仅在关键节点落盘。
+        return;
     }
 
     getSelectedToolContracts(selectedTools) {
@@ -2087,10 +1396,6 @@ class AgentRuntime {
         if (name === 'agent_earth_run') {
             executableArgs = this.enrichAgentEarthArgs(runState, executableArgs);
         }
-        if (metadata?.requiresApproval) {
-            const approval = await this.requestToolApproval(runState, name, executableArgs, metadata, call, container);
-            executableArgs = approval.args || {};
-        }
         this.recordToolStarted(runState, name, executableArgs, metadata, call);
         return { args: executableArgs, metadata, call };
     }
@@ -2115,7 +1420,6 @@ class AgentRuntime {
         const parts = [];
         const existing = String(existingContext || '').trim();
         if (existing) parts.push(existing);
-
         const attachmentContext = String(runState?.toolContext?.attachmentContext || '').trim();
         if (attachmentContext) {
             parts.push([
@@ -2123,7 +1427,6 @@ class AgentRuntime {
                 this.previewValue(attachmentContext, 7000)
             ].join('\n'));
         }
-
         const manifest = Array.isArray(runState?.toolContext?.attachmentManifest)
             ? runState.toolContext.attachmentManifest
             : [];
@@ -2133,7 +1436,6 @@ class AgentRuntime {
                 this.previewValue(JSON.stringify(manifest, null, 2), 1800)
             ].join('\n'));
         }
-
         const priorRuns = Array.isArray(runState?.toolContext?.priorAgentRuns)
             ? runState.toolContext.priorAgentRuns.slice(-2)
             : [];
@@ -2143,7 +1445,6 @@ class AgentRuntime {
                 this.previewValue(JSON.stringify(priorRuns, null, 2), 2200)
             ].join('\n'));
         }
-
         return this.previewValue(parts.filter(Boolean).join('\n\n'), 9000);
     }
 
@@ -2156,24 +1457,6 @@ class AgentRuntime {
         return runState.toolCalls.find(item => item.name === name && ['pending', 'waiting_approval'].includes(item.status))
             || runState.toolCalls.find(item => item.name === name)
             || null;
-    }
-
-    async requestToolApproval(runState, name, args, metadata, call, container) {
-        return this.toolRiskPolicy
-            ? this.toolRiskPolicy.requestApproval(runState, name, args, metadata, call, container)
-            : { status: 'approved', args };
-    }
-
-    normalizeApprovalDecision(decision, originalArgs) {
-        return this.toolRiskPolicy
-            ? this.toolRiskPolicy.normalizeApprovalDecision(decision, originalArgs)
-            : { status: 'rejected', args: originalArgs, reason: '', edited: false };
-    }
-
-    confirmApprovalFallback(name, metadata, args) {
-        return this.toolRiskPolicy
-            ? this.toolRiskPolicy.confirmApprovalFallback(name, metadata, args)
-            : { status: 'rejected', args };
     }
 
     recordToolStarted(runState, name, args, metadata = null, call = null) {
@@ -2206,7 +1489,6 @@ class AgentRuntime {
         }
         if (success) runState.metrics.successful_tool_calls += 1;
         else runState.metrics.failed_tool_calls += 1;
-
         const toolName = call?.name || '';
         this.emitEvent(runState, success ? 'tool.completed' : 'tool.failed', {
             tool_call_id: toolCallId,
@@ -2214,170 +1496,206 @@ class AgentRuntime {
             result_chars: String(result ?? '').length,
             result_preview: this.previewValue(result, 700)
         }, { stage: 'observe', visibility: 'history' });
-        const addedEntries = this.extractEvidenceEntries(toolName, result)
-            .map(entry => this.addEvidenceEntry(runState, entry))
-            .filter(Boolean);
-        if (addedEntries.length) {
-            this.refreshResearchArtifacts(runState, {
-                reason: 'evidence_added',
-                addedEvidenceCount: addedEntries.length,
-                toolName
-            });
+        // 极简证据提取：从工具结果收集 URL，支撑离线回看与快照，不再做评分/信任推断。
+        this.extractEvidenceEntries(toolName, result).forEach(entry => this.addEvidenceEntry(runState, entry));
+    }
+
+    recordModelUsage(runState, usage) {
+        if (!runState || !usage) return;
+        runState.metrics.model_requests += 1;
+        const prompt = Number(usage.prompt_tokens || usage.input_tokens || 0);
+        const completion = Number(usage.completion_tokens || usage.output_tokens || 0);
+        if (Number.isFinite(prompt)) runState.metrics.tokens_in += prompt;
+        if (Number.isFinite(completion)) runState.metrics.tokens_out += completion;
+    }
+
+    estimateContextChars(messages = []) {
+        let total = 0;
+        for (const message of messages) {
+            const content = message?.content;
+            if (typeof content === 'string') {
+                total += content.length;
+            } else if (Array.isArray(content)) {
+                for (const part of content) {
+                    if (part && typeof part.text === 'string') total += part.text.length;
+                }
+            }
+            if (Array.isArray(message?.tool_calls)) {
+                total += JSON.stringify(message.tool_calls).length;
+            }
+            if (typeof message?.role === 'string') total += message.role.length;
         }
+        return total;
     }
 
     finalizeRunState(runState, finalContent) {
         if (!runState) return;
+        if (runState.startedAt) {
+            const elapsed = Date.now() - new Date(runState.startedAt).getTime();
+            if (Number.isFinite(elapsed) && elapsed >= 0) runState.metrics.duration_ms = elapsed;
+        }
         const text = String(finalContent || '');
-        const citationBody = this.citationNormalizer?.splitFinalSourceSection
-            ? this.citationNormalizer.splitFinalSourceSection(text).body || text
-            : text;
-        const citations = this.extractCitationMarkers(citationBody);
+        const citations = this.extractCitationMarkers(text);
         runState.metrics.citation_markers = citations.length;
-        runState.metrics.has_sources_section = /(^|\n)\s*(sources|source|references|来源|参考|鏉ユ簮)\s*[:：]?/i.test(text);
+        runState.metrics.has_sources_section = /(^|\n)\s*(sources|source|references|来源|参考)\s*[:：]?/i.test(text);
         runState.finishedAt = new Date().toISOString();
         runState.metrics.evidence_items = runState.evidenceLedger.length;
         runState.metrics.unique_source_urls = new Set(runState.evidenceLedger.map(item => item.url).filter(Boolean)).size;
-        const verification = this.citationVerifier
-            ? this.citationVerifier.verify(runState, text, citations)
-            : { matched: [], unmatched: [], weak: [], citedEvidenceCount: 0, uncitedEvidenceCount: runState.evidenceLedger.length };
-        runState.citationVerification = verification;
-        runState.metrics.matched_citation_markers = verification.matched.length;
-        runState.metrics.unmatched_citation_markers = verification.unmatched.length;
-        runState.metrics.weak_citation_markers = verification.weak.length;
-        runState.metrics.cited_evidence_items = verification.citedEvidenceCount;
-
         if (runState.evidenceLedger.length > 0 && citations.length === 0) {
             runState.warnings.push('Evidence was collected, but the final answer has no numeric citation markers.');
         }
         if (runState.evidenceLedger.length > 0 && !runState.metrics.has_sources_section) {
             runState.warnings.push('Evidence was collected, but the final answer has no explicit Sources/References section.');
         }
-        if (verification.unmatched.length > 0) {
-            runState.warnings.push(`Final answer has unmatched citation marker(s): ${verification.unmatched.map(item => `[${item.marker}]`).join(', ')}.`);
+        
+        // 结束性能监控并刷新输入框下方的指标条
+        if (this.performanceMonitor) {
+            this.performanceMonitor.finishRun();
         }
-        if (verification.weak.length > 0) {
-            runState.warnings.push(`Final answer cites weak or unverified evidence marker(s): ${verification.weak.map(item => `[${item.marker}]`).join(', ')}.`);
-        }
-        const citationTarget = Math.min(
-            Number(runState.plan?.citationTarget || 0) || (this.isNewsBriefPlan(runState.plan) ? 24 : 12),
-            Math.max(1, runState.metrics.unique_source_urls || 0)
-        );
-        if (runState.metrics.unique_source_urls >= 8 && citations.length < Math.min(citationTarget, 8)) {
-            runState.warnings.push(`Evidence was collected (${runState.metrics.unique_source_urls} unique URLs), but the final answer only cites ${citations.length} source marker(s).`);
-        }
-        if (runState.evidenceLedger.length > 0 || citations.length > 0) {
-            this.emitEvent(runState, 'citation.verified', {
-                citation_markers: citations,
-                matched: verification.matched.map(item => ({
-                    marker: item.marker,
-                    evidence_ids: item.evidence_ids,
-                    strongestTrustLevel: item.strongestTrustLevel
-                })),
-                unmatched: verification.unmatched,
-                weak: verification.weak.map(item => ({
-                    marker: item.marker,
-                    evidence_ids: item.evidence_ids,
-                    reason: item.reason
-                })),
-                citedEvidenceCount: verification.citedEvidenceCount
-            }, { stage: 'synthesize', visibility: 'history' });
-        }
+    }
+
+    buildSourceUrlMap(runState) {
+        const map = {};
+        (Array.isArray(runState?.evidenceLedger) ? runState.evidenceLedger : []).forEach(entry => {
+            const id = String(entry?.source_id ?? '');
+            const url = String(entry?.url || '');
+            if (id && /^https?:\/\//i.test(url)) {
+                map[id] = url;
+            }
+        });
+        return map;
     }
 
     extractCitationMarkers(text) {
-        return Array.from(new Set(this.extractCitationMarkersWithDuplicates(text)));
+        const markers = [];
+        Array.from(String(text || '').matchAll(/\[((?:\d+\s*(?:[,，]\s*\d+\s*)*))\]/g)).forEach(match => {
+            String(match[1] || '').split(/[,，]/).map(item => item.trim()).filter(item => /^\d+$/.test(item)).forEach(id => markers.push(id));
+        });
+        return Array.from(new Set(markers));
     }
 
-    pushMapValue(map, key, value) {
-        const normalizedKey = String(key || '').trim();
-        if (!normalizedKey) return;
-        if (!map.has(normalizedKey)) map.set(normalizedKey, []);
-        map.get(normalizedKey).push(value);
-    }
-
-    normalizeCitationUrl(url) {
-        const clean = this.cleanUrl(url).toLowerCase();
-        if (!clean) return '';
-        try {
-            const parsed = new URL(clean);
-            parsed.hash = '';
-            parsed.searchParams.sort();
-            let normalized = parsed.toString();
-            if (normalized.endsWith('/')) normalized = normalized.slice(0, -1);
-            return normalized;
-        } catch (e) {
-            return clean.replace(/\/$/, '');
-        }
-    }
-
-    normalizeCitationTitle(title) {
-        return this.cleanOneLine(title).toLowerCase().replace(/[.,;:：]+$/g, '');
-    }
-
+    /**
+     * 从工具结果中提取证据。
+     *
+     * 上一版只抽 URL，导致证据库是一堆链接而不是事实——写作阶段拿不到可引用的内容，
+     * 只能写出"某机构页面显示…"这类空话。此版同时抽取标题与内容片段。
+     */
     extractEvidenceEntries(toolName, result) {
-        return this.evidenceLedgerService
-            ? this.evidenceLedgerService.extractEntries(toolName, result)
-            : [];
+        const text = String(result ?? '');
+        if (!text) return [];
+        const entries = [];
+        const seen = new Set();
+
+        const push = entry => {
+            const url = this.cleanUrl(entry.url);
+            if (!url || !/^https?:\/\//i.test(url)) return;
+            if (seen.has(url)) return;
+            seen.add(url);
+            entries.push({
+                kind: entry.kind || 'tool_result_url',
+                tool: toolName || '',
+                url,
+                title: this.cleanOneLine(entry.title || '').slice(0, 200),
+                snippet: this.cleanOneLine(entry.snippet || '').slice(0, 400)
+            });
+        };
+
+        // 1) 结构化结果优先：直接读取 url / title / snippet 字段
+        const structured = this.safeParseJson(text);
+        if (structured) {
+            this.collectStructuredEvidence(structured, push, 60);
+        }
+
+        // 2) 文本兜底：抽取每个 URL 周边的文字作为片段，并尝试识别标题
+        if (entries.length < 60) {
+            const matches = text.matchAll(/https?:\/\/[^\s"'<>）)，,]+/g);
+            for (const match of matches) {
+                if (entries.length >= 60) break;
+                const url = match[0];
+                const start = Math.max(0, match.index - 160);
+                const end = Math.min(text.length, match.index + url.length + 120);
+                const window = text.slice(start, end);
+                push({
+                    url,
+                    title: this.guessTitleNearUrl(window, url),
+                    snippet: window.replace(url, '').replace(/\s+/g, ' ').trim()
+                });
+            }
+        }
+
+        return entries.slice(0, 60);
     }
 
-    extractAgentEarthText(executeResponse) {
-        return this.evidenceLedgerService
-            ? this.evidenceLedgerService.extractAgentEarthText(executeResponse)
-            : '';
+    /**
+     * 递归收集 JSON 结果里的 {url,title,snippet} 组合。
+     */
+    collectStructuredEvidence(node, push, budget, depth = 0) {
+        if (!node || depth > 6 || budget <= 0) return 0;
+        let used = 0;
+        if (Array.isArray(node)) {
+            for (const item of node) {
+                if (used >= budget) break;
+                used += this.collectStructuredEvidence(item, push, budget - used, depth + 1);
+            }
+            return used;
+        }
+        if (typeof node !== 'object') return 0;
+
+        const urlCandidate = node.url || node.link || node.href || node.source_url;
+        if (typeof urlCandidate === 'string' && /^https?:\/\//i.test(urlCandidate)) {
+            push({
+                url: urlCandidate,
+                title: node.title || node.name || node.headline || '',
+                snippet: node.snippet || node.summary || node.description || node.content_preview || node.text || ''
+            });
+            used += 1;
+        }
+
+        for (const key of Object.keys(node)) {
+            if (used >= budget) break;
+            const value = node[key];
+            if (value && typeof value === 'object') {
+                used += this.collectStructuredEvidence(value, push, budget - used, depth + 1);
+            }
+        }
+        return used;
+    }
+
+    /**
+     * 从 URL 附近的文本里猜标题：优先 Markdown 链接文本，其次是同行的前置文本。
+     */
+    guessTitleNearUrl(window, url) {
+        const md = window.match(new RegExp('\\[([^\\]]{4,160})\\]\\s*\\(?\\s*' + this.escapeRegExp(url)));
+        if (md) return md[1];
+        const escaped = this.escapeRegExp(url);
+        const inline = window.match(new RegExp('([^\\n|」】]{4,120})\\s*[—\\-|]\\s*' + escaped));
+        if (inline) return inline[1];
+        return '';
+    }
+
+    escapeRegExp(value) {
+        return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     addEvidenceEntry(runState, entry) {
-        return this.evidenceLedgerService
-            ? this.evidenceLedgerService.addEntry(runState, entry)
-            : null;
-    }
-
-    refreshResearchArtifacts(runState, meta = {}) {
-        if (!runState) return;
-        let changed = false;
-        if (this.sourceLibraryService && runState.sourceLibrary) {
-            this.sourceLibraryService.update(runState.sourceLibrary, runState.evidenceLedger || []);
-            changed = true;
+        if (!runState || !entry || !entry.url) return null;
+        const evidenceEntry = {
+            id: 'evd-' + (runState.evidenceLedger.length + 1),
+            source_id: String(runState.evidenceLedger.length + 1),
+            kind: entry.kind || 'tool_result_url',
+            tool: entry.tool || '',
+            title: entry.title || '',
+            snippet: entry.snippet || '',
+            url: entry.url,
+            observed_at: new Date().toISOString(),
+            trustLevel: 'medium'
+        };
+        runState.evidenceLedger.push(evidenceEntry);
+        runState.metrics.evidence_items = runState.evidenceLedger.length;
+        if (runState.uiContainer) {
+            runState.uiContainer._sourceUrlMap = this.buildSourceUrlMap(runState);
         }
-        if (this.researchPlanService && runState.researchPlan) {
-            this.researchPlanService.updateFromSourceLibrary(runState.researchPlan, runState.sourceLibrary);
-            changed = true;
-        }
-        if (!changed) return;
-        runState.artifacts = [runState.researchPlan, runState.sourceLibrary].filter(Boolean);
-        this.emitEvent(runState, 'research.artifacts.updated', {
-            reason: meta.reason || 'updated',
-            addedEvidenceCount: Number(meta.addedEvidenceCount || 0),
-            toolName: meta.toolName || '',
-            research_plan_id: runState.researchPlan?.id || null,
-            source_library_id: runState.sourceLibrary?.id || null,
-            source_count: runState.sourceLibrary?.sources?.length || 0,
-            gaps: runState.researchPlan?.gaps || []
-        }, { stage: 'observe', visibility: 'history' });
-    }
-
-    findWeakestEvidenceIndex(evidence = []) {
-        return this.evidenceLedgerService
-            ? this.evidenceLedgerService.findWeakestIndex(evidence)
-            : -1;
-    }
-
-    normalizeEvidenceEntry(entry) {
-        return this.evidenceLedgerService
-            ? this.evidenceLedgerService.normalizeEntry(entry)
-            : null;
-    }
-
-    safeParseJson(value) {
-        if (value && typeof value === 'object') return value;
-        const text = String(value || '').trim();
-        if (!text || !/^[\[{]/.test(text)) return null;
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            return null;
-        }
+        return evidenceEntry;
     }
 
     extractUrls(text) {
@@ -2396,13 +1714,24 @@ class AgentRuntime {
     previewValue(value, max = 600) {
         const text = typeof value === 'string' ? value : JSON.stringify(value);
         if (!text) return '';
-        return text.length <= max ? text : `${text.slice(0, max)}\n[preview truncated]`;
+        return text.length <= max ? text : text.slice(0, max) + '\n[preview truncated]';
+    }
+
+    safeParseJson(value) {
+        if (value && typeof value === 'object') return value;
+        const text = String(value || '').trim();
+        if (!text || !/^[\[{]/.test(text)) return null;
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            return null;
+        }
     }
 
     assertToolInput(name, args) {
         const raw = JSON.stringify(args || {});
-        if (raw.length > 6000) {
-            throw new Error(`${name} input is too large for a front-end agent run.`);
+        if (raw.length > 12000) {
+            throw new Error(name + ' input is too large for a front-end agent run.');
         }
     }
 
@@ -2410,18 +1739,51 @@ class AgentRuntime {
         const text = String(result ?? '');
         const configured = Number(this.registry?.getToolMetadata?.(toolName)?.maxOutputChars);
         const cap = Number.isFinite(configured) && configured > 0
-            ? Math.min(Math.max(configured, 4000), 96000)
-            : 12000;
+            ? Math.min(Math.max(configured, 8000), 96000)
+            : 24000;
         if (text.length <= cap) return text;
-        return `${text.slice(0, cap)}\n\n[Tool result truncated to ${cap} characters by AgentRuntime]`;
+        return text.slice(0, cap) + '\n\n[Tool result truncated to ' + cap + ' characters by AgentRuntime]';
     }
 
     summarizeToolResult(result) {
         const text = String(result ?? '').trim();
         if (!text) return '[empty result]';
         if (text.length <= 900) return text;
-        return `${text.slice(0, 900)}\n\n[Result preview truncated. Full result was still provided to the model within runtime limits.]`;
+        return text.slice(0, 900) + '\n\n[Result preview truncated. Full result was still provided to the model within runtime limits.]';
     }
+
+    /**
+     * 返回本次运行性能与上下文的摘要，便于宿主（main.js）展示或落盘。
+     */
+    getRunReport() {
+        const summary = this.performanceMonitor ? this.performanceMonitor.getSummary() : null;
+        return {
+            performance: summary,
+            performance_line: this.performanceMonitor ? this.performanceMonitor.formatLine() : '',
+            context: this.contextManager ? this.contextManager.getStats() : null,
+            // 累计值与墙钟值都给出来，便于核对并行收益
+            performance_detail: summary ? {
+                llm_wall_ms: Math.round(summary.llmWallMs),
+                llm_sum_ms: Math.round(summary.llmSumMs),
+                tool_wall_ms: Math.round(summary.toolWallMs),
+                tool_sum_ms: Math.round(summary.toolSumMs),
+                llm_calls: summary.llmCalls,
+                tool_calls: summary.toolCalls,
+                tool_concurrency_peak: summary.toolConcurrencyPeak
+            } : null,
+            expert_panel: this.expertPanel && this.expertPanel.getLastRun()
+                ? {
+                    mode: this.expertPanel.getLastRun().mode,
+                    experts: this.expertPanel.getLastRun().experts.length,
+                    success: this.expertPanel.getLastRun().successCount,
+                    wall_ms: Math.round(this.expertPanel.getLastRun().wallMs),
+                    serial_equivalent_ms: Math.round(this.expertPanel.getLastRun().serialEquivalentMs)
+                }
+                : null,
+            diagrams: window.agentDiagramRenderer ? window.agentDiagramRenderer.getStats() : null
+        };
+    }
+
 }
 
 window.AgentRuntime = AgentRuntime;

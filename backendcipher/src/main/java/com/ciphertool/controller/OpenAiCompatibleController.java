@@ -54,7 +54,7 @@ public class OpenAiCompatibleController {
     @Value("${llm.base-url:https://api.deepseek.com/v1}")
     private String upstreamBaseUrl;
 
-    @Value("${llm.model:deepseek-v4-flash}")
+    @Value("${llm.model:deepseek-flash}")
     private String defaultModel;
 
     @Value("${api-router.routing.retry-statuses:429,500,502,503,504}")
@@ -294,7 +294,7 @@ public class OpenAiCompatibleController {
     private String normalizeModel(Map<String, Object> requestBody) {
         Object modelValue = requestBody.get("model");
         if (modelValue == null || String.valueOf(modelValue).isBlank()) {
-            String fallback = defaultModel == null || defaultModel.isBlank() ? "deepseek-v4-flash" : defaultModel.trim();
+            String fallback = defaultModel == null || defaultModel.isBlank() ? "deepseek-flash" : defaultModel.trim();
             requestBody.put("model", fallback);
             return fallback;
         }

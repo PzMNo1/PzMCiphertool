@@ -96,6 +96,334 @@ async function initKnowledgeGraph() {
 }
 
 
+// 纯布局函数：只依赖入参 data，无 DOM / three.js 依赖，可被 Node 侧 audit 直接调用。
+function applyReadableGraphLayout(data) {
+    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+    const nodes = data?.nodes || [];
+    const links = data?.links || [];
+    const nodeById = new Map(nodes.map(node => [node.id, node]));
+    const childrenById = new Map(nodes.map(node => [node.id, []]));
+    const parentById = new Map();
+    const layoutVisited = new Set();
+
+    // 只有层级边参与径向布局骨架。__hierarchy === false 的边（如 Obsidian 双链）只作为
+    // 视觉连线存在，不能当父子关系，否则会被当成孩子重复摆放并把父子关系搅乱。
+    // 多父节点取第一个父节点（导入 vault 时层级边先入列，因此目录结构优先于双链）。
+    // 这两处修复是为了兼容有环、多父的非树图：原来的写法会因 last-wins 覆盖父节点，
+    // 并在有环时让 subtreeWeight 无限递归。
+    links.forEach(link => {
+        if (link.__hierarchy === false) return;
+        const sourceId = getLinkEndpointId(link.source);
+        const targetId = getLinkEndpointId(link.target);
+        if (!sourceId || !targetId || !nodeById.has(sourceId) || !nodeById.has(targetId)) return;
+        if (parentById.has(targetId) || sourceId === targetId) return;
+        childrenById.get(sourceId).push(nodeById.get(targetId));
+        parentById.set(targetId, sourceId);
+    });
+
+    let roots = nodes.filter(node => !parentById.has(node.id));
+    if (!roots.length && nodes.length) roots = [nodes[0]];
+
+    const weightCache = new Map();
+    const weightVisiting = new Set();
+    const subtreeWeight = node => {
+        if (weightCache.has(node.id)) return weightCache.get(node.id);
+        if (weightVisiting.has(node.id)) return 1;
+        weightVisiting.add(node.id);
+        const children = childrenById.get(node.id) || [];
+        const weight = 1 + children.reduce((sum, child) => sum + subtreeWeight(child), 0);
+        weightVisiting.delete(node.id);
+        weightCache.set(node.id, weight);
+        return weight;
+    };
+
+    const rootAnchors = calculateRootAnchors(roots.length);
+    roots.forEach((root, index) => {
+        const anchor = rootAnchors[index] || { x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } };
+        const rootDirection = normalizeVector(anchor.dir || { x: anchor.x, y: anchor.y, z: anchor.z });
+        setNodeLayout(root, anchor.x, anchor.y, anchor.z, 0, root.id, '', rootDirection, index);
+        layoutVisited.add(root.id);
+        layoutChildren(root, root.id, rootDirection, 1);
+    });
+
+    roots.forEach(root => {
+        root.__layoutGuideRadius = calculateClusterRadius(root);
+    });
+
+    // 非树图兜底：层级边覆盖不到的节点（孤立的环、或只被双链指向的游离节点）拿不到坐标，
+    // 会全部堆在原点。这里把它们铺到一圈外围球面上，保证可见、可点、可搜索。
+    const strayNodes = nodes.filter(node => !Number.isFinite(node.__layoutX));
+    if (strayNodes.length) {
+        const origin = roots[0] || { __layoutX: 0, __layoutY: 0, __layoutZ: 0, id: '', __layoutGuideRadius: 420 };
+        const strayRadius = Math.max(620, (origin.__layoutGuideRadius || 420) + 320);
+        strayNodes.forEach((node, index) => {
+            const direction = fibonacciSphereDirection(index, strayNodes.length, 0.31);
+            setNodeLayout(
+                node,
+                origin.__layoutX + direction.x * strayRadius,
+                origin.__layoutY + direction.y * strayRadius,
+                origin.__layoutZ + direction.z * strayRadius,
+                2,
+                origin.id,
+                '',
+                direction,
+                index
+            );
+        });
+    }
+
+    return data;
+
+    function layoutChildren(parent, rootId, parentDirection, depth) {
+        const children = childrenById.get(parent.id) || [];
+        if (!children.length) return;
+
+        children.forEach((child, index) => {
+            if (layoutVisited.has(child.id)) return;
+            layoutVisited.add(child.id);
+            const radius = levelRadius(depth, children.length, subtreeWeight(child));
+            const direction = depth <= 1
+                ? fibonacciSphereDirection(index, children.length, seededAngle(parent.id))
+                : sphericalCapDirection(parentDirection, index, children.length, capSpread(depth, children.length), seededAngle(parent.id));
+            const x = parent.__layoutX + direction.x * radius;
+            const y = parent.__layoutY + direction.y * radius;
+            const z = parent.__layoutZ + direction.z * radius;
+
+            setNodeLayout(child, x, y, z, depth, rootId, parent.id, direction, index);
+
+            const grandChildren = childrenById.get(child.id) || [];
+            if (grandChildren.length) {
+                layoutChildren(child, rootId, direction, depth + 1);
+            }
+        });
+    }
+
+    function getLinkEndpointId(endpoint) {
+        return typeof endpoint === 'object' ? endpoint?.id : endpoint;
+    }
+
+    function setNodeLayout(node, x, y, z, depth, rootId, parentId, direction, orderIndex) {
+        node.x = node.fx = node.__layoutX = Math.round(x * 100) / 100;
+        node.y = node.fy = node.__layoutY = Math.round(y * 100) / 100;
+        node.z = node.fz = node.__layoutZ = Math.round(z * 100) / 100;
+        node.vx = node.vy = node.vz = 0;
+        node.__layoutDepth = depth;
+        node.__layoutRootId = rootId;
+        node.__layoutParentId = parentId;
+        node.__layoutDirection = direction;
+        node.__layoutAngle = Math.atan2(direction.y, direction.x);
+        node.__layoutOrder = orderIndex;
+    }
+
+    function calculateRootAnchors(count) {
+        if (count <= 1) return [{ x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } }];
+        const radius = count <= 3 ? 430 : 540;
+        return Array.from({ length: count }, (_, index) => {
+            const dir = fibonacciSphereDirection(index, count, -0.45);
+            return {
+                x: dir.x * radius,
+                y: dir.y * radius,
+                z: dir.z * radius,
+                dir
+            };
+        });
+    }
+
+    function calculateClusterRadius(root) {
+        let maxDistance = 0;
+        const stack = [...(childrenById.get(root.id) || [])];
+        while (stack.length) {
+            const node = stack.pop();
+            const distance = Math.hypot(
+                node.__layoutX - root.__layoutX,
+                node.__layoutY - root.__layoutY,
+                node.__layoutZ - root.__layoutZ
+            );
+            maxDistance = Math.max(maxDistance, distance);
+            stack.push(...(childrenById.get(node.id) || []));
+        }
+        return clamp(maxDistance * 1.12, 220, 620);
+    }
+
+    function levelRadius(depth, siblingCount, weight) {
+        const weightSize = Math.sqrt(weight);
+        if (depth <= 1) return clamp(220 + siblingCount * 7 + weightSize * 8, 260, 430);
+        if (depth === 2) return clamp(88 + siblingCount * 5 + weightSize * 5, 105, 210);
+        if (depth === 3) return clamp(54 + siblingCount * 3 + weightSize * 4, 66, 145);
+        return clamp(34 + siblingCount * 2 + weightSize * 3, 44, 100);
+    }
+
+    function capSpread(depth, siblingCount) {
+        if (depth <= 2) return clamp(0.92 + siblingCount * 0.012, 0.92, 1.28);
+        if (depth === 3) return clamp(0.74 + siblingCount * 0.01, 0.74, 1.04);
+        return clamp(0.58 + siblingCount * 0.008, 0.58, 0.9);
+    }
+
+    function sphericalCapDirection(axis, index, count, spread, seed) {
+        if (count <= 1) return normalizeVector(axis);
+        const frame = buildFrame(axis);
+        const radius = Math.sqrt((index + 0.5) / count) * spread;
+        const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
+        return normalizeVector({
+            x: frame.normal.x * Math.cos(radius) + (frame.tangent.x * Math.cos(angle) + frame.bitangent.x * Math.sin(angle)) * Math.sin(radius),
+            y: frame.normal.y * Math.cos(radius) + (frame.tangent.y * Math.cos(angle) + frame.bitangent.y * Math.sin(angle)) * Math.sin(radius),
+            z: frame.normal.z * Math.cos(radius) + (frame.tangent.z * Math.cos(angle) + frame.bitangent.z * Math.sin(angle)) * Math.sin(radius)
+        });
+    }
+
+    function fibonacciSphereDirection(index, count, seed = 0) {
+        if (count <= 1) {
+            return normalizeVector({
+                x: Math.cos(seed) * 0.72,
+                y: Math.sin(seed) * 0.72,
+                z: 0.68
+            });
+        }
+        const t = (index + 0.5) / count;
+        const z = 1 - 2 * t;
+        const radius = Math.sqrt(Math.max(0, 1 - z * z));
+        const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
+        return {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            z
+        };
+    }
+
+    function buildFrame(axis) {
+        const normal = normalizeVector(axis);
+        const reference = Math.abs(normal.z) < 0.82 ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 };
+        const tangent = normalizeVector(cross(reference, normal));
+        const bitangent = normalizeVector(cross(normal, tangent));
+        return { normal, tangent, bitangent };
+    }
+
+    function normalizeVector(vector) {
+        const length = Math.hypot(vector?.x || 0, vector?.y || 0, vector?.z || 0) || 1;
+        return {
+            x: (vector?.x || 0) / length,
+            y: (vector?.y || 0) / length,
+            z: (vector?.z || 0) / length
+        };
+    }
+
+    function cross(a, b) {
+        return {
+            x: a.y * b.z - a.z * b.y,
+            y: a.z * b.x - a.x * b.z,
+            z: a.x * b.y - a.y * b.x
+        };
+    }
+
+    function seededAngle(value) {
+        let hash = 0;
+        const text = String(value || '');
+        for (let i = 0; i < text.length; i++) {
+            hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+        }
+        return (hash % 6283) / 1000;
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+}
+
+// ---------- Obsidian vault 建图（纯逻辑：不碰 DOM / three.js，Node 侧可完整回归） ----------
+
+// 按目录深度分配的配色
+const DEPTH_COLORS = [
+    0x00ff88,  // 根 - 绿
+    0x00ccff,  // 1层 - 青
+    0x6699ff,  // 2层 - 蓝
+    0xaa66ff,  // 3层 - 紫
+    0xff66aa,  // 4层 - 粉
+    0xffaa33,  // 5层 - 橙
+    0xffdd44,  // 6层+ - 黄
+];
+
+// Obsidian 笔记按首个标签哈希着色；没有标签时退回顶层目录名
+const VAULT_TAG_COLORS = [0x00e5ff, 0x8b5cf6, 0x10b981, 0xf59e0b, 0xec4899, 0x6366f1, 0xffd166, 0x06b6d4];
+
+function vaultTagColorIndex(key) {
+    let hash = 0;
+    const text = String(key || 'default');
+    for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    return hash % VAULT_TAG_COLORS.length;
+}
+
+function assignVaultNodeStyles(node, depth) {
+    const children = node.children || [];
+    if (node.isVaultNote) {
+        // 反链越多越大越亮：枢纽笔记（被很多笔记引用）在图上自然凸显
+        const backlinks = (node.vaultInLinks || []).length;
+        node.group = backlinks >= 5 ? 'root' : (backlinks >= 1 ? 'category' : 'classic');
+        node.color = VAULT_TAG_COLORS[vaultTagColorIndex((node.vaultTags || [])[0] || node.vaultFolder || node.name)];
+    } else if (node.isVaultAttachment) {
+        node.group = 'logic';
+        node.color = 0xffdd44;
+    } else if (node.kind === 'directory') {
+        node.group = depth === 0 ? 'root' : 'category';
+        node.color = DEPTH_COLORS[Math.min(depth, DEPTH_COLORS.length - 1)];
+        node.val = depth === 0 ? 50 : (12 + children.length * 0.6);
+    }
+    children.forEach(child => assignVaultNodeStyles(child, depth + 1));
+}
+
+// 双链作为非层级边（__hierarchy: false）追加：目录骨架决定空间位置，双链只表达关联。
+// 必须放在 buildGraphData 之后入列，这样层级边先注册、first-parent-wins 时目录结构优先。
+function appendVaultLinks(graph, vault) {
+    const nodeByPath = new Map();
+    graph.nodes.forEach(node => { if (node.path) nodeByPath.set(node.path, node); });
+    const byVaultPath = new Map();
+    [...vault.notes, ...vault.referencedAttachments].forEach(item => byVaultPath.set(item.vaultPath, item));
+
+    let wikilinkEdges = 0;
+    let attachmentEdges = 0;
+    let skipped = 0;
+    const edgeKeys = new Set();
+    vault.links.forEach(link => {
+        const from = byVaultPath.get(link.sourcePath);
+        const to = byVaultPath.get(link.targetPath);
+        if (!from || !to) { skipped += 1; return; }
+        const sourceNode = nodeByPath.get(from.path);
+        const targetNode = nodeByPath.get(to.path);
+        if (!sourceNode || !targetNode || sourceNode === targetNode) { skipped += 1; return; }
+        const edgeKey = `${sourceNode.id}->${targetNode.id}`;
+        if (edgeKeys.has(edgeKey)) return;
+        edgeKeys.add(edgeKey);
+        graph.links.push({
+            source: sourceNode.id,
+            target: targetNode.id,
+            __hierarchy: false,
+            __wikilink: link.kind === 'wikilink',
+            __embed: link.kind === 'embed',
+            __attachment: link.kind === 'attachment',
+            __anchor: link.anchor || '',
+            __display: link.display || ''
+        });
+        if (link.kind === 'attachment') attachmentEdges += 1;
+        else wikilinkEdges += 1;
+    });
+
+    return { wikilinkEdges, attachmentEdges, skippedEdges: skipped };
+}
+
+// vault -> graphData 的完整装配。前端 importVaultGraph 与 Node 侧 obsidianVault.audit.js 共用同一份逻辑。
+function buildVaultGraphData(vault, options) {
+    const opts = options || {};
+    const api = opts.api || (typeof window !== 'undefined' ? window.OBSIDIAN_VAULT : null);
+    if (!api) throw new Error('obsidianVault.js 未加载，无法把 vault 转成图谱');
+    if (!vault || !Array.isArray(vault.notes)) throw new Error('vault 解析结果无效');
+
+    const tree = api.buildVaultTree(vault, opts);
+    assignVaultNodeStyles(tree, 0);
+    _graphAutoId = 0;
+    const graph = buildGraphData([tree], opts.theme || {}, opts.prefix || '_vault');
+    const linkStats = appendVaultLinks(graph, vault);
+    return { tree, graph, linkStats };
+}
+
 function renderGraph(container) {
     const CODE_EXTS = new Set([
         'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'json', 'java', 'py', 'rb', 'go', 'rs', 'c', 'h', 'cpp', 'hpp',
@@ -139,198 +467,6 @@ function renderGraph(container) {
     const gData = applyReadableGraphLayout(buildGraphData(getGraphTree(THEME), THEME));
     let graphNodeById = new Map(gData.nodes.map(node => [node.id, node]));
 
-    function applyReadableGraphLayout(data) {
-        const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-        const nodes = data?.nodes || [];
-        const links = data?.links || [];
-        const nodeById = new Map(nodes.map(node => [node.id, node]));
-        const childrenById = new Map(nodes.map(node => [node.id, []]));
-        const parentById = new Map();
-
-        links.forEach(link => {
-            const sourceId = getLinkEndpointId(link.source);
-            const targetId = getLinkEndpointId(link.target);
-            if (!sourceId || !targetId || !nodeById.has(sourceId) || !nodeById.has(targetId)) return;
-            childrenById.get(sourceId).push(nodeById.get(targetId));
-            parentById.set(targetId, sourceId);
-        });
-
-        const roots = nodes.filter(node => !parentById.has(node.id));
-        const weightCache = new Map();
-        const subtreeWeight = node => {
-            if (weightCache.has(node.id)) return weightCache.get(node.id);
-            const children = childrenById.get(node.id) || [];
-            const weight = 1 + children.reduce((sum, child) => sum + subtreeWeight(child), 0);
-            weightCache.set(node.id, weight);
-            return weight;
-        };
-
-        const rootAnchors = calculateRootAnchors(roots.length);
-        roots.forEach((root, index) => {
-            const anchor = rootAnchors[index] || { x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } };
-            const rootDirection = normalizeVector(anchor.dir || { x: anchor.x, y: anchor.y, z: anchor.z });
-            setNodeLayout(root, anchor.x, anchor.y, anchor.z, 0, root.id, '', rootDirection, index);
-            layoutChildren(root, root.id, rootDirection, 1);
-        });
-
-        roots.forEach(root => {
-            root.__layoutGuideRadius = calculateClusterRadius(root);
-        });
-
-        return data;
-
-        function layoutChildren(parent, rootId, parentDirection, depth) {
-            const children = childrenById.get(parent.id) || [];
-            if (!children.length) return;
-
-            children.forEach((child, index) => {
-                const radius = levelRadius(depth, children.length, subtreeWeight(child));
-                const direction = depth <= 1
-                    ? fibonacciSphereDirection(index, children.length, seededAngle(parent.id))
-                    : sphericalCapDirection(parentDirection, index, children.length, capSpread(depth, children.length), seededAngle(parent.id));
-                const x = parent.__layoutX + direction.x * radius;
-                const y = parent.__layoutY + direction.y * radius;
-                const z = parent.__layoutZ + direction.z * radius;
-
-                setNodeLayout(child, x, y, z, depth, rootId, parent.id, direction, index);
-
-                const grandChildren = childrenById.get(child.id) || [];
-                if (grandChildren.length) {
-                    layoutChildren(child, rootId, direction, depth + 1);
-                }
-            });
-        }
-
-        function getLinkEndpointId(endpoint) {
-            return typeof endpoint === 'object' ? endpoint?.id : endpoint;
-        }
-
-        function setNodeLayout(node, x, y, z, depth, rootId, parentId, direction, orderIndex) {
-            node.x = node.fx = node.__layoutX = Math.round(x * 100) / 100;
-            node.y = node.fy = node.__layoutY = Math.round(y * 100) / 100;
-            node.z = node.fz = node.__layoutZ = Math.round(z * 100) / 100;
-            node.vx = node.vy = node.vz = 0;
-            node.__layoutDepth = depth;
-            node.__layoutRootId = rootId;
-            node.__layoutParentId = parentId;
-            node.__layoutDirection = direction;
-            node.__layoutAngle = Math.atan2(direction.y, direction.x);
-            node.__layoutOrder = orderIndex;
-        }
-
-        function calculateRootAnchors(count) {
-            if (count <= 1) return [{ x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } }];
-            const radius = count <= 3 ? 430 : 540;
-            return Array.from({ length: count }, (_, index) => {
-                const dir = fibonacciSphereDirection(index, count, -0.45);
-                return {
-                    x: dir.x * radius,
-                    y: dir.y * radius,
-                    z: dir.z * radius,
-                    dir
-                };
-            });
-        }
-
-        function calculateClusterRadius(root) {
-            let maxDistance = 0;
-            const stack = [...(childrenById.get(root.id) || [])];
-            while (stack.length) {
-                const node = stack.pop();
-                const distance = Math.hypot(
-                    node.__layoutX - root.__layoutX,
-                    node.__layoutY - root.__layoutY,
-                    node.__layoutZ - root.__layoutZ
-                );
-                maxDistance = Math.max(maxDistance, distance);
-                stack.push(...(childrenById.get(node.id) || []));
-            }
-            return clamp(maxDistance * 1.12, 220, 620);
-        }
-
-        function levelRadius(depth, siblingCount, weight) {
-            const weightSize = Math.sqrt(weight);
-            if (depth <= 1) return clamp(220 + siblingCount * 7 + weightSize * 8, 260, 430);
-            if (depth === 2) return clamp(88 + siblingCount * 5 + weightSize * 5, 105, 210);
-            if (depth === 3) return clamp(54 + siblingCount * 3 + weightSize * 4, 66, 145);
-            return clamp(34 + siblingCount * 2 + weightSize * 3, 44, 100);
-        }
-
-        function capSpread(depth, siblingCount) {
-            if (depth <= 2) return clamp(0.92 + siblingCount * 0.012, 0.92, 1.28);
-            if (depth === 3) return clamp(0.74 + siblingCount * 0.01, 0.74, 1.04);
-            return clamp(0.58 + siblingCount * 0.008, 0.58, 0.9);
-        }
-
-        function sphericalCapDirection(axis, index, count, spread, seed) {
-            if (count <= 1) return normalizeVector(axis);
-            const frame = buildFrame(axis);
-            const radius = Math.sqrt((index + 0.5) / count) * spread;
-            const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
-            return normalizeVector({
-                x: frame.normal.x * Math.cos(radius) + (frame.tangent.x * Math.cos(angle) + frame.bitangent.x * Math.sin(angle)) * Math.sin(radius),
-                y: frame.normal.y * Math.cos(radius) + (frame.tangent.y * Math.cos(angle) + frame.bitangent.y * Math.sin(angle)) * Math.sin(radius),
-                z: frame.normal.z * Math.cos(radius) + (frame.tangent.z * Math.cos(angle) + frame.bitangent.z * Math.sin(angle)) * Math.sin(radius)
-            });
-        }
-
-        function fibonacciSphereDirection(index, count, seed = 0) {
-            if (count <= 1) {
-                return normalizeVector({
-                    x: Math.cos(seed) * 0.72,
-                    y: Math.sin(seed) * 0.72,
-                    z: 0.68
-                });
-            }
-            const t = (index + 0.5) / count;
-            const z = 1 - 2 * t;
-            const radius = Math.sqrt(Math.max(0, 1 - z * z));
-            const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
-            return {
-                x: Math.cos(angle) * radius,
-                y: Math.sin(angle) * radius,
-                z
-            };
-        }
-
-        function buildFrame(axis) {
-            const normal = normalizeVector(axis);
-            const reference = Math.abs(normal.z) < 0.82 ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 };
-            const tangent = normalizeVector(cross(reference, normal));
-            const bitangent = normalizeVector(cross(normal, tangent));
-            return { normal, tangent, bitangent };
-        }
-
-        function normalizeVector(vector) {
-            const length = Math.hypot(vector?.x || 0, vector?.y || 0, vector?.z || 0) || 1;
-            return {
-                x: (vector?.x || 0) / length,
-                y: (vector?.y || 0) / length,
-                z: (vector?.z || 0) / length
-            };
-        }
-
-        function cross(a, b) {
-            return {
-                x: a.y * b.z - a.z * b.y,
-                y: a.z * b.x - a.x * b.z,
-                z: a.x * b.y - a.y * b.x
-            };
-        }
-
-        function seededAngle(value) {
-            let hash = 0;
-            const text = String(value || '');
-            for (let i = 0; i < text.length; i++) {
-                hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
-            }
-            return (hash % 6283) / 1000;
-        }
-
-        function clamp(value, min, max) {
-            return Math.max(min, Math.min(max, value));
-        }
-    }
 
     function getLinkNode(link, key) {
         const endpoint = link?.[key];
@@ -438,27 +574,39 @@ function renderGraph(container) {
         })
         
         // --- 连线特效 ---
+        // __hierarchy === false 的边是 Obsidian 双链/附件引用：它们不参与布局，用独立配色
+        // 和更细的线区分开，否则用户分不清“目录归属”和“笔记关联”。
         .linkColor(link => {
+            if (link.__hierarchy === false) {
+                if (link.__attachment) return colorToRgba(0xffdd44, 0.3);
+                return colorToRgba(link.__embed ? 0xff66aa : 0x7cf7ff, 0.5);
+            }
             const target = getLinkNode(link, 'target');
             const depth = target?.__layoutDepth || 1;
             return colorToRgba(target?.color || 0x00ffff, depth <= 1 ? 0.28 : (depth === 2 ? 0.18 : 0.09));
         })
         .linkWidth(link => {
+            if (link.__hierarchy === false) return link.__attachment ? 0.18 : 0.42;
             const target = getLinkNode(link, 'target');
             const depth = target?.__layoutDepth || 1;
             return depth <= 1 ? 1.15 : (depth === 2 ? 0.7 : 0.35);
         })
         .linkDirectionalParticles(link => {
+            if (link.__hierarchy === false) return link.__attachment ? 0 : (link.__embed ? 3 : 1);
             const target = getLinkNode(link, 'target');
             const depth = target?.__layoutDepth || 1;
             return depth <= 1 ? 3 : (depth === 2 ? 2 : 1);
         })
         .linkDirectionalParticleWidth(link => {
+            if (link.__hierarchy === false) return link.__embed ? 1.6 : 1;
             const target = getLinkNode(link, 'target');
             return (target?.__layoutDepth || 1) <= 2 ? 2 : 1.1;
         })
-        .linkDirectionalParticleSpeed(0.005) // 粒子速度
-        .linkDirectionalParticleColor(link => colorToRgba(getLinkNode(link, 'target')?.color || 0xffffff, 0.78))
+        .linkDirectionalParticleSpeed(link => (link.__hierarchy === false ? 0.0035 : 0.005)) // 粒子速度
+        .linkDirectionalParticleColor(link => {
+            if (link.__hierarchy === false) return colorToRgba(link.__embed ? 0xff66aa : 0x7cf7ff, 0.85);
+            return colorToRgba(getLinkNode(link, 'target')?.color || 0xffffff, 0.78);
+        })
         
         // --- 交互 ---
         .onNodeClick((node, event) => {
@@ -810,11 +958,102 @@ function renderGraph(container) {
             openNodeExplanation(node);
             return;
         }
+        // Obsidian 笔记节点优先走笔记面板：显示正文、frontmatter、标签和双向链接，
+        // 而不是退化成"当前文件不是常见代码类型"的提示。
+        if (getVaultNote(node)) {
+            inspectVaultNoteNode(node);
+            return;
+        }
         if (graphInspectMode === 'doc') {
             inspectDocumentNode(node);
             return;
         }
         inspectCodeNode(node);
+    }
+
+    function getVaultNote(node) {
+        if (!node || !node.path || !vaultNotesByPath.size) return null;
+        return vaultNotesByPath.get(node.path) || null;
+    }
+
+    function vaultLinkList(items, emptyText) {
+        if (!items.length) return `<p class="zstp-vault-empty">${escapeHtml(emptyText)}</p>`;
+        return `<div class="zstp-vault-links">${items.map(item =>
+            `<button type="button" class="zstp-vault-link" data-graph-node-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`
+        ).join('')}</div>`;
+    }
+
+    function inspectVaultNoteNode(node) {
+        const note = getVaultNote(node);
+        const context = getNodeGraphContext(node);
+        const tags = (note.tags || []).map(tag => `<span class="zstp-vault-tag">#${escapeHtml(tag)}</span>`).join('');
+        const frontmatterEntries = Object.entries(note.frontmatter || {});
+        const frontmatterHtml = frontmatterEntries.length
+            ? frontmatterEntries.map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(Array.isArray(value) ? value.join(', ') : String(value))}</td></tr>`).join('')
+            : '<tr><td colspan="2">该笔记没有 frontmatter</td></tr>';
+
+        showPreview(
+            note.title || node.name,
+            `${note.vaultPath} · ${note.wordCount} 字 · 出链 ${note.outLinks.length} · 反链 ${note.inLinks.length}`,
+            `
+                <div class="zstp-vault-note">
+                    <div class="zstp-vault-tags">${tags || '<span class="zstp-vault-tag is-empty">无标签</span>'}</div>
+                    ${note.kgNode ? `<p class="zstp-vault-kgnode">骨架节点映射: <code>${escapeHtml(note.kgNode)}</code></p>` : ''}
+                    <p class="zstp-vault-excerpt">${escapeHtml(note.excerpt || '（空笔记）')}</p>
+                    <section class="zstp-kb-record">
+                        <h4>Frontmatter 属性</h4>
+                        <table class="zstp-vault-table">${frontmatterHtml}</table>
+                    </section>
+                    <section class="zstp-kb-record">
+                        <h4>标题大纲 (${note.headings.length})</h4>
+                        ${note.headings.length ? `<p class="zstp-vault-headings">${escapeHtml(note.headings.slice(0, 16).join(' / '))}</p>` : '<p class="zstp-vault-empty">无标题行</p>'}
+                    </section>
+                    <section class="zstp-kb-record">
+                        <h4>出链 (${note.outLinks.length})</h4>
+                        ${vaultLinkList(context.outlinks || [], '这篇笔记没有指向其他笔记')}
+                    </section>
+                    <section class="zstp-kb-record">
+                        <h4>反链 (${note.inLinks.length})</h4>
+                        ${vaultLinkList(context.backlinks || [], '没有其他笔记指向它')}
+                    </section>
+                    <section class="zstp-kb-record">
+                        <h4>原始 Markdown</h4>
+                        <button type="button" id="zstp-vault-fulltext-btn" class="zstp-vault-link">读取完整正文</button>
+                        <div id="zstp-vault-fulltext" class="zstp-vault-fulltext"></div>
+                    </section>
+                </div>
+            `
+        );
+
+        const bodyEl = document.getElementById('zstp-preview-body');
+        if (!bodyEl) return;
+        bodyEl.querySelectorAll('[data-graph-node-id]').forEach(element => {
+            element.addEventListener('click', () => {
+                const target = graphNodeById.get(element.dataset.graphNodeId);
+                if (target) runGraphNodeAction(target, null);
+            });
+        });
+        const fullTextButton = bodyEl.querySelector('#zstp-vault-fulltext-btn');
+        if (fullTextButton) {
+            fullTextButton.addEventListener('click', async () => {
+                const file = importedFiles.get(note.path);
+                const container = bodyEl.querySelector('#zstp-vault-fulltext');
+                if (!file) {
+                    fullTextButton.textContent = '原始文件不在本次导入中';
+                    return;
+                }
+                fullTextButton.disabled = true;
+                fullTextButton.textContent = '读取中...';
+                try {
+                    const text = await readFileText(file);
+                    if (container) container.innerHTML = `<pre><code>${escapeHtml(limitPreviewText(text))}</code></pre>`;
+                    fullTextButton.remove();
+                } catch (error) {
+                    fullTextButton.disabled = false;
+                    fullTextButton.textContent = `读取失败: ${error.message}`;
+                }
+            });
+        }
     }
 
     function inspectCodeNode(node) {
@@ -869,9 +1108,115 @@ function renderGraph(container) {
         );
     }
 
+    function worldStatusBadge(status, score) {
+        const confirmed = /confirmed/.test(String(status || ''));
+        const label = worldKnowledgeStatusLabel(status);
+        const tone = status === 'no-authoritative-match' || status === 'source-error' ? 'is-empty'
+            : (confirmed ? 'is-confirmed' : 'is-candidate');
+        return `<span class="zstp-world-badge ${tone}">${escapeHtml(label)} · ${Number(score || 0).toFixed(2)}</span>`;
+    }
+
+    // 节点面板的“世界知识”区块，是节点的主视图：先给权威实体与百科正文，
+    // 再给关系声明，模板化记录和论文证据退到后面。
+    function renderWorldKnowledgeSection(node) {
+        const entry = typeof getGraphNodeWorldKnowledge === 'function' ? getGraphNodeWorldKnowledge(node.name) : null;
+        if (!entry) {
+            return `
+                <section class="zstp-world is-missing">
+                    <header class="zstp-world-head">
+                        <span class="zstp-world-kicker">WORLD KNOWLEDGE · 世界知识</span>
+                        <span class="zstp-world-badge is-empty">尚未编译</span>
+                    </header>
+                    <p class="zstp-world-empty">这个节点还没有世界知识数据：批量层（SPARQL 精确标签匹配 + 批量实体搜索）没有命中它。
+                    运行 <code>node compileWorldKnowledge.js</code> 会逐节点搜索补齐，然后重新加载页面。</p>
+                </section>
+            `;
+        }
+
+        const pieces = [`
+            <header class="zstp-world-head">
+                <span class="zstp-world-kicker">WORLD KNOWLEDGE · 世界知识</span>
+                ${worldStatusBadge(entry.status, entry.score)}
+            </header>
+        `];
+
+        const entity = entry.entityDetail;
+        const article = entry.article;
+        const claimLines = worldClaimSummary(entry);
+
+        if (entity) {
+            const label = entity.label.zh || entity.label.en || node.name;
+            const secondary = entity.label.zh && entity.label.en && entity.label.zh !== entity.label.en ? ` / ${entity.label.en}` : '';
+            const description = entity.description.zh || entity.description.en || '';
+            pieces.push(`
+                <div class="zstp-world-entity">
+                    <div class="zstp-world-label">${escapeHtml(label)}${escapeHtml(secondary)}
+                        <a class="zstp-world-qid" href="${escapeHtml(entity.uri)}" target="_blank" rel="noopener">${escapeHtml(entity.id)}</a>
+                    </div>
+                    ${description ? `<p class="zstp-world-desc">${escapeHtml(description)}</p>` : ''}
+                    ${entity.aliases.length ? `<p class="zstp-world-aliases">别名: ${escapeHtml(entity.aliases.join('；'))}</p>` : ''}
+                </div>
+            `);
+            if (claimLines.length) {
+                const rows = claimLines.map(line => {
+                    const match = line.match(/^(.*?)\s*\((P\d+)\):\s*([\s\S]*)$/);
+                    return `<tr><th>${escapeHtml(match ? match[1] : '关系')}${match ? ` <code>${escapeHtml(match[2])}</code>` : ''}</th><td>${escapeHtml(match ? match[3] : line)}</td></tr>`;
+                }).join('');
+                pieces.push(`
+                    <section class="zstp-kb-record">
+                        <h4>权威关系声明 (${claimLines.length})</h4>
+                        <table class="zstp-vault-table zstp-world-claims">${rows}</table>
+                    </section>
+                `);
+            }
+        }
+
+        const prose = (entity && entity.wikipedia && entity.wikipedia.extract) || (article && article.extract) || '';
+        const proseTitle = (entity && entity.wikipedia && entity.wikipedia.title) || (article && article.title) || '';
+        const proseUrl = (entity && entity.wikipedia && entity.wikipedia.url) || (article && article.url) || '';
+        if (prose) {
+            pieces.push(`
+                <section class="zstp-kb-record">
+                    <h4>百科条目《${escapeHtml(proseTitle)}》</h4>
+                    <p class="zstp-world-prose">${escapeHtml(prose)}</p>
+                    ${article && article.excerptFromSearch ? '<p class="zstp-world-note">未取到完整导言，此处为百科检索摘要。</p>' : ''}
+                    <p class="zstp-world-note">维基百科正文采用 CC BY-SA 4.0 许可。</p>
+                </section>
+            `);
+        }
+
+        const sourceLinks = [];
+        if (entity) sourceLinks.push(`<a class="zstp-vault-link" href="${escapeHtml(entity.uri)}" target="_blank" rel="noopener">Wikidata 实体页</a>`);
+        if (proseUrl) sourceLinks.push(`<a class="zstp-vault-link" href="${escapeHtml(proseUrl)}" target="_blank" rel="noopener">维基百科条目</a>`);
+        if (sourceLinks.length) pieces.push(`<div class="zstp-world-sources">${sourceLinks.join('')}</div>`);
+
+        if (entry.status === 'no-authoritative-match' || entry.status === 'source-error') {
+            const runnerText = (entry.runnersUp || []).map(item => `${item.label} ${item.id} [${Number(item.score).toFixed(2)}]`).join('；');
+            pieces.push(`
+                <p class="zstp-world-note">
+                    ${entry.status === 'source-error'
+                        ? '本次解析遇到来源访问失败，重跑 compileWorldKnowledge.js 可补齐。'
+                        : '这个节点在 Wikidata 与维基百科中都没有达到置信度阈值的对应实体，属于图谱自身的聚合 / 路线图概念，而不是可消歧的实体。'}
+                    ${runnerText ? `被拒绝的候选：${escapeHtml(runnerText)}` : ''}
+                </p>
+            `);
+        } else if (/candidate/.test(String(entry.status))) {
+            pieces.push('<p class="zstp-world-note">该匹配为待确认状态：分数未达到“已确认”阈值，请以原始来源为准。</p>');
+        }
+
+        pieces.push(`<p class="zstp-world-provenance">检索式 中「${escapeHtml((entry.query && entry.query.zh) || '无')}」/ 英「${escapeHtml((entry.query && entry.query.en) || '无')}」；解析时间 ${escapeHtml(String(entry.resolvedAt || '').slice(0, 10))}</p>`);
+
+        return `<section class="zstp-world" data-status="${escapeHtml(entry.status || '')}">${pieces.join('')}</section>`;
+    }
+
     function inspectKnowledgeGraphNode(node) {
         const context = getNodeGraphContext(node);
-        const records = (node.knowledgeBase || []).slice(0, 8);
+        const allRecords = node.knowledgeBase || [];
+        const worldRecords = allRecords.filter(record => String(record.id || '').startsWith('world-'));
+        // 世界知识已经在 renderWorldKnowledgeSection 里单独渲染，这里不再重复列出
+        const records = allRecords
+            .filter(record => !String(record.id || '').startsWith('world-'))
+            .slice(0, 8);
         const children = (context.children || []).slice(0, 12).map(item => item.name);
         const recordHtml = records.length
             ? records.map(item => `
@@ -884,8 +1229,9 @@ function renderGraph(container) {
             : '<p>这个节点暂未生成知识库记录。</p>';
         showPreview(
             node.name,
-            `${(context.path || []).join(' > ')} · ${records.length} 条本地知识库`,
+            `${(context.path || []).join(' > ')} · 世界知识 ${worldRecords.length} 条 · 其他记录 ${records.length} 条`,
             `
+                ${renderWorldKnowledgeSection(node)}
                 <div class="zstp-kb-summary">
                     <p>${escapeHtml(node.description || '默认知识图谱节点，可用于模型解释与检索增强。')}</p>
                     ${children.length ? `<p>直接子节点: ${escapeHtml(children.join('；'))}</p>` : ''}
@@ -921,18 +1267,218 @@ function renderGraph(container) {
         }
     }
 
-    async function buildNodeKnowledgeBundle(node) {
+    async function buildNodeKnowledgeBundle(node, userQuery = '', { liveExternal = false } = {}) {
         const graphContext = getNodeGraphContext(node);
         const profile = buildNodeKnowledgeProfile(node, graphContext);
-        const localRecords = retrieveLocalNodeKnowledge(node, graphContext, profile);
-        const externalRecords = await retrieveExternalNodeKnowledge(profile);
+        const retrievalQuery = userQuery || profile.primaryTerm;
+        const localRecords = rankKnowledgeRecords(
+            retrieveLocalNodeKnowledge(node, graphContext, profile), retrievalQuery, profile, 20
+        );
+        const externalRecords = liveExternal ? await retrieveExternalNodeKnowledgeFast(profile) : [];
+        const rankedExternalRecords = rankKnowledgeRecords(externalRecords, retrievalQuery, profile, 24);
+        const evidenceGraph = buildNodeEvidenceGraph(node, graphContext, localRecords, rankedExternalRecords, retrievalQuery);
         return {
             profile,
             graphContext,
             localRecords,
-            externalRecords,
+            externalRecords: rankedExternalRecords,
+            evidenceGraph,
             retrievalPolicy: buildRetrievalPolicy(profile),
+            diagnostics: buildRetrievalDiagnostics(node, localRecords, externalRecords, retrievalQuery),
         };
+    }
+
+    async function retrieveExternalNodeKnowledgeFast(profile) {
+        const cached = readKnowledgeRetrievalCache(`zstp-rag-v2:${profile.domain.id}:${profile.primaryTerm}`);
+        if (cached) return cached;
+        const fastTimeoutMs = 1800;
+        const task = profile.domain.id === 'bio-health'
+            ? queryEuropePmc(profile.primaryTerm, fastTimeoutMs)
+            : queryCrossref(profile.primaryTerm, fastTimeoutMs);
+        try {
+            return await Promise.race([
+                task,
+                new Promise(resolve => setTimeout(() => resolve([]), 2000))
+            ]);
+        } catch {
+            return [];
+        }
+    }
+
+    function stableKnowledgeId(prefix, value) {
+        let hash = 2166136261;
+        for (const char of String(value || '')) {
+            hash ^= char.codePointAt(0);
+            hash = Math.imul(hash, 16777619);
+        }
+        return `${prefix}:${(hash >>> 0).toString(36)}`;
+    }
+
+    function extractClaimCandidate(record) {
+        if (classifyEvidenceUsability(record) !== 'claim-supporting') return null;
+        const snippet = compactText(record.snippet || '', 900);
+        if (!snippet || /摘要不可用|未收录摘要/.test(snippet)) return null;
+        return {
+            id: stableKnowledgeId('claim', `${record.source}:${record.title}:${snippet}`),
+            statement: snippet,
+            status: 'source-asserted',
+            scope: record.queryIntent || 'retrieved evidence',
+            qualifiers: ['仅代表来源摘要中的主张', '回答时须保留研究对象、条件与不确定性', '未读取全文时不得扩展为更强结论'],
+            citation: record.citation || null
+        };
+    }
+
+    function buildNodeEvidenceGraph(node, context, localRecords, externalRecords, query) {
+        const nodes = [{ id: `topic:${node.id}`, type: 'topic', label: node.name, graphPath: context.path }];
+        const edges = [];
+        localRecords.filter(record => ['node-knowledge-base', 'compiled-evidence'].includes(record.type)).forEach(record => {
+            if (record.type === 'compiled-evidence') {
+                const evidenceId = stableKnowledgeId('evidence', record.url || `${record.source}:${record.title}`);
+                nodes.push({
+                    id: evidenceId, type: 'evidence', label: record.title, source: record.source,
+                    snippet: record.content, citation: record.citation || null,
+                    evidenceLevel: record.evidenceLevel, evidenceUsability: classifyEvidenceUsability(record),
+                    retrievalScore: record.retrievalScore, provenance: record.provenance || null
+                });
+                edges.push({ source: evidenceId, target: `topic:${node.id}`, relation: 'compiled_for', query });
+                const claim = extractClaimCandidate(record);
+                if (claim) {
+                    nodes.push({ ...claim, type: 'claim' });
+                    edges.push({ source: evidenceId, target: claim.id, relation: 'asserts' });
+                    edges.push({ source: claim.id, target: `topic:${node.id}`, relation: 'about' });
+                }
+                return;
+            }
+            const id = stableKnowledgeId('framework', `${node.id}:${record.title}`);
+            nodes.push({ id, type: 'framework', label: record.title, content: record.content, evidenceUsability: 'analysis-framework' });
+            edges.push({ source: `topic:${node.id}`, target: id, relation: 'analyzed_by' });
+        });
+        externalRecords.forEach(record => {
+            const evidenceId = stableKnowledgeId('evidence', record.url || `${record.source}:${record.title}`);
+            nodes.push({
+                id: evidenceId, type: 'evidence', label: record.title, source: record.source,
+                snippet: record.snippet || '', citation: record.citation || null,
+                evidenceLevel: record.evidenceLevel || 'unclassified', evidenceUsability: classifyEvidenceUsability(record),
+                retrievalScore: record.retrievalScore, queryIntent: record.queryIntent || '', retrievedAt: record.retrievedAt || null
+            });
+            edges.push({ source: evidenceId, target: `topic:${node.id}`, relation: 'retrieved_for', query });
+            const claim = extractClaimCandidate(record);
+            if (claim) {
+                nodes.push({ ...claim, type: 'claim' });
+                edges.push({ source: evidenceId, target: claim.id, relation: 'asserts' });
+                edges.push({ source: claim.id, target: `topic:${node.id}`, relation: 'about' });
+            }
+        });
+        const related = [context.parent, ...(context.children || []), ...(context.siblings || [])].filter(Boolean);
+        related.slice(0, 24).forEach(relatedNode => {
+            const id = `topic:${relatedNode.id}`;
+            nodes.push({ id, type: 'related-topic', label: relatedNode.name });
+            edges.push({ source: `topic:${node.id}`, target: id, relation: context.parent?.id === relatedNode.id ? 'subtopic_of' : 'graph_neighbor' });
+        });
+        return {
+            schemaVersion: '1.0', query, rootTopicId: `topic:${node.id}`,
+            nodes: [...new Map(nodes.map(item => [item.id, item])).values()], edges,
+            stats: {
+                claims: nodes.filter(item => item.type === 'claim').length,
+                claimSupportingEvidence: nodes.filter(item => item.type === 'evidence' && item.evidenceUsability === 'claim-supporting').length,
+                discoveryOnlyEvidence: nodes.filter(item => item.type === 'evidence' && item.evidenceUsability === 'discovery-only').length
+            }
+        };
+    }
+
+    function tokenizeKnowledgeText(value) {
+        const normalized = String(value || '').toLowerCase().normalize('NFKC');
+        const latin = normalized.match(/[a-z][a-z0-9.+#-]{1,}/g) || [];
+        const chinese = normalized.match(/[\u4e00-\u9fff]{2,}/g) || [];
+        const bigrams = chinese.flatMap(term => Array.from({ length: Math.max(0, term.length - 1) }, (_, index) => term.slice(index, index + 2)));
+        return [...new Set([...latin, ...chinese, ...bigrams])];
+    }
+
+    function knowledgeRecordText(record) {
+        return [record.title, record.content, record.snippet, record.meta, record.source, ...(record.keywords || [])].filter(Boolean).join(' ');
+    }
+
+    function lexicalKnowledgeScore(record, query, profile) {
+        const queryTokens = tokenizeKnowledgeText([query, profile.terms.english, profile.terms.chinese].filter(Boolean).join(' '));
+        const recordTokens = new Set(tokenizeKnowledgeText(knowledgeRecordText(record)));
+        if (!queryTokens.length) return 0;
+        const overlap = queryTokens.reduce((sum, token) => sum + (recordTokens.has(token) ? 1 : 0), 0) / queryTokens.length;
+        const phrase = knowledgeRecordText(record).toLowerCase().includes(String(query || '').toLowerCase()) ? 0.25 : 0;
+        return overlap + phrase;
+    }
+
+    function evidenceQualityScore(record) {
+        const authority = { 'Europe PMC': 0.98, 'Semantic Scholar': 0.95, OpenAlex: 0.92, Crossref: 0.91, Wikidata: 0.9, 'Data Commons': 0.9, 'Hugging Face': 0.76, GitHub: 0.72, 'Hacker News': 0.45 };
+        const sourceScore = authority[record.source] ?? (record.type === 'node-knowledge-base' ? 0.88 : 0.62);
+        const year = Number(String(record.meta || '').match(/\b(19|20)\d{2}\b/)?.[0]);
+        const recency = year ? Math.max(0, 1 - (new Date().getFullYear() - year) / 15) : 0.45;
+        const citations = Number(String(record.meta || '').match(/citations\s+(\d+)/i)?.[1] || 0);
+        const evidenceBonus = record.evidenceLevel === 'abstract-supported' ? 0.08 : record.evidenceLevel === 'bibliographic-only' ? -0.08 : 0;
+        return sourceScore * 0.65 + recency * 0.2 + Math.min(1, Math.log10(citations + 1) / 4) * 0.15 + evidenceBonus;
+    }
+
+    function jaccardKnowledgeSimilarity(left, right) {
+        const a = new Set(tokenizeKnowledgeText(knowledgeRecordText(left)));
+        const b = new Set(tokenizeKnowledgeText(knowledgeRecordText(right)));
+        if (!a.size || !b.size) return 0;
+        const intersection = [...a].filter(token => b.has(token)).length;
+        return intersection / (a.size + b.size - intersection);
+    }
+
+    function rankKnowledgeRecords(records, query, profile, limit) {
+        const deduplicated = [];
+        const seen = new Set();
+        records.filter(record => record && (record.content || record.snippet || record.title)).forEach(record => {
+            const key = String(record.url || record.title || knowledgeRecordText(record).slice(0, 120)).toLowerCase().replace(/\W+/g, '');
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            deduplicated.push({
+                ...record,
+                evidenceUsability: classifyEvidenceUsability(record),
+                retrievalScore: lexicalKnowledgeScore(record, query, profile) * 0.5 + evidenceQualityScore(record) * 0.3 + Math.min(1.2, Number(record.score || 0)) * 0.08 + Math.min(1, Number(record.rrfScore || 0) * 20) * 0.12
+            });
+        });
+        const selected = [];
+        while (deduplicated.length && selected.length < limit) {
+            let bestIndex = 0;
+            let bestScore = -Infinity;
+            deduplicated.forEach((record, index) => {
+                const redundancy = selected.length ? Math.max(...selected.map(item => jaccardKnowledgeSimilarity(record, item))) : 0;
+                const mmr = 0.78 * record.retrievalScore - 0.22 * redundancy;
+                if (mmr > bestScore) { bestScore = mmr; bestIndex = index; }
+            });
+            const [record] = deduplicated.splice(bestIndex, 1);
+            selected.push({ ...record, retrievalScore: Number(record.retrievalScore.toFixed(4)) });
+        }
+        return selected;
+    }
+
+    function classifyEvidenceUsability(record) {
+        if (record.type === 'node-knowledge-base') return 'analysis-framework';
+        if (['abstract-supported', 'curated-entity', 'review'].includes(record.evidenceLevel)) return 'claim-supporting';
+        if (record.evidenceLevel === 'bibliographic-only' || /摘要不可用|未收录摘要/.test(record.snippet || '')) return 'discovery-only';
+        if (['reference-search', 'community'].includes(record.type)) return 'discovery-only';
+        return record.snippet ? 'contextual' : 'discovery-only';
+    }
+
+    function buildRetrievalDiagnostics(node, localRecords, externalRecords, query) {
+        const facets = new Set((node.knowledgeBase || []).map(item => item.quality?.facet).filter(Boolean));
+        return {
+            query, strategy: 'graph-aware hybrid lexical + authority/recency/citation scoring + MMR',
+            expertFacetCoverage: [...facets], localCandidates: localRecords.length, externalCandidates: externalRecords.length,
+            queryPlan: profileQueryPlanForDiagnostics(node, query),
+            evidenceSources: [...new Set(externalRecords.map(record => record.source).filter(Boolean))],
+            abstractSupportedEvidence: externalRecords.filter(record => ['abstract-supported', 'review'].includes(record.evidenceLevel)).length,
+            claimSupportingEvidence: externalRecords.filter(record => classifyEvidenceUsability(record) === 'claim-supporting').length,
+            discoveryOnlyRecords: externalRecords.filter(record => classifyEvidenceUsability(record) === 'discovery-only').length,
+            hasDefinitions: facets.has('definition'), hasMechanisms: facets.has('mechanism'), hasEvidenceProtocol: facets.has('evidence'), hasFrontierAnalysis: facets.has('frontier')
+        };
+    }
+
+    function profileQueryPlanForDiagnostics(node, query) {
+        const context = getNodeGraphContext(node);
+        const profile = buildNodeKnowledgeProfile(node, context);
+        return (profile.queryPlan || []).map(plan => ({ ...plan, userQuery: query }));
     }
 
     function getNodeGraphContext(node) {
@@ -942,11 +1488,22 @@ function renderGraph(container) {
         const nodeById = new Map(nodes.map(item => [item.id, item]));
         const parentById = new Map();
         const childrenById = new Map();
+        const backlinks = [];
+        const outlinks = [];
 
+        // 层级边（目录/分类）决定 path、parent、children、siblings；非层级边（Obsidian 双链）
+        // 只进入 backlinks / outlinks。两者混在一起会让节点的“路径”被双链改写。
         links.forEach(link => {
             const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
             const targetId = typeof link.target === 'object' ? link.target.id : link.target;
             if (!sourceId || !targetId) return;
+            if (link.__hierarchy === false) {
+                // 边方向是 来源笔记 -> 目标笔记：别人指向我就是反链，我指向别人就是出链。
+                if (targetId === node.id && nodeById.has(sourceId)) backlinks.push(nodeById.get(sourceId));
+                if (sourceId === node.id && nodeById.has(targetId)) outlinks.push(nodeById.get(targetId));
+                return;
+            }
+            if (parentById.has(targetId) || sourceId === targetId) return;
             parentById.set(targetId, sourceId);
             if (!childrenById.has(sourceId)) childrenById.set(sourceId, []);
             const child = nodeById.get(targetId);
@@ -973,6 +1530,8 @@ function renderGraph(container) {
             children,
             siblings,
             root: ancestors[0] || node,
+            backlinks,
+            outlinks,
             nodeCount: nodes.length,
             linkCount: links.length,
         };
@@ -991,10 +1550,11 @@ function renderGraph(container) {
             ...(context.children || []).map(item => item.name),
             ...(context.siblings || []).map(item => item.name),
         ].filter(Boolean).join(' ');
-        const domain = selectNodeKnowledgeDomain(contextText);
+        const domain = selectNodeKnowledgeDomain(node.name, contextText);
         const primaryTerm = terms.english || terms.chinese || node.name;
-        const broadQuery = [terms.english || terms.chinese, domain.queryBoost].filter(Boolean).join(' ');
+        const broadQuery = primaryTerm;
         const graphPath = (context.path || []).join(' > ');
+        const queryPlan = buildExpertQueryPlan(primaryTerm, domain);
 
         return {
             id: node.id,
@@ -1002,6 +1562,7 @@ function renderGraph(container) {
             terms,
             primaryTerm,
             broadQuery,
+            queryPlan,
             graphPath,
             domain,
             source: node.source || context.root?.source || '',
@@ -1023,8 +1584,17 @@ function renderGraph(container) {
         return { raw, english, chinese, compact };
     }
 
-    function selectNodeKnowledgeDomain(text) {
+    function nodeDomainPatternMatches(text, pattern) {
         const haystack = String(text || '').toLowerCase();
+        const needle = String(pattern || '').toLowerCase();
+        if (/^[a-z0-9 -]+$/.test(needle)) {
+            const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+            return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i').test(haystack);
+        }
+        return haystack.includes(needle);
+    }
+
+    function selectNodeKnowledgeDomain(nodeName, contextText) {
         const domains = [
             {
                 id: 'agentic-ai',
@@ -1099,7 +1669,15 @@ function renderGraph(container) {
                 questions: ['它改变哪些社会流程？', '可用什么指标衡量？', '主要外部性是什么？', '治理或制度化路径是什么？']
             },
         ];
-        return domains.find(domain => domain.patterns.some(pattern => haystack.includes(pattern.toLowerCase()))) || {
+        let best = null;
+        domains.forEach(domain => domain.patterns.forEach(pattern => {
+            const direct = nodeDomainPatternMatches(nodeName, pattern);
+            const contextual = nodeDomainPatternMatches(contextText, pattern);
+            if (!direct && !contextual) return;
+            const score = (direct ? 10 : 1) + String(pattern).length / 100;
+            if (!best || score > best.score) best = { domain, score };
+        }));
+        return best?.domain || {
             id: 'frontier-general',
             label: '世界前沿知识通用节点',
             queryBoost: 'frontier technology research knowledge graph',
@@ -1109,13 +1687,28 @@ function renderGraph(container) {
         };
     }
 
+    function buildExpertQueryPlan(primaryTerm, domain) {
+        const term = String(primaryTerm || '').trim();
+        const plans = [
+            { id: 'definition', query: `"${term}" review terminology taxonomy`, intent: '定义、分类与学科共识' },
+            { id: 'mechanism', query: `"${term}" mechanism model experiment`, intent: '机制、形式化模型与实验验证' },
+            { id: 'evidence', query: `"${term}" benchmark metrics dataset replication`, intent: '指标、基准、数据与复现' },
+            { id: 'frontier', query: `"${term}" state of the art open challenges 2024 2025 2026`, intent: '前沿进展、瓶颈与开放问题' },
+        ];
+        if (domain.id === 'bio-health') plans.push({ id: 'clinical', query: `"${term}" clinical trial safety efficacy`, intent: '临床效力与安全性' });
+        if (domain.id === 'energy-climate') plans.push({ id: 'deployment', query: `"${term}" techno-economic lifecycle cost deployment`, intent: '技术经济与生命周期' });
+        if (domain.id === 'semiconductor-robotics') plans.push({ id: 'reliability', query: `"${term}" reliability standard manufacturing yield`, intent: '可靠性、标准与量产' });
+        return plans;
+    }
+
     function retrieveLocalNodeKnowledge(node, context, profile) {
         const children = (context.children || []).slice(0, 12).map(item => item.name);
         const siblings = (context.siblings || []).slice(0, 10).map(item => item.name);
         const ancestors = (context.ancestors || []).map(item => item.name);
         const records = [
-            ...(node.knowledgeBase || []).slice(0, 8).map((item, index) => ({
-                type: 'node-knowledge-base',
+            ...(node.knowledgeBase || []).map((item, index) => ({
+                type: item.evidenceLevel ? 'compiled-evidence' : 'node-knowledge-base',
+                id: item.id,
                 title: item.title || `节点知识库 ${index + 1}`,
                 content: [
                     item.content || '',
@@ -1123,7 +1716,16 @@ function renderGraph(container) {
                     item.url ? `链接: ${item.url}` : '',
                     item.keywords?.length ? `关键词: ${item.keywords.join('；')}` : '',
                 ].filter(Boolean).join('\n'),
-                score: 1.08 - index * 0.02
+                snippet: item.snippet || '',
+                keywords: item.keywords || [],
+                source: item.source || '',
+                url: item.url || '',
+                citation: item.citation || null,
+                evidenceLevel: item.evidenceLevel || '',
+                evidenceUsability: item.evidenceUsability || '',
+                provenance: item.provenance || null,
+                quality: item.quality || null,
+                score: item.evidenceUsability === 'claim-supporting' ? 1.16 : 1.08 - index * 0.02
             })),
             {
                 type: 'node-card',
@@ -1149,6 +1751,22 @@ function renderGraph(container) {
                 score: 0.95
             },
         ];
+
+        const neighborNodes = [context.parent, ...(context.children || []), ...(context.siblings || [])].filter(Boolean);
+        neighborNodes.slice(0, 24).forEach(neighbor => {
+            (neighbor.knowledgeBase || [])
+                .filter(item => ['definition', 'mechanism', 'evidence', 'frontier'].includes(item.quality?.facet))
+                .forEach(item => records.push({
+                    type: 'graph-neighbor-knowledge',
+                    title: `${neighbor.name} / ${item.title}`,
+                    content: item.content,
+                    keywords: item.keywords || [],
+                    sourceNode: { id: neighbor.id, name: neighbor.name },
+                    graphRelation: context.parent?.id === neighbor.id ? 'parent' : context.children?.some(child => child.id === neighbor.id) ? 'child' : 'sibling',
+                    quality: item.quality,
+                    score: context.parent?.id === neighbor.id ? 0.84 : 0.76
+                }));
+        });
 
         if (children.length) {
             records.push({
@@ -1192,20 +1810,77 @@ function renderGraph(container) {
     }
 
     async function retrieveExternalNodeKnowledge(profile) {
-        const query = profile.broadQuery || profile.primaryTerm;
-        const tasks = [
-            queryOpenAlex(query),
-            querySemanticScholar(query),
-            queryGitHub(query),
-            queryHackerNews(query),
-            queryHuggingFace(query),
-        ];
+        const cacheKey = `zstp-rag-v2:${profile.domain.id}:${profile.primaryTerm}`;
+        const cached = readKnowledgeRetrievalCache(cacheKey);
+        if (cached) return cached;
+        const exact = profile.primaryTerm;
+        const plans = profile.queryPlan || buildExpertQueryPlan(exact, profile.domain);
+        const academicPlans = plans.slice(0, 4);
+        const tasks = academicPlans.flatMap(plan => [
+            queryOpenAlex(plan.query, plan),
+            querySemanticScholar(plan.query, plan),
+        ]);
+        tasks.push(queryCrossref(exact));
+        if (profile.domain.id === 'bio-health') tasks.push(queryEuropePmc(exact));
+        if (profile.domain.id === 'knowledge-graph') tasks.push(queryWikidata(exact));
+        if (['agentic-ai', 'knowledge-graph', 'semiconductor-robotics', 'frontier-general'].includes(profile.domain.id)) {
+            tasks.push(queryGitHub(exact));
+        }
+        if (['agentic-ai', 'semiconductor-robotics'].includes(profile.domain.id)) tasks.push(queryHuggingFace(exact));
+        tasks.push(queryHackerNews(exact));
         const settled = await Promise.allSettled(tasks);
-        const records = settled.flatMap(item => item.status === 'fulfilled' ? item.value : []);
-        return [
+        const resultSets = settled
+            .filter(item => item.status === 'fulfilled' && Array.isArray(item.value))
+            .map(item => item.value);
+        const records = reciprocalRankFuse(resultSets);
+        const result = [
             ...records,
             ...buildReferenceSearchRecords(profile),
         ];
+        writeKnowledgeRetrievalCache(cacheKey, result);
+        return result;
+    }
+
+    function reciprocalRankFuse(resultSets, rankConstant = 60) {
+        const fused = new Map();
+        resultSets.forEach((records, setIndex) => records.forEach((record, rank) => {
+            const key = String(record.url || `${record.source}:${record.title}`).toLowerCase();
+            const current = fused.get(key) || { ...record, rrfScore: 0, retrievalChannels: [] };
+            current.rrfScore += 1 / (rankConstant + rank + 1);
+            current.retrievalChannels.push(record.queryIntent || `channel-${setIndex + 1}`);
+            fused.set(key, current);
+        }));
+        return [...fused.values()]
+            .map(record => ({ ...record, rrfScore: Number(record.rrfScore.toFixed(6)), retrievalChannels: [...new Set(record.retrievalChannels)] }))
+            .sort((a, b) => b.rrfScore - a.rrfScore);
+    }
+
+    function buildCitation({ source, title, url, year, identifier, retrievedAt, evidenceLevel }) {
+        return {
+            source: source || '', title: title || '', url: url || '', year: year || null,
+            identifier: identifier || '', retrievedAt: retrievedAt || new Date().toISOString(),
+            evidenceLevel: evidenceLevel || 'unclassified'
+        };
+    }
+
+    const KNOWLEDGE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+    function readKnowledgeRetrievalCache(key) {
+        try {
+            const cached = JSON.parse(localStorage.getItem(key) || 'null');
+            if (!cached || Date.now() - cached.savedAt > KNOWLEDGE_CACHE_TTL_MS || !Array.isArray(cached.records)) return null;
+            return cached.records.map(record => ({ ...record, cacheHit: true }));
+        } catch {
+            return null;
+        }
+    }
+
+    function writeKnowledgeRetrievalCache(key, records) {
+        try {
+            localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), records }));
+        } catch {
+            // Retrieval remains usable when storage is unavailable or full.
+        }
     }
 
     function buildRetrievalPolicy(profile) {
@@ -1219,31 +1894,110 @@ function renderGraph(container) {
         ];
     }
 
-    async function queryOpenAlex(query) {
-        const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=3&sort=cited_by_count:desc&select=id,display_name,publication_year,cited_by_count,doi,primary_location`;
+    function decodeOpenAlexAbstract(invertedIndex) {
+        if (!invertedIndex || typeof invertedIndex !== 'object') return '';
+        const words = [];
+        Object.entries(invertedIndex).forEach(([word, positions]) => (positions || []).forEach(position => { words[position] = word; }));
+        return compactText(words.filter(Boolean).join(' '), 700);
+    }
+
+    async function queryOpenAlex(query, plan = {}) {
+        const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=3&sort=relevance_score:desc&select=id,display_name,publication_year,cited_by_count,doi,primary_location,abstract_inverted_index,type`;
         const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.results || []).map(item => ({
+        return (data.results || []).map(item => {
+            const retrievedAt = new Date().toISOString();
+            const evidenceLevel = item.abstract_inverted_index ? (item.type === 'review' ? 'review' : 'abstract-supported') : 'bibliographic-only';
+            return ({
             type: 'scholarly',
             source: 'OpenAlex',
             title: item.display_name,
             url: item.doi || item.primary_location?.landing_page_url || item.id,
-            meta: `${item.publication_year || 'n.d.'} · citations ${item.cited_by_count ?? 0}`,
-            snippet: 'OpenAlex学术图谱结果，用于定位论文、作者、机构、主题和引用网络。'
-        }));
+            meta: `${item.publication_year || 'n.d.'} · ${item.type || 'work'} · citations ${item.cited_by_count ?? 0}`,
+            snippet: decodeOpenAlexAbstract(item.abstract_inverted_index) || 'OpenAlex未收录摘要；仅将该记录用于文献定位，不据此生成具体事实。',
+            queryIntent: plan.intent || 'scholarly evidence',
+            evidenceLevel, retrievedAt,
+            citation: buildCitation({ source: 'OpenAlex', title: item.display_name, url: item.doi || item.primary_location?.landing_page_url || item.id, year: item.publication_year, identifier: item.doi || item.id, retrievedAt, evidenceLevel })
+        }); });
     }
 
-    async function querySemanticScholar(query) {
-        const fields = 'title,year,citationCount,url,abstract,authors';
+    async function querySemanticScholar(query, plan = {}) {
+        const fields = 'paperId,title,year,citationCount,url,abstract,authors';
         const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=3&fields=${encodeURIComponent(fields)}`;
         const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.data || []).map(item => ({
+        return (data.data || []).map(item => {
+            const retrievedAt = new Date().toISOString();
+            const evidenceLevel = item.abstract ? 'abstract-supported' : 'bibliographic-only';
+            return ({
             type: 'scholarly',
             source: 'Semantic Scholar',
             title: item.title,
             url: item.url,
             meta: `${item.year || 'n.d.'} · citations ${item.citationCount ?? 0}`,
-            snippet: compactText(item.abstract || `Authors: ${(item.authors || []).slice(0, 4).map(author => author.name).join(', ')}`, 360)
-        }));
+            snippet: compactText(item.abstract || `摘要不可用；作者: ${(item.authors || []).slice(0, 4).map(author => author.name).join(', ')}`, 700),
+            queryIntent: plan.intent || 'scholarly evidence',
+            evidenceLevel, retrievedAt,
+            citation: buildCitation({ source: 'Semantic Scholar', title: item.title, url: item.url, year: item.year, identifier: item.paperId, retrievedAt, evidenceLevel })
+        }); });
+    }
+
+    function stripScholarlyMarkup(value) {
+        return compactText(String(value || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' '), 800);
+    }
+
+    async function queryCrossref(query, timeout = 5000) {
+        const select = 'DOI,title,abstract,published,issued,is-referenced-by-count,type,URL,container-title';
+        const url = `https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=4&select=${select}`;
+        const data = await fetchJsonWithTimeout(url, timeout);
+        const queryTokenSet = new Set(tokenizeKnowledgeText(query));
+        return (data.message?.items || []).map(item => {
+            const title = Array.isArray(item.title) ? item.title[0] : item.title;
+            const year = item.published?.['date-parts']?.[0]?.[0] || item.issued?.['date-parts']?.[0]?.[0] || null;
+            const itemUrl = item.URL || (item.DOI ? `https://doi.org/${item.DOI}` : '');
+            const snippet = stripScholarlyMarkup(item.abstract);
+            const evidenceLevel = snippet ? 'abstract-supported' : 'bibliographic-only';
+            const retrievedAt = new Date().toISOString();
+            const titleTokens = new Set(tokenizeKnowledgeText(title));
+            const overlap = queryTokenSet.size ? [...queryTokenSet].filter(token => titleTokens.has(token)).length / queryTokenSet.size : 0;
+            const exact = String(title || '').toLowerCase().includes(String(query || '').toLowerCase()) ? 0.35 : 0;
+            return {
+                type: 'scholarly', source: 'Crossref', title, url: itemUrl,
+                meta: `${year || 'n.d.'} · ${item.type || 'work'} · citations ${item['is-referenced-by-count'] || 0}`,
+                snippet: snippet || 'Crossref未提供摘要；该记录仅用于DOI和出版元数据定位。',
+                queryIntent: 'DOI、出版元数据与补充学术证据', evidenceLevel, retrievedAt,
+                matchConfidence: Math.min(1, overlap * 0.65 + exact),
+                citation: buildCitation({ source: 'Crossref', title, url: itemUrl, year, identifier: item.DOI || itemUrl, retrievedAt, evidenceLevel })
+            };
+        }).filter(record => record.matchConfidence >= 0.55);
+    }
+
+    async function queryEuropePmc(query, timeout = 5000) {
+        const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(`TITLE_ABS:"${query}"`)}&format=json&pageSize=4&resultType=core`;
+        const data = await fetchJsonWithTimeout(url, timeout);
+        return (data.resultList?.result || []).map(item => {
+            const retrievedAt = new Date().toISOString();
+            const evidenceLevel = item.abstractText ? 'abstract-supported' : 'bibliographic-only';
+            const itemUrl = item.doi ? `https://doi.org/${item.doi}` : `https://europepmc.org/article/${item.source}/${item.id}`;
+            return ({
+            type: 'biomedical', source: 'Europe PMC', title: item.title,
+            url: itemUrl,
+            meta: `${item.pubYear || 'n.d.'} · citations ${item.citedByCount ?? 0} · ${item.journalTitle || 'journal unavailable'}`,
+            snippet: compactText(item.abstractText || '摘要不可用；该记录仅作为生物医学文献定位信息。', 800),
+            queryIntent: '生物医学机制、临床效力与安全性', evidenceLevel, retrievedAt,
+            citation: buildCitation({ source: 'Europe PMC', title: item.title, url: itemUrl, year: item.pubYear, identifier: item.doi || item.pmid || item.id, retrievedAt, evidenceLevel })
+        }); });
+    }
+
+    async function queryWikidata(query) {
+        const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&uselang=zh&limit=6&format=json&origin=*`;
+        const data = await fetchJsonWithTimeout(url, 4500);
+        return (data.search || []).map(item => {
+            const retrievedAt = new Date().toISOString();
+            return ({
+            type: 'entity', source: 'Wikidata', title: `${item.label} (${item.id})`, url: item.concepturi,
+            meta: `canonical entity · ${item.id}`, snippet: item.description || 'Wikidata规范实体；描述不可用。',
+            queryIntent: '实体链接、规范标识符与消歧', evidenceLevel: 'curated-entity', retrievedAt,
+            citation: buildCitation({ source: 'Wikidata', title: item.label, url: item.concepturi, identifier: item.id, retrievedAt, evidenceLevel: 'curated-entity' })
+        }); });
     }
 
     async function queryGitHub(query) {
@@ -1421,38 +2175,166 @@ function renderGraph(container) {
 
     // --- 项目导入功能 ---
     const importBtn = document.getElementById('zstp-import-btn');
+    const restoreBtn = document.getElementById('zstp-restore-btn');
     const folderInput = document.getElementById('zstp-folder-input');
-    // 按深度分配的颜色梯度
-    const DEPTH_COLORS = [
-        0x00ff88,  // 根 - 绿
-        0x00ccff,  // 1层 - 青
-        0x6699ff,  // 2层 - 蓝
-        0xaa66ff,  // 3层 - 紫
-        0xff66aa,  // 4层 - 粉
-        0xffaa33,  // 5层 - 橙
-        0xffdd44,  // 6层+ - 黄
-    ];
+    // 笔记元数据 path -> note，点击节点时用来渲染笔记面板（正文按需再读文件，避免把整个库塞进内存）
+    const vaultNotesByPath = new Map();
+    let importedGraphMode = 'builtin';
+    let lastVaultStats = null;
+
+    if (restoreBtn) {
+        restoreBtn.title = '放弃导入的图谱，回到内置的世界前沿知识图谱';
+        restoreBtn.addEventListener('click', () => {
+            const restored = restoreBuiltinGraph();
+            restoreBtn.textContent = restored ? '已恢复默认' : '当前已是默认';
+            setTimeout(() => { restoreBtn.textContent = '恢复默认'; }, 2200);
+        });
+        updateRestoreButton();
+    }
+
+    function updateRestoreButton() {
+        if (!restoreBtn) return;
+        const imported = importedGraphMode !== 'builtin';
+        restoreBtn.disabled = !imported;
+        restoreBtn.classList.toggle('is-idle', !imported);
+    }
+
     if (importBtn && folderInput) {
         importBtn.addEventListener('click', () => folderInput.click());
-        folderInput.addEventListener('change', (e) => {
+        folderInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
             if (!files.length) return;
             importedFiles.clear();
             files.forEach(file => importedFiles.set(file.webkitRelativePath, file));
-            const tree = buildFolderTree(files);
 
-            assignDepthColors(tree, 0);
-            _graphAutoId = 0;
-            const newData = applyReadableGraphLayout(buildGraphData([tree], THEME, '_imp'));
-            graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
+            const baseLabel = importBtn.dataset.baseLabel || importBtn.textContent;
+            importBtn.dataset.baseLabel = baseLabel;
+            const detection = window.OBSIDIAN_VAULT
+                ? window.OBSIDIAN_VAULT.detectVault(files.map(file => ({ path: file.webkitRelativePath })))
+                : { isVault: false, reason: 'parser-unavailable' };
 
-            Graph.graphData(newData);
-            refreshLayoutGuides(newData);
-            frameGraphOverview(900, 120);
-
-            importBtn.textContent = `已导入: ${tree.name || '项目目录'}`;
-            folderInput.value = '';
+            try {
+                if (detection.isVault) {
+                    await importVaultGraph(files, detection);
+                } else {
+                    importFolderTree(files);
+                }
+            } catch (error) {
+                console.error('知识图谱导入失败:', error);
+                importBtn.textContent = `导入失败: ${error.message}`;
+                setTimeout(() => { importBtn.textContent = baseLabel; }, 5000);
+            } finally {
+                folderInput.value = '';
+            }
         });
+    }
+
+    // 按目录树导入（代码工程等）：保持原有行为
+    function importFolderTree(files) {
+        const tree = buildFolderTree(files);
+        assignDepthColors(tree, 0);
+        _graphAutoId = 0;
+        const newData = applyReadableGraphLayout(buildGraphData([tree], THEME, '_imp'));
+        graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
+        importedGraphMode = 'folder-tree';
+        lastVaultStats = null;
+        vaultNotesByPath.clear();
+
+        Graph.graphData(newData);
+        refreshLayoutGuides(newData);
+        frameGraphOverview(900, 120);
+
+        importBtn.textContent = `已导入: ${tree.name || '项目目录'}`;
+        updateRestoreButton();
+        console.log('[知识图谱] 目录树模式:', { files: files.length, nodes: newData.nodes.length, links: newData.links.length });
+    }
+
+    // 按 Obsidian vault 导入：解析 frontmatter / [[双链]] / 标签，并把双链作为额外连线叠加到目录骨架上
+    async function importVaultGraph(files, detection) {
+        const vaultApi = window.OBSIDIAN_VAULT;
+        if (!vaultApi) throw new Error('obsidianVault.js 未加载');
+
+        const noteFiles = files.filter(file => vaultApi.NOTE_EXTS.has(getFileExtension(file.webkitRelativePath || file.name)));
+        const otherFiles = files.filter(file => !vaultApi.NOTE_EXTS.has(getFileExtension(file.webkitRelativePath || file.name)));
+
+        const noteEntries = await readVaultNoteEntries(noteFiles, (done, total) => {
+            importBtn.textContent = `解析双链 ${done}/${total} ...`;
+        });
+        const entries = [
+            ...noteEntries,
+            ...otherFiles.map(file => ({ path: file.webkitRelativePath, text: null, size: file.size }))
+        ];
+
+        const vault = vaultApi.parseVaultFiles(entries);
+
+        vaultNotesByPath.clear();
+        vault.notes.forEach(note => vaultNotesByPath.set(note.path, note));
+
+        const { graph, linkStats: wikilinkStats } = buildVaultGraphData(vault, { api: vaultApi, theme: THEME, prefix: '_vault' });
+        const newData = applyReadableGraphLayout(graph);
+        graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
+        importedGraphMode = 'obsidian-vault';
+        lastVaultStats = { ...vault.stats, ...wikilinkStats, vaultName: vault.name };
+
+        Graph.graphData(newData);
+        refreshLayoutGuides(newData);
+        frameGraphOverview(900, 120);
+
+        importBtn.textContent = `已导入 vault: ${vault.name} · ${vaultApi.vaultSummary(vault)}`;
+        updateRestoreButton();
+        console.log('[知识图谱] Obsidian vault 模式:', {
+            detection,
+            vaultName: vault.name,
+            nodes: newData.nodes.length,
+            hierarchyLinks: newData.links.length - wikilinkStats.wikilinkEdges,
+            wikilinkEdges: wikilinkStats.wikilinkEdges,
+            unresolved: vault.stats.unresolvedCount,
+            topTags: vault.stats.topTags,
+            orphanRatio: Number(vault.stats.orphanRatio.toFixed(3))
+        });
+    }
+
+    // 导入会整体替换图谱数据，这里提供回到内置图谱的入口，避免必须刷新页面
+    function restoreBuiltinGraph() {
+        if (importedGraphMode === 'builtin') return false;
+        vaultNotesByPath.clear();
+        lastVaultStats = null;
+        importedGraphMode = 'builtin';
+        _graphAutoId = 0;
+        const newData = applyReadableGraphLayout(buildGraphData(getGraphTree(THEME), THEME));
+        graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
+        Graph.graphData(newData);
+        refreshLayoutGuides(newData);
+        frameGraphOverview(900, 120);
+        if (importBtn) importBtn.textContent = importBtn.dataset.baseLabel || '项目导入';
+        updateRestoreButton();
+        console.log('[知识图谱] 已恢复内置图谱:', { nodes: newData.nodes.length, links: newData.links.length });
+        return true;
+    }
+
+    function readVaultNoteEntries(noteFiles, onProgress) {
+        const entries = [];
+        const concurrency = Math.min(8, noteFiles.length) || 1;
+        let cursor = 0;
+        let done = 0;
+        async function worker() {
+            while (cursor < noteFiles.length) {
+                const file = noteFiles[cursor];
+                cursor += 1;
+                let text = '';
+                try {
+                    text = await readFileText(file);
+                } catch (error) {
+                    console.warn('[知识图谱] 笔记读取失败:', file.webkitRelativePath, error);
+                }
+                entries.push({ path: file.webkitRelativePath, text, size: file.size });
+                done += 1;
+                if (typeof onProgress === 'function' && (done % 25 === 0 || done === noteFiles.length)) {
+                    onProgress(done, noteFiles.length);
+                }
+            }
+        }
+        return Promise.all(Array.from({ length: concurrency }, () => worker())).then(() => entries);
     }
 
     function assignDepthColors(node, depth) {
@@ -1505,7 +2387,36 @@ function renderGraph(container) {
 
     window.ZSTP = {
         focusNode: focusNodeByQuery,
-        retrieveKnowledge: async ({ nodeName, query, topK } = {}) => {
+        // 图谱导入状态与纯逻辑入口：控制台可直接调试，也便于外部审计脚本复用同一份建图逻辑
+        graphMode: () => importedGraphMode,
+        vaultStats: () => lastVaultStats,
+        restoreBuiltinGraph,
+        layoutGraph: applyReadableGraphLayout,
+        buildVaultGraphData: (vault, options) => buildVaultGraphData(vault, { ...(options || {}), theme: THEME, prefix: '_vault' }),
+        detectVault: files => (typeof window.OBSIDIAN_VAULT !== 'undefined' ? window.OBSIDIAN_VAULT.detectVault(files) : null),
+        auditRuntime: () => {
+            const data = Graph.graphData?.() || { nodes: [], links: [] };
+            const realNodes = (data.nodes || []).filter(node => node.kind !== 'knowledge-detail');
+            const requiredFacets = ['definition', 'mechanism', 'evidence', 'frontier', 'retrieval'];
+            const invalidNodes = realNodes.filter(node => {
+                const facets = new Set((node.knowledgeBase || []).map(record => record.quality?.facet).filter(Boolean));
+                return requiredFacets.some(facet => !facets.has(facet));
+            });
+            // 500 节点的下限只针对内置图谱；导入 vault/目录后节点数是用户数据决定的
+            const requiredNodeCount = importedGraphMode === 'builtin' ? 500 : 1;
+            return {
+                status: invalidNodes.length === 0 && realNodes.length >= requiredNodeCount ? 'pass' : 'fail',
+                nodeCount: realNodes.length,
+                linkCount: (data.links || []).length,
+                invalidNodeCount: invalidNodes.length,
+                invalidNodes: invalidNodes.slice(0, 20).map(node => node.name),
+                requiredFacets,
+                graphMode: importedGraphMode,
+                requiredNodeCount,
+                retrieverVersion: 'graph-rag-v3-evidence-graph'
+            };
+        },
+        retrieveKnowledge: async ({ nodeName, query, topK, liveExternal = false } = {}) => {
             const targetNode = nodeName ? findGraphNode(nodeName) : null;
             const selected = targetNode || (query ? findGraphNode(query) : null);
             if (!selected) {
@@ -1515,7 +2426,7 @@ function renderGraph(container) {
                     message: '知识图谱中没有找到要检索的节点。'
                 };
             }
-            const knowledge = await buildNodeKnowledgeBundle(selected);
+            const knowledge = await buildNodeKnowledgeBundle(selected, query || nodeName || '', { liveExternal: liveExternal === true });
             const limit = Number.isFinite(topK) ? Math.max(1, Math.min(24, topK)) : 12;
             return {
                 node: {
@@ -1539,7 +2450,10 @@ function renderGraph(container) {
                 nodeKnowledgeBase: (selected.knowledgeBase || []).slice(0, Math.min(limit, 12)),
                 localRecords: knowledge.localRecords.slice(0, Math.min(limit, 10)),
                 externalRecords: knowledge.externalRecords.slice(0, limit),
+                evidenceGraph: knowledge.evidenceGraph,
                 retrievalPolicy: knowledge.retrievalPolicy,
+                diagnostics: knowledge.diagnostics,
+                mode: liveExternal === true ? 'local-plus-fast-live' : 'local-only',
             };
         },
         pause: () => {

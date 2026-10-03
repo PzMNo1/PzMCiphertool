@@ -73,7 +73,8 @@ feedback:
 llm:
   api-key: ${OPENAI_API_KEY:}
   base-url: ${OPENAI_BASE_URL:https://api.deepseek.com/v1}
-  model: ${OPENAI_MODEL:deepseek-v4-flash}
+  # DeepSeek-V4.1-Flash（正式模型名 deepseek-flash）
+  model: ${OPENAI_MODEL:deepseek-flash}
 
 # OpenAI-compatible image generation config
 image:
@@ -82,6 +83,16 @@ image:
   model: ${IMAGE_MODEL:gpt-image-2}
   size: ${IMAGE_SIZE:1024x1024}
   timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:180}
+
+# World Labs / Marble 世界模型（李飞飞团队 World API）
+# Key 只在后端读取，前端一律通过 /api/world/** 代理，避免密钥泄漏。
+world:
+  api-key: ${WORLD_LABS_API_KEY:}
+  base-url: ${WORLD_LABS_BASE_URL:https://api.worldlabs.ai/marble/v1}
+  model: ${WORLD_LABS_MODEL:marble-1.1}
+  draft-model: ${WORLD_LABS_DRAFT_MODEL:marble-1.0-draft}
+  timeout-seconds: ${WORLD_LABS_TIMEOUT_SECONDS:180}
+  publish-base-url: ${WORLD_LABS_PUBLISH_BASE_URL:}
 
 # AgentEarth professional tool aggregator.
 # Disabled by default so existing Agent behavior stays unchanged until configured.

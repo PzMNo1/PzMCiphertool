@@ -9,9 +9,9 @@ class HistoryManager {
         this.CURRENT_CHAT_KEY = 'currentChatId';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
-        this.MAX_AGENT_EVENTS = 320;
-        this.TIGHT_AGENT_EVENTS = 120;
-        this.MINIMAL_AGENT_EVENTS = 40;
+        this.MAX_AGENT_EVENTS = 400;
+        this.TIGHT_AGENT_EVENTS = 240;
+        this.MINIMAL_AGENT_EVENTS = 120;
         this.MAX_AGENT_EVIDENCE = 64;
         this.MAX_AGENT_TOOL_RESULTS = 36;
         this.MAX_STORED_CONTENT_CHARS = 260000;
@@ -492,10 +492,23 @@ class HistoryManager {
             completed_at: collaboration.completed_at || '',
             display: this.compactCollaborationDisplay(collaboration.display, level),
             collaborators: (Array.isArray(collaboration.collaborators) ? collaboration.collaborators : []).slice(0, 8).map(agent => ({
-                id: agent?.id || '',
+                id: agent?.id || agent?.key || '',
                 label: this.truncateText(agent?.label || '', 80),
                 mission: this.truncateText(agent?.mission || '', maxString),
-                toolFocus: Array.isArray(agent?.toolFocus) ? agent.toolFocus.slice(0, 10) : []
+                toolFocus: Array.isArray(agent?.toolFocus) ? agent.toolFocus.slice(0, 10) : [],
+                // 并行专家面板的逐专家状态：历史恢复时要靠这些字段重建专家行，
+                // 否则回看聊天记录时 COLLABORATION 面板会退化成只有名字的空壳。
+                ok: Boolean(agent?.ok),
+                status: this.truncateText(agent?.status || '', 24),
+                duration_ms: Number(agent?.duration_ms ?? agent?.durationMs) || 0,
+                tool_calls: Number(agent?.tool_calls ?? agent?.activity?.toolCalls) || 0,
+                iterations: Number(agent?.iterations ?? agent?.activity?.iterations) || 0,
+                findings_chars: Number(agent?.findings_chars ?? agent?.activity?.findingsChars) || 0,
+                tools_used: this.compactStringList(
+                    (agent?.tools_used?.length ? agent.tools_used : agent?.activity?.toolsUsed), 6, 40),
+                queries: this.compactStringList(
+                    (agent?.queries?.length ? agent.queries : agent?.activity?.queries), 3, 90, true),
+                last_action: this.truncateText(agent?.last_action || agent?.activity?.lastAction || '', 140)
             })),
             handoffs: (Array.isArray(collaboration.handoffs) ? collaboration.handoffs : []).slice(0, 12).map(handoff => ({
                 from: handoff?.from || '',
@@ -506,6 +519,12 @@ class HistoryManager {
                 .slice(0, 8)
                 .map(gate => this.truncateText(gate, maxString))
         };
+    }
+
+    compactStringList(value, limit, maxChars, fromEnd = false) {
+        const list = Array.isArray(value) ? value.filter(Boolean) : [];
+        const picked = fromEnd ? list.slice(-limit) : list.slice(0, limit);
+        return picked.map(item => this.truncateText(item, maxChars));
     }
 
     compactCollaborationDisplay(display, level = 'normal') {
@@ -553,7 +572,9 @@ class HistoryManager {
     }
 
     compactAgentEvents(events, limit, level = 'normal') {
-        const eventCount = Array.isArray(events) ? events.filter(event => event?.type !== 'model.delta').length : 0;
+        const list = (Array.isArray(events) ? events : [])
+            .filter(event => event?.type !== 'model.delta');
+        const eventCount = list.length;
         const maxString = level === 'normal'
             ? (eventCount > 1000 ? 180 : 320)
             : level === 'tight'
@@ -564,10 +585,12 @@ class HistoryManager {
             : level === 'tight'
                 ? 6
                 : 4;
-        return (Array.isArray(events) ? events : [])
-            .filter(event => event?.type !== 'model.delta')
-            .slice(-limit)
-            .map(event => ({
+        // 头部 + 尾部保留：plan/route/start 与早期迭代永不因截断而丢失。
+        const headKeep = Math.min(24, Math.max(0, limit));
+        const kept = list.length > limit
+            ? [...list.slice(0, headKeep), ...list.slice(-(Math.max(1, limit - headKeep)))]
+            : list;
+        return kept.map(event => ({
                 id: event?.id || '',
                 contract_version: event?.contract_version || 'agent-contract-v1',
                 runId: event?.runId || '',
@@ -706,16 +729,22 @@ class HistoryManager {
     }
 
     getMessagesForAPI(chatId) {
-        const messages = this.getMessages(chatId);
-        return messages
+        const messages = this.getMessages(chatId)
             .filter(msg => msg.role === 'user' || msg.role === 'assistant')
-            .filter(msg => !(msg.role === 'assistant' && msg.status === 'running'))
-            .map(msg => {
-                return {
-                    role: msg.role,
-                    content: msg.content || ''
-                };
-            });
+            .filter(msg => !(msg.role === 'assistant' && msg.status === 'running'));
+        // 上下文窗口（字符截断版过渡）：最近几条全文，更早消息截断，避免多轮后输入无界膨胀。
+        const keepRecent = 6;
+        const truncateChars = 1500;
+        return messages.map((msg, index) => {
+            const content = String(msg.content || '');
+            const isRecent = index >= messages.length - keepRecent;
+            return {
+                role: msg.role,
+                content: isRecent || content.length <= truncateChars
+                    ? content
+                    : `${content.slice(0, truncateChars)}\n[earlier message truncated]`
+            };
+        });
     }
 }
 

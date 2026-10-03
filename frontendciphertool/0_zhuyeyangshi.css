@@ -139,7 +139,7 @@ textarea {
 }
 
 .result {
-  background: rgba(0, 20, 40, 0.4);
+  background: rgba(0, 20, 40, 0.2);
   color: var(--text);
   padding: 1rem;
   border-radius: 8px;
@@ -173,6 +173,113 @@ textarea {
   grid-template-columns: 1fr auto;
   gap: 1rem;
 }
+
+/* ===== 卡片内「用法说明 / 算法索引」折叠块 ===== */
+.card-usage {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 20, 40, 0.25);
+  overflow: hidden;
+}
+
+.card-usage > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  user-select: none;
+  transition: opacity 0.25s ease, background 0.25s ease;
+}
+
+.card-usage > summary::-webkit-details-marker { display: none; }
+
+.card-usage > summary::before {
+  content: '▸';
+  font-size: 0.7rem;
+  color: var(--primary-clr, #2ecc71);
+  transition: transform 0.25s ease;
+}
+
+.card-usage[open] > summary::before { transform: rotate(90deg); }
+
+.card-usage > summary:hover {
+  opacity: 1;
+  background: rgba(64, 224, 255, 0.06);
+}
+
+.card-usage__body {
+  padding: 0.2rem 0.75rem 0.7rem;
+  font-size: 0.74rem;
+  line-height: 1.75;
+  color: var(--text);
+  opacity: 0.92;
+  white-space: pre-wrap;
+  border-top: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.card-usage__body b {
+  color: var(--primary-clr, #2ecc71);
+  font-weight: 600;
+}
+
+.card-usage__body i {
+  display: block;
+  margin-top: 0.5rem;
+  opacity: 0.75;
+  font-style: normal;
+  border-left: 2px solid rgba(64, 224, 255, 0.35);
+  padding-left: 0.5rem;
+}
+
+/* 算法索引：卡片内的可点击子算法列表 */
+.card-alias-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  padding-top: 0.3rem;
+}
+
+.card-alias-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  background: rgba(64, 224, 255, 0.04);
+  color: var(--text);
+  font-family: inherit;
+  transition: all 0.25s ease;
+}
+
+.card-alias-btn:hover {
+  border-color: var(--primary-clr, #2ecc71);
+  background: rgba(46, 204, 113, 0.1);
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.25);
+}
+
+.card-alias-btn__name { font-size: 0.76rem; font-weight: 600; }
+
+.card-alias-btn__hint {
+  font-size: 0.68rem;
+  opacity: 0.6;
+}
+
+/* ===== 分析区卡片 =====
+   输入控件沿用全局 input / textarea / select 样式，
+   排列复用已有的 .grid-2 / .grid-3，所以这里不需要额外规则。
+   保留这个块只是为了让后续新增分析卡片时有明确的落点。 */
 
 .grid-3 {
   display: grid;
@@ -619,6 +726,13 @@ textarea {
   --cipher-lab-input-sticky-top: 10px;
   width: 100%;
   margin: 0;
+}
+
+#jiamishiyanshi-content {
+  padding: 1.4rem 1rem 5rem;
+}
+
+#yijianfankui-content {
   padding: 1.4rem 1rem 7rem;
 }
 
@@ -771,12 +885,10 @@ textarea {
 }
 
 @media (max-width: 1100px) {
-  #jiamishiyanshi-container,
   #yijianfankui-container {
     width: min(100%, calc(100vw - 20px));
   }
 
-  #jiamishiyanshi-content,
   #yijianfankui-content {
     padding: 1.4rem .6rem 9.5rem;
   }
@@ -924,6 +1036,16 @@ textarea {
   }
 }
 
+@media (max-width: 980px) {
+  #jiamishiyanshi-container {
+    width: min(100%, calc(100vw - 20px));
+  }
+
+  #jiamishiyanshi-content {
+    padding: 1.4rem .6rem 5rem;
+  }
+}
+
 @media (max-width: 430px) {
   :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
     width: min(96vw, 350px);
@@ -939,47 +1061,19 @@ textarea {
   }
 }
 
-/* 半透明地球全息投影背景 */
 body {
-  background:
-    radial-gradient(ellipse at 70% 20%, rgba(0, 255, 200, 0.05) 0%, transparent 40%) fixed,
-    radial-gradient(ellipse at 30% 80%, rgba(0, 180, 255, 0.05) 0%, transparent 40%) fixed,
-    linear-gradient(160deg, #000510 0%, #020a1a 35%, #0a0e2b 60%, #0d0520 100%) fixed;
+  background-color: #000;
+  background-image: url("./background/mmmbackground.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text);
   line-height: 1.6;
   padding: 2rem;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: min(60vw, 700px);
-  height: min(60vw, 700px);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: -2;
-  opacity: 0.55;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0%25' stop-color='%2300ffd2' stop-opacity='0.07'/%3E%3Cstop offset='100%25' stop-color='transparent' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='200' cy='200' r='180' fill='url(%23g)'/%3E%3Ccircle cx='200' cy='200' r='180' fill='none' stroke='%2300ffd2' stroke-width='1' opacity='0.35'/%3E%3Ccircle cx='200' cy='200' r='179' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='200' rx='180' ry='22' fill='none' stroke='%2300ffd2' stroke-width='0.8' opacity='0.3'/%3E%3Cellipse cx='200' cy='150' rx='158' ry='16' fill='none' stroke='%2300e0ff' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='250' rx='158' ry='16' fill='none' stroke='%2300e0ff' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='105' rx='110' ry='10' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='295' rx='110' ry='10' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.15'/%3E%3Cellipse cx='200' cy='200' rx='22' ry='180' fill='none' stroke='%2300ffd2' stroke-width='0.8' opacity='0.28'/%3E%3Cellipse cx='200' cy='200' rx='90' ry='180' fill='none' stroke='%2300ffd2' stroke-width='0.7' opacity='0.22'/%3E%3Cellipse cx='200' cy='200' rx='140' ry='180' fill='none' stroke='%2300e0ff' stroke-width='0.6' opacity='0.18'/%3E%3Cellipse cx='200' cy='200' rx='168' ry='180' fill='none' stroke='%2300c8ff' stroke-width='0.5' opacity='0.12'/%3E%3Ccircle cx='155' cy='155' r='3' fill='%2300ffd2' opacity='0.4'/%3E%3Ccircle cx='235' cy='170' r='2.5' fill='%2300c8ff' opacity='0.35'/%3E%3Ccircle cx='250' cy='215' r='2' fill='%2364c8ff' opacity='0.3'/%3E%3Ccircle cx='165' cy='240' r='2.5' fill='%2300ffdc' opacity='0.3'/%3E%3Ccircle cx='210' cy='145' r='2' fill='%2300ffd2' opacity='0.35'/%3E%3Ccircle cx='180' cy='200' r='1.8' fill='%2300e0ff' opacity='0.25'/%3E%3C/svg%3E") center/contain no-repeat;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: min(68vw, 630px);
-  height: min(68vw, 630px);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: -3;
-  background: radial-gradient(circle, rgba(0, 255, 210, 0.04) 0%, rgba(0, 200, 255, 0.02) 40%, transparent 70%);
-  box-shadow: 0 0 80px 20px rgba(0, 255, 210, 0.03), 0 0 160px 60px rgba(0, 180, 255, 0.02);
 }
 
 .card:hover {
@@ -1019,6 +1113,33 @@ body::after {
 #mimaqu #symbolCipherBackspace,
 #mimaqu #symbolCipherRefresh {
   top: -2px;
+}
+
+/* 跳舞的小人 SVG 小人渲染 */
+.dm-fig {
+  display: inline-block;
+  width: 26px;
+  height: 40px;
+  margin: 0 2px;
+  vertical-align: text-bottom;
+  overflow: visible;
+}
+
+.dm-fig .dm-pennant {
+  fill: currentColor;
+  stroke: none;
+}
+
+.dm-word {
+  display: inline-block;
+  margin-right: 16px;
+  white-space: nowrap;
+}
+
+#symbolCipherPanel .dm-fig {
+  width: 34px;
+  height: 50px;
+  margin: 0;
 }
 
 .cyber-button:before {
@@ -1321,9 +1442,10 @@ body::after {
 
 }
 
-/* --- 卡片布局优化 (经典区 & 现代区 & 关于作者) --- */
+/* --- 卡片布局优化 (经典区 & 现代区 & 分析区 & 关于作者) --- */
 #mimaqu .container,
-#xiandaiqu .container {
+#xiandaiqu .container,
+#fenxiqu .container {
   display: block;
   column-count: 3;
   column-gap: 1.5rem;
@@ -1341,6 +1463,7 @@ body::after {
 
   #mimaqu .container,
   #xiandaiqu .container,
+  #fenxiqu .container,
   #guanyuzuozhe .container {
     column-count: 2;
   }
@@ -1350,6 +1473,7 @@ body::after {
 
   #mimaqu .container,
   #xiandaiqu .container,
+  #fenxiqu .container,
   #guanyuzuozhe .container {
     column-count: 1;
   }
@@ -1358,6 +1482,7 @@ body::after {
 /* 瀑布流布局 */
 #mimaqu .card:not(.main-input),
 #xiandaiqu .card:not(.main-input),
+#fenxiqu .card:not(.main-input),
 #guanyuzuozhe .author-image-link {
   break-inside: avoid;
   margin-bottom: 1.5rem;
@@ -1366,14 +1491,16 @@ body::after {
 }
 
 #mimaqu .card:not(.main-input),
-#xiandaiqu .card:not(.main-input) {
+#xiandaiqu .card:not(.main-input),
+#fenxiqu .card:not(.main-input) {
   break-inside: avoid;
   display: inline-block;
   width: 100%;
 }
 
 #mimaqu .main-input,
-#xiandaiqu .main-input {
+#xiandaiqu .main-input,
+#fenxiqu .main-input {
   column-span: all;
   margin-bottom: 2rem;
   display: block;
@@ -1381,7 +1508,8 @@ body::after {
 }
 
 #jiamishiyanshi-content #mimaqu .main-input,
-#jiamishiyanshi-content #xiandaiqu .main-input {
+#jiamishiyanshi-content #xiandaiqu .main-input,
+#jiamishiyanshi-content #fenxiqu .main-input {
   position: sticky;
   top: var(--cipher-lab-input-sticky-top);
   z-index: 30;
@@ -1389,13 +1517,15 @@ body::after {
 }
 
 #jiamishiyanshi-content #mimaqu .main-input.cipher-stuck,
-#jiamishiyanshi-content #xiandaiqu .main-input.cipher-stuck {
+#jiamishiyanshi-content #xiandaiqu .main-input.cipher-stuck,
+#jiamishiyanshi-content #fenxiqu .main-input.cipher-stuck {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
 #jiamishiyanshi-content #mimaqu .main-input .pin-toggle-btn,
-#jiamishiyanshi-content #xiandaiqu .main-input .pin-toggle-btn {
+#jiamishiyanshi-content #xiandaiqu .main-input .pin-toggle-btn,
+#jiamishiyanshi-content #fenxiqu .main-input .pin-toggle-btn {
   display: none;
 }
 
@@ -1475,7 +1605,9 @@ body::after {
   top: 100%;
   left: 0;
   right: 0;
-  background: #1a2334;
+  background: rgba(26, 35, 52, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(64, 224, 255, 0.3);
   border-radius: 4px;
   max-height: 200px;
@@ -1495,7 +1627,6 @@ body::after {
   cursor: pointer;
   font-size: 0.85rem;
   color: #ecf0f1;
-  transition: background 0.2s;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 

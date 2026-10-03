@@ -55,6 +55,36 @@
         }
       ]
     },
+    fenxiqu: {
+      label: '分析区使用说明',
+      steps: [
+        {
+          selector: '#fenxiqu #mainInput',
+          title: '分析区也从这个输入框开始',
+          body: '这里放的是破译、索引、提取类工具。密文、题目原文、待处理条目都填在这里，三个区的输入框内容同步，在哪个区打字都一样。'
+        },
+        {
+          selector: '#quick-nav-container-fenxiqu',
+          title: '用搜索框快速定位工具',
+          body: '输入“XOR”“频数”“Kasiski”“万能解码”等关键词，可以直接跳到对应工具卡片，13 张卡里找起来快很多。'
+        },
+        {
+          selector: '#fenxiqu .card[data-card-id]:not(.main-input)',
+          title: '卡片只留参数和模式',
+          body: '分析区的卡片不再各自带一个文本框：文本统一走上面的主输入，卡片里只留下拉框和数字输入这类参数。改了参数结果会立刻重算。'
+        },
+        {
+          selector: '#statsResult',
+          title: '结果跟着主输入一起刷新',
+          body: '每张卡的结果区都跟着主输入重算，没有「点一下才算」的按钮。像频数分析、Kasiski 这类统计卡需要足够长的密文，文本太短它会直接告诉你还差多少字符。'
+        },
+        {
+          selector: '#autoResult',
+          title: '不知道是什么编码就先看「万能自动解码」',
+          body: '它会逐层尝试 Base、ROT、摩尔斯、进制、中文编码等算子，并给出尝试树。拿到候选之后再用具体的卡片复算。'
+        }
+      ]
+    },
     zhishitupu: {
       label: '知识图谱使用说明',
       steps: [
@@ -165,6 +195,7 @@
   function getGuideIdFromButton(button) {
     if (button.dataset.guideId) return button.dataset.guideId;
     if (button.closest('#xiandaiqu')) return 'xiandaiqu';
+    if (button.closest('#fenxiqu')) return 'fenxiqu';
     if (button.closest('#zhishitupu-content')) return 'zhishitupu';
     return 'mimaqu';
   }
@@ -207,12 +238,29 @@
     }
   }
 
+  /**
+   * 找这一步要高亮的元素。
+   *
+   * 三个区（经典区/现代区/分析区）各有一个 #mainInput，是**同名 id**，
+   * 而同一时刻只有一个区可见。document.querySelector 只会返回文档里第一个，
+   * 也就是隐藏的经典区那个 —— 它的 rect 是 0×0，于是这一步被判成「找不到目标」，
+   * 引导框退回到屏幕正中间，聚光灯也罩不到任何东西。
+   * 所以这里要挑「真的可见」的那一个。
+   */
   function findTarget(selector) {
-    const target = document.querySelector(selector);
-    if (!target) return null;
-    const rect = target.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return null;
-    return target;
+    const all = Array.from(document.querySelectorAll(selector));
+    if (!all.length) return null;
+    const visible = all.filter(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return false;
+      const style = getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none';
+    });
+    // 优先取面积最大的那个：同名 id 里可见的那个才是用户正在看的目标
+    return visible.sort((a, b) => {
+      const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      return (rb.width * rb.height) - (ra.width * ra.height);
+    })[0] || null;
   }
 
   function renderStep(shouldScroll) {
@@ -265,6 +313,9 @@
 
     const panelWidth = Math.min(360, window.innerWidth - pad * 2);
     panelEl.style.width = `${panelWidth}px`;
+    // 读 offsetHeight 会强制一次布局：上面改完聚光灯样式后不强制的话，
+    // 这里量到的还是旧高度，引导框会按旧位置放。
+    void panelEl.offsetHeight;
     const panelHeight = panelEl.offsetHeight || 220;
     let top = rect.bottom + 18;
     if (top + panelHeight > window.innerHeight - pad) {

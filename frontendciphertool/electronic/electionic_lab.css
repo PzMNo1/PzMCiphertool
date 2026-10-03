@@ -8,7 +8,10 @@
     width: 100vw;
     height: 100vh;
     z-index: 50;
-    background-color: #00081d;
+    background:
+        radial-gradient(ellipse at 70% 20%, rgba(0, 255, 200, 0.05) 0%, transparent 40%) fixed,
+        radial-gradient(ellipse at 30% 80%, rgba(0, 180, 255, 0.05) 0%, transparent 40%) fixed,
+        linear-gradient(160deg, #000510 0%, #020a1a 35%, #0a0e2b 60%, #0d0520 100%) fixed;
     overflow-y: auto;
     /* 允许垂直滚动 */
 }
@@ -35,40 +38,6 @@
     /* 新增：为了定位右上角的选择器 */
 }
 
-/* 线路选择器容器 - 新增样式 */
-.source-selector-container {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-}
-
-/* 线路选择器样式 - 新增样式 */
-.circuit-source-select {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(64, 224, 255, 0.3);
-    color: #40e0ff;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    outline: none;
-    cursor: pointer;
-    font-family: 'Segoe UI', sans-serif;
-    transition: all 0.3s ease;
-}
-
-.circuit-source-select:hover {
-    background: rgba(64, 224, 255, 0.1);
-    border-color: #40e0ff;
-    box-shadow: 0 0 10px rgba(64, 224, 255, 0.2);
-}
-
-.circuit-source-select option {
-    background: #000;
-    color: #000000;
-}
-
 /* 引擎视口 - 占据剩余所有空间 */
 .engine-viewport {
     flex: 1;
@@ -78,7 +47,7 @@
     background: #000;
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(64, 224, 255, 0.3);
+    border: 1px solid rgba(46, 204, 113, 0.3);
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
 }
 
@@ -97,13 +66,13 @@ iframe#circuit-frame {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #121212;
+    background: #000510;
     display: flex;
     flex-direction: column;
     gap: 15px;
     justify-content: center;
     align-items: center;
-    color: #40e0ff;
+    color: #2ecc71;
     z-index: 5;
     pointer-events: none;
     transition: opacity 0.5s;
@@ -138,11 +107,5 @@ iframe#circuit-frame {
 
     #electroniclab-content .module-header h2 {
         font-size: 1.5rem;
-    }
-
-    .source-selector-container {
-        position: static;
-        transform: none;
-        margin-top: 10px;
     }
 }

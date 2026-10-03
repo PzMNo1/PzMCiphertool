@@ -14,8 +14,9 @@ const MODULES = {
 
         <div class="apizz-console-layout cipher-lab-console-layout">
             <aside class="apizz-console-nav cipher-lab-console-nav" aria-label="加密实验室导航">
-                <button type="button" class="submodule-btn active" data-target="mimaqu">经典区</button>
+                <button type="button" class="submodule-btn" data-target="mimaqu">经典区</button>
                 <button type="button" class="submodule-btn" data-target="xiandaiqu">现代区</button>
+                <button type="button" class="submodule-btn" data-target="fenxiqu">分析区</button>
                 <button type="button" class="submodule-btn" data-target="luojimiti">逻辑区</button>
                 <button type="button" class="submodule-btn" data-target="cihuiqu">词汇区</button>
                 <button type="button" class="submodule-btn" data-target="yuliu">空间类</button>
@@ -24,7 +25,7 @@ const MODULES = {
             <main class="apizz-console-main cipher-lab-console-main">
                 <div class="cipher-lab-panel-stack">
 
-    ${window.CIPHER_CLASSIC_MODERN_DIV_BATCH || ''}
+    ${window.CIPHER_LAB_DIV_BATCH || ''}
 
     <!-- 逻辑谜题区 -->
     <div id="luojimiti" class="submodule">
@@ -53,11 +54,6 @@ const MODULES = {
     <div id="electroniclab-content" class="content-section">
         <div class="module-header">
             <h2 class="neon-title" data-text="ELECTRONIC LABORATORY">ELECTRONIC LABORATORY</h2>
-            <div class="source-selector-container">
-                <select id="circuit-source-select" class="circuit-source-select">
-                    <option value="./electronic/war/circuitjs.html">线路1: 本地源 (Local)</option>
-                </select>
-            </div>
         </div>
         <div class="engine-viewport">
             <div id="circuit-loading" class="loading-mask active">
@@ -184,6 +180,7 @@ const MODULES = {
             <div class="zstp-action-stack">
                 <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
                 <button id="zstp-guide-btn" class="zstp-import-btn" data-guide-id="zhishitupu">使用说明</button>
+                <button id="zstp-restore-btn" class="zstp-import-btn">恢复默认</button>
             </div>
             <input type="file" id="zstp-folder-input" webkitdirectory multiple style="display:none">
         </div>
@@ -262,7 +259,18 @@ const MODULES = {
                     <div class="input-main">
                         <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
                         <div id="attachment-status" class="attachment-status" aria-live="polite"></div>
-                        <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                        <div class="input-field-wrap">
+                            <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                            <div id="context-progress-ring" class="context-progress-ring" role="img"
+                                aria-label="上下文窗口使用率" title="上下文窗口使用率">
+                                <svg viewBox="0 0 44 44" aria-hidden="true">
+                                    <circle class="context-ring-track" cx="22" cy="22" r="18"></circle>
+                                    <circle class="context-ring-value" cx="22" cy="22" r="18"></circle>
+                                </svg>
+                                <span class="context-ring-label">0%</span>
+                            </div>
+                        </div>
+                        <div id="agent-performance-monitor" class="performance-monitor" aria-live="polite"></div>
                     </div>
                     <div class="input-actions">
                         <button id="modeling-mode-toggle" class="cyber-button image-mode-toggle" title="建模模式" type="button">
@@ -494,24 +502,27 @@ document.addEventListener('DOMContentLoaded', () => {
         './model/agent/AgentProfiles.js',
         './model/agent/AgentPolicyResolver.js',
         './model/agent/AgentDurableStore.js',
-        './model/agent/AgentCollaboration.js',
-        './model/agent/ResearchPlan.js',
-        './model/agent/SourceLibrary.js',
-        './model/agent/ToolRiskPolicy.js',
-        './model/agent/EvidenceLedger.js',
-        './model/agent/CitationNormalizer.js',
-        './model/agent/CitationVerifier.js',
+        './model/agent/AgentPerformanceMonitor.js',
+        './model/agent/AgentContextManager.js',
+        './model/agent/AgentResearchContract.js',
+        './model/agent/AgentStyleContract.js',
+        './model/agent/AgentExpertPanel.js',
+        './model/agent/AgentDiagramRenderer.js',
         './model/AgentRuntime.js',
         './model/main.js',
         './workflow/workflow.js',
+        './zhishitupu/obsidianVault.js',
+        './zhishitupu/worldKnowledge.js',
+        './zhishitupu/nodeKnowledgeCorpus.js',
         './zhishitupu/graphData.js',
         './zhishitupu/zhishitupu.js',
         './wordsearch/wordsearch.js',
+        './wordsearch/wordsearch_chinese.js',
         './spacepuzzle/spacepuzzlebatch.js',
         './sendfeedback/sendfeedback.js',
     ];
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20260531';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261011';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -536,6 +547,13 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
         .then(() => Promise.resolve(window.spacePuzzleBatchReady))
         .then(() => {
+            // 加密实验室的数据驱动卡片必须等本文件把 MODULES 注入 DOM 之后再挂载，
+            // 否则拿不到 #mimaqu / #xiandaiqu 这些子模块容器
+            if (window.CipherCards) window.CipherCards.mount();
+            // 各区自带的「搜索卡片」框：从这里统一初始化，保证 DOM 已经注入
+            document.querySelectorAll('[data-quick-nav]').forEach(el => {
+                if (typeof initQuickNav === 'function') initQuickNav(el.dataset.quickNav);
+            });
             if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
             if (typeof initSearchFunction === 'function') initSearchFunction();
             if (typeof initWordSearch === 'function') initWordSearch();
@@ -596,6 +614,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'jianmoshiyanshi' && typeof initModelingLab === 'function') {
             initModelingLab();
             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+        }
+
+        // 建模实验室模块特殊处理：切走时休眠 iframe，切回时唤醒
+        document.querySelectorAll('#modelinglab-root [data-view-frame]').forEach(frame => {
+            if (id !== 'jianmoshiyanshi') frame.style.display = 'none'; // 休眠：iframe 停止渲染，页面状态保留
+        });
+        if (id === 'jianmoshiyanshi' && typeof window.modelingLabShowView === 'function') {
+            // 唤醒：恢复上次所在视图，并让 iframe 内部画布重新计算尺寸
+            window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
         }
 
         document.querySelectorAll('.menu-item').forEach(item =>

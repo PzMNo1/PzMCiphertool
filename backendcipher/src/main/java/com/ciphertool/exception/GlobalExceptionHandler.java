@@ -4,6 +4,7 @@ import com.ciphertool.dto.ApiResponse;
 import com.ciphertool.service.ApiRouterService;
 import com.ciphertool.service.AuthService;
 import com.ciphertool.service.ImageGenerationException;
+import com.ciphertool.service.WorldModelException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,6 +65,29 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleImageGenerationException(ImageGenerationException e) {
         log.warn("Image generation failed: {}", e.getMessage());
         return ApiResponse.error(e.getMessage());
+    }
+
+    /**
+     * 世界模型上游错误：未配置 Key 视为服务端配置问题（501），其余按上游语义映射，
+     * 让前端能区分「去配 Key」和「去充值」两种情况。
+     */
+    @ExceptionHandler(WorldModelException.class)
+    public ResponseEntity<ApiResponse<Void>> handleWorldModelException(WorldModelException e) {
+        HttpStatus status;
+        if (e.isNotConfigured()) {
+            status = HttpStatus.NOT_IMPLEMENTED;
+        } else if (e.getStatusCode() == 402) {
+            status = HttpStatus.PAYMENT_REQUIRED;
+        } else if (e.getStatusCode() == 429) {
+            status = HttpStatus.TOO_MANY_REQUESTS;
+        } else if (e.getStatusCode() == 400 || e.getStatusCode() == 401 || e.getStatusCode() == 403
+                || e.getStatusCode() == 404) {
+            status = HttpStatus.BAD_REQUEST;
+        } else {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+        log.warn("World model call failed ({}): {}", status.value(), e.getMessage());
+        return ResponseEntity.status(status).body(ApiResponse.error(e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

@@ -71,6 +71,29 @@ public class WebCrawlerController {
     }
 
     /**
+     * 原样代理一个网页的 HTML，供前端绕开 CORS 用。
+     *
+     * 词汇区的 nutrimatic 查词以前靠三个公共 CORS 代理（codetabs / allorigins / corsproxy），
+     * 这些代理经常整站不可达，查词就整个失效。走这里不依赖任何第三方。
+     * 只放行 https，避免变成内网探测入口。
+     */
+    @PostMapping("/raw")
+    public Map<String, Object> raw(@RequestBody Map<String, Object> request) {
+        String url = (String) request.getOrDefault("url", "");
+        if (url.isEmpty()) {
+            return Map.of("success", false, "message", "URL不能为空");
+        }
+        if (!url.startsWith("https://")) {
+            return Map.of("success", false, "message", "只允许 https 地址");
+        }
+        String html = webCrawlerService.fetchRawHtml(url);
+        if (html == null || html.startsWith("获取网页失败")) {
+            return Map.of("success", false, "message", html == null ? "抓取失败" : html);
+        }
+        return Map.of("success", true, "data", html);
+    }
+
+    /**
      * 多步搜索第一步：获取搜索URL列表
      */
     @PostMapping("/search_urls")

@@ -265,6 +265,10 @@ function initSearchFunction() {
                 return
             }
             let target
+            // 先查子算法别名：搜「Porta」「AMSCO」「Fractionated Morse」等藏在
+            // 下拉框里的算法时，直接跳转并选中，而不是只匹配卡片标签
+            const alias = window.CipherCardIndex?.findAlias(query)
+            if (alias && window.CipherCardIndex.gotoAlgorithm(alias)) return
             $$('.card, .logic-btn').forEach(el => {
                 const text = el.classList.contains('card') 
                     ? el.querySelector('.badge')?.textContent 
@@ -276,6 +280,7 @@ function initSearchFunction() {
     }
     initQuickNav('mimaqu');
     initQuickNav('xiandaiqu');
+    if (window.CipherCardIndex) window.CipherCardIndex.init();
     initCipherStickyInputMask();
 }
 
@@ -284,7 +289,7 @@ function initCipherStickyInputMask() {
     window.cipherStickyInputMaskReady = true;
 
     const cards = Array.from(document.querySelectorAll(
-        '#jiamishiyanshi-content #mimaqu .main-input, #jiamishiyanshi-content #xiandaiqu .main-input'
+        '#jiamishiyanshi-content #mimaqu .main-input, #jiamishiyanshi-content #xiandaiqu .main-input, #jiamishiyanshi-content #fenxiqu .main-input'
     ));
     if (!cards.length) return;
 
@@ -391,35 +396,65 @@ function highlightAndScroll(target) {
 
 
 
-//这是经典区-现代区【搜索密码卡片】功能的交互作用函数
+//这是加密实验室各区【搜索密码卡片】功能的交互作用函数
 function initQuickNav(regionId) {
     const input = document.getElementById(`quick-nav-input-${regionId}`);
     const listContainer = document.getElementById(`quick-nav-options-${regionId}`);
     const container = document.getElementById(`quick-nav-container-${regionId}`);
     if (!input || !listContainer) return;
+    const scope = document.getElementById(regionId) || document;
+
+    // 真正的卡片（有自己的子算法时也带别名词条）
     function getCardOptions() {
-        const cards = document.querySelectorAll(`#${regionId} .card:not(.main-input)`);
+        const cards = scope.querySelectorAll('.card:not(.main-input)');
         const options = [];
         cards.forEach(card => {
             const badge = card.querySelector('.badge');
-            if (badge) {options.push({text: badge.textContent, element: card});}});
-        return options;}
+            if (badge) options.push({ text: badge.textContent.replace(/\s+/g, ' ').trim(), element: card });
+        });
+        return options;
+    }
+
+    // 藏在卡片下拉框里的子算法（由 777_cardindex.js 提供索引）
+    function getAliasOptions() {
+        const all = window.CipherCardIndex?.aliases || [];
+        const badges = new Set(getCardOptions().map(o => o.text));
+        return all
+            .filter(a => badges.has(a.badge) || scope.querySelector(`#${a.selectId}`))
+            .map(a => ({
+                text: `${a.name}  ·  ${a.badge.split(' ')[0]}`,
+                alias: a
+            }));
+    }
+
+    function getAllOptions() {
+        return getCardOptions().concat(getAliasOptions());
+    }
+
+    function activate(opt) {
+        if (!opt) return;
+        if (opt.alias) { window.CipherCardIndex.gotoAlgorithm(opt.alias); return; }
+        highlightAndScroll(opt.element);
+    }
+
     function renderOptions(filterText = '') {
         listContainer.innerHTML = '';
-        const options = getCardOptions();
-        const filtered = options.filter(opt => 
-            opt.text.toLowerCase().includes(filterText.toLowerCase()));
-        if (filtered.length === 0) {listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
-            return;}
-        filtered.forEach(opt => {
+        const q = filterText.toLowerCase();
+        const filtered = getAllOptions().filter(opt => opt.text.toLowerCase().includes(q));
+        if (filtered.length === 0) {
+            listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
+            return;
+        }
+        filtered.slice(0, 40).forEach(opt => {
             const div = document.createElement('div');
             div.className = 'quick-nav-option';
             div.textContent = opt.text;
+            if (opt.alias) div.style.opacity = '0.85';
             div.addEventListener('click', (e) => {
                 e.stopPropagation();
-                input.value = ''; 
+                input.value = '';
                 listContainer.classList.remove('show');
-                highlightAndScroll(opt.element);
+                activate(opt);
             });
             listContainer.appendChild(div);
         });
@@ -429,13 +464,12 @@ function initQuickNav(regionId) {
     input.addEventListener('input', (e) => {renderOptions(e.target.value);listContainer.classList.add('show');});
     input.addEventListener('keydown', (e) => {if (e.key === 'Enter' || e.keyCode === 13) {e.preventDefault(); 
             const filterText = input.value.toLowerCase().trim(); if (!filterText) return;
-            const options = getCardOptions();
-            const matched = options.find(opt => opt.text.toLowerCase().includes(filterText));
-            if (matched) {input.blur(); listContainer.classList.remove('show'); highlightAndScroll(matched.element);
+            const matched = getAllOptions().find(opt => opt.text.toLowerCase().includes(filterText));
+            if (matched) {input.blur(); listContainer.classList.remove('show'); activate(matched);
             }
         }
     });
-    document.addEventListener('click', (e) => {if (!container.contains(e.target)) {listContainer.classList.remove('show');
+    document.addEventListener('click', (e) => {if (container && !container.contains(e.target)) {listContainer.classList.remove('show');
         }
     });
 }

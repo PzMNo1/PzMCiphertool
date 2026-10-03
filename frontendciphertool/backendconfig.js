@@ -17,13 +17,23 @@
         ? 'http://localhost:8080'
         : 'https://waiw.ozqmp.com';
 
+    // 模型配置外部化：优先用户 localStorage 设置，未设置时回退默认值。
+    var savedModel = '';
+    try {
+        savedModel = localStorage.getItem('DEEPSEEK_MODEL') || '';
+    } catch (e) {
+        savedModel = '';
+    }
+    // DeepSeek-V4.1-Flash（正式模型名 deepseek-flash）：优先用户 localStorage 设置，未设置时回退默认值。
+    var model = savedModel || 'deepseek-flash';
+
     window.DEEPSEEK_CONFIG = Object.assign({}, window.DEEPSEEK_CONFIG || {}, {
-        model: 'deepseek-v4-flash',
-        defaultModel: 'deepseek-v4-flash',
-        reasonerModel: 'deepseek-v4-flash'
+        model: model,
+        defaultModel: model,
+        reasonerModel: localStorage.getItem('DEEPSEEK_REASONER_MODEL') || model
     });
 
     window.AGENTMASTER_CONFIG = Object.assign({}, window.AGENTMASTER_CONFIG || {}, {
-        model: 'deepseek-v4-flash'
+        model: localStorage.getItem('AGENTMASTER_MODEL') || model
     });
 })();
