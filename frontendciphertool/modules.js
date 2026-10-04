@@ -476,51 +476,111 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    // ===== 核心脚本（页面框架、密码、工作流等）=====
+    // ===== 首屏批次：只留加密实验室首屏真正需要的脚本 =====
+    // 空间类虽然也能被 Agent 指令直接打开，但整组只有十几 KB，保留在首屏，避免指令路径踩空。
     const coreScripts = [
-        './electronic/electronic_lab.js',
-        './modelinglab/modelinglab.js',
-        './apizhongzhuanzhan/apizhongzhuanzhan.js',
-        './apizhongzhuanzhan/apizz-overview.js',
-        './apizhongzhuanzhan/apizz-keys.js',
-        './apizhongzhuanzhan/apizz-usage.js',
-        './apizhongzhuanzhan/apizz-billing.js',
-        './mcpskilllab/mcpskilllab-config.js',
-        './mcpskilllab/mcpskilllab-resources-mcp.js',
-        './mcpskilllab/mcpskilllab-resources-skills.js',
-        './mcpskilllab/mcpskilllab-resources.js',
-        './mcpskilllab/mcpskilllab.js',
         './0_sidebar_funtion.js',
-
-        './model/contracts/AgentContract.js',
-        './model/DeepSeekClient.js',
-        './model/ImageGenerationClient.js',
-        './model/ToolRegistry.js',
-        './model/ChatUI.js',
-        './model/HistoryManager.js',
-        './model/agent/AgentIntentContract.js',
-        './model/agent/AgentProfiles.js',
-        './model/agent/AgentPolicyResolver.js',
-        './model/agent/AgentDurableStore.js',
-        './model/agent/AgentPerformanceMonitor.js',
-        './model/agent/AgentContextManager.js',
-        './model/agent/AgentResearchContract.js',
-        './model/agent/AgentStyleContract.js',
-        './model/agent/AgentExpertPanel.js',
-        './model/agent/AgentDiagramRenderer.js',
-        './model/AgentRuntime.js',
-        './model/main.js',
-        './workflow/workflow.js',
-        './zhishitupu/obsidianVault.js',
-        './zhishitupu/worldKnowledge.js',
-        './zhishitupu/nodeKnowledgeCorpus.js',
-        './zhishitupu/graphData.js',
-        './zhishitupu/zhishitupu.js',
-        './wordsearch/wordsearch.js',
-        './wordsearch/wordsearch_chinese.js',
         './spacepuzzle/spacepuzzlebatch.js',
-        './sendfeedback/sendfeedback.js',
     ];
+
+    // ===== 其它区按需加载：脚本与初始化都推迟到该区第一次被打开 =====
+    // key 用的是侧边栏的 data-target（也是 showModule 的入参）：jianmoshiyanshi / yijianfankui；
+    // 词汇区是加密实验室的子区，用 'wordsearch' 单独标识。
+    const LAZY_GROUPS = {
+        jianmoshiyanshi: [
+            './modelinglab/modelinglab.js',
+        ],
+        electroniclab: [
+            './electronic/electronic_lab.js',
+        ],
+        workflow: [
+            './workflow/workflow.js',
+        ],
+        wordsearch: [
+            './wordsearch/wordsearch.js',
+            './wordsearch/wordsearch_chinese.js',
+        ],
+        yijianfankui: [
+            './sendfeedback/sendfeedback.js',
+        ],
+        apizhongzhuanzhan: [
+            './apizhongzhuanzhan/apizhongzhuanzhan.js',
+            './apizhongzhuanzhan/apizz-overview.js',
+            './apizhongzhuanzhan/apizz-keys.js',
+            './apizhongzhuanzhan/apizz-usage.js',
+            './apizhongzhuanzhan/apizz-billing.js',
+        ],
+        mcpskilllab: [
+            './mcpskilllab/mcpskilllab-config.js',
+            './mcpskilllab/mcpskilllab-resources-mcp.js',
+            './mcpskilllab/mcpskilllab-resources-skills.js',
+            './mcpskilllab/mcpskilllab-resources.js',
+            './mcpskilllab/mcpskilllab.js',
+        ],
+        zhishitupu: [
+            './zhishitupu/obsidianVault.js',
+            './zhishitupu/worldKnowledge.js',
+            './zhishitupu/nodeKnowledgeCorpus.js',
+            './zhishitupu/graphData.js',
+            './zhishitupu/zhishitupu.js',
+        ],
+        damoxing: [
+            './model/contracts/AgentContract.js',
+            './model/DeepSeekClient.js',
+            './model/ImageGenerationClient.js',
+            './model/ToolRegistry.js',
+            './model/ChatUI.js',
+            './model/HistoryManager.js',
+            './model/agent/AgentIntentContract.js',
+            './model/agent/AgentProfiles.js',
+            './model/agent/AgentPolicyResolver.js',
+            './model/agent/AgentDurableStore.js',
+            './model/agent/AgentPerformanceMonitor.js',
+            './model/agent/AgentContextManager.js',
+            './model/agent/AgentResearchContract.js',
+            './model/agent/AgentStyleContract.js',
+            './model/agent/AgentExpertPanel.js',
+            './model/agent/AgentDiagramRenderer.js',
+            './model/AgentRuntime.js',
+            './model/main.js',
+        ],
+    };
+
+    // 每组脚本到位后才执行该区的初始化（与原来 showModule / 启动链里的调用一一对应）
+    const GROUP_INITS = {
+        jianmoshiyanshi: () => {
+            if (typeof initModelingLab === 'function') initModelingLab();
+            if (typeof window.modelingLabShowView === 'function') {
+                // 帧改为 data-src 后，需要在这里补一次唤醒，才会真正去加载编辑器
+                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
+            }
+        },
+        electroniclab: () => {
+            if (typeof initElectronicLab === 'function') initElectronicLab();
+        },
+        workflow: () => {
+            if (typeof initWorkflowCoze === 'function') initWorkflowCoze();
+        },
+        wordsearch: () => {
+            if (typeof initWordSearch === 'function') initWordSearch();
+        },
+        yijianfankui: () => {
+            if (typeof initSendFeedback === 'function') initSendFeedback();
+        },
+        apizhongzhuanzhan: () => {
+            if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
+        },
+        mcpskilllab: () => {
+            if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
+        },
+        zhishitupu: () => {
+            if (typeof initKnowledgeGraph === 'function') initKnowledgeGraph();
+        },
+        damoxing: () => {
+            if (typeof initChatFunctions === 'function') initChatFunctions();
+            else if (typeof bindChatEvents === 'function') bindChatEvents();
+        },
+    };
 
     const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261011';
     function loadBatch(list) {
@@ -533,6 +593,21 @@ document.addEventListener('DOMContentLoaded', () => {
         })));
     }
 
+    // 按区懒加载：同一组只加载一次，初始化在脚本到位之后才执行
+    const groupPromises = {};
+    function ensureGroup(id) {
+        if (!LAZY_GROUPS[id]) return Promise.resolve();
+        if (!groupPromises[id]) {
+            groupPromises[id] = loadBatch(LAZY_GROUPS[id]).then(() => {
+                const init = GROUP_INITS[id];
+                if (typeof init === 'function') return init();
+            });
+        }
+        return groupPromises[id];
+    }
+    // 供首屏脚本按需唤醒某个区（例如侧边栏搜索跳到知识图谱节点）
+    window.ensureCipherModule = ensureGroup;
+
     function loadLazyImages(root = document) {
         root.querySelectorAll('img[data-src]').forEach(img => {
             if (!img.getAttribute('src')) {
@@ -542,8 +617,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.loadLazyImages = loadLazyImages;
 
-    // ===== 并行加载：核心区 + 逻辑区（互不阻塞）=====
-    // 核心区：加载完立即初始化页面
+    // ===== 并行加载：首屏批次 + 加密实验室脚本批次（互不阻塞）=====
+    // 首屏：只等这两批脚本，其它区在打开时才由 ensureGroup 拉取
     Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
         .then(() => Promise.resolve(window.spacePuzzleBatchReady))
         .then(() => {
@@ -556,15 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
             if (typeof initSearchFunction === 'function') initSearchFunction();
-            if (typeof initWordSearch === 'function') initWordSearch();
-            if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
-            if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
-            if (typeof initSpacePuzzle === 'function') initSpacePuzzle();
-            if (typeof initSendFeedback === 'function') initSendFeedback();
-            if (typeof initChatFunctions === 'function') initChatFunctions();
-            initWorkflowCoze();
-            if (typeof initElectronicLab === 'function') initElectronicLab();
-            if (typeof initModelingLab === 'function') initModelingLab();
             if (typeof initAuthorPage === 'function') initAuthorPage();
         });
 
@@ -577,6 +643,9 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     const showModule = id => {
+        // 该区的脚本 + 初始化按需加载（首屏的加密实验室不在 LAZY_GROUPS 里）
+        ensureGroup(id);
+
         // 性能优化：菜单切换时唤醒图谱或休眠
         if (window.ZSTP) {
             if (id === 'zhishitupu') {
@@ -611,8 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (id === 'jianmoshiyanshi' && typeof initModelingLab === 'function') {
-            initModelingLab();
+        if (id === 'jianmoshiyanshi') {
             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
 
@@ -629,38 +697,22 @@ document.addEventListener('DOMContentLoaded', () => {
             item.classList[item.getAttribute('data-target') === id ? 'add' : 'remove']('active')
         );
 
-        // 知识图谱模块特殊处理
+        // 知识图谱模块特殊处理：初始化交给 ensureGroup('zhishitupu') 在脚本到位后触发
         if (id === 'zhishitupu') {
-            setTimeout(() => {
-                window.dispatchEvent(new Event('resize'));
-                if (typeof initKnowledgeGraph === 'function') {
-                    initKnowledgeGraph();
-                }
-            }, 50);
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
 
         // 工作流画布切换时触发resize重绘连线和网格
         if (id === 'workflow') {
             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
-
-        // 大模型特殊处理：仅在切换到大模型页面时初始化
-        if (id === 'damoxing') {
-            if (typeof initChatFunctions === 'function') {
-                initChatFunctions();
-            } else if (typeof bindChatEvents === 'function') {
-                bindChatEvents();
-            }
-        }
-
-        if (id === 'apizhongzhuanzhan' && typeof initApiZhongZhuanZhan === 'function') {
-            initApiZhongZhuanZhan();
-        }
-
-        if (id === 'mcpskilllab' && typeof initMcpSkillLab === 'function') {
-            initMcpSkillLab();
-        }
     }
+
+    // 加密实验室的子区（词汇区）也按需加载：侧边栏点击与 Agent 指令点的是同一个按钮
+    document.addEventListener('click', e => {
+        const btn = e.target && e.target.closest ? e.target.closest('#jiamishiyanshi-content .submodule-btn') : null;
+        if (btn && btn.getAttribute('data-target') === 'cihuiqu') ensureGroup('wordsearch');
+    }, true);
 
     showModule('jiamishiyanshi');
     document.querySelectorAll('.menu-item').forEach(item =>

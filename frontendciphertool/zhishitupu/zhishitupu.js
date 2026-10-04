@@ -71,13 +71,13 @@ async function initKnowledgeGraph() {
         }
 
         if (typeof THREE === 'undefined') {
-            await loadScript('https://unpkg.com/three@0.160.0/build/three.min.js', 'THREE');
+            await loadScript('./vendor/three/three.min.js', 'THREE');
         }
         if (typeof SpriteText === 'undefined') {
-            await loadScript('https://unpkg.com/three-spritetext@1.8.1/dist/three-spritetext.min.js', 'SpriteText');
+            await loadScript('./vendor/three-spritetext/three-spritetext.min.js', 'SpriteText');
         }
         if (typeof ForceGraph3D === 'undefined') {
-            await loadScript('https://unpkg.com/3d-force-graph@1.73.1/dist/3d-force-graph.min.js', 'ForceGraph3D');
+            await loadScript('./vendor/3d-force-graph/3d-force-graph.min.js', 'ForceGraph3D');
         }
 
         renderGraph(container);

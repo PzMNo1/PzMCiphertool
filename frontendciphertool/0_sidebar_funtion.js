@@ -345,8 +345,13 @@ function focusKnowledgeGraphNode(query) {
 
     if (runSearch()) return;
 
-    if (typeof initKnowledgeGraph === 'function') {
-        Promise.resolve(initKnowledgeGraph()).then(() => {
+    // 知识图谱脚本现在是按需加载的：先确保该组脚本与初始化就绪，再定位节点
+    const warmUp = typeof window.ensureCipherModule === 'function'
+        ? window.ensureCipherModule('zhishitupu')
+        : (typeof initKnowledgeGraph === 'function' ? initKnowledgeGraph() : null);
+
+    if (warmUp) {
+        Promise.resolve(warmUp).then(() => {
             setTimeout(runSearch, 100);
         });
     }

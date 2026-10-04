@@ -76,7 +76,7 @@
                     <iframe
                         class="modelinglab-editor-frame"
                         data-view-frame="${key}"
-                        ${active ? `src="${view.src}"` : `data-src="${view.src}"`}
+                        data-src="${view.src}"
                         title="${view.title}"
                         allowfullscreen
                         style="display:${active ? 'block' : 'none'}">
