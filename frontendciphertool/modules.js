@@ -476,17 +476,22 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    // ===== 首屏批次：只留加密实验室首屏真正需要的脚本 =====
-    // 空间类虽然也能被 Agent 指令直接打开，但整组只有十几 KB，保留在首屏，避免指令路径踩空。
+    // ===== 首屏批次：加密实验室 + 词汇区 =====
     const coreScripts = [
         './0_sidebar_funtion.js',
-        './spacepuzzle/spacepuzzlebatch.js',
+        './wordsearch/wordsearch.js',
+        './wordsearch/wordsearch_chinese.js',
     ];
 
-    // ===== 其它区按需加载：脚本与初始化都推迟到该区第一次被打开 =====
-    // key 用的是侧边栏的 data-target（也是 showModule 的入参）：jianmoshiyanshi / yijianfankui；
-    // 词汇区是加密实验室的子区，用 'wordsearch' 单独标识。
+    // ===== 其余模块：首屏就绪后在后台分 5 组预热；用户提前点击时也会由 showModule 兜底触发 =====
+    // key 用侧边栏 data-target（也是 showModule 的入参）；逻辑区/空间类是加密实验室的子区，用独立 key。
     const LAZY_GROUPS = {
+        logic: [
+            './logic/logicbatch.js',
+        ],
+        spacepuzzle: [
+            './spacepuzzle/spacepuzzlebatch.js',
+        ],
         jianmoshiyanshi: [
             './modelinglab/modelinglab.js',
         ],
@@ -495,10 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
         workflow: [
             './workflow/workflow.js',
-        ],
-        wordsearch: [
-            './wordsearch/wordsearch.js',
-            './wordsearch/wordsearch_chinese.js',
         ],
         yijianfankui: [
             './sendfeedback/sendfeedback.js',
@@ -546,23 +547,24 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
     };
 
-    // 每组脚本到位后才执行该区的初始化（与原来 showModule / 启动链里的调用一一对应）
+    // 每组脚本到位后才执行该区的初始化（与原 showModule / 启动链里的调用一一对应）
     const GROUP_INITS = {
+        spacepuzzle: () => window.spacePuzzleBatchReady || Promise.resolve(),
         jianmoshiyanshi: () => {
             if (typeof initModelingLab === 'function') initModelingLab();
-            if (typeof window.modelingLabShowView === 'function') {
-                // 帧改为 data-src 后，需要在这里补一次唤醒，才会真正去加载编辑器
+            // 用户抢先点进来时补一次唤醒，否则编辑器首帧是空的
+            if (typeof window.modelingLabShowView === 'function' &&
+                document.getElementById('jianmoshiyanshi-container')?.style.display === 'block') {
                 window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
             }
         },
         electroniclab: () => {
             if (typeof initElectronicLab === 'function') initElectronicLab();
+            const frame = document.getElementById('circuit-frame');
+            if (frame && !frame.getAttribute('src')) frame.src = frame.getAttribute('data-src');
         },
         workflow: () => {
             if (typeof initWorkflowCoze === 'function') initWorkflowCoze();
-        },
-        wordsearch: () => {
-            if (typeof initWordSearch === 'function') initWordSearch();
         },
         yijianfankui: () => {
             if (typeof initSendFeedback === 'function') initSendFeedback();
@@ -617,10 +619,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.loadLazyImages = loadLazyImages;
 
+    // 首屏就绪后按 5 组并行预热其余模块
+    const BACKGROUND_WAVES = [
+        ['logic', 'spacepuzzle'],
+        ['yijianfankui', 'workflow', 'apizhongzhuanzhan'],
+        ['jianmoshiyanshi'],
+        ['damoxing', 'electroniclab'],
+        ['mcpskilllab'],
+    ];
+
     // ===== 并行加载：首屏批次 + 加密实验室脚本批次（互不阻塞）=====
-    // 首屏：只等这两批脚本，其它区在打开时才由 ensureGroup 拉取
     Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
-        .then(() => Promise.resolve(window.spacePuzzleBatchReady))
         .then(() => {
             // 加密实验室的数据驱动卡片必须等本文件把 MODULES 注入 DOM 之后再挂载，
             // 否则拿不到 #mimaqu / #xiandaiqu 这些子模块容器
@@ -631,11 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (typeof initClickSymbolCiphers === 'function') initClickSymbolCiphers();
             if (typeof initSearchFunction === 'function') initSearchFunction();
+            if (typeof initWordSearch === 'function') initWordSearch();
             if (typeof initAuthorPage === 'function') initAuthorPage();
+            // 首屏可用了 → 5 组并行后台预热
+            BACKGROUND_WAVES.forEach(wave => Promise.all(wave.map(ensureGroup)));
         });
-
-    // 逻辑区：由 logicbatch.js 独立管理分批加载和初始化
-    loadBatch(['./logic/logicbatch.js']);
 
     if (!MODULES) return console.error('模块内容未定义');
     ['jiamishiyanshi', 'electroniclab', 'jianmoshiyanshi', 'workflow', 'zhishitupu', 'damoxing', 'apizhongzhuanzhan', 'mcpskilllab', 'yijianfankui'].forEach(id =>
@@ -707,12 +716,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
     }
-
-    // 加密实验室的子区（词汇区）也按需加载：侧边栏点击与 Agent 指令点的是同一个按钮
-    document.addEventListener('click', e => {
-        const btn = e.target && e.target.closest ? e.target.closest('#jiamishiyanshi-content .submodule-btn') : null;
-        if (btn && btn.getAttribute('data-target') === 'cihuiqu') ensureGroup('wordsearch');
-    }, true);
 
     showModule('jiamishiyanshi');
     document.querySelectorAll('.menu-item').forEach(item =>
