@@ -547,17 +547,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
     };
 
-    // 每组脚本到位后才执行该区的初始化（与原 showModule / 启动链里的调用一一对应）
+    // 脚本到位后只执行一次的初始化（后台预热用；电子实验室的 iframe 也在这里挂 src）
     const GROUP_INITS = {
         spacepuzzle: () => window.spacePuzzleBatchReady || Promise.resolve(),
-        jianmoshiyanshi: () => {
-            if (typeof initModelingLab === 'function') initModelingLab();
-            // 用户抢先点进来时补一次唤醒，否则编辑器首帧是空的
-            if (typeof window.modelingLabShowView === 'function' &&
-                document.getElementById('jianmoshiyanshi-container')?.style.display === 'block') {
-                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
-            }
-        },
         electroniclab: () => {
             if (typeof initElectronicLab === 'function') initElectronicLab();
             const frame = document.getElementById('circuit-frame');
@@ -569,11 +561,15 @@ document.addEventListener('DOMContentLoaded', () => {
         yijianfankui: () => {
             if (typeof initSendFeedback === 'function') initSendFeedback();
         },
-        apizhongzhuanzhan: () => {
-            if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
-        },
-        mcpskilllab: () => {
-            if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
+    };
+
+    // 每次切到该区都要执行的初始化（沿用原来 showModule 里的调用；脚本没到就先等脚本）
+    const SWITCH_INITS = {
+        jianmoshiyanshi: () => {
+            if (typeof initModelingLab === 'function') initModelingLab();
+            if (typeof window.modelingLabShowView === 'function') {
+                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
+            }
         },
         zhishitupu: () => {
             if (typeof initKnowledgeGraph === 'function') initKnowledgeGraph();
@@ -581,6 +577,12 @@ document.addEventListener('DOMContentLoaded', () => {
         damoxing: () => {
             if (typeof initChatFunctions === 'function') initChatFunctions();
             else if (typeof bindChatEvents === 'function') bindChatEvents();
+        },
+        apizhongzhuanzhan: () => {
+            if (typeof initApiZhongZhuanZhan === 'function') initApiZhongZhuanZhan();
+        },
+        mcpskilllab: () => {
+            if (typeof initMcpSkillLab === 'function') initMcpSkillLab();
         },
     };
 
@@ -652,8 +654,11 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     const showModule = id => {
-        // 该区的脚本 + 初始化按需加载（首屏的加密实验室不在 LAZY_GROUPS 里）
-        ensureGroup(id);
+        // 脚本到位（后台预热或现拉）后再按原时机执行该区的初始化
+        ensureGroup(id).then(() => {
+            const init = SWITCH_INITS[id];
+            if (typeof init === 'function') init();
+        });
 
         // 性能优化：菜单切换时唤醒图谱或休眠
         if (window.ZSTP) {
