@@ -186,10 +186,6 @@
         styleStats(text) {
             const lines = String(text || '').split('\n');
             const body = lines.filter(line => !/^\s*$/.test(line));
-
-            // 纯标签行：以 **标签：** 或 标签： 起头且标签本身不含数字
-            // 注意：排除「判断一」「要点二」这类编号枚举——它们在研究报告里是正常写法，
-            // 真正要治的是「一句话判断」「结论先行」「适用条件与不确定性」这类模板化标签。
             const labelLineCount = body.filter(line => {
                 const trimmed = line.trim();
                 const m = trimmed.match(/^(?:\*\*)?([^*：:\n]{2,20})(?:\*\*)?\s*[:：]/);
@@ -295,20 +291,11 @@
             }
 
             let text2 = out.join('\n');
-
-            // 3) 去掉「不是X，而是Y」的对比外壳，保留 Y 的陈述（仅在句式清晰时）
             text2 = text2.replace(/(?:并)?不是[^，。；！？\n]{1,40}[，,]\s*而是\s*/g, '');
-
-            // 4) 「而不是」→ 书面语「而非」（语义不变，语域提升）
             text2 = text2.replace(/而不是/g, '而非');
             text2 = text2.replace(/而非(?=[，。；、])/g, '而非');
-
-            // 5) 压缩连续空行
             text2 = text2.replace(/\n{3,}/g, '\n\n');
-
-            // 6) 清理行尾多余空格
             text2 = text2.split('\n').map(l => l.replace(/[ \t]+$/, '')).join('\n');
-
             return text2.trim();
         }
 

@@ -1,16 +1,5 @@
 /**
  * AgentPerformanceMonitor - Agent 模块性能监控
- *
- * 上一版有两个致命缺陷，本例修复：
- *
- * 缺陷 1：只给 plan 那一次调用埋点，工具循环里每次迭代的模型请求全部漏记。
- *   实测整轮 26 次请求 / 输入 220 万 token，面板却显示「1 次请求 / 1.3K / 0.9K」。
- *   → 现在由 runtime 在 onIterationStart/onIterationComplete 处逐轮登记，覆盖全部请求。
- *
- * 缺陷 2：工具耗时把每次调用的耗时直接相加。而同一轮内工具是并行的（并发上限 40），
- *   于是出现「工具 859.9 秒」大于「整轮 465.8 秒」这种不可能的结果。
- *   → 现在改用**区间并集**统计墙钟时间：并行调用只算一次，串行调用自然累加。
- *   同时保留累计值用于参考，并记录并发峰值。
  */
 (function () {
     const DEFAULT_SELECTOR = '#agent-performance-monitor';

@@ -2,7 +2,7 @@
  * AgentPolicyResolver —— 极简计划解析。
  *
  * 不再根据意图细分研究模式/写作合同/新闻分类。
- * 产出统一的中性计划：工具全集交给模型自主路由，轮次上限放宽。
+ * 产出统一的中性计划：工具全集交给模型自主路由。
  */
 (function () {
     class AgentPolicyResolver {

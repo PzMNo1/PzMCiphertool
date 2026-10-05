@@ -1,10 +1,9 @@
-// 侧边栏菜单切换由 modules.js 的 showModule 统一处理。
-// 本文件只保留侧边栏 pin、搜索、子模块滑动和卡片置顶等交互。
+// 这是侧边栏 pin、搜索、子模块滑动和卡片置顶等的交互作用函数。
 
 const sidebar = document.getElementById('sidebar');
 const sidebarPinBtn = document.getElementById('sidebar-pin-btn');
 if (sidebar && sidebarPinBtn) {
-    sidebarPinBtn.addEventListener('click', function(event) {
+    sidebarPinBtn.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
         const pinned = sidebar.classList.toggle('sidebar-pinned');
@@ -23,7 +22,7 @@ class CipherSwiper {
         this.wrapper = this.container.querySelector('.cipher-swiper-wrapper');
         this.slides = this.container.querySelectorAll(slideSelector);
         this.navBtns = document.querySelectorAll(btnSelector);
-        this.contextId = contextId; 
+        this.contextId = contextId;
         this.currentIndex = 0;
         this.startX = 0;
         this.startY = 0;
@@ -64,7 +63,7 @@ class CipherSwiper {
 
     updateNavButtons() {
         this.navBtns.forEach(btn => btn.classList.remove('active'));
-        if(this.navBtns[this.currentIndex]) this.navBtns[this.currentIndex].classList.add('active');
+        if (this.navBtns[this.currentIndex]) this.navBtns[this.currentIndex].classList.add('active');
     }
 
     setSliderPosition() {
@@ -81,7 +80,7 @@ class CipherSwiper {
 
         if (enableTransition) {
             this.wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        } else {this.wrapper.style.transition = 'none';}
+        } else { this.wrapper.style.transition = 'none'; }
         this.setSliderPosition();
         this.updateNavButtons();
         this.slides.forEach(s => s.classList.remove('active'));
@@ -96,7 +95,7 @@ class CipherSwiper {
 
     touchStart(event) {
         if (['INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'BUTTON', 'LABEL'].includes(event.target.tagName)) return;
-        
+
         // 如果是鼠标事件并且点击在具体功能卡片区域（.card）或者结果展示区（.result），禁止触发滑动
         if (event.type.includes('mouse') && (event.target.closest('.card') || event.target.closest('.result'))) {
             return;
@@ -114,7 +113,7 @@ class CipherSwiper {
             const currentY = this.getPositionY(event);
             const deltaX = currentX - this.startX;
             const deltaY = currentY - this.startY;
-            
+
             if (!this.isSwiping) {
                 if (Math.abs(deltaX) > 5) {
                     if (event.type.includes('mouse') && window.getSelection && !window.getSelection().isCollapsed) {
@@ -152,15 +151,15 @@ class CipherSwiper {
         this.setPositionByIndex();
     }
 
-    getPositionX(event) {return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;}
-    getPositionY(event) {return event.type.includes('mouse') ? event.pageY : event.touches[0].clientY;}
+    getPositionX(event) { return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX; }
+    getPositionY(event) { return event.type.includes('mouse') ? event.pageY : event.touches[0].clientY; }
     animation() {
         if (this.isDragging) {
             this.setSliderPosition();
             requestAnimationFrame(this.animation.bind(this));
         }
     }
-    
+
     slideToIndex(index) {
         this.currentIndex = index;
         this.setPositionByIndex();
@@ -230,7 +229,7 @@ const swiper2 = new CipherTabs('#yijianfankui-content .cipher-lab-panel-stack', 
 
 
 // 键盘切换子模块区域的交互作用函数 (通用)
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     const activeSection = document.querySelector('.content-section[style*="block"]');
     if (!activeSection) return;
@@ -270,8 +269,8 @@ function initSearchFunction() {
             const alias = window.CipherCardIndex?.findAlias(query)
             if (alias && window.CipherCardIndex.gotoAlgorithm(alias)) return
             $$('.card, .logic-btn').forEach(el => {
-                const text = el.classList.contains('card') 
-                    ? el.querySelector('.badge')?.textContent 
+                const text = el.classList.contains('card')
+                    ? el.querySelector('.badge')?.textContent
                     : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
                 if (text?.toLowerCase().includes(query.toLowerCase())) target ??= el
             })
@@ -465,16 +464,21 @@ function initQuickNav(regionId) {
         });
     }
 
-    input.addEventListener('focus', () => {renderOptions(input.value);listContainer.classList.add('show');});
-    input.addEventListener('input', (e) => {renderOptions(e.target.value);listContainer.classList.add('show');});
-    input.addEventListener('keydown', (e) => {if (e.key === 'Enter' || e.keyCode === 13) {e.preventDefault(); 
+    input.addEventListener('focus', () => { renderOptions(input.value); listContainer.classList.add('show'); });
+    input.addEventListener('input', (e) => { renderOptions(e.target.value); listContainer.classList.add('show'); });
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
             const filterText = input.value.toLowerCase().trim(); if (!filterText) return;
             const matched = getAllOptions().find(opt => opt.text.toLowerCase().includes(filterText));
-            if (matched) {input.blur(); listContainer.classList.remove('show'); activate(matched);
+            if (matched) {
+                input.blur(); listContainer.classList.remove('show'); activate(matched);
             }
         }
     });
-    document.addEventListener('click', (e) => {if (container && !container.contains(e.target)) {listContainer.classList.remove('show');
+    document.addEventListener('click', (e) => {
+        if (container && !container.contains(e.target)) {
+            listContainer.classList.remove('show');
         }
     });
 }
@@ -484,8 +488,8 @@ function initQuickNav(regionId) {
 
 
 // 输入框置顶功能的交互逻辑
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.pin-toggle-btn'); 
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.pin-toggle-btn');
     if (btn) {
         const card = btn.closest('.card');
         if (card) {
@@ -494,10 +498,10 @@ document.addEventListener('click', function(e) {
             const tag = btn.querySelector('.cyber-button__tag');
             if (!isPinned) {
                 const placeholder = document.createElement('div');
-                placeholder.className = 'card-placeholder'; 
+                placeholder.className = 'card-placeholder';
                 if (card.classList.contains('main-input')) {
                     placeholder.classList.add('main-input');
-                }   placeholder.style.display = 'none';
+                } placeholder.style.display = 'none';
                 const pid = 'pin-placeholder-' + Date.now();
                 placeholder.id = pid;
                 card.dataset.placeholderId = pid;
@@ -519,7 +523,7 @@ document.addEventListener('click', function(e) {
                     placeholder.parentNode.insertBefore(card, placeholder);
                     placeholder.remove();
                     delete card.dataset.placeholderId;
-                } else {card.classList.remove('pinned');}
+                } else { card.classList.remove('pinned'); }
                 if (tag) tag.textContent = '置顶';
             }
         }
@@ -535,7 +539,7 @@ function initMobileHeight() {
     const setHeight = () => {
         const vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };  setHeight();
+    }; setHeight();
     let lastWidth = window.innerWidth;
     window.addEventListener('resize', () => {
         if (window.innerWidth !== lastWidth) {

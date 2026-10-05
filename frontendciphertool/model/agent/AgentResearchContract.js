@@ -1,10 +1,6 @@
 /**
  * AgentResearchContract - 研究交付契约
  *
- * 解决的问题：Agent 检索了 402 条证据 / 252 个来源，却只写出 2564 个中文字、
- * 0 个表格、0 个图表。根因不是参数被截断（maxTokens 32768 没用满、warnings 为空，
- * 循环是自然结束的），而是缺少"交付标准"——模型自己决定写多少就是多少。
- *
  * 本模块提供三件事：
  * 1. classify()   —— 按意图信号（而非字符数）判定任务档位，输出硬性交付指标。
  * 2. 契约提示词   —— 注入系统提示词，把篇幅/章节/表格/图表变成明确要求。
@@ -30,7 +26,6 @@
             minTables: 3,
             minDiagrams: 5,
             minCitations: 20,
-            // 即使是简报也并行拆 3 个专家：既提升信息密度，又把多轮串联的墙钟时间压到最慢专家的耗时
             panelSize: 3,
             requiresSources: true
         },
@@ -113,24 +108,14 @@
     class AgentResearchContract {
         constructor(options = {}) {
             this.options = Object.assign({
-                // 单条证据摘要的字符上限
                 digestItemChars: 220,
-                // 证据摘要总字符上限。刻意不设太大：提示词越长，预填充越慢，
-                // 而单次写作请求有硬超时（后端 SSE 300 秒），过长提示词会挤压生成时间。
                 digestMaxChars: 8000,
-                // 摘要中最多保留的来源条数
                 digestMaxItems: 80,
-                // 是否允许把档位降级（用户明确说"简单说"时）
                 allowDowngrade: true
             }, options || {});
         }
 
         /* ---------------- 任务分级 ---------------- */
-
-        /**
-         * 按意图信号判定档位。刻意不使用字符长度作为门槛——
-         * 「半导体今天的动态」只有 9 个字符，却是典型的简报/研报请求。
-         */
         classify(input = {}) {
             const text = String(input.query || '');
             const lower = text.toLowerCase();
@@ -505,8 +490,6 @@
                 used += line.length + 1;
             }
 
-            // 头部刻意不带"共采集 N 条/其中 M 条带片段"这类过程统计：
-            // 把采集统计写进参考资料，会诱导模型在正文里汇报检索过程。
             const header = `参考资料清单（编号 1-${lines.length}，与文末来源列表一一对应）：`;
 
             return [header, ...lines].join('\n');

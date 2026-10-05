@@ -41,23 +41,15 @@ const confirmScore = Number(process.env.WK_CONFIRM_SCORE) || 0.88;
 const hostIntervalMs = Math.max(300, Number(process.env.WK_INTERVAL_MS) || 1500);
 const refresh = process.argv.includes('--refresh');
 const reportOnly = process.argv.includes('--report');
-// 分层跑：这个网络（中国大陆住宅 IPv6）对 Wikimedia 的可持续速率很低，
-// 所以把便宜的批量层和昂贵的逐节点层拆开，各自可续跑。
 const bulkOnly = process.argv.includes('--bulk-only');
 const proseOnly = process.argv.includes('--prose-only');
-// --rescore：不发任何请求，只用当前打分规则重算已有结果。
-// 打分规则收紧之后，历史错配会在这里被降级或剔除。
 const rescore = process.argv.includes('--rescore');
-// 按 Wikimedia 的 UA 政策：可识别、可联系、稳定。部署者请把联系方式换成自己的。
 const userAgent = 'PzMAgentool-WorldKnowledge/1.0 (local knowledge-graph research tool; node.js; contact: repo owner)';
 
 const WIKIDATA = 'www.wikidata.org';
 const SPARQL = 'query.wikidata.org';
 const WIKI_GATEWAY = 'api.wikimedia.org';
 const WIKI_SITES = { zh: 'zh.wikipedia.org', en: 'en.wikipedia.org' };
-
-// 只取对知识图谱最有解释力的关系型声明，避免把节点塞成数据转储。
-// 属性标签内置中英对照，省掉一次属性标签查询。
 const CLAIM_PROPERTIES = {
     P31: { zh: '隶属于', en: 'instance of' },
     P279: { zh: '上位类', en: 'subclass of' },
@@ -401,17 +393,6 @@ function containmentOf(needle, haystack) {
     return hit / needle.length;
 }
 
-// 保守打分：宁可漏配，也不要把“石墨烯”链到“氧化石墨烯”。
-// 完全相等 -> 1；互为前后缀且长度接近 -> 0.82~0.96；其余用 token/bigram/字符三层包含度
-// 再乘长度比例惩罚，上限 0.8。
-//
-// 两处闸门都是被真实误配逼出来的：
-//   PREFIX_MIN_RATIO + PREFIX_MIN_LENGTH：“Decoders”前缀命中论文标题
-//     “Decoders target 18 new genomes”这类不能走前缀分支；中文同理，
-//     “吸附剂” vs “吸附”、“重排序” vs “重排序缓冲区”这种短词前缀命中必须降级。
-//   PUBLICATION 判定：Wikidata 里单篇论文的描述形如“2016年学术文章”，很短；
-//     而“控制詞彙量，用於索引生命科學中的期刊文章和書籍”（MeSH）只是描述里提到文章，
-//     所以只在描述本身很短且以论文类型结尾时才判定为论文。
 const PREFIX_MIN_RATIO = 0.6;
 const PREFIX_MIN_LENGTH = 4;
 
@@ -434,9 +415,7 @@ function matchScore(query, candidate) {
     return Math.min(0.8, base * (0.5 + 0.5 * lengthRatio));
 }
 
-// 节点要的是“概念/实体”级别的世界知识；把节点链到单篇论文不是世界知识，降级为待确认。
 const PUBLICATION_TAIL = /(学术文章|學術文章|学术论文|學術論文|科研论文|研究论文|论文|論文|期刊文章|期刊論文|scholarly article|scientific article|research paper|academic paper|journal article|preprint)$/i;
-// 消歧义页只是“同名条目索引”，不含实质知识，同样降级
 const DISAMBIGUATION_PATTERN = /消歧义|disambiguation|topics referred to by the same term/i;
 
 function isPublicationText(text) {

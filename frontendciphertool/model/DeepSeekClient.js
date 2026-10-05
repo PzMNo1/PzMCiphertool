@@ -1,6 +1,5 @@
 /**
  * DeepSeekClient - 后端模型代理客户端模块
- * 前端不持有模型 API Key；统一通过 Spring Boot 后端代理调用模型。
  */
 
 class DeepSeekClient {
