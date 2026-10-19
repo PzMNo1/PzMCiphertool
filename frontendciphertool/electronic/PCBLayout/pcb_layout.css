@@ -1,0 +1,571 @@
+/* PzMAgentool  PCB 设计 / 仿真工作台样式
+   与电子实验室整体暗色霓虹风格保持一致，同时把 iframe 引擎区域铺满。 */
+
+:root {
+  --pcb-bg: #000510;
+  --pcb-panel: rgba(4, 14, 30, 0.92);
+  --pcb-panel-2: rgba(6, 20, 42, 0.88);
+  --pcb-line: rgba(46, 240, 195, 0.18);
+  --pcb-line-strong: rgba(46, 240, 195, 0.52);
+  --pcb-cyan: #2ef0c3;
+  --pcb-blue: #40e0ff;
+  --pcb-text: #d8f6ff;
+  --pcb-muted: rgba(216, 246, 255, 0.58);
+  --pcb-danger: #ff6b8b;
+  --pcb-font: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --pcb-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--pcb-bg);
+  color: var(--pcb-text);
+  font-family: var(--pcb-font);
+}
+
+.pcb-studio {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 78% 8%, rgba(0, 255, 200, 0.06) 0%, transparent 42%),
+    radial-gradient(ellipse at 18% 96%, rgba(64, 224, 255, 0.05) 0%, transparent 46%),
+    linear-gradient(160deg, #000510 0%, #020a1a 38%, #0a0e2b 62%, #0d0520 100%);
+}
+
+/* ===== 顶部工具条 ===== */
+.pcb-studio-header {
+  flex: 0 0 auto;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--pcb-line);
+  background: linear-gradient(180deg, rgba(3, 10, 24, 0.96), rgba(3, 10, 24, 0.72));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  z-index: 3;
+}
+
+.pcb-studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.pcb-studio-brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pcb-cyan);
+  box-shadow: 0 0 12px var(--pcb-cyan), 0 0 28px rgba(46, 240, 195, 0.45);
+  animation: pcb-brand-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes pcb-brand-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.pcb-studio-brand-title {
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(46, 240, 195, 0.42);
+}
+
+.pcb-studio-brand-sub {
+  font-size: 0.68rem;
+  color: var(--pcb-muted);
+  letter-spacing: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pcb-studio-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pcb-select {
+  height: 32px;
+  max-width: 210px;
+  padding: 0 10px;
+  border: 1px solid var(--pcb-line-strong);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(8, 26, 52, 0.96), rgba(4, 14, 30, 0.96));
+  color: var(--pcb-text);
+  font-family: var(--pcb-font);
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pcb-select:focus,
+.pcb-select:hover {
+  border-color: var(--pcb-cyan);
+  box-shadow: 0 0 16px rgba(46, 240, 195, 0.22);
+}
+
+.pcb-btn {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--pcb-line-strong);
+  background: linear-gradient(180deg, rgba(8, 26, 52, 0.96), rgba(4, 14, 30, 0.96));
+  color: var(--pcb-text);
+  font-family: var(--pcb-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.25s ease;
+}
+
+.pcb-btn:hover {
+  border-color: var(--pcb-cyan);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(46, 240, 195, 0.24);
+  transform: translateY(-1px);
+}
+
+.pcb-btn:active { transform: translateY(0) scale(0.98); }
+
+.pcb-btn-primary {
+  border-color: rgba(46, 240, 195, 0.7);
+  background: linear-gradient(135deg, rgba(46, 240, 195, 0.22), rgba(64, 224, 255, 0.16));
+  color: #eafffa;
+  text-shadow: 0 0 12px rgba(46, 240, 195, 0.55);
+}
+
+.pcb-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(46, 240, 195, 0.34), rgba(64, 224, 255, 0.24));
+  box-shadow: 0 0 24px rgba(46, 240, 195, 0.36);
+}
+
+.pcb-btn-ghost {
+  background: rgba(3, 12, 26, 0.72);
+}
+
+/* ===== 主区域 ===== */
+.pcb-studio-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
+}
+
+.pcb-editor-pane,
+.pcb-viewer-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--pcb-line);
+  border-radius: 10px;
+  background: var(--pcb-panel);
+  box-shadow: inset 0 0 32px rgba(46, 240, 195, 0.04), 0 10px 32px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.pcb-editor-pane {
+  flex: 0 0 40%;
+  max-width: 560px;
+}
+
+.pcb-viewer-pane {
+  flex: 1 1 auto;
+}
+
+.pcb-pane-toolbar {
+  flex: 0 0 auto;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--pcb-line);
+  background: linear-gradient(180deg, rgba(8, 24, 48, 0.72), rgba(5, 14, 30, 0.4));
+  font-size: 0.72rem;
+  letter-spacing: 0.6px;
+}
+
+.pcb-file-name {
+  color: var(--pcb-text);
+  font-family: var(--pcb-mono);
+  font-size: 0.76rem;
+}
+
+.pcb-editor-status {
+  color: var(--pcb-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pcb-editor-status.error { color: var(--pcb-danger); }
+
+.pcb-engine-badge {
+  color: var(--pcb-cyan);
+  font-size: 0.66rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.82;
+  white-space: nowrap;
+}
+
+.pcb-code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px) 0 0 / 100% 22px,
+    #02070f;
+  color: #c9f9ef;
+  font-family: var(--pcb-mono);
+  font-size: 12.5px;
+  line-height: 22px;
+  tab-size: 2;
+  white-space: pre;
+  caret-color: var(--pcb-cyan);
+}
+
+.pcb-code-editor::selection {
+  background: rgba(46, 240, 195, 0.24);
+}
+
+.pcb-editor-hint {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-top: 1px solid var(--pcb-line);
+  color: var(--pcb-muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.4px;
+  background: rgba(3, 10, 24, 0.6);
+}
+
+.pcb-viewer-frame-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #000510;
+}
+
+.pcb-viewer-frame-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #000510;
+}
+
+.pcb-viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(0, 255, 200, 0.07) 0%, transparent 58%),
+    rgba(0, 5, 16, 0.97);
+  color: var(--pcb-cyan);
+  z-index: 5;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+.pcb-viewer-loading:not(.active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pcb-viewer-loading.error { color: var(--pcb-danger); }
+
+.pcb-viewer-loading-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(46, 240, 195, 0.18);
+  border-top-color: var(--pcb-cyan);
+  animation: pcb-spin 0.9s linear infinite;
+  box-shadow: 0 0 26px rgba(46, 240, 195, 0.25);
+}
+
+.pcb-viewer-loading.error .pcb-viewer-loading-spinner { display: none; }
+
+@keyframes pcb-spin { to { transform: rotate(360deg); } }
+
+.pcb-viewer-loading-text {
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+}
+
+.pcb-viewer-loading-sub {
+  max-width: 520px;
+  color: var(--pcb-muted);
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+/* 右侧 RunFrame 的预览区域默认 min-height 620px，这里改为跟随 iframe 高度。 */
+.pcb-viewer-frame-wrap iframe ~ * { pointer-events: auto; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 1020px) {
+  .pcb-editor-pane { flex-basis: 44%; }
+  .pcb-studio-brand-sub { display: none; }
+}
+
+@media (max-width: 820px) {
+  .pcb-studio-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pcb-studio-actions { justify-content: flex-start; }
+  .pcb-studio-main { flex-direction: column; }
+  .pcb-editor-pane { flex: 0 0 42%; max-width: none; }
+  .pcb-viewer-pane { flex: 1 1 auto; }
+}
+/* =====================================================================
+   代码侧边栏：可收起 / 展开 + 透明玻璃拟态
+   交互参考 modelinglab/format-convert.html 的 .fc-side 侧栏：
+   - 侧栏以浮层形式盖在预览之上；
+   - 右侧贴边一个竖向切换把手；
+   - 收起后预览区完整可见。
+   ===================================================================== */
+
+.pcb-studio {
+  --pcb-editor-width: min(440px, 42vw);
+}
+
+.pcb-studio-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: block;
+  padding: 0;
+}
+
+.pcb-viewer-pane {
+  position: absolute;
+  inset: 10px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--pcb-line);
+  border-radius: 10px;
+  background: var(--pcb-panel);
+  box-shadow: inset 0 0 32px rgba(46, 240, 195, 0.04), 0 10px 32px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.pcb-editor-pane {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  bottom: 10px;
+  width: var(--pcb-editor-width);
+  min-width: 0;
+  max-width: none;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(64, 224, 255, 0.28);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(165deg, rgba(16, 32, 52, 0.52) 0%, rgba(13, 27, 46, 0.34) 45%, rgba(6, 12, 22, 0.58) 100%),
+    rgba(10, 20, 34, 0.30);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.30),
+    inset 0 0 36px rgba(64, 224, 255, 0.08),
+    0 14px 44px rgba(0, 0, 0, 0.48),
+    5px 0 20px rgba(12, 153, 134, 0.30);
+  overflow: hidden;
+  transition: width 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.pcb-editor-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.pcb-editor-pane.collapsed {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  border-width: 0;
+  border-color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.pcb-editor-pane.collapsed .pcb-editor-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pcb-sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--pcb-editor-width) + 10px - 13px);
+  transform: translateY(-50%);
+  width: 26px;
+  height: 78px;
+  padding: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #e6f1f7;
+  font-size: 16px;
+  line-height: 1;
+  border: 1px solid rgba(64, 224, 255, 0.38);
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)),
+    rgba(13, 27, 46, 0.52);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.25), 0 8px 22px rgba(0, 0, 0, 0.35);
+  transition: left 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pcb-sidebar-toggle:hover {
+  color: #fff;
+  border-color: rgba(64, 224, 255, 0.85);
+  box-shadow: 0 0 22px rgba(64, 224, 255, 0.35), inset 0 0 14px rgba(64, 224, 255, 0.12);
+  background: rgba(16, 42, 70, 0.70);
+}
+
+.pcb-sidebar-toggle:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.pcb-studio.side-collapsed .pcb-sidebar-toggle {
+  left: 6px;
+}
+
+/* 代码侧边栏内部的玻璃拟态细节 */
+.pcb-editor-pane .pcb-pane-toolbar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border-bottom-color: rgba(64, 224, 255, 0.20);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.pcb-editor-pane .pcb-code-editor {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px) 0 0 / 100% 22px,
+    rgba(2, 7, 15, 0.58);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.pcb-editor-pane .pcb-editor-hint {
+  background: rgba(3, 10, 24, 0.42);
+  border-top-color: rgba(64, 224, 255, 0.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 820px) {
+  .pcb-studio {
+    --pcb-editor-width: min(86vw, 420px);
+  }
+
+  .pcb-viewer-pane {
+    inset: 8px;
+  }
+
+  .pcb-editor-pane {
+    top: 8px;
+    left: 8px;
+    bottom: 8px;
+  }
+
+  .pcb-sidebar-toggle {
+    left: calc(var(--pcb-editor-width) + 8px - 13px);
+    height: 64px;
+  }
+
+  .pcb-studio.side-collapsed .pcb-sidebar-toggle {
+    left: 4px;
+  }
+}
+
+
+/* ===== 滚动条样式（从 0_zhuyeyangshi.css 复制；iframe 内部文档不会继承父页面样式） ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0A192F;
+  border-radius: 4px;
+  box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+}
+::-webkit-scrollbar-corner {
+  background: #0A192F;
+}
+/* Firefox 标准属性（仅在不支持 ::-webkit-scrollbar 时生效，避免覆盖 Chromium 渐变样式） */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+  }
+}

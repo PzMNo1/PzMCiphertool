@@ -1,11 +1,16 @@
 (function () {
     const groups = window.MCPSKILLLAB_RESOURCE_GROUPS || [];
-    const categoryIds = new Set(['mcp', 'skill', 'prompt', 'workflow', 'devTools', 'dataApis', 'security', 'automation', 'other']);
+    const categoryIds = new Set(['dsh', 'mcp', 'plugins', 'skill', 'prompt', 'workflow', 'devTools', 'dataApis', 'security', 'automation', 'other']);
 
     function normalizeCategory(value) {
         const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
         const aliases = {
+            dsh: 'dsh',
+            cap: 'dsh',
+            capability: 'dsh',
             mcp: 'mcp',
+            plugins: 'plugins',
+            plugin: 'plugins',
             mcptools: 'mcp',
             skill: 'skill',
             skills: 'skill',

@@ -80,59 +80,109 @@
       gap: 8px;
     }
 
-    .fc-btn {
-      appearance: none;
-      border: 1px solid var(--line);
-      background: rgba(9, 22, 32, 0.9);
-      color: var(--text);
-      padding: 6px 13px;
-      font-size: 12px;
-      border-radius: 3px;
-      cursor: pointer;
-      letter-spacing: .5px;
-      transition: background .18s, border-color .18s, color .18s;
-    }
+    /* 顶栏、侧栏、向导里的按钮统一使用 cyber-button，样式集中在文件末尾。 */
 
-    .fc-btn:hover:not(:disabled) {
-      background: rgba(64, 224, 255, 0.16);
-      border-color: var(--cyan);
-    }
-
-    .fc-btn:disabled { opacity: .38; cursor: not-allowed; }
-
-    .fc-btn.primary {
-      border-color: rgba(0, 255, 136, 0.55);
-      color: #d6ffe9;
-      background: linear-gradient(120deg, rgba(0, 120, 80, 0.55), rgba(10, 40, 30, 0.9));
-    }
-
-    .fc-btn.primary:hover:not(:disabled) {
-      background: linear-gradient(120deg, rgba(0, 180, 115, 0.6), rgba(12, 60, 44, 0.95));
-    }
-
-    /* ---------- 主体 ---------- */
+    /* ---------- 主体：侧栏浮在预览之上，与建模编辑器的可收起侧栏一致 ---------- */
     .fc-main {
+      position: relative;
       flex: 1 1 auto;
-      display: flex;
       min-height: 0;
     }
 
+    .fc-main .fc-hud {
+      left: calc(min(358px, 82vw) + 14px);
+    }
+
+    .fc-main.side-collapsed .fc-hud {
+      left: 12px;
+    }
+
+    .fc-main .fc-empty {
+      padding-left: min(358px, 82vw);
+    }
+
+    .fc-main.side-collapsed .fc-empty {
+      padding-left: 0;
+    }
+
     .fc-side {
-      width: 336px;
-      flex: 0 0 auto;
-      border-right: 1px solid var(--line-soft);
-      background: var(--panel);
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 358px;
+      max-width: 82vw;
+      z-index: 6;
+      padding: 0;
+      border-right: 1px solid rgba(64, 224, 255, 0.3);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0) 55%),
+        linear-gradient(165deg, rgba(16, 32, 52, 0.52) 0%, rgba(13, 27, 46, 0.36) 45%, rgba(6, 12, 22, 0.62) 100%),
+        rgba(10, 20, 34, 0.35);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      backdrop-filter: blur(30px) saturate(180%);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.30), inset 0 0 36px rgba(64, 224, 255, 0.08), 0 14px 44px rgba(0, 0, 0, 0.5), 5px 0 20px rgba(12, 153, 134, 0.55);
+      transition: width 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .fc-side.collapsed {
+      width: 0;
+      min-width: 0;
+      border-right: 0;
+      box-shadow: none;
+    }
+
+    .fc-side-inner {
+      height: 100%;
+      padding: 10px;
       overflow-y: auto;
-      padding: 12px;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      transition: opacity 0.25s ease;
+    }
+
+    .fc-side.collapsed .fc-side-inner {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .fc-panel-toggle {
+      position: absolute;
+      top: 50%;
+      right: -24px;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 72px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 7;
+      cursor: pointer;
+      color: #e6f1f7;
+      font-size: 15px;
+      line-height: 1;
+      border: 1px solid rgba(64, 224, 255, 0.35);
+      border-radius: 3px;
+      background: rgba(13, 27, 46, 0.55);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .fc-panel-toggle:hover {
+      border-color: rgba(64, 224, 255, 0.6);
+      background: rgba(64, 224, 255, 0.22);
+      box-shadow: 0 0 14px rgba(64, 224, 255, 0.5);
     }
 
     .fc-card {
-      border: 1px solid var(--line-soft);
+      border: 1px solid rgba(142, 231, 255, 0.12);
       border-radius: 4px;
-      background: rgba(8, 16, 24, 0.7);
+      background: rgba(8, 16, 24, 0.20);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
       padding: 10px;
     }
 
@@ -152,7 +202,7 @@
       text-align: center;
       cursor: pointer;
       transition: background .18s, border-color .18s;
-      background: rgba(4, 14, 22, 0.6);
+      background: rgba(4, 14, 22, 0.35);
     }
 
     .fc-drop:hover, .fc-drop.hot {
@@ -194,7 +244,7 @@
       font-size: 11px;
       line-height: 1.7;
       cursor: pointer;
-      background: rgba(9, 18, 27, 0.8);
+      background: rgba(9, 18, 27, 0.42);
     }
 
     .fc-model.active {
@@ -233,22 +283,14 @@
 
     .fc-switch input { accent-color: #00d4a0; }
 
-    .fc-select {
-      width: 100%;
-      margin-top: 4px;
-      background: rgba(6, 16, 24, 0.95);
-      color: var(--text);
-      border: 1px solid var(--line-soft);
-      border-radius: 3px;
-      padding: 5px;
-      font-size: 12px;
-    }
+    /* .fc-select 的霓虹样式在文件末尾，与 0_zhuyeyangshi.css 的 select 对齐。 */
 
     /* ---------- 预览 ---------- */
     .fc-stage {
-      position: relative;
-      flex: 1 1 auto;
+      position: absolute;
+      inset: 0;
       min-width: 0;
+      min-height: 0;
     }
 
     #fc-canvas {
@@ -379,8 +421,153 @@
     .fc-guide-box .muted { color: var(--muted); font-size: 12px; }
 
     @media (max-width: 860px) {
-      .fc-main { flex-direction: column; }
-      .fc-side { width: 100%; max-height: 46vh; border-right: 0; border-bottom: 1px solid var(--line-soft); }
+      .fc-side { width: min(358px, 86vw); }
+    }
+
+    /* ===== 复刻 0_zhuyeyangshi.css 的 cyber-button（加密实验室「使用说明」同款） ===== */
+    .cyber-button {
+      --primary-clr: #2ecc71;
+      --secondary-clr: #3498db;
+      --glow-clr: rgba(46, 204, 113, 0.5);
+
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 60px;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      background: transparent;
+      border: 2px solid var(--primary-clr);
+      border-radius: 6px;
+      color: var(--text, #ecf0f1);
+      text-transform: uppercase;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1;
+      box-shadow: 0 0 8px var(--glow-clr), inset 0 0 4px var(--glow-clr);
+      top: 6px;
+    }
+
+    .cyber-button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--glow-clr), transparent);
+      transition: all 0.6s ease;
+      z-index: -1;
+    }
+
+    .cyber-button:hover:not(:disabled) {
+      box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
+      border-color: var(--secondary-clr);
+      color: white;
+      text-shadow: 0 0 4px white;
+      transform: translateY(-2px);
+    }
+
+    .cyber-button:hover:not(:disabled)::before {
+      left: 100%;
+    }
+
+    .cyber-button__tag {
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes glitch {
+      0% { clip-path: inset(80% 0 0 0); transform: translate(-2px, 2px); }
+      20% { clip-path: inset(0 90% 0 0); transform: translate(2px, -2px); }
+      40% { clip-path: inset(0 0 70% 0); transform: translate(2px, 2px); }
+      60% { clip-path: inset(0 0 0 80%); transform: translate(-2px, -2px); }
+      80% { clip-path: inset(60% 0 0 0); transform: translate(2px, 2px); }
+      100% { clip-path: inset(0 0 0 0); transform: translate(0, 0); }
+    }
+
+    .cyber-button:hover:not(:disabled) .cyber-button__glitch {
+      animation: glitch 0.5s infinite;
+    }
+
+    .cyber-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .cyber-button[hidden] {
+      display: none !important;
+    }
+
+    .fc-cyber { font-family: inherit; }
+
+    /* ===== 复刻 0_zhuyeyangshi.css 的 select ===== */
+    .fc-select {
+      appearance: none;
+      width: 100%;
+      margin-top: 4px;
+      padding: 0.8rem 2.5em 0.8rem 0.8rem;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      background: linear-gradient(145deg, rgba(64, 224, 255, 0.12) -30%, rgba(30, 41, 59, 0.92) 40%, rgba(153, 50, 204, 0.12) 130%);
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2340e0ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.7em top 50%;
+      background-size: 1.2em auto;
+      box-shadow: 0 0 8px rgba(64, 224, 255, 0.2);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .fc-select:hover,
+    .fc-select:focus {
+      border-color: rgba(64, 224, 255, 0.6);
+      box-shadow: 0 0 12px rgba(64, 224, 255, 0.4);
+    }
+
+    option {
+      background-color: #1a2334 !important;
+    }
+  </style>
+  <style>
+    /* 滚动条样式：从 0_zhuyeyangshi.css 复制，iframe 内部文档无法继承父页面样式 */
+    /* ===== 滚动条样式（从 0_zhuyeyangshi.css 复制；iframe 内部文档不会继承父页面样式） ===== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0A192F;
+      border-radius: 4px;
+      box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    }
+    ::-webkit-scrollbar-corner {
+      background: #0A192F;
+    }
+    /* Firefox 标准属性（仅在不支持 ::-webkit-scrollbar 时生效，避免覆盖 Chromium 渐变样式） */
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+      }
     }
   </style>
 </head>
@@ -391,13 +578,14 @@
       模型格式转换台 <span class="en">MODEL FORMAT CONVERTER → GLB</span>
     </div>
     <div class="fc-top-actions">
-      <button type="button" class="fc-btn" id="fc-guide-btn">使用说明</button>
-      <button type="button" class="fc-btn" id="fc-open-editor">前往建模编辑器</button>
+      <button type="button" class="cyber-button fc-cyber" id="fc-guide-btn"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">使用说明</span></button>
+      <button type="button" class="cyber-button fc-cyber" id="fc-open-editor"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">前往建模编辑器</span></button>
     </div>
   </header>
 
   <div class="fc-main">
-    <aside class="fc-side">
+    <aside class="fc-side side-panel left-panel" id="fc-side">
+      <div class="fc-side-inner">
       <section class="fc-card">
         <h3>1 · 导入模型</h3>
         <div class="fc-drop" id="fc-drop">
@@ -405,9 +593,9 @@
           <span>OBJ · STL · PLY · GLTF · GLB · FBX · DAE · 3DS<br />带贴图的模型请把贴图、.mtl、.bin 一起选中或直接拖文件夹</span>
         </div>
         <div class="fc-row">
-          <button type="button" class="fc-btn" id="fc-pick-files">选择文件</button>
-          <button type="button" class="fc-btn" id="fc-pick-dir">选择文件夹</button>
-          <button type="button" class="fc-btn" id="fc-demo">载入示例模型</button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-pick-files"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">选择文件</span></button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-pick-dir"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">选择文件夹</span></button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-demo"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">载入示例模型</span></button>
         </div>
         <input type="file" id="fc-file-input" multiple style="display:none"
           accept=".obj,.mtl,.stl,.ply,.gltf,.glb,.fbx,.dae,.3ds,.bin,.png,.jpg,.jpeg,.webp,.tga,.bmp,.ktx2,.hdr,.exr" />
@@ -432,7 +620,7 @@
           <select class="fc-select" id="fc-anim-select"></select>
         </div>
         <div class="fc-row">
-          <button type="button" class="fc-btn primary" id="fc-export" disabled>导出 GLB 并下载</button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-export" disabled><span class="cyber-button__glitch"></span><span class="cyber-button__tag">导出 GLB 并下载</span></button>
         </div>
         <div class="fc-meta" id="fc-export-meta" style="margin-top:9px">
           导出的 GLB 可直接在建模编辑器里用「本地导入」打开。
@@ -445,10 +633,12 @@
         <label class="fc-switch"><input type="checkbox" id="fc-opt-wire" /> 线框</label>
         <label class="fc-switch"><input type="checkbox" id="fc-opt-env" checked /> 环境反射（内置程序化环境）</label>
         <div class="fc-row">
-          <button type="button" class="fc-btn" id="fc-fit">重新取景</button>
-          <button type="button" class="fc-btn" id="fc-clear">清空</button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-fit"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">重新取景</span></button>
+          <button type="button" class="cyber-button fc-cyber" id="fc-clear"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">清空</span></button>
         </div>
       </section>
+      </div>
+      <button type="button" class="fc-panel-toggle panel-toggle" id="fc-side-toggle" aria-label="收起侧边栏" aria-expanded="true">&#8249;</button>
     </aside>
 
     <div class="fc-stage">
@@ -507,7 +697,7 @@
       </ul>
 
       <div class="fc-row" style="justify-content:flex-end">
-        <button type="button" class="fc-btn" id="fc-guide-close">关闭</button>
+        <button type="button" class="cyber-button fc-cyber" id="fc-guide-close"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">关闭</span></button>
       </div>
     </div>
   </div>
@@ -1546,6 +1736,19 @@
       const el = $('fc-busy');
       if (text) el.textContent = text;
       el.classList.toggle('on', on);
+    }
+
+    const sidePanel = $('fc-side');
+    const sideToggle = $('fc-side-toggle');
+    if (sidePanel && sideToggle) {
+      const setSideCollapsed = collapsed => {
+        sidePanel.classList.toggle('collapsed', collapsed);
+        sidePanel.parentElement.classList.toggle('side-collapsed', collapsed);
+        sideToggle.textContent = collapsed ? String.fromCharCode(8250) : String.fromCharCode(8249);
+        sideToggle.setAttribute('aria-expanded', String(!collapsed));
+        sideToggle.setAttribute('aria-label', collapsed ? '展开侧边栏' : '收起侧边栏');
+      };
+      sideToggle.onclick = () => setSideCollapsed(!sidePanel.classList.contains('collapsed'));
     }
 
     $('fc-guide-btn').onclick = () => $('fc-guide').classList.add('on');

@@ -1,140 +1,178 @@
+/* Integration audit for the rebuilt knowledge graph.
+ *
+ * Checks the generated graph, the graphData adapter, the local retriever and
+ * the Agentmaster wiring as one path. It fails on any leftover fabricated
+ * domain/facet content or on retrieval that does not return cited source text.
+ */
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const zlib = require('zlib');
+const { createWorldRag } = require('./worldRag.js');
 
-const graphDataPath = path.join(__dirname, 'graphData.js');
-const source = fs.readFileSync(graphDataPath, 'utf8');
-const retrieverSource = fs.readFileSync(path.join(__dirname, 'zhishitupu.js'), 'utf8');
-const agentMasterSource = fs.readFileSync(path.join(__dirname, '..', 'agentmaster', 'agentmaster.js'), 'utf8');
-const corpusSource = fs.readFileSync(path.join(__dirname, 'nodeKnowledgeCorpus.js'), 'utf8');
-const context = { console };
+const directory = __dirname;
+const read = file => fs.readFileSync(path.join(directory, file), 'utf8');
+const readAgent = file => fs.readFileSync(path.join(directory, '..', 'agentmaster', file), 'utf8');
+const failures = [];
+const minNodes = Math.max(1, Number(process.env.WG_AUDIT_MIN_NODES) || 100);
+
+function check(condition, message) {
+    if (!condition) failures.push(message);
+}
+
+const worldSource = read('worldKnowledge.js');
+const graphSource = read('graphData.js');
+const retrieverSource = read('zhishitupu.js');
+const ragSource = read('worldRag.js');
+const modulesSource = fs.readFileSync(path.join(directory, '..', 'modules.js'), 'utf8');
+const agentSource = readAgent('agentmaster.js');
+
+const context = { console, window: {} };
 context.window = context;
 vm.createContext(context);
-vm.runInContext(`${corpusSource}\n${source}\nthis.__getGraphTree = getGraphTree; this.__buildGraphData = buildGraphData;`, context);
+vm.runInContext(worldSource, context);
+const store = context.WORLD_KNOWLEDGE_GRAPH;
+check(Boolean(store), 'WORLD_KNOWLEDGE_GRAPH is missing');
+const corpusFile = path.join(directory, 'worldCorpus.bin');
+if (fs.existsSync(corpusFile) && store) {
+    store.documents = JSON.parse(zlib.gunzipSync(fs.readFileSync(corpusFile)).toString('utf8')).documents || {};
+}
 
-const theme = new Proxy({}, { get: () => 0xffffff });
-const graph = context.__buildGraphData(context.__getGraphTree(theme), theme);
-const requiredFacets = ['definition', 'mechanism', 'evidence', 'frontier', 'retrieval'];
-const failures = [];
-const corpusEntries = Object.values(context.GRAPH_NODE_EVIDENCE_CORPUS || {});
+vm.runInContext(`${graphSource}\nthis.__tree=getGraphTree({});this.__graph=buildGraphData(this.__tree,{});this.__lookup=getGraphNodeWorldKnowledge;this.__stats=getWorldGraphStats;`, context);
+const tree = context.__tree || [];
+const graph = context.__graph || { nodes: [], links: [] };
+const topRoots = tree[0]?.center ? (tree[0].children || []) : tree;
+const entityNodes = graph.nodes.filter(node => node.kind !== 'category' && node.kind !== 'root');
+const categoryNodes = graph.nodes.filter(node => node.kind === 'category');
 
-if (corpusEntries.length !== graph.nodes.length) failures.push(`compiled corpus coverage mismatch: ${corpusEntries.length}/${graph.nodes.length}`);
-const claimableCorpusNodes = corpusEntries.filter(item => item.entity || item.works?.some(work => work.abstract));
-const bibliographicCorpusNodes = corpusEntries.filter(item => item.works?.length && !item.entity && !item.works.some(work => work.abstract));
-const unmatchedCorpusNodes = corpusEntries.filter(item => item.status === 'no-authoritative-match');
-const lowConfidenceCrossref = corpusEntries.flatMap(item => item.works || []).filter(work => work.source === 'Crossref' && Number(work.confidence || 0) < 0.55);
-if (lowConfidenceCrossref.length) failures.push(`low-confidence Crossref records remain: ${lowConfidenceCrossref.length}`);
-if (corpusEntries.some(item => item.status === 'source-error')) failures.push('compiled corpus contains unresolved source errors');
+check(topRoots.length >= 5, `expected at least 5 real top-level sections, got ${topRoots.length}`);
+check(entityNodes.length >= minNodes, `entity node count ${entityNodes.length} is below ${minNodes}`);
+check(categoryNodes.length > 0, 'no category nodes were built');
+check(graph.links.length >= entityNodes.length, 'hierarchy links are incomplete');
+check(graph.links.some(link => link.__hierarchy === false), 'no real cross-relations were rendered');
 
-for (const node of graph.nodes) {
+for (const node of entityNodes) {
+    check(Boolean(node.qid), `${node.name}: missing QID`);
+    check(Boolean(node.description), `${node.name}: missing real Wikidata description`);
     const records = node.knowledgeBase || [];
-    const facets = new Set(records.map(record => record.quality?.facet).filter(Boolean));
-    const missing = requiredFacets.filter(facet => !facets.has(facet));
-    if (missing.length) failures.push(`${node.name}: missing facets ${missing.join(', ')}`);
-    for (const record of records) {
-        if (!record.id || !record.title || !record.content) failures.push(`${node.name}: incomplete record`);
-        if (record.quality?.facet && (record.content || '').length < 120) failures.push(`${node.name}/${record.id}: expert facet is too shallow`);
-        if (record.evidenceLevel === 'abstract-supported' && !record.citation) failures.push(`${node.name}/${record.id}: abstract evidence lacks citation`);
-        if (record.evidenceLevel === 'bibliographic-only' && (!record.citation?.identifier || !record.url)) failures.push(`${node.name}/${record.id}: bibliographic evidence lacks provenance`);
-        if (record.id === 'expert-review-required' && !record.content.includes('禁止')) failures.push(`${node.name}: unverified record lacks generation guard`);
+    check(records.some(record => record.evidenceLevel === 'encyclopedia-verbatim'), `${node.name}: no verbatim Wikipedia record`);
+    const sourced = records.filter(record => record.evidenceLevel === 'encyclopedia-verbatim');
+    check(sourced.every(record => record.citation?.url && record.citation?.revision), `${node.name}: a Wikipedia record lacks URL/revision`);
+}
+for (const node of categoryNodes) {
+    check(Boolean(node.knowledgeBase?.[0]?.content), `${node.name}: category has no member index`);
+}
+
+for (const required of ['Quantum mechanics', 'Artificial intelligence', 'World War II', 'CRISPR', 'Lithium-ion battery']) {
+    const found = entityNodes.some(node =>
+        [node.name, node.nameEn].filter(Boolean).some(value => value.toLowerCase() === required.toLowerCase())
+    );
+    check(found, `core topic missing from the graph: ${required}`);
+}
+
+const sample = entityNodes.find(node => node.knowledgeBase?.some(record => record.evidenceLevel === 'encyclopedia-verbatim'));
+check(Boolean(sample), 'no entity with Wikipedia records to test');
+if (sample) {
+    const entry = context.__lookup(sample.name);
+    check(entry?.status === 'entity-confirmed', `${sample.name}: world lookup did not confirm the entity`);
+    check(Boolean(entry?.entityDetail?.id), `${sample.name}: world lookup lacks QID`);
+    check(Boolean(entry?.entityDetail?.wikipedia?.revision), `${sample.name}: world lookup lacks revision`);
+    check((entry?.claims || []).length > 0, `${sample.name}: world lookup lacks Wikidata claims`);
+}
+
+check(modulesSource.includes("./zhishitupu/worldKnowledge.js"), 'modules.js does not load worldKnowledge.js');
+check(modulesSource.includes("./zhishitupu/worldRag.js"), 'modules.js does not load worldRag.js');
+check(!modulesSource.includes('vaultGraph.js'), 'modules.js still references the missing vaultGraph.js');
+
+for (const symbol of ['GRAPH_EXPERT_DOMAINS', 'expert-definition', 'expert-mechanism', 'expert-frontier', 'analysis-framework', 'ODataMap 世界前沿知识地图']) {
+    check(!graphSource.includes(symbol), `graphData.js still contains fabricated content: ${symbol}`);
+}
+for (const symbol of ['selectNodeKnowledgeDomain', 'buildExpertQueryPlan', 'queryOpenAlex', 'querySemanticScholar', 'queryCrossref', 'retrieveExternalNodeKnowledge']) {
+    check(!retrieverSource.includes(symbol), `zhishitupu.js still contains the old live/AI retrieval path: ${symbol}`);
+}
+check(retrieverSource.includes('searchWorldKnowledge'), 'ZSTP.searchWorldKnowledge is missing');
+check(retrieverSource.includes("mode: 'local-corpus'"), 'retrieval mode is not local-corpus');
+check(retrieverSource.includes('world-rag'), 'retriever version marker is missing');
+
+for (const symbol of ['zstp-world-qid', '维基百科正文采用', 'Wikipedia revision', 'Wikidata 实体页', '实体已确认']) {
+    check(!retrieverSource.includes(symbol), `forbidden UI source text remains: ${symbol}`);
+}
+
+for (const symbol of ['BM25_K1', 'MMR_LAMBDA', 'findSeeds', 'neighborTerms', 'prfTerms', 'citation']) {
+    check(ragSource.includes(symbol), `local retriever is missing capability: ${symbol}`);
+}
+
+check(agentSource.includes('shouldRetrieveWorldKnowledge'), 'Agentmaster does not auto-retrieve world knowledge');
+check(agentSource.includes('requireEvidence'), 'Agentmaster retrieval does not enforce evidence');
+check(agentSource.includes('citationId'), 'Agentmaster retrieval context does not expose citation ids');
+check(agentSource.includes("ensureCipherModule('zhishitupu')"), 'Agentmaster does not load the graph module on demand');
+check(!agentSource.includes('liveExternal'), 'Agentmaster still exposes the old live-external flag');
+
+const rag = createWorldRag(store);
+const stats = rag.stats();
+check(stats.chunks > 0 && stats.terms > 0, 'local index did not build');
+let retrievalChecks = 0;
+for (const node of entityNodes.slice(0, 5)) {
+    const result = rag.search(node.name, { topK: 6 });
+    retrievalChecks += 1;
+    check(result.matches.length > 0, `${node.name}: no retrieval matches`);
+    check(result.matches.every(match => match.citation?.url && match.citation?.revision), `${node.name}: match citation is incomplete`);
+    check(result.matches.every(match => match.text && match.snippet), `${node.name}: match lacks verbatim text or snippet`);
+}
+
+const englishNode = entityNodes.find(node => node.nameEn && node.nameEn !== node.name);
+if (englishNode) {
+    const result = rag.search(englishNode.nameEn, { topK: 6 });
+    retrievalChecks += 1;
+    check(
+        result.seeds.some(seed => seed.id === (englishNode.worldId || englishNode.qid) || (seed.qid && seed.qid === englishNode.qid)),
+        `${englishNode.nameEn}: cross-lingual entity linking failed`
+    );
+}
+
+// The same DOM-independent API Agentmaster uses when the graph view has never
+// been opened. It must retrieve without any 3D graph or DOM initialization.
+(async () => {
+    vm.runInContext(ragSource, context);
+    vm.runInContext(retrieverSource, context);
+    const staticZstp = context.ZSTP;
+    check(Boolean(staticZstp && typeof staticZstp.retrieveKnowledge === 'function'), 'DOM-independent ZSTP retrieval API is missing');
+    if (sample && staticZstp?.retrieveKnowledge) {
+        const staticResult = await staticZstp.retrieveKnowledge({ nodeName: sample.name, query: `${sample.name} 是什么`, topK: 4 });
+        retrievalChecks += 1;
+        check(staticResult.mode === 'local-corpus', 'static ZSTP retrieval is not local-corpus');
+        check(staticResult.localRecords?.length > 0, 'static ZSTP retrieval returned no records');
+        check(staticResult.localRecords?.every(record => record.citation?.url && record.citation?.revision), 'static ZSTP records lack citation provenance');
     }
-}
 
-if (graph.nodes.some(node => node.kind === 'knowledge-detail')) {
-    failures.push('legacy generated knowledge-detail nodes still exist');
-}
-
-const routingCases = new Map([
-    ['量子信息 Quantum Information', '量子科学、材料与微纳器件'],
-    ['CRISPR基因编辑 CRISPR Gene Editing', '生命科学、生物工程与精准医学'],
-    ['长时储能 Long-Duration Energy Storage', '能源、气候与地球系统'],
-    ['企业知识图谱 Enterprise Knowledge Graph', '知识图谱、数据基础设施与RAG'],
-]);
-for (const [name, expected] of routingCases) {
-    const node = graph.nodes.find(item => item.name === name);
-    const definition = node?.knowledgeBase?.find(record => record.quality?.facet === 'definition');
-    if (!definition?.content.includes(`学科框架: ${expected}`)) failures.push(`${name}: expected domain ${expected}`);
-}
-
-const expertNodeCases = [
-    { match: /量子信息 Quantum Information/, terms: ['哈密顿量', '量子相干', '退相干'] },
-    { match: /CRISPR基因编辑 CRISPR Gene Editing/, terms: ['基因型-表型映射', '脱靶效应', '临床终点'] },
-    { match: /长时储能 Long-Duration Energy Storage/, terms: ['平准化成本', '往返效率', '全生命周期评价'] },
-    { match: /知识图谱推理 Knowledge Graph Reasoning/, terms: ['本体工程', '实体消歧', '混合检索'] },
-    { match: /半导体/, terms: ['良率', '失效模式与影响分析', '可制造性设计'] },
-    { match: /暗物质/, terms: ['引力透镜', '贝叶斯模型比较', '系统误差'] },
-    { match: /治理/, terms: ['因果识别', '分配效应', '社会技术系统'] },
-];
-for (const testCase of expertNodeCases) {
-    const node = graph.nodes.find(item => testCase.match.test(item.name));
-    if (!node) {
-        failures.push(`expert audit node missing: ${testCase.match}`);
-        continue;
+    if (failures.length) {
+        console.error(`Knowledge graph audit failed (${failures.length}):\n${failures.slice(0, 80).join('\n')}`);
+        process.exit(1);
     }
-    const corpus = node.knowledgeBase.map(record => record.content).join('\n');
-    const missingTerms = testCase.terms.filter(term => !corpus.includes(term));
-    if (missingTerms.length) failures.push(`${node.name}: missing professional terms ${missingTerms.join(', ')}`);
-}
 
-const prohibitedShallowPhrases = ['这个节点是什么', '为什么重要？', '默认知识图谱节点，可用于模型解释与检索增强'];
-for (const phrase of prohibitedShallowPhrases) {
-    if (graph.nodes.some(node => node.knowledgeBase.some(record => record.content.includes(phrase)))) {
-        failures.push(`shallow placeholder remains: ${phrase}`);
-    }
-}
-
-const ragCapabilities = new Map([
-    ['multi-intent query planning', 'buildExpertQueryPlan'],
-    ['graph-aware local context', 'getNodeGraphContext'],
-    ['lexical hybrid scoring', 'lexicalKnowledgeScore'],
-    ['authority/recency/citation scoring', 'evidenceQualityScore'],
-    ['MMR diversity reranking', 'jaccardKnowledgeSimilarity'],
-    ['reciprocal rank fusion', 'reciprocalRankFuse'],
-    ['evidence usability boundary', 'classifyEvidenceUsability'],
-    ['structured citations', 'buildCitation'],
-    ['claim-level evidence graph', 'buildNodeEvidenceGraph'],
-    ['claim extraction boundary', 'extractClaimCandidate'],
-    ['graph-neighbor knowledge expansion', 'graph-neighbor-knowledge'],
-    ['OpenAlex abstract reconstruction', 'decodeOpenAlexAbstract'],
-    ['Crossref DOI metadata routing', 'queryCrossref'],
-    ['biomedical source routing', 'queryEuropePmc'],
-    ['entity source routing', 'queryWikidata'],
-    ['retrieval cache', 'KNOWLEDGE_CACHE_TTL_MS'],
-    ['browser runtime audit', 'auditRuntime'],
-]);
-for (const [capability, symbol] of ragCapabilities) {
-    if (!retrieverSource.includes(symbol)) failures.push(`RAG capability missing: ${capability}`);
-}
-
-const speedGuards = [
-    [retrieverSource.includes('liveExternal = false'), 'default retrieval is not local-only'],
-    [retrieverSource.includes("mode: liveExternal === true ? 'local-plus-fast-live' : 'local-only'"), 'retrieval mode is not observable'],
-    [retrieverSource.includes('new Promise(resolve => setTimeout(() => resolve([]), 2000))'), 'fast-live total timeout is missing'],
-    [/runKnowledgeGraphRag[\s\S]{0,600}executeKnowledgeGraphRetrieve\(\{ query: userText, topK: 8, liveExternal: false \}\)/.test(agentMasterSource), 'Agentmaster does not directly use local retrieval'],
-    [!/runKnowledgeGraphRag[\s\S]{0,600}requestKnowledgeGraphToolCalls/.test(agentMasterSource), 'Agentmaster still performs a model tool-selection round trip'],
-    [agentMasterSource.includes('compactKnowledgeGraphResult'), 'Agentmaster retrieval context is not compacted'],
-];
-speedGuards.forEach(([passed, message]) => { if (!passed) failures.push(`speed guard failed: ${message}`); });
-
-if (failures.length) {
-    console.error(`Knowledge graph audit failed (${failures.length}):\n${failures.slice(0, 50).join('\n')}`);
+    console.log(JSON.stringify({
+        status: 'pass',
+        graphMode: 'builtin-world-knowledge',
+        roots: topRoots.map(node => node.name),
+        nodes: entityNodes.length,
+        categories: categoryNodes.length,
+        links: {
+            total: graph.links.length,
+            hierarchy: graph.links.filter(link => link.__hierarchy !== false).length,
+            cross: graph.links.filter(link => link.__hierarchy === false).length
+        },
+        corpus: stats,
+        retrievalChecks,
+        agentmaster: {
+            autoRetrieval: true,
+            citationIds: true,
+            localOnly: !agentSource.includes('liveExternal')
+        },
+        source: store?.meta?.sourcePage || null
+    }, null, 2));
+})().catch(error => {
+    console.error(error.stack || error.message);
     process.exit(1);
-}
-
-console.log(JSON.stringify({
-    status: 'pass',
-    realNodes: graph.nodes.length,
-    links: graph.links.length,
-    expertRecords: graph.nodes.reduce((sum, node) => sum + node.knowledgeBase.length, 0),
-    corpus: {
-        compiledNodes: corpusEntries.length,
-        claimableNodes: claimableCorpusNodes.length,
-        bibliographicOnlyNodes: bibliographicCorpusNodes.length,
-        noAuthoritativeMatchNodes: unmatchedCorpusNodes.length,
-        lowConfidenceCrossrefRecords: lowConfidenceCrossref.length
-    },
-    requiredFacets,
-    ragCapabilities: [...ragCapabilities.keys()],
-    legacyDetailNodes: 0,
-    speedPath: 'local retrieval + one answer-model request; no live API by default',
-}, null, 2));
+});

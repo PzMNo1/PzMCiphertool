@@ -240,12 +240,6 @@
 
   /**
    * 找这一步要高亮的元素。
-   *
-   * 三个区（经典区/现代区/分析区）各有一个 #mainInput，是**同名 id**，
-   * 而同一时刻只有一个区可见。document.querySelector 只会返回文档里第一个，
-   * 也就是隐藏的经典区那个 —— 它的 rect 是 0×0，于是这一步被判成「找不到目标」，
-   * 引导框退回到屏幕正中间，聚光灯也罩不到任何东西。
-   * 所以这里要挑「真的可见」的那一个。
    */
   function findTarget(selector) {
     const all = Array.from(document.querySelectorAll(selector));
@@ -313,8 +307,6 @@
 
     const panelWidth = Math.min(360, window.innerWidth - pad * 2);
     panelEl.style.width = `${panelWidth}px`;
-    // 读 offsetHeight 会强制一次布局：上面改完聚光灯样式后不强制的话，
-    // 这里量到的还是旧高度，引导框会按旧位置放。
     void panelEl.offsetHeight;
     const panelHeight = panelEl.offsetHeight || 220;
     let top = rect.bottom + 18;

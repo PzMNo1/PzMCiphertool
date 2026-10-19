@@ -245,7 +245,7 @@ async function runZhongwenSearch() {
         const text = window.ZhongwenSearch.render(result);
         output.textContent = text;
         // 结果里的词条可点击复制：把第一个匹配词做成可点区域
-        const first = (text.match(/\n\s{2}([\u4e00-\u9fff]{1,8})\s/g) || [])[1];
+        const first = (text.match(/(?:^|\n)\s{2}([\u4e00-\u9fff]{1,8})\s/) || [])[1];
         output.title = first ? `双击复制「${first}」` : '';
         output.ondblclick = first ? () => copyText(first) : null;
     } catch (err) {
@@ -280,11 +280,9 @@ async function fetchData(query, startParam) {
     let nutrimaticUrl = `https://nutrimatic.org/2024/?q=${encodeURIComponent(query)}&go=Go`;
     if (startParam) nutrimaticUrl += `&start=${startParam}`;
 
-    // 代理顺序：先试不依赖后端的公共代理（快），最后才落到本机后端。
-    //
     // nutrimatic.org 不发 Access-Control-Allow-Origin，浏览器不能直连，必须过代理。
-    // 本机后端那条路最稳（不依赖第三方），但后端没起或没重新编译时它会在
-    // /api/crawler/raw 上耗掉一整轮超时，所以放到最后，并且单独给短超时。
+    // 四个通道同时尝试、谁先返回有效内容就用谁：串行回退时只要排在前面的公共代理
+    // 连不上，每个都要等满 12s，最快的本机后端反而最后才试，单次查询会拖到 20s 以上。
     const apiBase = (window.CIPHERTOOL_API_BASE || 'http://localhost:8080').replace(/\/$/, '');
     const proxies = [
         {
@@ -339,34 +337,37 @@ async function fetchData(query, startParam) {
 
     try {
         let htmlContent = '';
-        let success = false;
+        let winnerName = '';
         let lastError = null;
-        for (const proxy of proxies) {
-            try {
-                console.log(`[WordSearch] 尝试代理: ${proxy.name}`);
-                const targetUrl = proxy.getUrl(nutrimaticUrl);
-                // 每个代理单独限时：一个卡住的代理不该把整次查询拖到底
+        const controllers = [];
+
+        console.log('[WordSearch] 并行尝试代理:', proxies.map(p => p.name).join(' / '));
+        await new Promise((resolve, reject) => {
+            let pending = proxies.length;
+            let settled = false;
+            proxies.forEach(proxy => {
+                const timeout = proxy.timeout || 12000;
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), proxy.timeout || 12000);
-                try {
-                    htmlContent = await proxy.fetch(targetUrl, controller.signal);
-                } finally {
-                    clearTimeout(timer);
-                }
-                if (htmlContent && htmlContent.length > 50) {
-                    success = true;
-                    console.log(`[WordSearch] 代理 ${proxy.name} 连接成功`);
-                    break;
-                }
-                throw new Error('返回内容为空或无效');
-            } catch (err) {
-                const why = err && err.name === 'AbortError' ? `超时（${proxy.timeout || 12000}ms）` : (err && err.message);
-                console.warn(`[WordSearch] 代理 ${proxy.name} 失败:`, why);
-                lastError = new Error(why);
-                continue;
-            }
-        }
-        if (!success) throw new Error(`连接失败，请查看网络 (最后错误: ${lastError?.message})`);
+                controllers.push(controller);
+                const timer = setTimeout(() => controller.abort(), timeout);
+                proxy.fetch(proxy.getUrl(nutrimaticUrl), controller.signal).then(html => {
+                    if (!html || html.length <= 50) throw new Error('返回内容为空或无效');
+                    if (settled) return;
+                    settled = true;
+                    winnerName = proxy.name;
+                    htmlContent = html;
+                    resolve();
+                }).catch(err => {
+                    if (settled) return;
+                    const why = err && err.name === 'AbortError' ? `超时（${timeout}ms）` : (err && err.message);
+                    console.warn(`[WordSearch] 代理 ${proxy.name} 失败:`, why);
+                    lastError = new Error(why);
+                    if (--pending === 0) reject(lastError || new Error('所有代理均失败'));
+                }).finally(() => clearTimeout(timer));
+            });
+        }).finally(() => controllers.forEach(c => c.abort()));
+
+        console.log(`[WordSearch] 代理 ${winnerName} 连接成功`);
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');

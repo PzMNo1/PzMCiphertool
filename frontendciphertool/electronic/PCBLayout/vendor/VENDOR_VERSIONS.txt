@@ -1,0 +1,3 @@
+@tscircuit/runframe 0.0.3001 (standalone.min.js, MIT)
+@tscircuit/eval 0.0.1626 (dist/webworker/entrypoint.js, MIT)
+Patching: INJECT_TSCIRCUIT_EVAL_WEB_WORKER_BLOB_URL -> (globalThis.__PZMA_TSCIRCUIT_EVAL_WORKER_URL__||"./vendor/tscircuit-eval-worker.js")

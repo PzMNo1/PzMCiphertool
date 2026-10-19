@@ -25,7 +25,7 @@ if exist "%PROJECT_ROOT%\.env" (
     )
 )
 if not defined OPENAI_BASE_URL set OPENAI_BASE_URL=https://api.deepseek.com/v1
-REM DeepSeek-V4.1-Flash (official model name: deepseek-flash)
+REM DeepSeek-V4.1-Flash-1017 (official stable API model name: deepseek-flash)
 if not defined OPENAI_MODEL set OPENAI_MODEL=deepseek-flash
 
 REM ============ Portable Environment Override ============

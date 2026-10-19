@@ -41,6 +41,9 @@ public class McpLabResourceService {
     private static final int MAX_IMPORT_RESOURCES = 200;
 
     private static final Set<String> RESOURCE_TYPES = Set.of(
+            "DSH Capability",
+            "MCP Server",
+            "DSH Plugin",
             "MCP Registry",
             "MCP Directory",
             "MCP Documentation",
@@ -50,7 +53,7 @@ public class McpLabResourceService {
             "Plugin Marketplace"
     );
     private static final Set<String> CATEGORIES = Set.of(
-            "mcp", "skill", "prompt", "workflow", "devTools", "dataApis", "security", "automation", "other"
+            "dsh", "mcp", "plugins", "skill", "prompt", "workflow", "devTools", "dataApis", "security", "automation", "other"
     );
     private static final Set<String> SOURCES = Set.of("Official", "Community");
     private static final Set<String> RISKS = Set.of("Low", "Medium");
@@ -112,13 +115,14 @@ public class McpLabResourceService {
         if (!resource.exists()) {
             return;
         }
+        List<String> seedIds = new ArrayList<>();
         try (InputStream stream = resource.getInputStream()) {
             String json = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             JSONArray array = JSON.parseArray(json);
             for (Object value : array) {
                 try {
                     if (value instanceof JSONObject object) {
-                        upsertSeed(toRequest(object));
+                        seedIds.add(upsertSeed(toRequest(object)));
                     }
                 } catch (Exception ignored) {
                     // Keep later seed entries usable if one resource is malformed or temporarily unreachable.
@@ -127,6 +131,33 @@ public class McpLabResourceService {
         } catch (Exception e) {
             // A broken seed file should not block the whole application from booting.
         }
+        pruneStaleSeeds(seedIds);
+    }
+
+    private void pruneStaleSeeds(List<String> seedIds) {
+        String now = now();
+        if (seedIds.isEmpty()) {
+            jdbcTemplate.update(
+                    "update mcp_lab_resources set deleted = true, updated_at = ? where origin = 'seed' and deleted = false",
+                    now
+            );
+            return;
+        }
+        StringBuilder placeholders = new StringBuilder();
+        for (int index = 0; index < seedIds.size(); index++) {
+            if (index > 0) {
+                placeholders.append(',');
+            }
+            placeholders.append('?');
+        }
+        List<Object> args = new ArrayList<>();
+        args.add(now);
+        args.addAll(seedIds);
+        jdbcTemplate.update(
+                "update mcp_lab_resources set deleted = true, updated_at = ? where origin = 'seed' and deleted = false " +
+                        "and id not in (" + placeholders + ")",
+                args.toArray()
+        );
     }
 
     private void ensureSchema() {
@@ -275,12 +306,13 @@ public class McpLabResourceService {
         return candidates;
     }
 
-    private void upsertSeed(McpLabResourceRequest request) {
+    private String upsertSeed(McpLabResourceRequest request) {
         McpLabResource item = normalize(request, "seed");
         if (item.getId().isBlank()) {
             item.setId(slug(item.getName()));
         }
         upsert(item);
+        return item.getId();
     }
 
     private boolean isSeedResource(String id) {

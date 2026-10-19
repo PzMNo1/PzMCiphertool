@@ -6,24 +6,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>世界模型 · World Model Studio</title>
     <link rel="stylesheet" href="./worldmodel.css" />
+  <style>
+    /* 滚动条样式：从 0_zhuyeyangshi.css 复制，iframe 内部文档无法继承父页面样式 */
+    /* ===== 滚动条样式（从 0_zhuyeyangshi.css 复制；iframe 内部文档不会继承父页面样式） ===== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0A192F;
+      border-radius: 4px;
+      box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    }
+    ::-webkit-scrollbar-corner {
+      background: #0A192F;
+    }
+    /* Firefox 标准属性（仅在不支持 ::-webkit-scrollbar 时生效，避免覆盖 Chromium 渐变样式） */
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+      }
+    }
+  </style>
 </head>
 
 <body>
     <div class="wm-shell" id="wm-shell" data-wm-status="booting">
         <div class="wm-notice" id="wm-notice" hidden>
             <span class="wm-notice-text" id="wm-notice-text"></span>
-            <button type="button" class="wm-btn ghost" id="wm-notice-retry">重新检测</button>
+            <button type="button" class="cyber-button wm-cyber" id="wm-notice-retry"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">重新检测</span></button>
         </div>
 
         <div class="wm-body">
             <!-- ============ 左栏：生成 + 作品库 ============ -->
-            <aside class="wm-side">
+            <aside class="wm-side side-panel left-panel" id="wm-side">
+                <div class="wm-side-inner">
                 <section class="wm-card">
                     <h3 class="wm-card-title">生成新世界</h3>
 
                     <div class="wm-modes" role="tablist" aria-label="输入方式">
-                        <button type="button" class="wm-mode on" data-mode="text" role="tab" aria-selected="true">文字生成</button>
-                        <button type="button" class="wm-mode" data-mode="image" role="tab" aria-selected="false">图片生成</button>
+                        <button type="button" class="cyber-button wm-mode on" data-mode="text" role="tab" aria-selected="true"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">文字生成</span></button>
+                        <button type="button" class="cyber-button wm-mode" data-mode="image" role="tab" aria-selected="false"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">图片生成</span></button>
                     </div>
 
                     <div class="wm-field" id="wm-prompt-field">
@@ -45,7 +79,7 @@
                             <img id="wm-image-preview" alt="参考图预览" hidden />
                             <div class="wm-drop-text" id="wm-drop-text">点击或拖入图片（png / jpg / webp，≤ 8MB）</div>
                         </div>
-                        <button type="button" class="wm-btn ghost" id="wm-image-clear" hidden>清除图片</button>
+                        <button type="button" class="cyber-button wm-cyber" id="wm-image-clear" hidden><span class="cyber-button__glitch"></span><span class="cyber-button__tag">清除图片</span></button>
                     </div>
 
                     <div class="wm-field">
@@ -74,7 +108,7 @@
                         </label>
                     </details>
 
-                    <button type="button" class="wm-btn primary" id="wm-generate">生成世界</button>
+                    <button type="button" class="cyber-button wm-cyber" id="wm-generate"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">生成世界</span></button>
 
                     <div class="wm-progress" id="wm-progress" hidden>
                         <div class="wm-progress-head">
@@ -84,7 +118,7 @@
                         <div class="wm-progress-bar"><span id="wm-progress-fill"></span></div>
                         <div class="wm-progress-foot">
                             <span id="wm-progress-hint">世界生成通常需要 5 分钟左右，可以先去干别的。</span>
-                            <button type="button" class="wm-btn ghost tiny" id="wm-cancel">取消等待</button>
+                            <button type="button" class="cyber-button wm-cyber wm-cyber--tiny" id="wm-cancel"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">取消等待</span></button>
                         </div>
                     </div>
                 </section>
@@ -92,20 +126,22 @@
                 <section class="wm-card wm-grow">
                     <div class="wm-card-head">
                         <h3 class="wm-card-title">作品库</h3>
-                        <button type="button" class="wm-btn ghost tiny" id="wm-refresh">刷新</button>
+                        <button type="button" class="cyber-button wm-cyber wm-cyber--tiny" id="wm-refresh"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">刷新</span></button>
                     </div>
                     <div class="wm-list" id="wm-list">
                         <div class="wm-empty">还没有作品。左边写一句场景描述，试试生成第一个世界。</div>
                     </div>
                 </section>
+                </div>
+                <button type="button" class="wm-panel-toggle panel-toggle" id="wm-side-toggle" aria-label="收起侧边栏" aria-expanded="true">&#8249;</button>
             </aside>
 
             <!-- ============ 右栏：视口 ============ -->
             <main class="wm-stage">
                 <div class="wm-stage-head">
                     <div class="wm-stage-tabs" role="tablist" aria-label="视口模式">
-                        <button type="button" class="wm-stage-tab on" data-view="splat" role="tab" aria-selected="true">高斯溅射 3D</button>
-                        <button type="button" class="wm-stage-tab" data-view="pano" role="tab" aria-selected="false">全景图</button>
+                        <button type="button" class="cyber-button wm-stage-tab on" data-view="splat" role="tab" aria-selected="true"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">高斯溅射 3D</span></button>
+                        <button type="button" class="cyber-button wm-stage-tab" data-view="pano" role="tab" aria-selected="false"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">全景图</span></button>
                     </div>
                     <div class="wm-stage-title" id="wm-stage-title">未选择作品</div>
                     <div class="wm-stage-actions" id="wm-stage-actions"></div>

@@ -65,29 +65,18 @@
 }
 
 .modelinglab-tab {
-  appearance: none;
-  cursor: pointer;
-  padding: 5px 14px;
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: var(--text, #dbeaf3);
-  border: 1px solid rgba(64, 224, 255, 0.22);
-  border-radius: 3px;
-  background: rgba(9, 22, 32, 0.85);
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  flex: 0 0 auto;
+  min-width: 112px;
+  padding: 0.5rem 1rem;
   font-family: inherit;
-}
-
-.modelinglab-tab:hover {
-  background: rgba(64, 224, 255, 0.16);
-  border-color: #40e0ff;
+  letter-spacing: 1px;
 }
 
 .modelinglab-tab.active {
-  border-color: rgba(0, 255, 136, 0.6);
-  color: #e6fff4;
-  background: linear-gradient(120deg, rgba(0, 110, 75, 0.5), rgba(8, 30, 24, 0.9));
-  box-shadow: inset 0 0 12px rgba(0, 255, 136, 0.14);
+  color: #ffffff;
+  border-color: var(--secondary-clr);
+  text-shadow: 0 0 4px #ffffff;
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
 }
 
 .modelinglab-hint {

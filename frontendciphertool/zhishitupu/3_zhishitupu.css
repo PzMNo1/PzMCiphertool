@@ -340,7 +340,7 @@
     position: absolute;
     top: 88px;
     right: 20px;
-    width: min(560px, calc(100vw - 40px));
+    width: min(600px, calc(100vw - 40px));
     max-height: calc(100vh - 130px);
     display: none;
     flex-direction: column;
@@ -411,10 +411,28 @@
 }
 
 .zstp-preview-body {
-    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 16px 18px 18px;
     font-size: 0.88rem;
     line-height: 1.55;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(64, 224, 255, 0.45) rgba(64, 224, 255, 0.06);
+}
+
+.zstp-preview-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.zstp-preview-body::-webkit-scrollbar-thumb {
+    background: rgba(64, 224, 255, 0.38);
+    border-radius: 8px;
+}
+
+.zstp-preview-body::-webkit-scrollbar-track {
+    background: rgba(64, 224, 255, 0.05);
 }
 
 .zstp-preview-body pre {
@@ -698,13 +716,18 @@
 }
 
 .zstp-world-prose {
-    margin: 0;
+    margin: 0 0 8px;
     padding: 10px 12px;
     font-size: 0.82rem;
     line-height: 1.65;
     color: rgba(224, 255, 255, 0.88);
     background: rgba(0, 229, 255, 0.04);
     border-left: 2px solid rgba(0, 229, 255, 0.35);
+    white-space: pre-line;
+}
+
+.zstp-world-prose:last-of-type {
+    margin-bottom: 0;
 }
 
 .zstp-world-note,

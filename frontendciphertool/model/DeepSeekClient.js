@@ -621,17 +621,19 @@ function resolveBackendChatUrl() {
     return `${base}/api/chat/completions`;
 }
 
-// DeepSeek-V4.1-Flash 的正式模型名（旧版 deepseek-v4-flash 已下线并路由到该模型）。
+// DeepSeek-V4.1-Flash-1017 通过官方稳定 API 模型名 deepseek-flash 提供服务。
 const DEEPSEEK_DEFAULT_MODEL = 'deepseek-flash';
 
 function normalizeDeepSeekModel(model) {
     const normalized = String(model || '').trim();
     if (normalized === 'deepseek-flash' || normalized === 'deepseek-v4-pro') return normalized;
-    // 旧版 v4 flash 名称（含历史 localStorage/config 残留）统一归一到 V4.1 Flash。
+    // 历史模型名及版本号写法统一归一到 V4.1-Flash-1017 的稳定模型名。
     if (normalized === 'deepseek-v4-flash'
         || normalized === 'deepseek-v4-flash-vision-exp'
         || normalized === 'deepseek-v4.1-flash'
         || normalized === 'deepseek-v4-1-flash'
+        || normalized === 'deepseek-v4.1-flash-1017'
+        || normalized === 'deepseek-v4-1-flash-1017'
         || normalized === 'deepseek-v4.1'
         || normalized === 'deepseekv4.1'
         || normalized === 'deepseekv4'

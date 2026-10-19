@@ -15,7 +15,7 @@
 
     window.CIPHERTOOL_API_BASE = isLocal
         ? 'http://localhost:8080'
-        : 'https://waiw.ozqmp.com';
+        : 'https://www.paomian233.com';
 
     // 模型配置外部化：优先用户 localStorage 设置，未设置时回退默认值。
     var savedModel = '';
@@ -24,7 +24,7 @@
     } catch (e) {
         savedModel = '';
     }
-    // DeepSeek-V4.1-Flash（正式模型名 deepseek-flash）：优先用户 localStorage 设置，未设置时回退默认值。
+    // DeepSeek-V4.1-Flash-1017（官方稳定 API 模型名 deepseek-flash）：优先用户 localStorage 设置，未设置时回退默认值。
     var model = savedModel || 'deepseek-flash';
 
     window.DEEPSEEK_CONFIG = Object.assign({}, window.DEEPSEEK_CONFIG || {}, {

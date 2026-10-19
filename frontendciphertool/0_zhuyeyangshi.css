@@ -721,7 +721,8 @@ textarea {
 }
 
 #jiamishiyanshi-content,
-#yijianfankui-content {
+#yijianfankui-content,
+#mcpskilllab-content {
   --cipher-lab-nav-fixed-top: 132px;
   --cipher-lab-input-sticky-top: 10px;
   width: 100%;
@@ -744,7 +745,7 @@ textarea {
   margin-bottom: 2rem;
 }
 
-.cipher-lab-console-layout {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-layout {
   display: grid;
   grid-template-columns: 184px minmax(0, 1fr);
   align-items: start;
@@ -752,17 +753,17 @@ textarea {
   padding-top: .75rem;
 }
 
-.cipher-lab-console-main {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-main {
   grid-column: 2;
   min-width: 0;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-panel-stack {
   min-width: 0;
   overflow: visible;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack>.submodule {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-panel-stack>.submodule {
   display: none;
   width: 100%;
   min-height: auto;
@@ -770,7 +771,7 @@ textarea {
   overflow: visible;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-panel-stack>.submodule.active {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-panel-stack>.submodule.active {
   display: block;
 }
 
@@ -780,7 +781,7 @@ textarea {
   padding-top: 0 !important;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav {
   position: fixed;
   top: 104px !important;
   left: 24px;
@@ -796,7 +797,7 @@ textarea {
   z-index: 35;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn {
   position: relative;
   height: 60px;
   width: 100%;
@@ -824,7 +825,7 @@ textarea {
   box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::after {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn::after {
   counter-increment: logic-counter;
   content: "NO." counter(logic-counter, decimal-leading-zero);
   position: absolute;
@@ -837,7 +838,7 @@ textarea {
   transition: all 0.3s ease;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::before {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -850,7 +851,7 @@ textarea {
   opacity: 0.6;
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:hover {
   transform: translateY(-5px) scale(1.02);
   background: rgba(64, 224, 255, 0.1);
   border-color: rgba(64, 224, 255, 0.6);
@@ -861,7 +862,7 @@ textarea {
     inset 0 0 20px rgba(64, 224, 255, 0.15);
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover::before {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:hover::before {
   width: 100%;
   height: 95%;
   border-color: #fff;
@@ -869,12 +870,12 @@ textarea {
   box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:active {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:active {
   transform: scale(0.98);
   border-color: var(--primary);
 }
 
-:is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn.active {
+:is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn.active {
   background: rgba(64, 224, 255, 0.14);
   border-color: rgba(64, 224, 255, 0.72);
   color: #fff;
@@ -893,16 +894,16 @@ textarea {
     padding: 1.4rem .6rem 9.5rem;
   }
 
-  .cipher-lab-console-layout {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-layout {
     grid-template-columns: 1fr;
     padding-top: .25rem;
   }
 
-  .cipher-lab-console-main {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-main {
     grid-column: 1;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav {
     position: fixed;
     top: auto !important;
     left: 50%;
@@ -926,7 +927,7 @@ textarea {
     z-index: 900;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn {
     --dial-y: 0px;
     --dial-r: 0deg;
     flex: 0 0 clamp(52px, 15vw, 60px);
@@ -948,26 +949,26 @@ textarea {
     pointer-events: auto;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(1) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(1) {
     --dial-y: 14px;
     --dial-r: -15deg;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(2) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(2) {
     --dial-y: 4px;
     --dial-r: -8deg;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(3) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(3) {
     --dial-y: -4px;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(4) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(4) {
     --dial-y: 4px;
     --dial-r: 8deg;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:nth-child(5) {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(5) {
     --dial-y: 14px;
     --dial-r: 15deg;
   }
@@ -992,7 +993,7 @@ textarea {
     --dial-r: 12deg;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::before {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn::before {
     inset: 7px;
     width: auto;
     height: auto;
@@ -1002,7 +1003,7 @@ textarea {
     box-shadow: none;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn::after {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn::after {
     right: auto;
     left: 50%;
     bottom: 6px;
@@ -1016,22 +1017,22 @@ textarea {
     transform: translateX(-50%);
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:hover {
     transform: translateY(calc(var(--dial-y) - 4px)) rotate(var(--dial-r)) scale(1.04);
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:hover::before {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:hover::before {
     width: auto;
     height: auto;
     border-color: rgba(255, 255, 255, .6);
     box-shadow: none;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn:active {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:active {
     transform: translateY(var(--dial-y)) rotate(var(--dial-r)) scale(.96);
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn.active {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn.active {
     transform: translateY(calc(var(--dial-y) - 6px)) rotate(var(--dial-r)) scale(1.06);
   }
 }
@@ -1047,17 +1048,73 @@ textarea {
 }
 
 @media (max-width: 430px) {
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav {
     width: min(96vw, 350px);
     gap: .16rem;
     padding-inline: .45rem;
   }
 
-  :is(#jiamishiyanshi-content, #yijianfankui-content) .cipher-lab-console-nav .submodule-btn {
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn {
     flex-basis: clamp(48px, 16vw, 56px);
     width: clamp(48px, 16vw, 56px);
     height: clamp(48px, 16vw, 56px);
     font-size: .68rem;
+  }
+}
+
+/* Skill / MCP 实验室：子模块切换沿用加密实验室的控制台导航，仅补充分类数量带来的排布差异 */
+#mcpskilllab-content .cipher-lab-console-nav .submodule-btn::after {
+  content: attr(data-count);
+}
+
+#mcpskilllab-content .cipher-lab-console-nav .submodule-btn.active::after {
+  color: rgba(64, 224, 255, 0.72);
+}
+
+@media (min-width: 1101px) and (max-height: 800px) {
+  #mcpskilllab-content .cipher-lab-console-nav {
+    max-height: calc(100vh - 120px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  #mcpskilllab-content .cipher-lab-console-nav::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  #mcpskilllab-content .cipher-lab-console-nav {
+    width: min(96vw, 560px);
+    justify-content: flex-start;
+    gap: clamp(.22rem, 1.2vw, .55rem);
+    padding: .95rem .8rem .9rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  #mcpskilllab-content .cipher-lab-console-nav::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  #mcpskilllab-content .cipher-lab-console-nav .submodule-btn {
+    font-size: clamp(.56rem, 2.2vw, .72rem);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 430px) {
+  #mcpskilllab-content .cipher-lab-console-nav {
+    width: min(96vw, 364px);
+    padding-inline: .7rem;
   }
 }
 

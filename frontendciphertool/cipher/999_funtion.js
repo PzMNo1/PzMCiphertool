@@ -20,7 +20,7 @@ let updateAllQueued = false;
 const cipherCardDefs = [];
 (function adoptBufferedCards() {
     (window.CIPHER_CARD_DEFS || []).forEach(def => cipherCardDefs.push(def));
-    window.CIPHER_CARD_DEFS = cipherCardDefs;   
+    window.CIPHER_CARD_DEFS = cipherCardDefs;
 })();
 
 function registerCipherCard(def) {
@@ -127,7 +127,23 @@ function mountCipherCards() {
         }
 
         list.forEach(def => {
-            if (document.querySelector(`.card[data-card-id="${def.id}"]`)) return; // 幂等
+            // ① 已挂载过（带 data-card-id）的直接跳过
+            if (document.querySelector(`.card[data-card-id="${def.id}"]`)) return;
+
+            // ② 关键新增：按 badge 文字找静态 HTML 卡片，命中就复用，不再创建新卡
+            const existingByBadge = Array.from(host.querySelectorAll('.card')).find(c => {
+                const b = c.querySelector('.badge');
+                if (!b) return false;
+                const text = b.textContent.replace(/\s+/g, ' ').trim();
+                return text === def.badge;
+            });
+            if (existingByBadge) {
+                existingByBadge.dataset.card = def.id;
+                existingByBadge.dataset.cardId = def.id;
+                existingByBadge.dataset.section = sectionId;
+                if (def.needsMainInput === false) existingByBadge.dataset.ownOutput = '1';
+                return;   // 复用静态卡，不创建新卡
+            }
 
             const card = document.createElement('div');
             card.className = 'card';
@@ -139,11 +155,12 @@ function mountCipherCards() {
             if (def.resultId && !card.querySelector(`#${def.resultId}`)) {
                 card.insertAdjacentHTML('beforeend', `<div class="result" id="${def.resultId}"></div>`);
             }
+
             const refCard = def.afterBadge
                 ? Array.from(host.querySelectorAll('.card')).find(c => {
                     const b = c.querySelector('.badge');
                     return b && b.textContent.replace(/\s+/g, ' ').trim().startsWith(def.afterBadge);
-                  })
+                })
                 : null;
             const node = refCard || host.querySelector('.card.main-input');
             if (node) {
@@ -227,7 +244,7 @@ async function runScheduledUpdateAll() {
     }
 }
 
-async function updateAll(){
+async function updateAll() {
     if (!isCipherLabVisible()) return;
     const activeSubmodule = getActiveCipherSubmodule();
     const updateClassic = activeSubmodule === 'mimaqu';
@@ -238,8 +255,8 @@ async function updateAll(){
     const symbolCipherText = cipherValue('symbolCipherInput');
     const symbolCipherType = cipherValue('symbolCipherType', 'pigpen');
     const symbolCipher = symbolCipherType === 'dancingMen' ? DancingMenCipher : PigpenCipher;
-    if(!t && !symbolCipherText){clearCipherResults(); return;}
-    if(!t){
+    if (!t && !symbolCipherText) { clearCipherResults(); return; }
+    if (!t) {
         clearCipherResults();
         if (updateClassic && symbolCipherText) setSymbolCipherResult(symbolCipher, symbolCipherText);
         return;
@@ -253,12 +270,12 @@ async function updateAll(){
         let r = parseInt(cipherValue('railCount'), 10);
         let railKey = cipherValue('railKey', 'BALLOON') || 'BALLOON';
         let railVariant = cipherValue('railVariant', 'railFence') || 'railFence';
-        let caesarText = `加密: ${Caesar.e(t,s)}\n解密: ${Caesar.d(t,s)}`;
+        let caesarText = `加密: ${Caesar.e(t, s)}\n解密: ${Caesar.d(t, s)}`;
         if (window.caesarShowAll) {
             caesarText += `\n\n一键枚举:\n${Caesar.brute(t)}`;
         }
         setCipherText('caesarResult', caesarText);
-        setCipherText('vigenereResult', Vigenere.process(t,k,vigenereVariant));
+        setCipherText('vigenereResult', Vigenere.process(t, k, vigenereVariant));
         setCipherText('railResult', TranspositionVariants.process(t, r, railKey, railVariant));
         setCipherText('atbashResult', `解密: ${AtBash.e(t)}`);
 
@@ -317,8 +334,8 @@ async function updateAll(){
         setCipherText('PolybiusResult', PolybiusVariants.process(t, polybiusVariant, psAlpha, psRows, psColumns, polybiusKeyA, polybiusKeyB, polybiusPeriod));
         setCipherText('playfairResult', `加密: ${PlayfairCipher.e(t, playfairKey)}\n解密: ${PlayfairCipher.d(t, playfairKey)}`);
         setCipherText('ADFGXResult', `加密: ${ADFGXCipher.ect(t, alp, afK, aCi)}\n解密: ${ADFGXCipher.dpt(t, alp, afK, aCi)}`);
-        setCipherText('AffineResult', `加密: ${Affine.e(t,alpha,a,b)}\n解密: ${Affine.d(t,alpha,a,b)}`);
-        setCipherText('tapCodeResult', `加密: ${TapCode.e(t,tm,gm,lm)}\n解密: ${TapCode.d(t,tm,gm,lm)}`);
+        setCipherText('AffineResult', `加密: ${Affine.e(t, alpha, a, b)}\n解密: ${Affine.d(t, alpha, a, b)}`);
+        setCipherText('tapCodeResult', `加密: ${TapCode.e(t, tm, gm, lm)}\n解密: ${TapCode.d(t, tm, gm, lm)}`);
         let bk = cipherValue('BifidCipherkey');
         setCipherText('BifidCipherResult', `加密: ${Bifid.e(t, bk)}\n解密: ${Bifid.d(t, bk)}`);
         const baseOutputType = cipherValue('baseOutputType');
@@ -348,7 +365,7 @@ async function updateAll(){
         setCipherText('MD5Result', `MD5结果: ${MD5Cipher.e(t)}\nHMAC结果: ${MD5Cipher.hmac(md5k, t)}`);
         setCipherText('SHA1Result', `结果: ${await SHA1Cipher.e(t)}` + (sha1Key?.trim() ? `\nHMAC结果: ${await SHA1Cipher.hmac(sha1Key, t)}` : ''));
         setCipherText('SHA256Result', `结果: ${await SHA256Cipher.e(t)}` + (sha256Key?.trim() ? `\nHMAC结果: ${await SHA256Cipher.hmac(sha256Key, t)}` : ''));
-        setCipherText('SHA384Result',  `结果: ${await SHA384Cipher.e(t)}` + (sha384Key?.trim() ? `\nHMAC结果: ${await SHA384Cipher.hmac(sha384Key, t)}` : ''));
+        setCipherText('SHA384Result', `结果: ${await SHA384Cipher.e(t)}` + (sha384Key?.trim() ? `\nHMAC结果: ${await SHA384Cipher.hmac(sha384Key, t)}` : ''));
         setCipherText('SHA512Result', `结果: ${await SHA512Cipher.e(t)}` + (sha512Key?.trim() ? `\nHMAC结果: ${await SHA512Cipher.hmac(sha512Key, t)}` : ''));
     }
 }
@@ -367,7 +384,8 @@ sharedInputs.forEach(el => {
 
 document
     .querySelectorAll('#mimaqu input:not(.quick-nav-input), #mimaqu textarea, #mimaqu select, #xiandaiqu input, #xiandaiqu textarea, #xiandaiqu select, #fenxiqu #mainInput, #workflow-content #mainInputCoze')
-    .forEach(el => {        el.addEventListener('input', scheduleUpdateAll);
+    .forEach(el => {
+        el.addEventListener('input', scheduleUpdateAll);
         el.addEventListener('change', scheduleUpdateAll);
     });
 

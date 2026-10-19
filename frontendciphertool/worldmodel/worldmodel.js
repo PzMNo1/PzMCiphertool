@@ -70,6 +70,34 @@
 
         bindImageInput();
         bindHostCommands();
+
+        const sidePanel = document.getElementById('wm-side');
+        const sideToggle = document.getElementById('wm-side-toggle');
+        if (sidePanel && sideToggle) {
+            const setSideCollapsed = collapsed => {
+                sidePanel.classList.toggle('collapsed', collapsed);
+                sideToggle.textContent = collapsed ? String.fromCharCode(8250) : String.fromCharCode(8249);
+                sideToggle.setAttribute('aria-expanded', String(!collapsed));
+                sideToggle.setAttribute('aria-label', collapsed ? '展开侧边栏' : '收起侧边栏');
+            };
+            sideToggle.addEventListener('click', () => {
+                setSideCollapsed(!sidePanel.classList.contains('collapsed'));
+            });
+        }
+
+        // 侧栏从 stage 工具栏下方开始，避免挡住「高斯溅射 3D / 全景图」等切换按钮。
+        const stage = document.querySelector('.wm-stage');
+        const stageHead = document.querySelector('.wm-stage-head');
+        if (sidePanel && stage && stageHead) {
+            const syncSideTop = () => {
+                sidePanel.style.top = (stage.offsetTop + stage.clientTop + stageHead.offsetHeight) + 'px';
+            };
+            if (window.ResizeObserver) {
+                new ResizeObserver(syncSideTop).observe(stageHead);
+            }
+            window.addEventListener('resize', syncSideTop);
+            syncSideTop();
+        }
     }
 
     /**
@@ -284,7 +312,12 @@
     function setGenerating(on) {
         const button = $('wm-generate');
         button.disabled = on;
-        button.textContent = on ? '提交中…' : '生成世界';
+        const tag = button.querySelector('.cyber-button__tag');
+        if (tag) {
+            tag.textContent = on ? '提交中…' : '生成世界';
+        } else {
+            button.textContent = on ? '提交中…' : '生成世界';
+        }
     }
 
     function startProgress(text) {
@@ -580,15 +613,20 @@
             box.appendChild(button('下载 SPZ', () => download(splatUrl, safeName(world) + '.spz')));
         }
         box.appendChild(button('进入建模编辑器', () => openEditor()));
-        box.appendChild(button('删除', () => removeWorld(world), true));
+        box.appendChild(button('删除', () => removeWorld(world)));
     }
 
-    function button(label, onClick, danger) {
+    function button(label, onClick) {
         const el = document.createElement('button');
         el.type = 'button';
-        el.className = 'wm-btn ghost tiny';
-        el.textContent = label;
-        if (danger) el.style.borderColor = 'rgba(255,120,120,.35)';
+        el.className = 'cyber-button wm-cyber wm-cyber--tiny';
+        const glitch = document.createElement('span');
+        glitch.className = 'cyber-button__glitch';
+        const tag = document.createElement('span');
+        tag.className = 'cyber-button__tag';
+        tag.textContent = label;
+        el.appendChild(glitch);
+        el.appendChild(tag);
         el.addEventListener('click', event => {
             event.stopPropagation();
             onClick();

@@ -61,6 +61,11 @@ async function initKnowledgeGraph() {
     }
 
     try {
+        if (window.WORLD_CORPUS_READY) {
+            if (loader) loader.innerText = '正在加载本地 Wikipedia 正文...';
+            await window.WORLD_CORPUS_READY;
+            if (loader) loader.innerText = '正在装配世界知识图谱...';
+        }
         if (!document.getElementById('sci-fi-font')) {
             const fontLink = document.createElement('link');
             fontLink.id = 'sci-fi-font';
@@ -91,14 +96,309 @@ async function initKnowledgeGraph() {
 
     } catch (error) {
         console.error('知识图谱初始化失败:', error);
-        if(loader) loader.innerText = "网络连接失败，无法加载 3D 组件";
+        if(loader) loader.innerText = `知识图谱加载失败：${error.message || '未知错误'}`;
     }
 }
 
 
+// 与 WebGL 渲染解耦的本地世界知识检索入口。
+// Agentmaster 在用户没有打开知识图谱页面时也能直接调用；索引只读本地数据。
+function getStaticWorldStore() {
+    return typeof window !== 'undefined' ? window.WORLD_KNOWLEDGE_GRAPH || null : null;
+}
+
+function staticFindWorldNode(value) {
+    const store = getStaticWorldStore();
+    if (!store || !value) return null;
+    const raw = String(value).trim();
+    const needle = raw.toLowerCase();
+    const nodes = store.nodes || [];
+    return nodes.find(node => node.id === raw) ||
+        nodes.find(node => String(node.name).toLowerCase() === needle || String(node.nameEn || '').toLowerCase() === needle) ||
+        nodes.find(node => (node.aliases || []).some(alias => String(alias).toLowerCase() === needle)) ||
+        nodes.find(node => node.kind !== 'category' && (String(node.name).includes(raw) || raw.includes(String(node.name)))) ||
+        null;
+}
+
+function staticWorldGraphContext(node) {
+    const store = getStaticWorldStore();
+    if (!store || !node) return { path: [], parent: null, children: [], siblings: [], nodeCount: 0, linkCount: 0 };
+    const nodes = store.nodes || [];
+    const edges = store.edges || [];
+    const byId = new Map(nodes.map(item => [item.id, item]));
+    const displayName = item => item.kind === 'category' ? (item.nameZh && item.nameEn ? item.name : (item.nameZh || item.name)) : item.name;
+    const parentEdge = edges.find(edge => edge.type === 'section_contains' && edge.target === node.id);
+    const parent = parentEdge ? byId.get(parentEdge.source) || null : null;
+    const children = edges
+        .filter(edge => edge.type === 'section_contains' && edge.source === node.id)
+        .map(edge => byId.get(edge.target))
+        .filter(Boolean);
+    const siblings = parent
+        ? edges
+            .filter(edge => edge.type === 'section_contains' && edge.source === parent.id && edge.target !== node.id)
+            .map(edge => byId.get(edge.target))
+            .filter(Boolean)
+        : [];
+    const path = [];
+    let cursor = node;
+    const seen = new Set();
+    while (cursor && !seen.has(cursor.id)) {
+        seen.add(cursor.id);
+        path.unshift(displayName(cursor));
+        const edge = edges.find(item => item.type === 'section_contains' && item.target === cursor.id);
+        cursor = edge ? byId.get(edge.source) : null;
+    }
+    return { path, parent, children, siblings, nodeCount: nodes.length, linkCount: edges.length };
+}
+
+function staticWorldRecord(match) {
+    return {
+        type: 'world-corpus-chunk',
+        id: match.chunkId,
+        title: `${match.title}${match.heading ? ` · ${match.heading}` : ' · 导言'}`,
+        content: match.text,
+        snippet: match.snippet,
+        source: 'Wikipedia',
+        url: match.url,
+        citation: match.citation,
+        evidenceLevel: 'encyclopedia-verbatim',
+        evidenceUsability: 'claim-supporting',
+        nodeId: match.nodeId,
+        nodeName: match.nodeName,
+        qid: match.qid,
+        heading: match.heading,
+        lang: match.lang,
+        retrievalScore: match.score,
+        score: match.score
+    };
+}
+
+async function staticRetrieveKnowledge({ nodeName, query, topK } = {}) {
+    if (typeof window !== 'undefined' && window.WORLD_CORPUS_READY) {
+        await window.WORLD_CORPUS_READY;
+    }
+    const rag = typeof window !== 'undefined' ? window.WORLD_RAG : null;
+    if (!rag || typeof rag.search !== 'function') {
+        return { error: 'world_rag_unavailable', query: query || nodeName || '', message: '本地世界知识检索器未加载。' };
+    }
+    const limit = Number.isFinite(topK) ? Math.max(1, Math.min(24, topK)) : 8;
+    const target = staticFindWorldNode(nodeName) || staticFindWorldNode(query);
+    const searchQuery = [target?.name, query].filter(Boolean).join(' ').trim() || query || nodeName || '';
+    const result = rag.search(searchQuery, { topK: limit, graphExpand: true });
+    const context = staticWorldGraphContext(target);
+    return {
+        node: target ? {
+            id: target.id, name: target.name, qid: target.qid || '', source: 'Wikipedia · Wikidata',
+            section: target.section || '', knowledgeBaseCount: 0
+        } : {
+            id: '', name: result.seeds[0]?.name || '世界知识库', qid: result.seeds[0]?.qid || '',
+            source: 'Wikipedia · Wikidata', section: '', knowledgeBaseCount: 0
+        },
+        profile: {
+            query: searchQuery,
+            primaryTerm: target?.nameEn || target?.name || searchQuery,
+            graphPath: context.path.join(' > ')
+        },
+        graph: {
+            path: context.path,
+            parent: context.parent ? (context.parent.kind === 'category' ? (context.parent.nameZh && context.parent.nameEn ? context.parent.name : (context.parent.nameZh || context.parent.name)) : context.parent.name) : '',
+            children: context.children.slice(0, 16).map(item => item.kind === 'category' ? (item.nameZh && item.nameEn ? item.name : (item.nameZh || item.name)) : item.name),
+            siblings: context.siblings.slice(0, 16).map(item => item.kind === 'category' ? (item.nameZh && item.nameEn ? item.name : (item.nameZh || item.name)) : item.name),
+            nodeCount: context.nodeCount,
+            linkCount: context.linkCount
+        },
+        seeds: result.seeds,
+        localRecords: result.matches.map(staticWorldRecord).slice(0, limit),
+        externalRecords: [],
+        evidenceGraph: result.evidenceGraph,
+        retrievalPolicy: [
+            '只检索本地 Wikipedia 原文语料。',
+            '每条记录带标题、URL、revision 与 CC BY-SA 4.0 许可。',
+            'Wikidata 声明仅用于实体关系和消歧。'
+        ],
+        diagnostics: result.diagnostics,
+        mode: 'local-corpus'
+    };
+}
+
+async function staticSearchWorldKnowledge(query, options = {}) {
+    if (typeof window !== 'undefined' && window.WORLD_CORPUS_READY) {
+        await window.WORLD_CORPUS_READY;
+    }
+    const rag = typeof window !== 'undefined' ? window.WORLD_RAG : null;
+    if (!rag || typeof rag.search !== 'function') {
+        return {
+            query: String(query || ''),
+            matches: [],
+            localRecords: [],
+            seeds: [],
+            evidenceGraph: { nodes: [], edges: [], stats: { topics: 0, evidence: 0, claims: 0 } },
+            diagnostics: { error: 'world-rag-unavailable' }
+        };
+    }
+    const result = rag.search(query, {
+        topK: Math.max(1, Math.min(24, Number(options.topK) || 8)),
+        graphExpand: options.graphExpand !== false
+    });
+    return { ...result, localRecords: result.matches.map(staticWorldRecord) };
+}
+
+if (typeof window !== 'undefined') {
+    window.ZSTP = window.ZSTP || {};
+    Object.assign(window.ZSTP, {
+        retrieveKnowledge: staticRetrieveKnowledge,
+        searchWorldKnowledge: staticSearchWorldKnowledge,
+        ragStats: () => window.WORLD_RAG?.stats() || null,
+        worldGraphStats: () => window.WORLD_KNOWLEDGE_GRAPH?.meta || { ready: false }
+    });
+}
+
+
 // 纯布局函数：只依赖入参 data，无 DOM / three.js 依赖，可被 Node 侧 audit 直接调用。
+const SIX_AXES = [
+    { key: '+x', d: { x: 1, y: 0, z: 0 }, u: { x: 0, y: 0, z: 1 }, v: { x: 0, y: 1, z: 0 } },
+    { key: '-x', d: { x: -1, y: 0, z: 0 }, u: { x: 0, y: 0, z: -1 }, v: { x: 0, y: 1, z: 0 } },
+    { key: '+y', d: { x: 0, y: 1, z: 0 }, u: { x: 1, y: 0, z: 0 }, v: { x: 0, y: 0, z: 1 } },
+    { key: '-y', d: { x: 0, y: -1, z: 0 }, u: { x: 1, y: 0, z: 0 }, v: { x: 0, y: 0, z: -1 } },
+    { key: '+z', d: { x: 0, y: 0, z: 1 }, u: { x: 1, y: 0, z: 0 }, v: { x: 0, y: 1, z: 0 } },
+    { key: '-z', d: { x: 0, y: 0, z: -1 }, u: { x: -1, y: 0, z: 0 }, v: { x: 0, y: 1, z: 0 } }
+];
+const SIX_AXIS_BY_ROOT = {
+    '自然科学 Natural sciences': '+x',
+    '技术工程 Technology and engineering': '-x',
+    '生命健康 Life and health': '+y',
+    '人类社会 Human society': '-y',
+    '人文艺术 Humanities and arts': '+z',
+    '地球地理 Earth and geography': '-z'
+};
+
+function applySixDirectionLayout(data) {
+    const nodes = data?.nodes || [];
+    const links = data?.links || [];
+    const nodeById = new Map(nodes.map(node => [node.id, node]));
+    const childrenById = new Map(nodes.map(node => [node.id, []]));
+    const parentById = new Map();
+    links.forEach(link => {
+        if (link.__hierarchy === false) return;
+        const sourceId = typeof link.source === 'object' ? link.source?.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target?.id : link.target;
+        if (!sourceId || !targetId || !nodeById.has(sourceId) || !nodeById.has(targetId)) return;
+        if (parentById.has(targetId) || sourceId === targetId) return;
+        parentById.set(targetId, sourceId);
+        childrenById.get(sourceId).push(nodeById.get(targetId));
+    });
+    const center = nodes.find(node => node.center) || nodes.find(node => !parentById.has(node.id));
+    if (!center) return data;
+    const axisRoots = childrenById.get(center.id) || [];
+    const weightCache = new Map();
+    const weight = node => {
+        if (weightCache.has(node.id)) return weightCache.get(node.id);
+        const children = childrenById.get(node.id) || [];
+        const value = children.length ? children.reduce((sum, child) => sum + weight(child), 0) : 1;
+        weightCache.set(node.id, value);
+        return value;
+    };
+    const rootDistance = 320;
+    const depthGap = 160;
+    const halfTile = 360;
+    let maxRadius = 0;
+
+    setNode(center, 0, 0, 0, 0, center.id, '', SIX_AXES[0], 0, '');
+
+    const usedAxes = new Set();
+    axisRoots.forEach((root, index) => {
+        const wanted = SIX_AXIS_BY_ROOT[root.name];
+        let axis = SIX_AXES.find(item => item.key === wanted && !usedAxes.has(item.key));
+        if (!axis) axis = SIX_AXES.find(item => !usedAxes.has(item.key)) || SIX_AXES[index % SIX_AXES.length];
+        usedAxes.add(axis.key);
+        root.__layoutAxis = axis.key;
+        root.__layoutContinentId = root.id;
+        setNode(root, axis.d.x * rootDistance, axis.d.y * rootDistance, axis.d.z * rootDistance, 1, root.id, center.id, axis, index, root.id);
+        const children = childrenById.get(root.id) || [];
+        if (!children.length) return;
+        const rects = partitionRect(
+            { u0: -halfTile, u1: halfTile, v0: -halfTile, v1: halfTile },
+            children.map(child => weight(child))
+        );
+        children.forEach((child, childIndex) => {
+            placeFaceNode(child, rects[childIndex], axis, 2, root.id, root.id, childIndex);
+        });
+    });
+
+    const strayNodes = nodes.filter(node => !Number.isFinite(node.__layoutX));
+    strayNodes.forEach((node, index) => {
+        const axis = SIX_AXES[index % SIX_AXES.length];
+        const distance = rootDistance + depthGap * 4;
+        setNode(node, axis.d.x * distance, axis.d.y * distance, axis.d.z * distance, 2, center.id, center.id, axis, index, center.id);
+    });
+
+    data.__layoutRadius = Math.round(maxRadius);
+    data.__layoutMode = 'six-direction';
+    return data;
+
+    function placeFaceNode(node, rect, axis, depth, rootId, continentId, orderIndex) {
+        const along = rootDistance + (depth - 1) * depthGap;
+        const u = (rect.u0 + rect.u1) / 2;
+        const v = (rect.v0 + rect.v1) / 2;
+        const x = axis.d.x * along + axis.u.x * u + axis.v.x * v;
+        const y = axis.d.y * along + axis.u.y * u + axis.v.y * v;
+        const z = axis.d.z * along + axis.u.z * u + axis.v.z * v;
+        node.__layoutAxis = axis.key;
+        node.__layoutContinentId = continentId;
+        setNode(node, x, y, z, depth, rootId, parentById.get(node.id) || '', axis, orderIndex, continentId);
+        const children = childrenById.get(node.id) || [];
+        if (!children.length) return;
+        const rects = partitionRect(rect, children.map(child => weight(child)));
+        children.forEach((child, childIndex) => {
+            placeFaceNode(child, rects[childIndex], axis, depth + 1, rootId, continentId, childIndex);
+        });
+    }
+
+    function setNode(node, x, y, z, depth, rootId, parentId, axis, orderIndex, continentId) {
+        node.x = node.fx = node.__layoutX = Math.round(x * 100) / 100;
+        node.y = node.fy = node.__layoutY = Math.round(y * 100) / 100;
+        node.z = node.fz = node.__layoutZ = Math.round(z * 100) / 100;
+        node.vx = node.vy = node.vz = 0;
+        node.__layoutDepth = depth;
+        node.__layoutRootId = rootId;
+        node.__layoutParentId = parentId;
+        node.__layoutDirection = axis?.d || { x: 0, y: 0, z: 1 };
+        node.__layoutAngle = Math.atan2(axis?.v?.y || 0, axis?.u?.x || 1);
+        node.__layoutOrder = orderIndex;
+        node.__layoutContinentId = continentId || node.__layoutContinentId || '';
+        maxRadius = Math.max(maxRadius, Math.hypot(x, y, z));
+    }
+}
+
+function partitionRect(rect, weights) {
+    if (weights.length <= 1) return [rect];
+    const total = weights.reduce((sum, value) => sum + value, 0) || weights.length;
+    let split = 1;
+    let leftWeight = weights[0];
+    while (split < weights.length - 1 && leftWeight + weights[split] <= total / 2) {
+        leftWeight += weights[split];
+        split += 1;
+    }
+    const rightWeight = total - leftWeight;
+    const fraction = Math.min(0.92, Math.max(0.08, leftWeight / total));
+    const first = weights.slice(0, split);
+    const second = weights.slice(split);
+    if ((rect.u1 - rect.u0) >= (rect.v1 - rect.v0)) {
+        const cut = rect.u0 + (rect.u1 - rect.u0) * fraction;
+        return [
+            ...partitionRect({ ...rect, u1: cut }, first),
+            ...partitionRect({ ...rect, u0: cut }, second)
+        ];
+    }
+    const cut = rect.v0 + (rect.v1 - rect.v0) * fraction;
+    return [
+        ...partitionRect({ ...rect, v1: cut }, first),
+        ...partitionRect({ ...rect, v0: cut }, second)
+    ];
+}
+
 function applyReadableGraphLayout(data) {
-    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+    if (data?.nodes?.some(node => node.center)) return applySixDirectionLayout(data);
     const nodes = data?.nodes || [];
     const links = data?.links || [];
     const nodeById = new Map(nodes.map(node => [node.id, node]));
@@ -106,23 +406,20 @@ function applyReadableGraphLayout(data) {
     const parentById = new Map();
     const layoutVisited = new Set();
 
-    // 只有层级边参与径向布局骨架。__hierarchy === false 的边（如 Obsidian 双链）只作为
-    // 视觉连线存在，不能当父子关系，否则会被当成孩子重复摆放并把父子关系搅乱。
-    // 多父节点取第一个父节点（导入 vault 时层级边先入列，因此目录结构优先于双链）。
-    // 这两处修复是为了兼容有环、多父的非树图：原来的写法会因 last-wins 覆盖父节点，
-    // 并在有环时让 subtreeWeight 无限递归。
+    // 只让层级边决定父子关系；双链/关联边只作为弦线，不参与径向布局。
     links.forEach(link => {
         if (link.__hierarchy === false) return;
         const sourceId = getLinkEndpointId(link.source);
         const targetId = getLinkEndpointId(link.target);
         if (!sourceId || !targetId || !nodeById.has(sourceId) || !nodeById.has(targetId)) return;
         if (parentById.has(targetId) || sourceId === targetId) return;
-        childrenById.get(sourceId).push(nodeById.get(targetId));
         parentById.set(targetId, sourceId);
+        childrenById.get(sourceId).push(nodeById.get(targetId));
     });
 
     let roots = nodes.filter(node => !parentById.has(node.id));
     if (!roots.length && nodes.length) roots = [nodes[0]];
+    roots.sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'zh-Hans-CN'));
 
     const weightCache = new Map();
     const weightVisiting = new Set();
@@ -131,72 +428,71 @@ function applyReadableGraphLayout(data) {
         if (weightVisiting.has(node.id)) return 1;
         weightVisiting.add(node.id);
         const children = childrenById.get(node.id) || [];
-        const weight = 1 + children.reduce((sum, child) => sum + subtreeWeight(child), 0);
+        const weight = children.length
+            ? children.reduce((sum, child) => sum + subtreeWeight(child), 0)
+            : 1;
         weightVisiting.delete(node.id);
         weightCache.set(node.id, weight);
         return weight;
     };
 
-    const rootAnchors = calculateRootAnchors(roots.length);
-    roots.forEach((root, index) => {
-        const anchor = rootAnchors[index] || { x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } };
-        const rootDirection = normalizeVector(anchor.dir || { x: anchor.x, y: anchor.y, z: anchor.z });
-        setNodeLayout(root, anchor.x, anchor.y, anchor.z, 0, root.id, '', rootDirection, index);
-        layoutVisited.add(root.id);
-        layoutChildren(root, root.id, rootDirection, 1);
-    });
+    const totalWeight = roots.reduce((sum, root) => sum + subtreeWeight(root), 0) || 1;
+    const multipleRoots = roots.length > 1;
+    const rootRadius = multipleRoots ? 140 : 0;
+    const depthGap = 250;
+    let maxRadius = 0;
 
-    roots.forEach(root => {
-        root.__layoutGuideRadius = calculateClusterRadius(root);
-    });
+    function place(node, depth, startAngle, endAngle, rootId, parentId, siblingIndex) {
+        if (layoutVisited.has(node.id)) return;
+        layoutVisited.add(node.id);
 
-    // 非树图兜底：层级边覆盖不到的节点（孤立的环、或只被双链指向的游离节点）拿不到坐标，
-    // 会全部堆在原点。这里把它们铺到一圈外围球面上，保证可见、可点、可搜索。
-    const strayNodes = nodes.filter(node => !Number.isFinite(node.__layoutX));
-    if (strayNodes.length) {
-        const origin = roots[0] || { __layoutX: 0, __layoutY: 0, __layoutZ: 0, id: '', __layoutGuideRadius: 420 };
-        const strayRadius = Math.max(620, (origin.__layoutGuideRadius || 420) + 320);
-        strayNodes.forEach((node, index) => {
-            const direction = fibonacciSphereDirection(index, strayNodes.length, 0.31);
-            setNodeLayout(
-                node,
-                origin.__layoutX + direction.x * strayRadius,
-                origin.__layoutY + direction.y * strayRadius,
-                origin.__layoutZ + direction.z * strayRadius,
-                2,
-                origin.id,
-                '',
-                direction,
-                index
-            );
-        });
-    }
+        const angle = (startAngle + endAngle) / 2;
+        const stagger = depth === 0 ? 0 : (siblingIndex % 3) * depthGap * 0.16;
+        const radius = rootRadius + depth * depthGap + stagger;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        const z = (depth % 2 === 0 ? 1 : -1) * 6 + (siblingIndex % 2) * 4;
+        const direction = { x: Math.cos(angle), y: Math.sin(angle), z: 0 };
+        setNodeLayout(node, x, y, z, depth, rootId, parentId || '', direction, siblingIndex);
+        node.__layoutAngle = angle;
+        maxRadius = Math.max(maxRadius, radius);
 
-    return data;
-
-    function layoutChildren(parent, rootId, parentDirection, depth) {
-        const children = childrenById.get(parent.id) || [];
+        const children = childrenById.get(node.id) || [];
         if (!children.length) return;
 
+        const childWeight = children.reduce((sum, child) => sum + subtreeWeight(child), 0) || 1;
+        const span = Math.max(0.001, endAngle - startAngle);
+        const gap = Math.min(0.02, span * 0.03);
+        const usable = Math.max(0.001, span - gap * (children.length - 1));
+        let cursor = startAngle;
         children.forEach((child, index) => {
-            if (layoutVisited.has(child.id)) return;
-            layoutVisited.add(child.id);
-            const radius = levelRadius(depth, children.length, subtreeWeight(child));
-            const direction = depth <= 1
-                ? fibonacciSphereDirection(index, children.length, seededAngle(parent.id))
-                : sphericalCapDirection(parentDirection, index, children.length, capSpread(depth, children.length), seededAngle(parent.id));
-            const x = parent.__layoutX + direction.x * radius;
-            const y = parent.__layoutY + direction.y * radius;
-            const z = parent.__layoutZ + direction.z * radius;
-
-            setNodeLayout(child, x, y, z, depth, rootId, parent.id, direction, index);
-
-            const grandChildren = childrenById.get(child.id) || [];
-            if (grandChildren.length) {
-                layoutChildren(child, rootId, direction, depth + 1);
-            }
+            const childSpan = usable * subtreeWeight(child) / childWeight;
+            place(child, depth + 1, cursor, cursor + childSpan, rootId, node.id, index);
+            cursor += childSpan + gap;
         });
     }
+
+    let angleCursor = -Math.PI / 2;
+    roots.forEach((root, index) => {
+        const sector = Math.PI * 2 * subtreeWeight(root) / totalWeight;
+        place(root, 0, angleCursor, angleCursor + sector, root.id, null, index);
+        angleCursor += sector;
+    });
+
+    const strayNodes = nodes.filter(node => !Number.isFinite(node.__layoutX));
+    if (strayNodes.length) {
+        const radius = maxRadius + depthGap;
+        strayNodes.forEach((node, index) => {
+            const angle = -Math.PI / 2 + (index + 0.5) * Math.PI * 2 / strayNodes.length;
+            const direction = { x: Math.cos(angle), y: Math.sin(angle), z: 0 };
+            setNodeLayout(node, Math.cos(angle) * radius, Math.sin(angle) * radius, 0, 2, roots[0]?.id || '', '', direction, index);
+            node.__layoutAngle = angle;
+            maxRadius = Math.max(maxRadius, radius);
+        });
+    }
+
+    data.__layoutRadius = Math.round(maxRadius);
+    return data;
 
     function getLinkEndpointId(endpoint) {
         return typeof endpoint === 'object' ? endpoint?.id : endpoint;
@@ -213,119 +509,6 @@ function applyReadableGraphLayout(data) {
         node.__layoutDirection = direction;
         node.__layoutAngle = Math.atan2(direction.y, direction.x);
         node.__layoutOrder = orderIndex;
-    }
-
-    function calculateRootAnchors(count) {
-        if (count <= 1) return [{ x: 0, y: 0, z: 0, dir: { x: 0, y: 0, z: 1 } }];
-        const radius = count <= 3 ? 430 : 540;
-        return Array.from({ length: count }, (_, index) => {
-            const dir = fibonacciSphereDirection(index, count, -0.45);
-            return {
-                x: dir.x * radius,
-                y: dir.y * radius,
-                z: dir.z * radius,
-                dir
-            };
-        });
-    }
-
-    function calculateClusterRadius(root) {
-        let maxDistance = 0;
-        const stack = [...(childrenById.get(root.id) || [])];
-        while (stack.length) {
-            const node = stack.pop();
-            const distance = Math.hypot(
-                node.__layoutX - root.__layoutX,
-                node.__layoutY - root.__layoutY,
-                node.__layoutZ - root.__layoutZ
-            );
-            maxDistance = Math.max(maxDistance, distance);
-            stack.push(...(childrenById.get(node.id) || []));
-        }
-        return clamp(maxDistance * 1.12, 220, 620);
-    }
-
-    function levelRadius(depth, siblingCount, weight) {
-        const weightSize = Math.sqrt(weight);
-        if (depth <= 1) return clamp(220 + siblingCount * 7 + weightSize * 8, 260, 430);
-        if (depth === 2) return clamp(88 + siblingCount * 5 + weightSize * 5, 105, 210);
-        if (depth === 3) return clamp(54 + siblingCount * 3 + weightSize * 4, 66, 145);
-        return clamp(34 + siblingCount * 2 + weightSize * 3, 44, 100);
-    }
-
-    function capSpread(depth, siblingCount) {
-        if (depth <= 2) return clamp(0.92 + siblingCount * 0.012, 0.92, 1.28);
-        if (depth === 3) return clamp(0.74 + siblingCount * 0.01, 0.74, 1.04);
-        return clamp(0.58 + siblingCount * 0.008, 0.58, 0.9);
-    }
-
-    function sphericalCapDirection(axis, index, count, spread, seed) {
-        if (count <= 1) return normalizeVector(axis);
-        const frame = buildFrame(axis);
-        const radius = Math.sqrt((index + 0.5) / count) * spread;
-        const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
-        return normalizeVector({
-            x: frame.normal.x * Math.cos(radius) + (frame.tangent.x * Math.cos(angle) + frame.bitangent.x * Math.sin(angle)) * Math.sin(radius),
-            y: frame.normal.y * Math.cos(radius) + (frame.tangent.y * Math.cos(angle) + frame.bitangent.y * Math.sin(angle)) * Math.sin(radius),
-            z: frame.normal.z * Math.cos(radius) + (frame.tangent.z * Math.cos(angle) + frame.bitangent.z * Math.sin(angle)) * Math.sin(radius)
-        });
-    }
-
-    function fibonacciSphereDirection(index, count, seed = 0) {
-        if (count <= 1) {
-            return normalizeVector({
-                x: Math.cos(seed) * 0.72,
-                y: Math.sin(seed) * 0.72,
-                z: 0.68
-            });
-        }
-        const t = (index + 0.5) / count;
-        const z = 1 - 2 * t;
-        const radius = Math.sqrt(Math.max(0, 1 - z * z));
-        const angle = (index + 0.5) * GOLDEN_ANGLE + seed;
-        return {
-            x: Math.cos(angle) * radius,
-            y: Math.sin(angle) * radius,
-            z
-        };
-    }
-
-    function buildFrame(axis) {
-        const normal = normalizeVector(axis);
-        const reference = Math.abs(normal.z) < 0.82 ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 };
-        const tangent = normalizeVector(cross(reference, normal));
-        const bitangent = normalizeVector(cross(normal, tangent));
-        return { normal, tangent, bitangent };
-    }
-
-    function normalizeVector(vector) {
-        const length = Math.hypot(vector?.x || 0, vector?.y || 0, vector?.z || 0) || 1;
-        return {
-            x: (vector?.x || 0) / length,
-            y: (vector?.y || 0) / length,
-            z: (vector?.z || 0) / length
-        };
-    }
-
-    function cross(a, b) {
-        return {
-            x: a.y * b.z - a.z * b.y,
-            y: a.z * b.x - a.x * b.z,
-            z: a.x * b.y - a.y * b.x
-        };
-    }
-
-    function seededAngle(value) {
-        let hash = 0;
-        const text = String(value || '');
-        for (let i = 0; i < text.length; i++) {
-            hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
-        }
-        return (hash % 6283) / 1000;
-    }
-
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
     }
 }
 
@@ -462,9 +645,21 @@ function renderGraph(container) {
     const glowTexture = createGlowTexture();
 
     const inspector = ensureGraphInspector();
+    let graphLayerMode = 'structure';
+
+    function getBuiltinGraphTree() {
+        const tree = getGraphTree(THEME);
+        if (graphLayerMode === 'all') return tree;
+        const strip = nodes => nodes.map(node => {
+            if (node.kind === 'entity') return null;
+            const children = strip(node.children || []);
+            return { ...node, children: children.length ? children : undefined };
+        }).filter(Boolean);
+        return strip(tree);
+    }
 
     // 数据结构（由 graphData.js 中的树形结构自动生成）
-    const gData = applyReadableGraphLayout(buildGraphData(getGraphTree(THEME), THEME));
+    const gData = applyReadableGraphLayout(buildGraphData(getBuiltinGraphTree(), THEME));
     let graphNodeById = new Map(gData.nodes.map(node => [node.id, node]));
 
 
@@ -481,6 +676,34 @@ function renderGraph(container) {
         return `rgba(${r}, ${g}, ${b}, ${opacity})`;
     }
 
+    function focusOpacityFactor(dim, normal = 1) {
+        if (dim === 2) return 0.05;
+        if (dim === 1) return 0.55;
+        return normal;
+    }
+
+    function linkColorFor(link) {
+        const dim = Number(link.__focusDim) || 0;
+        const factor = focusOpacityFactor(dim);
+        if (link.__hierarchy === false) {
+            if (link.__attachment) return colorToRgba(0xffdd44, 0.3 * factor);
+            const opacity = (link.relation ? 0.06 : 0.5) * factor;
+            return colorToRgba(link.__embed ? 0xff66aa : 0x7cf7ff, opacity);
+        }
+        const target = getLinkNode(link, 'target');
+        const depth = target?.__layoutDepth || 1;
+        return colorToRgba(target?.color || 0x00ffff, (depth <= 1 ? 0.82 : (depth === 2 ? 0.56 : 0.34)) * factor);
+    }
+
+    function linkWidthFor(link) {
+        const dim = Number(link.__focusDim) || 0;
+        const factor = dim === 2 ? 0.15 : (dim === 1 ? 0.7 : 1);
+        if (link.__hierarchy === false) return (link.__attachment ? 0.18 : (link.relation ? 0.1 : 0.42)) * factor;
+        const target = getLinkNode(link, 'target');
+        const depth = target?.__layoutDepth || 1;
+        return (depth <= 1 ? 1.8 : (depth === 2 ? 1.25 : 0.75)) * factor;
+    }
+
     // 4. 初始化图谱
     const Graph = ForceGraph3D()(container)
         .graphData(gData)
@@ -495,7 +718,7 @@ function renderGraph(container) {
             // 4.1 核心几何体
             let geometry, material, mesh;
             const color = node.color || 0xffffff;
-            const size = Math.sqrt(node.val || 1) * 1.5;
+            const size = Math.sqrt(node.val || 1) * 1.7;
 
             if (node.group === 'root') {
                 // 根节点：复杂的环绕球体
@@ -562,35 +785,31 @@ function renderGraph(container) {
                 text.strokeWidth = 0.3;              // 轻微描边增加清晰度
                 text.strokeColor = '#000000';        // 黑色描边
                 const depth = Number.isFinite(node.__layoutDepth) ? node.__layoutDepth : 3;
-                text.textHeight = node.group === 'root' ? 8 : (depth <= 1 ? 5.2 : (depth === 2 ? 3.8 : 2.8));
+                const dense = graphNodeById.size > 400;
+                text.textHeight = dense
+                    ? (node.group === 'root' ? 12 : (depth <= 1 ? 8 : (depth === 2 ? 5 : 3.5)))
+                    : (node.group === 'root' ? 22 : (depth <= 1 ? 15 : (depth === 2 ? 10 : 7)));
                 text.position.y = size + 2; 
                 text.material.transparent = true;
-                text.material.opacity = node.group === 'root' ? 1 : (depth <= 2 ? 0.9 : 0.62);
+                text.material.opacity = node.group === 'root' ? 1 : (depth <= 1 ? 0.95 : (depth === 2 ? (dense ? 0.65 : 0.85) : 0.45));
                 group.add(text);
             }
 
             stampGraphNodeObject(group, node);
+            node.__visualGroup = group;
+            group.traverse(object => {
+                if (!object.material) return;
+                object.material.__baseOpacity = object.material.opacity ?? 1;
+            });
+            applyNodeFocusVisual(node);
             return group;
         })
         
         // --- 连线特效 ---
         // __hierarchy === false 的边是 Obsidian 双链/附件引用：它们不参与布局，用独立配色
         // 和更细的线区分开，否则用户分不清“目录归属”和“笔记关联”。
-        .linkColor(link => {
-            if (link.__hierarchy === false) {
-                if (link.__attachment) return colorToRgba(0xffdd44, 0.3);
-                return colorToRgba(link.__embed ? 0xff66aa : 0x7cf7ff, 0.5);
-            }
-            const target = getLinkNode(link, 'target');
-            const depth = target?.__layoutDepth || 1;
-            return colorToRgba(target?.color || 0x00ffff, depth <= 1 ? 0.28 : (depth === 2 ? 0.18 : 0.09));
-        })
-        .linkWidth(link => {
-            if (link.__hierarchy === false) return link.__attachment ? 0.18 : 0.42;
-            const target = getLinkNode(link, 'target');
-            const depth = target?.__layoutDepth || 1;
-            return depth <= 1 ? 1.15 : (depth === 2 ? 0.7 : 0.35);
-        })
+        .linkColor(linkColorFor)
+        .linkWidth(linkWidthFor)
         .linkDirectionalParticles(link => {
             if (link.__hierarchy === false) return link.__attachment ? 0 : (link.__embed ? 3 : 1);
             const target = getLinkNode(link, 'target');
@@ -621,36 +840,14 @@ function renderGraph(container) {
     scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
     let layoutGuideGroup = null;
 
-    function refreshLayoutGuides(data) {
-        if (!scene || typeof THREE === 'undefined') return;
-        if (layoutGuideGroup) {
-            scene.remove(layoutGuideGroup);
-            layoutGuideGroup.traverse?.(object => {
-                object.geometry?.dispose?.();
-                object.material?.dispose?.();
-            });
-        }
-
-        layoutGuideGroup = new THREE.Group();
-        layoutGuideGroup.name = 'zstp-layout-guides';
-        (data.nodes || [])
-            .filter(node => node.__layoutDepth === 0)
-            .forEach(root => {
-                const radius = root.__layoutGuideRadius || 260;
-                const shellGeo = new THREE.SphereGeometry(radius, 28, 14);
-                const shellWireGeo = new THREE.WireframeGeometry(shellGeo);
-                shellGeo.dispose();
-                const shellMat = new THREE.LineBasicMaterial({
-                    color: root.color || 0x00ffff,
-                    transparent: true,
-                    opacity: 0.11,
-                    depthWrite: false
-                });
-                const shell = new THREE.LineSegments(shellWireGeo, shellMat);
-                shell.position.set(root.fx || 0, root.fy || 0, root.fz || 0);
-                layoutGuideGroup.add(shell);
-            });
-        scene.add(layoutGuideGroup);
+    function refreshLayoutGuides() {
+        if (!scene || !layoutGuideGroup) return;
+        scene.remove(layoutGuideGroup);
+        layoutGuideGroup.traverse?.(object => {
+            object.geometry?.dispose?.();
+            object.material?.dispose?.();
+        });
+        layoutGuideGroup = null;
     }
     refreshLayoutGuides(gData);
 
@@ -708,16 +905,14 @@ function renderGraph(container) {
     if (typeof Graph.cooldownTicks === 'function') Graph.cooldownTicks(1);
 
     function frameGraphOverview(duration = 1200, padding = 150) {
-        if (typeof Graph.cameraPosition === 'function') {
-            Graph.cameraPosition(
-                { x: 760, y: -900, z: 660 },
-                { x: 0, y: 0, z: 0 },
-                0
-            );
-        }
-        if (typeof Graph.zoomToFit === 'function') {
-            setTimeout(() => Graph.zoomToFit(duration, padding), 80);
-        }
+        if (typeof Graph.cameraPosition !== 'function') return;
+        const data = Graph.graphData() || {};
+        const nodes = data.nodes || [];
+        const radius = Math.max(620, ...nodes.map(node => Math.hypot(node.x || 0, node.y || 0, node.z || 0)));
+        const position = data.__layoutMode === 'six-direction'
+            ? { x: radius * 1.02, y: radius * 0.82, z: radius * 1.18 }
+            : { x: 0, y: 0, z: radius * 1.8 };
+        Graph.cameraPosition(position, { x: 0, y: 0, z: 0 }, 0);
     }
     setTimeout(() => frameGraphOverview(1200, 150), 350);
 
@@ -771,12 +966,103 @@ function renderGraph(container) {
     resetPanel();
 
     let lastGraphNodeAction = { node: null, time: 0 };
+    let focusedGraphNodeId = null;
+
+    function applyNodeFocusVisual(node) {
+        if (!node?.__visualGroup) return;
+        const dim = Number(node.__focusDim) || 0;
+        const factor = dim === 2 ? 0.06 : (dim === 1 ? 0.55 : 1);
+        node.__visualGroup.traverse(object => {
+            if (!object.material) return;
+            const base = object.material.__baseOpacity ?? object.material.opacity ?? 1;
+            object.material.__baseOpacity = base;
+            object.material.transparent = true;
+            object.material.opacity = base * factor;
+        });
+    }
+
+    function graphHierarchyMaps() {
+        const data = Graph.graphData?.() || { nodes: [], links: [] };
+        const nodes = data.nodes || [];
+        const byId = new Map(nodes.map(node => [node.id, node]));
+        const children = new Map();
+        const parents = new Map();
+        (data.links || []).forEach(link => {
+            if (link.__hierarchy === false) return;
+            const sourceId = typeof link.source === 'object' ? link.source?.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target?.id : link.target;
+            if (!sourceId || !targetId || !byId.has(sourceId) || !byId.has(targetId)) return;
+            if (parents.has(targetId)) return;
+            parents.set(targetId, sourceId);
+            if (!children.has(sourceId)) children.set(sourceId, []);
+            children.get(sourceId).push(targetId);
+        });
+        return { nodes, links: data.links || [], byId, children, parents };
+    }
+
+    function clearGraphFocus() {
+        focusedGraphNodeId = null;
+        const data = Graph.graphData?.() || { nodes: [], links: [] };
+        (data.nodes || []).forEach(node => {
+            node.__focusDim = 0;
+            applyNodeFocusVisual(node);
+        });
+        (data.links || []).forEach(link => { link.__focusDim = 0; });
+        if (typeof Graph.linkColor === 'function') Graph.linkColor(linkColorFor);
+        if (typeof Graph.linkWidth === 'function') Graph.linkWidth(linkWidthFor);
+    }
+
+    function applyGraphFocus(selected) {
+        if (!selected || selected.center) {
+            clearGraphFocus();
+            return;
+        }
+        const { nodes, links, byId, children, parents } = graphHierarchyMaps();
+        if (!byId.has(selected.id)) return;
+        const chain = new Set([selected.id]);
+        let cursor = selected.id;
+        const seen = new Set();
+        while (parents.has(cursor) && !seen.has(cursor)) {
+            seen.add(cursor);
+            cursor = parents.get(cursor);
+            chain.add(cursor);
+        }
+        const stack = [...(children.get(selected.id) || [])];
+        const visited = new Set();
+        while (stack.length) {
+            const id = stack.pop();
+            if (visited.has(id)) continue;
+            visited.add(id);
+            chain.add(id);
+            stack.push(...(children.get(id) || []));
+        }
+        const continentId = selected.__layoutContinentId || '';
+        nodes.forEach(node => {
+            node.__focusDim = chain.has(node.id)
+                ? 0
+                : (continentId && node.__layoutContinentId === continentId ? 1 : 2);
+            applyNodeFocusVisual(node);
+        });
+        links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? link.source?.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target?.id : link.target;
+            const sourceNode = byId.get(sourceId);
+            const targetNode = byId.get(targetId);
+            if (chain.has(sourceId) && chain.has(targetId)) link.__focusDim = 0;
+            else if (continentId && sourceNode?.__layoutContinentId === continentId && targetNode?.__layoutContinentId === continentId) link.__focusDim = 1;
+            else link.__focusDim = 2;
+        });
+        focusedGraphNodeId = selected.id;
+        if (typeof Graph.linkColor === 'function') Graph.linkColor(linkColorFor);
+        if (typeof Graph.linkWidth === 'function') Graph.linkWidth(linkWidthFor);
+    }
 
     function runGraphNodeAction(node, event) {
         if (!node) return false;
         const now = performance.now();
         if (lastGraphNodeAction.node === node && now - lastGraphNodeAction.time < 250) return true;
         lastGraphNodeAction = { node, time: now };
+        applyGraphFocus(node);
         focusGraphNode(node);
         handleGraphNodeClick(node);
         if (event?.preventDefault) event.preventDefault();
@@ -863,6 +1149,10 @@ function renderGraph(container) {
 
     function focusGraphNode(node) {
         if (!node) return false;
+        if (node.center) {
+            frameGraphOverview(900, 120);
+            return true;
+        }
         const x = Number.isFinite(node.x) ? node.x : 0;
         const y = Number.isFinite(node.y) ? node.y : 0;
         const z = Number.isFinite(node.z) ? node.z : 0;
@@ -888,19 +1178,26 @@ function renderGraph(container) {
         if (!normalizedQuery) return null;
         const nodes = (Graph.graphData()?.nodes || []);
         return nodes.find(node => normalizeGraphSearchText(node.name) === normalizedQuery)
+            || nodes.find(node => normalizeGraphSearchText(node.nameEn) === normalizedQuery)
+            || nodes.find(node => (node.aliases || []).some(alias => normalizeGraphSearchText(alias) === normalizedQuery))
+            || nodes.find(node => node.qid && node.qid.toLowerCase() === String(query).trim().toLowerCase())
             || nodes.find(node => normalizeGraphSearchText(node.name).includes(normalizedQuery))
             || nodes.find(node => normalizeGraphSearchText(node.path).includes(normalizedQuery));
     }
 
     function focusNodeByQuery(query) {
-        const node = findGraphNode(query);
+        let node = findGraphNode(query);
+        if (!node && graphLayerMode !== 'all') {
+            graphLayerMode = 'all';
+            if (layerToggleBtn) layerToggleBtn.textContent = '只看知识结构';
+            rebuildBuiltinGraph();
+            node = findGraphNode(query);
+        }
         if (!node) {
             showPreview('未找到节点', `搜索词: ${query}`, '<p>知识图谱里没有匹配的节点。可以尝试输入更短的中文名、英文名或文件名。</p>');
             return false;
         }
-        focusGraphNode(node);
-        handleGraphNodeClick(node);
-        return true;
+        return runGraphNodeAction(node);
     }
 
     function ensureGraphInspector() {
@@ -1108,16 +1405,7 @@ function renderGraph(container) {
         );
     }
 
-    function worldStatusBadge(status, score) {
-        const confirmed = /confirmed/.test(String(status || ''));
-        const label = worldKnowledgeStatusLabel(status);
-        const tone = status === 'no-authoritative-match' || status === 'source-error' ? 'is-empty'
-            : (confirmed ? 'is-confirmed' : 'is-candidate');
-        return `<span class="zstp-world-badge ${tone}">${escapeHtml(label)} · ${Number(score || 0).toFixed(2)}</span>`;
-    }
-
-    // 节点面板的“世界知识”区块，是节点的主视图：先给权威实体与百科正文，
-    // 再给关系声明，模板化记录和论文证据退到后面。
+    // 节点面板的“世界知识”区块，是节点的主视图：先给实体与正文，再给关系声明。
     function renderWorldKnowledgeSection(node) {
         const entry = typeof getGraphNodeWorldKnowledge === 'function' ? getGraphNodeWorldKnowledge(node.name) : null;
         if (!entry) {
@@ -1127,36 +1415,26 @@ function renderGraph(container) {
                         <span class="zstp-world-kicker">WORLD KNOWLEDGE · 世界知识</span>
                         <span class="zstp-world-badge is-empty">尚未编译</span>
                     </header>
-                    <p class="zstp-world-empty">这个节点还没有世界知识数据：批量层（SPARQL 精确标签匹配 + 批量实体搜索）没有命中它。
-                    运行 <code>node compileWorldKnowledge.js</code> 会逐节点搜索补齐，然后重新加载页面。</p>
+                    <p class="zstp-world-empty">这个节点没有对应的 Wikipedia/Wikidata 实体记录。
+                    运行 <code>node compileWorldGraph.js</code> 会从 Wikipedia 三级重要条目与 Wikidata 重新生成，然后重新加载页面。</p>
                 </section>
             `;
         }
 
-        const pieces = [`
-            <header class="zstp-world-head">
-                <span class="zstp-world-kicker">WORLD KNOWLEDGE · 世界知识</span>
-                ${worldStatusBadge(entry.status, entry.score)}
-            </header>
-        `];
-
+        const pieces = [];
         const entity = entry.entityDetail;
         const article = entry.article;
-        const claimLines = worldClaimSummary(entry);
 
         if (entity) {
-            const label = entity.label.zh || entity.label.en || node.name;
-            const secondary = entity.label.zh && entity.label.en && entity.label.zh !== entity.label.en ? ` / ${entity.label.en}` : '';
             const description = entity.description.zh || entity.description.en || '';
             pieces.push(`
                 <div class="zstp-world-entity">
-                    <div class="zstp-world-label">${escapeHtml(label)}${escapeHtml(secondary)}
-                        <a class="zstp-world-qid" href="${escapeHtml(entity.uri)}" target="_blank" rel="noopener">${escapeHtml(entity.id)}</a>
-                    </div>
+                    <div class="zstp-world-label">${escapeHtml(node.name)}</div>
                     ${description ? `<p class="zstp-world-desc">${escapeHtml(description)}</p>` : ''}
                     ${entity.aliases.length ? `<p class="zstp-world-aliases">别名: ${escapeHtml(entity.aliases.join('；'))}</p>` : ''}
                 </div>
             `);
+            const claimLines = worldClaimSummary(entry);
             if (claimLines.length) {
                 const rows = claimLines.map(line => {
                     const match = line.match(/^(.*?)\s*\((P\d+)\):\s*([\s\S]*)$/);
@@ -1164,7 +1442,7 @@ function renderGraph(container) {
                 }).join('');
                 pieces.push(`
                     <section class="zstp-kb-record">
-                        <h4>权威关系声明 (${claimLines.length})</h4>
+                        <h4>关系声明 (${claimLines.length})</h4>
                         <table class="zstp-vault-table zstp-world-claims">${rows}</table>
                     </section>
                 `);
@@ -1173,67 +1451,45 @@ function renderGraph(container) {
 
         const prose = (entity && entity.wikipedia && entity.wikipedia.extract) || (article && article.extract) || '';
         const proseTitle = (entity && entity.wikipedia && entity.wikipedia.title) || (article && article.title) || '';
-        const proseUrl = (entity && entity.wikipedia && entity.wikipedia.url) || (article && article.url) || '';
         if (prose) {
+            const paragraphs = String(prose).split(/\n{2,}/).map(part => part.trim()).filter(Boolean);
+            const proseHtml = (paragraphs.length ? paragraphs : [String(prose)])
+                .map(part => `<p class="zstp-world-prose">${escapeHtml(part)}</p>`)
+                .join('');
             pieces.push(`
                 <section class="zstp-kb-record">
                     <h4>百科条目《${escapeHtml(proseTitle)}》</h4>
-                    <p class="zstp-world-prose">${escapeHtml(prose)}</p>
-                    ${article && article.excerptFromSearch ? '<p class="zstp-world-note">未取到完整导言，此处为百科检索摘要。</p>' : ''}
-                    <p class="zstp-world-note">维基百科正文采用 CC BY-SA 4.0 许可。</p>
+                    ${proseHtml}
                 </section>
             `);
         }
 
-        const sourceLinks = [];
-        if (entity) sourceLinks.push(`<a class="zstp-vault-link" href="${escapeHtml(entity.uri)}" target="_blank" rel="noopener">Wikidata 实体页</a>`);
-        if (proseUrl) sourceLinks.push(`<a class="zstp-vault-link" href="${escapeHtml(proseUrl)}" target="_blank" rel="noopener">维基百科条目</a>`);
-        if (sourceLinks.length) pieces.push(`<div class="zstp-world-sources">${sourceLinks.join('')}</div>`);
-
-        if (entry.status === 'no-authoritative-match' || entry.status === 'source-error') {
-            const runnerText = (entry.runnersUp || []).map(item => `${item.label} ${item.id} [${Number(item.score).toFixed(2)}]`).join('；');
-            pieces.push(`
-                <p class="zstp-world-note">
-                    ${entry.status === 'source-error'
-                        ? '本次解析遇到来源访问失败，重跑 compileWorldKnowledge.js 可补齐。'
-                        : '这个节点在 Wikidata 与维基百科中都没有达到置信度阈值的对应实体，属于图谱自身的聚合 / 路线图概念，而不是可消歧的实体。'}
-                    ${runnerText ? `被拒绝的候选：${escapeHtml(runnerText)}` : ''}
-                </p>
-            `);
-        } else if (/candidate/.test(String(entry.status))) {
-            pieces.push('<p class="zstp-world-note">该匹配为待确认状态：分数未达到“已确认”阈值，请以原始来源为准。</p>');
-        }
-
-        pieces.push(`<p class="zstp-world-provenance">检索式 中「${escapeHtml((entry.query && entry.query.zh) || '无')}」/ 英「${escapeHtml((entry.query && entry.query.en) || '无')}」；解析时间 ${escapeHtml(String(entry.resolvedAt || '').slice(0, 10))}</p>`);
-
-        return `<section class="zstp-world" data-status="${escapeHtml(entry.status || '')}">${pieces.join('')}</section>`;
+        return `<section class="zstp-world">${pieces.join('')}</section>`;
     }
 
     function inspectKnowledgeGraphNode(node) {
         const context = getNodeGraphContext(node);
         const allRecords = node.knowledgeBase || [];
-        const worldRecords = allRecords.filter(record => String(record.id || '').startsWith('world-'));
-        // 世界知识已经在 renderWorldKnowledgeSection 里单独渲染，这里不再重复列出
+        const worldRecords = allRecords.filter(record => record.evidenceLevel === 'encyclopedia-verbatim');
         const records = allRecords
-            .filter(record => !String(record.id || '').startsWith('world-'))
-            .slice(0, 8);
+            .filter(record => !['encyclopedia-verbatim', 'structured-claim'].includes(record.evidenceLevel))
+            .slice(0, 10);
         const children = (context.children || []).slice(0, 12).map(item => item.name);
         const recordHtml = records.length
             ? records.map(item => `
                 <section class="zstp-kb-record">
                     <h4>${escapeHtml(item.title || '节点知识库')}</h4>
                     <pre><code>${escapeHtml(item.content || '')}</code></pre>
-                    ${item.keywords?.length ? `<p class="zstp-kb-keywords">${escapeHtml(item.keywords.slice(0, 12).join(' / '))}</p>` : ''}
                 </section>
             `).join('')
-            : '<p>这个节点暂未生成知识库记录。</p>';
+            : '';
         showPreview(
             node.name,
-            `${(context.path || []).join(' > ')} · 世界知识 ${worldRecords.length} 条 · 其他记录 ${records.length} 条`,
+            `${(context.path || []).join(' > ')} · 百科正文 ${worldRecords.length} 段`,
             `
                 ${renderWorldKnowledgeSection(node)}
                 <div class="zstp-kb-summary">
-                    <p>${escapeHtml(node.description || '默认知识图谱节点，可用于模型解释与检索增强。')}</p>
+                    <p>${escapeHtml(node.description || '暂无描述。')}</p>
                     ${children.length ? `<p>直接子节点: ${escapeHtml(children.join('；'))}</p>` : ''}
                 </div>
                 ${recordHtml}
@@ -1265,220 +1521,6 @@ function renderGraph(container) {
                 submitBtn.click();
             }
         }
-    }
-
-    async function buildNodeKnowledgeBundle(node, userQuery = '', { liveExternal = false } = {}) {
-        const graphContext = getNodeGraphContext(node);
-        const profile = buildNodeKnowledgeProfile(node, graphContext);
-        const retrievalQuery = userQuery || profile.primaryTerm;
-        const localRecords = rankKnowledgeRecords(
-            retrieveLocalNodeKnowledge(node, graphContext, profile), retrievalQuery, profile, 20
-        );
-        const externalRecords = liveExternal ? await retrieveExternalNodeKnowledgeFast(profile) : [];
-        const rankedExternalRecords = rankKnowledgeRecords(externalRecords, retrievalQuery, profile, 24);
-        const evidenceGraph = buildNodeEvidenceGraph(node, graphContext, localRecords, rankedExternalRecords, retrievalQuery);
-        return {
-            profile,
-            graphContext,
-            localRecords,
-            externalRecords: rankedExternalRecords,
-            evidenceGraph,
-            retrievalPolicy: buildRetrievalPolicy(profile),
-            diagnostics: buildRetrievalDiagnostics(node, localRecords, externalRecords, retrievalQuery),
-        };
-    }
-
-    async function retrieveExternalNodeKnowledgeFast(profile) {
-        const cached = readKnowledgeRetrievalCache(`zstp-rag-v2:${profile.domain.id}:${profile.primaryTerm}`);
-        if (cached) return cached;
-        const fastTimeoutMs = 1800;
-        const task = profile.domain.id === 'bio-health'
-            ? queryEuropePmc(profile.primaryTerm, fastTimeoutMs)
-            : queryCrossref(profile.primaryTerm, fastTimeoutMs);
-        try {
-            return await Promise.race([
-                task,
-                new Promise(resolve => setTimeout(() => resolve([]), 2000))
-            ]);
-        } catch {
-            return [];
-        }
-    }
-
-    function stableKnowledgeId(prefix, value) {
-        let hash = 2166136261;
-        for (const char of String(value || '')) {
-            hash ^= char.codePointAt(0);
-            hash = Math.imul(hash, 16777619);
-        }
-        return `${prefix}:${(hash >>> 0).toString(36)}`;
-    }
-
-    function extractClaimCandidate(record) {
-        if (classifyEvidenceUsability(record) !== 'claim-supporting') return null;
-        const snippet = compactText(record.snippet || '', 900);
-        if (!snippet || /摘要不可用|未收录摘要/.test(snippet)) return null;
-        return {
-            id: stableKnowledgeId('claim', `${record.source}:${record.title}:${snippet}`),
-            statement: snippet,
-            status: 'source-asserted',
-            scope: record.queryIntent || 'retrieved evidence',
-            qualifiers: ['仅代表来源摘要中的主张', '回答时须保留研究对象、条件与不确定性', '未读取全文时不得扩展为更强结论'],
-            citation: record.citation || null
-        };
-    }
-
-    function buildNodeEvidenceGraph(node, context, localRecords, externalRecords, query) {
-        const nodes = [{ id: `topic:${node.id}`, type: 'topic', label: node.name, graphPath: context.path }];
-        const edges = [];
-        localRecords.filter(record => ['node-knowledge-base', 'compiled-evidence'].includes(record.type)).forEach(record => {
-            if (record.type === 'compiled-evidence') {
-                const evidenceId = stableKnowledgeId('evidence', record.url || `${record.source}:${record.title}`);
-                nodes.push({
-                    id: evidenceId, type: 'evidence', label: record.title, source: record.source,
-                    snippet: record.content, citation: record.citation || null,
-                    evidenceLevel: record.evidenceLevel, evidenceUsability: classifyEvidenceUsability(record),
-                    retrievalScore: record.retrievalScore, provenance: record.provenance || null
-                });
-                edges.push({ source: evidenceId, target: `topic:${node.id}`, relation: 'compiled_for', query });
-                const claim = extractClaimCandidate(record);
-                if (claim) {
-                    nodes.push({ ...claim, type: 'claim' });
-                    edges.push({ source: evidenceId, target: claim.id, relation: 'asserts' });
-                    edges.push({ source: claim.id, target: `topic:${node.id}`, relation: 'about' });
-                }
-                return;
-            }
-            const id = stableKnowledgeId('framework', `${node.id}:${record.title}`);
-            nodes.push({ id, type: 'framework', label: record.title, content: record.content, evidenceUsability: 'analysis-framework' });
-            edges.push({ source: `topic:${node.id}`, target: id, relation: 'analyzed_by' });
-        });
-        externalRecords.forEach(record => {
-            const evidenceId = stableKnowledgeId('evidence', record.url || `${record.source}:${record.title}`);
-            nodes.push({
-                id: evidenceId, type: 'evidence', label: record.title, source: record.source,
-                snippet: record.snippet || '', citation: record.citation || null,
-                evidenceLevel: record.evidenceLevel || 'unclassified', evidenceUsability: classifyEvidenceUsability(record),
-                retrievalScore: record.retrievalScore, queryIntent: record.queryIntent || '', retrievedAt: record.retrievedAt || null
-            });
-            edges.push({ source: evidenceId, target: `topic:${node.id}`, relation: 'retrieved_for', query });
-            const claim = extractClaimCandidate(record);
-            if (claim) {
-                nodes.push({ ...claim, type: 'claim' });
-                edges.push({ source: evidenceId, target: claim.id, relation: 'asserts' });
-                edges.push({ source: claim.id, target: `topic:${node.id}`, relation: 'about' });
-            }
-        });
-        const related = [context.parent, ...(context.children || []), ...(context.siblings || [])].filter(Boolean);
-        related.slice(0, 24).forEach(relatedNode => {
-            const id = `topic:${relatedNode.id}`;
-            nodes.push({ id, type: 'related-topic', label: relatedNode.name });
-            edges.push({ source: `topic:${node.id}`, target: id, relation: context.parent?.id === relatedNode.id ? 'subtopic_of' : 'graph_neighbor' });
-        });
-        return {
-            schemaVersion: '1.0', query, rootTopicId: `topic:${node.id}`,
-            nodes: [...new Map(nodes.map(item => [item.id, item])).values()], edges,
-            stats: {
-                claims: nodes.filter(item => item.type === 'claim').length,
-                claimSupportingEvidence: nodes.filter(item => item.type === 'evidence' && item.evidenceUsability === 'claim-supporting').length,
-                discoveryOnlyEvidence: nodes.filter(item => item.type === 'evidence' && item.evidenceUsability === 'discovery-only').length
-            }
-        };
-    }
-
-    function tokenizeKnowledgeText(value) {
-        const normalized = String(value || '').toLowerCase().normalize('NFKC');
-        const latin = normalized.match(/[a-z][a-z0-9.+#-]{1,}/g) || [];
-        const chinese = normalized.match(/[\u4e00-\u9fff]{2,}/g) || [];
-        const bigrams = chinese.flatMap(term => Array.from({ length: Math.max(0, term.length - 1) }, (_, index) => term.slice(index, index + 2)));
-        return [...new Set([...latin, ...chinese, ...bigrams])];
-    }
-
-    function knowledgeRecordText(record) {
-        return [record.title, record.content, record.snippet, record.meta, record.source, ...(record.keywords || [])].filter(Boolean).join(' ');
-    }
-
-    function lexicalKnowledgeScore(record, query, profile) {
-        const queryTokens = tokenizeKnowledgeText([query, profile.terms.english, profile.terms.chinese].filter(Boolean).join(' '));
-        const recordTokens = new Set(tokenizeKnowledgeText(knowledgeRecordText(record)));
-        if (!queryTokens.length) return 0;
-        const overlap = queryTokens.reduce((sum, token) => sum + (recordTokens.has(token) ? 1 : 0), 0) / queryTokens.length;
-        const phrase = knowledgeRecordText(record).toLowerCase().includes(String(query || '').toLowerCase()) ? 0.25 : 0;
-        return overlap + phrase;
-    }
-
-    function evidenceQualityScore(record) {
-        const authority = { 'Europe PMC': 0.98, 'Semantic Scholar': 0.95, OpenAlex: 0.92, Crossref: 0.91, Wikidata: 0.9, 'Data Commons': 0.9, 'Hugging Face': 0.76, GitHub: 0.72, 'Hacker News': 0.45 };
-        const sourceScore = authority[record.source] ?? (record.type === 'node-knowledge-base' ? 0.88 : 0.62);
-        const year = Number(String(record.meta || '').match(/\b(19|20)\d{2}\b/)?.[0]);
-        const recency = year ? Math.max(0, 1 - (new Date().getFullYear() - year) / 15) : 0.45;
-        const citations = Number(String(record.meta || '').match(/citations\s+(\d+)/i)?.[1] || 0);
-        const evidenceBonus = record.evidenceLevel === 'abstract-supported' ? 0.08 : record.evidenceLevel === 'bibliographic-only' ? -0.08 : 0;
-        return sourceScore * 0.65 + recency * 0.2 + Math.min(1, Math.log10(citations + 1) / 4) * 0.15 + evidenceBonus;
-    }
-
-    function jaccardKnowledgeSimilarity(left, right) {
-        const a = new Set(tokenizeKnowledgeText(knowledgeRecordText(left)));
-        const b = new Set(tokenizeKnowledgeText(knowledgeRecordText(right)));
-        if (!a.size || !b.size) return 0;
-        const intersection = [...a].filter(token => b.has(token)).length;
-        return intersection / (a.size + b.size - intersection);
-    }
-
-    function rankKnowledgeRecords(records, query, profile, limit) {
-        const deduplicated = [];
-        const seen = new Set();
-        records.filter(record => record && (record.content || record.snippet || record.title)).forEach(record => {
-            const key = String(record.url || record.title || knowledgeRecordText(record).slice(0, 120)).toLowerCase().replace(/\W+/g, '');
-            if (!key || seen.has(key)) return;
-            seen.add(key);
-            deduplicated.push({
-                ...record,
-                evidenceUsability: classifyEvidenceUsability(record),
-                retrievalScore: lexicalKnowledgeScore(record, query, profile) * 0.5 + evidenceQualityScore(record) * 0.3 + Math.min(1.2, Number(record.score || 0)) * 0.08 + Math.min(1, Number(record.rrfScore || 0) * 20) * 0.12
-            });
-        });
-        const selected = [];
-        while (deduplicated.length && selected.length < limit) {
-            let bestIndex = 0;
-            let bestScore = -Infinity;
-            deduplicated.forEach((record, index) => {
-                const redundancy = selected.length ? Math.max(...selected.map(item => jaccardKnowledgeSimilarity(record, item))) : 0;
-                const mmr = 0.78 * record.retrievalScore - 0.22 * redundancy;
-                if (mmr > bestScore) { bestScore = mmr; bestIndex = index; }
-            });
-            const [record] = deduplicated.splice(bestIndex, 1);
-            selected.push({ ...record, retrievalScore: Number(record.retrievalScore.toFixed(4)) });
-        }
-        return selected;
-    }
-
-    function classifyEvidenceUsability(record) {
-        if (record.type === 'node-knowledge-base') return 'analysis-framework';
-        if (['abstract-supported', 'curated-entity', 'review'].includes(record.evidenceLevel)) return 'claim-supporting';
-        if (record.evidenceLevel === 'bibliographic-only' || /摘要不可用|未收录摘要/.test(record.snippet || '')) return 'discovery-only';
-        if (['reference-search', 'community'].includes(record.type)) return 'discovery-only';
-        return record.snippet ? 'contextual' : 'discovery-only';
-    }
-
-    function buildRetrievalDiagnostics(node, localRecords, externalRecords, query) {
-        const facets = new Set((node.knowledgeBase || []).map(item => item.quality?.facet).filter(Boolean));
-        return {
-            query, strategy: 'graph-aware hybrid lexical + authority/recency/citation scoring + MMR',
-            expertFacetCoverage: [...facets], localCandidates: localRecords.length, externalCandidates: externalRecords.length,
-            queryPlan: profileQueryPlanForDiagnostics(node, query),
-            evidenceSources: [...new Set(externalRecords.map(record => record.source).filter(Boolean))],
-            abstractSupportedEvidence: externalRecords.filter(record => ['abstract-supported', 'review'].includes(record.evidenceLevel)).length,
-            claimSupportingEvidence: externalRecords.filter(record => classifyEvidenceUsability(record) === 'claim-supporting').length,
-            discoveryOnlyRecords: externalRecords.filter(record => classifyEvidenceUsability(record) === 'discovery-only').length,
-            hasDefinitions: facets.has('definition'), hasMechanisms: facets.has('mechanism'), hasEvidenceProtocol: facets.has('evidence'), hasFrontierAnalysis: facets.has('frontier')
-        };
-    }
-
-    function profileQueryPlanForDiagnostics(node, query) {
-        const context = getNodeGraphContext(node);
-        const profile = buildNodeKnowledgeProfile(node, context);
-        return (profile.queryPlan || []).map(plan => ({ ...plan, userQuery: query }));
     }
 
     function getNodeGraphContext(node) {
@@ -1537,578 +1579,121 @@ function renderGraph(container) {
         };
     }
 
-    function buildNodeKnowledgeProfile(node, context) {
-        const terms = extractNodeSearchTerms(node.name);
-        const contextText = [
-            node.name,
-            node.description,
-            node.source,
-            node.scale,
-            node.maturity,
-            node.layer,
-            ...(context.path || []),
-            ...(context.children || []).map(item => item.name),
-            ...(context.siblings || []).map(item => item.name),
-        ].filter(Boolean).join(' ');
-        const domain = selectNodeKnowledgeDomain(node.name, contextText);
-        const primaryTerm = terms.english || terms.chinese || node.name;
-        const broadQuery = primaryTerm;
-        const graphPath = (context.path || []).join(' > ');
-        const queryPlan = buildExpertQueryPlan(primaryTerm, domain);
+    function getWorldRag() {
+        if (typeof window === 'undefined') return null;
+        if (window.WORLD_RAG && typeof window.WORLD_RAG.search === 'function') return window.WORLD_RAG;
+        return null;
+    }
 
+    function buildNodeKnowledgeProfile(node, context) {
+        const worldNode = getWorldRag()?.getNode(node.name);
         return {
             id: node.id,
             name: node.name,
-            terms,
-            primaryTerm,
-            broadQuery,
-            queryPlan,
-            graphPath,
-            domain,
-            source: node.source || context.root?.source || '',
-            scale: node.scale || context.root?.scale || '',
-            maturity: node.maturity || '',
-            layer: node.layer || '',
+            primaryTerm: node.nameEn || node.name,
+            broadQuery: node.name,
+            graphPath: (context.path || []).join(' > '),
+            section: node.section || '',
+            qid: node.qid || worldNode?.qid || '',
+            worldId: node.worldId || worldNode?.id || '',
+            terms: {
+                raw: node.name,
+                english: node.nameEn || '',
+                chinese: node.name || ''
+            },
+            domain: {
+                id: 'world-knowledge',
+                label: node.section || '世界知识',
+                summary: 'Wikipedia 与 Wikidata 的原文和结构化声明。',
+                sources: ['Wikipedia', 'Wikidata'],
+                questions: []
+            },
+            source: node.source || 'Wikipedia · Wikidata'
         };
     }
 
-    function extractNodeSearchTerms(name) {
-        const raw = String(name || '').replace(/\s+/g, ' ').trim();
-        const englishParts = raw.match(/[A-Za-z][A-Za-z0-9+\-./& ]*[A-Za-z0-9)]/g) || [];
-        const english = englishParts
-            .map(item => item.replace(/\s+/g, ' ').trim())
-            .filter(item => item.length > 2)
-            .sort((a, b) => b.length - a.length)[0] || '';
-        const chinese = raw.replace(/[A-Za-z0-9+\-./&():]/g, ' ').replace(/\s+/g, '').trim();
-        const compact = raw.replace(/[^\w\u4e00-\u9fa5]+/g, ' ').trim();
-        return { raw, english, chinese, compact };
-    }
-
-    function nodeDomainPatternMatches(text, pattern) {
-        const haystack = String(text || '').toLowerCase();
-        const needle = String(pattern || '').toLowerCase();
-        if (/^[a-z0-9 -]+$/.test(needle)) {
-            const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-            return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i').test(haystack);
-        }
-        return haystack.includes(needle);
-    }
-
-    function selectNodeKnowledgeDomain(nodeName, contextText) {
-        const domains = [
-            {
-                id: 'agentic-ai',
-                label: '智能体与基础模型',
-                queryBoost: 'agentic AI foundation models',
-                summary: '关注模型、工具、规划、评测、部署和人机协作的闭环。',
-                patterns: ['agent', 'large language model', 'foundation model', 'multimodal', 'world model', 'coding agents', '具身智能', '大语言模型', '多智能体', '基础模型'],
-                sources: ['OpenAlex', 'Semantic Scholar', 'arXiv', 'GitHub', 'Hugging Face', 'Hacker News'],
-                questions: ['它解决什么认知或自动化问题？', '核心模型、数据和评测是什么？', '有哪些开源实现和社区实践？', '主要风险和治理抓手是什么？']
-            },
-            {
-                id: 'knowledge-graph',
-                label: '知识图谱与世界知识库',
-                queryBoost: 'knowledge graph data commons schema.org entity search',
-                summary: '关注实体、关系、统计变量、来源、语义标准和检索增强。',
-                patterns: ['knowledge graph', 'data commons', 'schema.org', 'wikidata', 'rdf', 'sparql', 'ontology', 'graph neural', '知识图谱', '统计变量', '实体', '本体'],
-                sources: ['Data Commons', 'Google Knowledge Graph', 'Wikidata', 'OpenAlex', 'GitHub'],
-                questions: ['节点对应哪些实体类型？', '可连接哪些统计变量或外部ID？', '如何做实体消歧和来源追踪？', '能如何增强RAG和Agent记忆？']
-            },
-            {
-                id: 'quantum',
-                label: '量子与微观物质',
-                queryBoost: 'quantum computing quantum networks advanced materials',
-                summary: '关注微观物理、量子信息、材料和器件从实验到工程化的路径。',
-                patterns: ['quantum', 'superconduct', 'topological', 'photonics', 'metamaterial', '量子', '超导', '拓扑', '光子', '纳米'],
-                sources: ['OpenAlex', 'Semantic Scholar', 'arXiv', 'GitHub'],
-                questions: ['底层物理机制是什么？', '目前实验指标和可扩展瓶颈是什么？', '近期工程化路径在哪里？', '对计算、通信或测量有什么影响？']
-            },
-            {
-                id: 'bio-health',
-                label: '生命科学与精准健康',
-                queryBoost: 'AI biology gene editing therapeutics precision medicine',
-                summary: '关注分子、细胞、临床转化、监管和真实世界证据。',
-                patterns: ['protein', 'gene', 'crispr', 'cell', 'therapeutic', 'vaccine', 'neuroscience', 'microbiome', '蛋白', '基因', '细胞', '疗法', '医学', '脑机'],
-                sources: ['OpenAlex', 'Semantic Scholar', 'PubMed', 'ClinicalTrials', 'GitHub'],
-                questions: ['靶点、机制和实验体系是什么？', '临床转化处在哪个阶段？', '主要安全性和伦理问题是什么？', 'AI或自动化如何改变研发流程？']
-            },
-            {
-                id: 'energy-climate',
-                label: '能源、气候与地球系统',
-                queryBoost: 'energy storage climate technology carbon capture earth systems',
-                summary: '关注物理系统、资源约束、规模化部署和政策市场联动。',
-                patterns: ['battery', 'energy', 'fusion', 'hydrogen', 'climate', 'carbon', 'geothermal', 'biodiversity', 'water', '电池', '能源', '气候', '碳', '生态', '水资源'],
-                sources: ['OpenAlex', 'Data Commons', 'GitHub', 'Hacker News', 'IEA/WEF reference searches'],
-                questions: ['关键性能和成本曲线是什么？', '部署规模和基础设施瓶颈是什么？', '有哪些可观测指标？', '对气候和产业系统的边际影响是什么？']
-            },
-            {
-                id: 'semiconductor-robotics',
-                label: '半导体、机器人与工程系统',
-                queryBoost: 'semiconductors robotics advanced manufacturing compute infrastructure',
-                summary: '关注硬件、制造、供应链、可靠性和规模化交付。',
-                patterns: ['semiconductor', 'chiplet', 'robot', 'manufacturing', '6g', 'edge cloud', '半导体', '机器人', '制造', '通信', '算力'],
-                sources: ['OpenAlex', 'GitHub', 'Hacker News', 'Hugging Face'],
-                questions: ['系统架构和关键部件是什么？', '供应链或制造瓶颈在哪里？', '有哪些开源/产业实现？', '可靠性和安全标准是什么？']
-            },
-            {
-                id: 'space',
-                label: '宇宙科学与空间经济',
-                queryBoost: 'cosmology exoplanets satellite space economy',
-                summary: '关注基础天文观测、空间基础设施和商业航天生态。',
-                patterns: ['cosmology', 'dark matter', 'exoplanet', 'satellite', 'lunar', 'space', '宇宙', '暗物质', '系外行星', '卫星', '月球', '空间'],
-                sources: ['OpenAlex', 'arXiv', 'GitHub', 'Hacker News'],
-                questions: ['观测证据链是什么？', '需要哪些仪器和任务？', '商业化或基础设施路径是什么？', '长期科学问题是什么？']
-            },
-            {
-                id: 'society-governance',
-                label: '社会、治理与文明韧性',
-                queryBoost: 'computational social science AI governance digital public infrastructure',
-                summary: '关注制度、行为、组织、政策和社会影响评估。',
-                patterns: ['governance', 'society', 'education', 'work', 'policy', 'public infrastructure', '治理', '社会', '教育', '工作', '政策', '韧性'],
-                sources: ['OpenAlex', 'Data Commons', 'Hacker News', 'GitHub'],
-                questions: ['它改变哪些社会流程？', '可用什么指标衡量？', '主要外部性是什么？', '治理或制度化路径是什么？']
-            },
-        ];
-        let best = null;
-        domains.forEach(domain => domain.patterns.forEach(pattern => {
-            const direct = nodeDomainPatternMatches(nodeName, pattern);
-            const contextual = nodeDomainPatternMatches(contextText, pattern);
-            if (!direct && !contextual) return;
-            const score = (direct ? 10 : 1) + String(pattern).length / 100;
-            if (!best || score > best.score) best = { domain, score };
-        }));
-        return best?.domain || {
-            id: 'frontier-general',
-            label: '世界前沿知识通用节点',
-            queryBoost: 'frontier technology research knowledge graph',
-            summary: '通用前沿节点，按概念、证据、实现、社区、风险和成熟度组织解释。',
-            sources: ['OpenAlex', 'Semantic Scholar', 'GitHub', 'Hacker News'],
-            questions: ['它是什么？', '为什么重要？', '有哪些证据和实现？', '下一步应该看什么？']
-        };
-    }
-
-    function buildExpertQueryPlan(primaryTerm, domain) {
-        const term = String(primaryTerm || '').trim();
-        const plans = [
-            { id: 'definition', query: `"${term}" review terminology taxonomy`, intent: '定义、分类与学科共识' },
-            { id: 'mechanism', query: `"${term}" mechanism model experiment`, intent: '机制、形式化模型与实验验证' },
-            { id: 'evidence', query: `"${term}" benchmark metrics dataset replication`, intent: '指标、基准、数据与复现' },
-            { id: 'frontier', query: `"${term}" state of the art open challenges 2024 2025 2026`, intent: '前沿进展、瓶颈与开放问题' },
-        ];
-        if (domain.id === 'bio-health') plans.push({ id: 'clinical', query: `"${term}" clinical trial safety efficacy`, intent: '临床效力与安全性' });
-        if (domain.id === 'energy-climate') plans.push({ id: 'deployment', query: `"${term}" techno-economic lifecycle cost deployment`, intent: '技术经济与生命周期' });
-        if (domain.id === 'semiconductor-robotics') plans.push({ id: 'reliability', query: `"${term}" reliability standard manufacturing yield`, intent: '可靠性、标准与量产' });
-        return plans;
-    }
-
-    function retrieveLocalNodeKnowledge(node, context, profile) {
-        const children = (context.children || []).slice(0, 12).map(item => item.name);
-        const siblings = (context.siblings || []).slice(0, 10).map(item => item.name);
-        const ancestors = (context.ancestors || []).map(item => item.name);
-        const records = [
-            ...(node.knowledgeBase || []).map((item, index) => ({
-                type: item.evidenceLevel ? 'compiled-evidence' : 'node-knowledge-base',
-                id: item.id,
-                title: item.title || `节点知识库 ${index + 1}`,
-                content: [
-                    item.content || '',
-                    item.source ? `来源: ${item.source}` : '',
-                    item.url ? `链接: ${item.url}` : '',
-                    item.keywords?.length ? `关键词: ${item.keywords.join('；')}` : '',
-                ].filter(Boolean).join('\n'),
-                snippet: item.snippet || '',
-                keywords: item.keywords || [],
-                source: item.source || '',
-                url: item.url || '',
-                citation: item.citation || null,
-                evidenceLevel: item.evidenceLevel || '',
-                evidenceUsability: item.evidenceUsability || '',
-                provenance: item.provenance || null,
-                quality: item.quality || null,
-                score: item.evidenceUsability === 'claim-supporting' ? 1.16 : 1.08 - index * 0.02
-            })),
-            {
-                type: 'node-card',
-                title: '节点定位',
-                content: [
-                    `节点: ${node.name}`,
-                    `图谱路径: ${profile.graphPath || node.name}`,
-                    `领域: ${profile.domain.label}`,
-                    `尺度: ${profile.scale || '未标注'}`,
-                    `成熟度: ${profile.maturity || '由证据判断'}`,
-                    `来源线索: ${profile.source || '默认世界前沿知识图谱'}`,
-                ].join('\n'),
-                score: 1
-            },
-            {
-                type: 'domain-guide',
-                title: `${profile.domain.label}解释框架`,
-                content: [
-                    profile.domain.summary,
-                    `建议回答问题: ${profile.domain.questions.join('；')}`,
-                    `推荐检索源: ${profile.domain.sources.join('、')}`,
-                ].join('\n'),
-                score: 0.95
-            },
-        ];
-
-        const neighborNodes = [context.parent, ...(context.children || []), ...(context.siblings || [])].filter(Boolean);
-        neighborNodes.slice(0, 24).forEach(neighbor => {
-            (neighbor.knowledgeBase || [])
-                .filter(item => ['definition', 'mechanism', 'evidence', 'frontier'].includes(item.quality?.facet))
-                .forEach(item => records.push({
-                    type: 'graph-neighbor-knowledge',
-                    title: `${neighbor.name} / ${item.title}`,
-                    content: item.content,
-                    keywords: item.keywords || [],
-                    sourceNode: { id: neighbor.id, name: neighbor.name },
-                    graphRelation: context.parent?.id === neighbor.id ? 'parent' : context.children?.some(child => child.id === neighbor.id) ? 'child' : 'sibling',
-                    quality: item.quality,
-                    score: context.parent?.id === neighbor.id ? 0.84 : 0.76
-                }));
-        });
-
-        if (children.length) {
-            records.push({
-                type: 'graph-children',
-                title: '子节点知识库',
-                content: `这个节点下直接连接的子主题: ${children.join('；')}`,
-                score: 0.86
-            });
-        }
-
-        if (siblings.length) {
-            records.push({
-                type: 'graph-neighborhood',
-                title: '相邻节点',
-                content: `同一父节点下的相关主题: ${siblings.join('；')}`,
-                score: 0.78
-            });
-        }
-
-        if (ancestors.length) {
-            records.push({
-                type: 'graph-ancestors',
-                title: '上位知识结构',
-                content: `上位结构: ${ancestors.join(' > ')}`,
-                score: 0.74
-            });
-        }
-
-        records.push({
-            type: 'retrieval-query',
-            title: '检索查询',
-            content: [
-                `精确查询: ${profile.primaryTerm}`,
-                `扩展查询: ${profile.broadQuery}`,
-                `中文查询: ${profile.terms.chinese || '无'}`,
-                `英文查询: ${profile.terms.english || '无'}`,
-            ].join('\n'),
-            score: 0.7
-        });
-        return records;
-    }
-
-    async function retrieveExternalNodeKnowledge(profile) {
-        const cacheKey = `zstp-rag-v2:${profile.domain.id}:${profile.primaryTerm}`;
-        const cached = readKnowledgeRetrievalCache(cacheKey);
-        if (cached) return cached;
-        const exact = profile.primaryTerm;
-        const plans = profile.queryPlan || buildExpertQueryPlan(exact, profile.domain);
-        const academicPlans = plans.slice(0, 4);
-        const tasks = academicPlans.flatMap(plan => [
-            queryOpenAlex(plan.query, plan),
-            querySemanticScholar(plan.query, plan),
-        ]);
-        tasks.push(queryCrossref(exact));
-        if (profile.domain.id === 'bio-health') tasks.push(queryEuropePmc(exact));
-        if (profile.domain.id === 'knowledge-graph') tasks.push(queryWikidata(exact));
-        if (['agentic-ai', 'knowledge-graph', 'semiconductor-robotics', 'frontier-general'].includes(profile.domain.id)) {
-            tasks.push(queryGitHub(exact));
-        }
-        if (['agentic-ai', 'semiconductor-robotics'].includes(profile.domain.id)) tasks.push(queryHuggingFace(exact));
-        tasks.push(queryHackerNews(exact));
-        const settled = await Promise.allSettled(tasks);
-        const resultSets = settled
-            .filter(item => item.status === 'fulfilled' && Array.isArray(item.value))
-            .map(item => item.value);
-        const records = reciprocalRankFuse(resultSets);
-        const result = [
-            ...records,
-            ...buildReferenceSearchRecords(profile),
-        ];
-        writeKnowledgeRetrievalCache(cacheKey, result);
-        return result;
-    }
-
-    function reciprocalRankFuse(resultSets, rankConstant = 60) {
-        const fused = new Map();
-        resultSets.forEach((records, setIndex) => records.forEach((record, rank) => {
-            const key = String(record.url || `${record.source}:${record.title}`).toLowerCase();
-            const current = fused.get(key) || { ...record, rrfScore: 0, retrievalChannels: [] };
-            current.rrfScore += 1 / (rankConstant + rank + 1);
-            current.retrievalChannels.push(record.queryIntent || `channel-${setIndex + 1}`);
-            fused.set(key, current);
-        }));
-        return [...fused.values()]
-            .map(record => ({ ...record, rrfScore: Number(record.rrfScore.toFixed(6)), retrievalChannels: [...new Set(record.retrievalChannels)] }))
-            .sort((a, b) => b.rrfScore - a.rrfScore);
-    }
-
-    function buildCitation({ source, title, url, year, identifier, retrievedAt, evidenceLevel }) {
+    function toWorldRetrievalRecord(match) {
         return {
-            source: source || '', title: title || '', url: url || '', year: year || null,
-            identifier: identifier || '', retrievedAt: retrievedAt || new Date().toISOString(),
-            evidenceLevel: evidenceLevel || 'unclassified'
+            type: 'world-corpus-chunk',
+            id: match.chunkId,
+            title: `${match.title}${match.heading ? ` · ${match.heading}` : ' · 导言'}`,
+            content: match.text,
+            snippet: match.snippet,
+            source: 'Wikipedia',
+            url: match.url,
+            citation: match.citation,
+            evidenceLevel: 'encyclopedia-verbatim',
+            evidenceUsability: 'claim-supporting',
+            nodeId: match.nodeId,
+            nodeName: match.nodeName,
+            qid: match.qid,
+            heading: match.heading,
+            lang: match.lang,
+            retrievalScore: match.score,
+            score: match.score
         };
     }
 
-    const KNOWLEDGE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-
-    function readKnowledgeRetrievalCache(key) {
-        try {
-            const cached = JSON.parse(localStorage.getItem(key) || 'null');
-            if (!cached || Date.now() - cached.savedAt > KNOWLEDGE_CACHE_TTL_MS || !Array.isArray(cached.records)) return null;
-            return cached.records.map(record => ({ ...record, cacheHit: true }));
-        } catch {
-            return null;
-        }
-    }
-
-    function writeKnowledgeRetrievalCache(key, records) {
-        try {
-            localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), records }));
-        } catch {
-            // Retrieval remains usable when storage is unavailable or full.
-        }
-    }
-
-    function buildRetrievalPolicy(profile) {
-        return [
-            '先用本地图谱上下文限定节点含义，避免同名概念误解。',
-            '学术证据优先：OpenAlex / Semantic Scholar / arXiv 用来找论文、综述和引用网络。',
-            '工程证据其次：GitHub / Hugging Face / Papers with Code 用来找实现、模型、数据集和复现实践。',
-            '社区信号辅助：Hacker News、技术博客、开源 issue、论坛讨论用来判断落地痛点和争议。',
-            '统计节点补充 Data Commons、Wikidata、OpenStreetMap 等实体和指标图谱。',
-            `本节点优先领域: ${profile.domain.label}；推荐源: ${profile.domain.sources.join('、')}。`,
-        ];
-    }
-
-    function decodeOpenAlexAbstract(invertedIndex) {
-        if (!invertedIndex || typeof invertedIndex !== 'object') return '';
-        const words = [];
-        Object.entries(invertedIndex).forEach(([word, positions]) => (positions || []).forEach(position => { words[position] = word; }));
-        return compactText(words.filter(Boolean).join(' '), 700);
-    }
-
-    async function queryOpenAlex(query, plan = {}) {
-        const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&per-page=3&sort=relevance_score:desc&select=id,display_name,publication_year,cited_by_count,doi,primary_location,abstract_inverted_index,type`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.results || []).map(item => {
-            const retrievedAt = new Date().toISOString();
-            const evidenceLevel = item.abstract_inverted_index ? (item.type === 'review' ? 'review' : 'abstract-supported') : 'bibliographic-only';
-            return ({
-            type: 'scholarly',
-            source: 'OpenAlex',
-            title: item.display_name,
-            url: item.doi || item.primary_location?.landing_page_url || item.id,
-            meta: `${item.publication_year || 'n.d.'} · ${item.type || 'work'} · citations ${item.cited_by_count ?? 0}`,
-            snippet: decodeOpenAlexAbstract(item.abstract_inverted_index) || 'OpenAlex未收录摘要；仅将该记录用于文献定位，不据此生成具体事实。',
-            queryIntent: plan.intent || 'scholarly evidence',
-            evidenceLevel, retrievedAt,
-            citation: buildCitation({ source: 'OpenAlex', title: item.display_name, url: item.doi || item.primary_location?.landing_page_url || item.id, year: item.publication_year, identifier: item.doi || item.id, retrievedAt, evidenceLevel })
-        }); });
-    }
-
-    async function querySemanticScholar(query, plan = {}) {
-        const fields = 'paperId,title,year,citationCount,url,abstract,authors';
-        const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=3&fields=${encodeURIComponent(fields)}`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.data || []).map(item => {
-            const retrievedAt = new Date().toISOString();
-            const evidenceLevel = item.abstract ? 'abstract-supported' : 'bibliographic-only';
-            return ({
-            type: 'scholarly',
-            source: 'Semantic Scholar',
-            title: item.title,
-            url: item.url,
-            meta: `${item.year || 'n.d.'} · citations ${item.citationCount ?? 0}`,
-            snippet: compactText(item.abstract || `摘要不可用；作者: ${(item.authors || []).slice(0, 4).map(author => author.name).join(', ')}`, 700),
-            queryIntent: plan.intent || 'scholarly evidence',
-            evidenceLevel, retrievedAt,
-            citation: buildCitation({ source: 'Semantic Scholar', title: item.title, url: item.url, year: item.year, identifier: item.paperId, retrievedAt, evidenceLevel })
-        }); });
-    }
-
-    function stripScholarlyMarkup(value) {
-        return compactText(String(value || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' '), 800);
-    }
-
-    async function queryCrossref(query, timeout = 5000) {
-        const select = 'DOI,title,abstract,published,issued,is-referenced-by-count,type,URL,container-title';
-        const url = `https://api.crossref.org/works?query.title=${encodeURIComponent(query)}&rows=4&select=${select}`;
-        const data = await fetchJsonWithTimeout(url, timeout);
-        const queryTokenSet = new Set(tokenizeKnowledgeText(query));
-        return (data.message?.items || []).map(item => {
-            const title = Array.isArray(item.title) ? item.title[0] : item.title;
-            const year = item.published?.['date-parts']?.[0]?.[0] || item.issued?.['date-parts']?.[0]?.[0] || null;
-            const itemUrl = item.URL || (item.DOI ? `https://doi.org/${item.DOI}` : '');
-            const snippet = stripScholarlyMarkup(item.abstract);
-            const evidenceLevel = snippet ? 'abstract-supported' : 'bibliographic-only';
-            const retrievedAt = new Date().toISOString();
-            const titleTokens = new Set(tokenizeKnowledgeText(title));
-            const overlap = queryTokenSet.size ? [...queryTokenSet].filter(token => titleTokens.has(token)).length / queryTokenSet.size : 0;
-            const exact = String(title || '').toLowerCase().includes(String(query || '').toLowerCase()) ? 0.35 : 0;
+    function buildNodeKnowledgeBundle(node, userQuery = '', { liveExternal = false } = {}) {
+        const graphContext = getNodeGraphContext(node);
+        const profile = buildNodeKnowledgeProfile(node, graphContext);
+        const rag = getWorldRag();
+        if (!rag) {
             return {
-                type: 'scholarly', source: 'Crossref', title, url: itemUrl,
-                meta: `${year || 'n.d.'} · ${item.type || 'work'} · citations ${item['is-referenced-by-count'] || 0}`,
-                snippet: snippet || 'Crossref未提供摘要；该记录仅用于DOI和出版元数据定位。',
-                queryIntent: 'DOI、出版元数据与补充学术证据', evidenceLevel, retrievedAt,
-                matchConfidence: Math.min(1, overlap * 0.65 + exact),
-                citation: buildCitation({ source: 'Crossref', title, url: itemUrl, year, identifier: item.DOI || itemUrl, retrievedAt, evidenceLevel })
+                profile,
+                graphContext,
+                localRecords: [],
+                externalRecords: [],
+                evidenceGraph: { nodes: [], edges: [], stats: { topics: 0, evidence: 0, claims: 0 } },
+                retrievalPolicy: ['本地世界知识检索器尚未加载。'],
+                diagnostics: { error: 'world-rag-unavailable', liveExternal: false }
             };
-        }).filter(record => record.matchConfidence >= 0.55);
-    }
-
-    async function queryEuropePmc(query, timeout = 5000) {
-        const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(`TITLE_ABS:"${query}"`)}&format=json&pageSize=4&resultType=core`;
-        const data = await fetchJsonWithTimeout(url, timeout);
-        return (data.resultList?.result || []).map(item => {
-            const retrievedAt = new Date().toISOString();
-            const evidenceLevel = item.abstractText ? 'abstract-supported' : 'bibliographic-only';
-            const itemUrl = item.doi ? `https://doi.org/${item.doi}` : `https://europepmc.org/article/${item.source}/${item.id}`;
-            return ({
-            type: 'biomedical', source: 'Europe PMC', title: item.title,
-            url: itemUrl,
-            meta: `${item.pubYear || 'n.d.'} · citations ${item.citedByCount ?? 0} · ${item.journalTitle || 'journal unavailable'}`,
-            snippet: compactText(item.abstractText || '摘要不可用；该记录仅作为生物医学文献定位信息。', 800),
-            queryIntent: '生物医学机制、临床效力与安全性', evidenceLevel, retrievedAt,
-            citation: buildCitation({ source: 'Europe PMC', title: item.title, url: itemUrl, year: item.pubYear, identifier: item.doi || item.pmid || item.id, retrievedAt, evidenceLevel })
-        }); });
-    }
-
-    async function queryWikidata(query) {
-        const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&uselang=zh&limit=6&format=json&origin=*`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.search || []).map(item => {
-            const retrievedAt = new Date().toISOString();
-            return ({
-            type: 'entity', source: 'Wikidata', title: `${item.label} (${item.id})`, url: item.concepturi,
-            meta: `canonical entity · ${item.id}`, snippet: item.description || 'Wikidata规范实体；描述不可用。',
-            queryIntent: '实体链接、规范标识符与消歧', evidenceLevel: 'curated-entity', retrievedAt,
-            citation: buildCitation({ source: 'Wikidata', title: item.label, url: item.concepturi, identifier: item.id, retrievedAt, evidenceLevel: 'curated-entity' })
-        }); });
-    }
-
-    async function queryGitHub(query) {
-        const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=3`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.items || []).map(item => ({
-            type: 'implementation',
-            source: 'GitHub',
-            title: item.full_name,
-            url: item.html_url,
-            meta: `stars ${item.stargazers_count ?? 0} · ${item.language || 'mixed'}`,
-            snippet: compactText(item.description || '开源实现或工程参考。', 300)
-        }));
-    }
-
-    async function queryHackerNews(query) {
-        const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=3`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (data.hits || []).map(item => ({
-            type: 'community',
-            source: 'Hacker News',
-            title: item.title || item.story_title,
-            url: item.url || `https://news.ycombinator.com/item?id=${item.objectID}`,
-            meta: `points ${item.points ?? 0} · comments ${item.num_comments ?? 0}`,
-            snippet: '技术社区讨论结果，用于观察落地痛点、争议和实践经验。'
-        }));
-    }
-
-    async function queryHuggingFace(query) {
-        const url = `https://huggingface.co/api/models?search=${encodeURIComponent(query)}&limit=3&sort=downloads&direction=-1`;
-        const data = await fetchJsonWithTimeout(url, 4500);
-        return (Array.isArray(data) ? data : []).map(item => ({
-            type: 'model-community',
-            source: 'Hugging Face',
-            title: item.modelId || item.id,
-            url: `https://huggingface.co/${item.modelId || item.id}`,
-            meta: `downloads ${item.downloads ?? 0} · likes ${item.likes ?? 0}`,
-            snippet: compactText((item.tags || []).slice(0, 12).join(', ') || '模型社区相关资源。', 300)
-        }));
-    }
-
-    async function fetchJsonWithTimeout(url, timeout = 4000) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeout);
-        try {
-            const response = await fetch(url, {
-                signal: controller.signal,
-                headers: { Accept: 'application/json' },
-            });
-            if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-            return await response.json();
-        } finally {
-            clearTimeout(timer);
         }
+        const query = [node.name, userQuery].filter(Boolean).join(' ').trim();
+        const result = rag.search(query, { topK: 20, graphExpand: true });
+        return {
+            profile,
+            graphContext,
+            localRecords: result.matches.map(toWorldRetrievalRecord),
+            externalRecords: [],
+            evidenceGraph: result.evidenceGraph,
+            retrievalPolicy: [
+                '只检索本地 worldKnowledge.js 中带 revision 与 URL 的 Wikipedia 原文段落。',
+                'Wikidata 声明只作为结构化关系，不替代原文段落。',
+                '所有回答必须能够回指到检索记录的 citation。'
+            ],
+            diagnostics: {
+                ...result.diagnostics,
+                seeds: result.seeds,
+                mode: 'local-corpus',
+                liveExternal: false
+            }
+        };
     }
 
-    function buildReferenceSearchRecords(profile) {
-        const query = encodeURIComponent(profile.broadQuery || profile.primaryTerm);
-        const records = [
-            {
-                type: 'reference-search',
-                source: 'arXiv',
-                title: 'arXiv advanced search',
-                url: `https://arxiv.org/search/?query=${query}&searchtype=all`,
-                meta: 'academic preprints',
-                snippet: '前沿论文预印本检索入口，适合量子、AI、物理、天文、数学和计算机节点。'
-            },
-            {
-                type: 'reference-search',
-                source: 'GitHub',
-                title: 'GitHub repository search',
-                url: `https://github.com/search?q=${query}&type=repositories`,
-                meta: 'open source',
-                snippet: '开源实现检索入口，用来观察项目活跃度、工程路线和开发者采用情况。'
-            },
-            {
-                type: 'reference-search',
-                source: 'Hacker News',
-                title: 'Hacker News community search',
-                url: `https://hn.algolia.com/?q=${query}`,
-                meta: 'technical community',
-                snippet: '前沿技术社区讨论入口，用来观察落地痛点、质疑、替代方案和实践经验。'
-            },
-            {
-                type: 'reference-search',
-                source: 'Papers with Code',
-                title: 'Papers with Code search',
-                url: `https://paperswithcode.com/search?q=${query}`,
-                meta: 'papers, code, datasets',
-                snippet: '论文、代码、数据集和基准检索入口，适合AI、机器人、视觉、NLP和科学机器学习节点。'
-            },
-            {
-                type: 'reference-search',
-                source: 'Google Scholar',
-                title: 'Google Scholar search',
-                url: `https://scholar.google.com/scholar?q=${query}`,
-                meta: 'scholarly search',
-                snippet: '学术补充检索入口，用来查找综述、引用链和不同数据库未覆盖的论文。'
-            },
-        ];
-        if (['knowledge-graph', 'energy-climate', 'society-governance'].includes(profile.domain.id)) {
-            records.push({
-                type: 'reference-search',
-                source: 'Data Commons',
-                title: 'Data Commons browser and API',
-                url: `https://datacommons.org/browser/`,
-                meta: 'entities, places, statistical variables',
-                snippet: '世界统计图谱入口，适合查地点、实体、统计变量、时间序列和来源。'
-            });
+    async function searchWorldKnowledge(query, options = {}) {
+        if (typeof window !== 'undefined' && window.WORLD_CORPUS_READY) {
+            await window.WORLD_CORPUS_READY;
         }
-        return records;
+        const rag = getWorldRag();
+        if (!rag) {
+            return {
+                query: String(query || ''),
+                matches: [],
+                localRecords: [],
+                seeds: [],
+                evidenceGraph: { nodes: [], edges: [], stats: { topics: 0, evidence: 0, claims: 0 } },
+                diagnostics: { error: 'world-rag-unavailable' }
+            };
+        }
+        const result = rag.search(query, {
+            topK: Math.max(1, Math.min(24, Number(options.topK) || 8)),
+            graphExpand: options.graphExpand !== false
+        });
+        return {
+            ...result,
+            localRecords: result.matches.map(toWorldRetrievalRecord)
+        };
     }
 
     function compactText(value, max = 300) {
@@ -2176,11 +1761,21 @@ function renderGraph(container) {
     // --- 项目导入功能 ---
     const importBtn = document.getElementById('zstp-import-btn');
     const restoreBtn = document.getElementById('zstp-restore-btn');
+    const layerToggleBtn = document.getElementById('zstp-layer-toggle');
     const folderInput = document.getElementById('zstp-folder-input');
     // 笔记元数据 path -> note，点击节点时用来渲染笔记面板（正文按需再读文件，避免把整个库塞进内存）
     const vaultNotesByPath = new Map();
     let importedGraphMode = 'builtin';
     let lastVaultStats = null;
+
+    if (layerToggleBtn) {
+        layerToggleBtn.addEventListener('click', () => {
+            graphLayerMode = graphLayerMode === 'all' ? 'structure' : 'all';
+            layerToggleBtn.textContent = graphLayerMode === 'all' ? '只看知识结构' : '显示全部实体';
+            if (importedGraphMode === 'builtin') rebuildBuiltinGraph();
+            else restoreBuiltinGraph();
+        });
+    }
 
     if (restoreBtn) {
         restoreBtn.title = '放弃导入的图谱，回到内置的世界前沿知识图谱';
@@ -2295,20 +1890,27 @@ function renderGraph(container) {
     }
 
     // 导入会整体替换图谱数据，这里提供回到内置图谱的入口，避免必须刷新页面
+    function rebuildBuiltinGraph() {
+        _graphAutoId = 0;
+        focusedGraphNodeId = null;
+        lastGraphNodeAction = { node: null, time: 0 };
+        const newData = applyReadableGraphLayout(buildGraphData(getBuiltinGraphTree(), THEME));
+        graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
+        Graph.graphData(newData);
+        refreshLayoutGuides(newData);
+        frameGraphOverview(900, 120);
+        console.log('[知识图谱] 已重建内置图谱:', { mode: graphLayerMode, nodes: newData.nodes.length, links: newData.links.length });
+        return newData;
+    }
+
     function restoreBuiltinGraph() {
         if (importedGraphMode === 'builtin') return false;
         vaultNotesByPath.clear();
         lastVaultStats = null;
         importedGraphMode = 'builtin';
-        _graphAutoId = 0;
-        const newData = applyReadableGraphLayout(buildGraphData(getGraphTree(THEME), THEME));
-        graphNodeById = new Map(newData.nodes.map(node => [node.id, node]));
-        Graph.graphData(newData);
-        refreshLayoutGuides(newData);
-        frameGraphOverview(900, 120);
+        rebuildBuiltinGraph();
         if (importBtn) importBtn.textContent = importBtn.dataset.baseLabel || '项目导入';
         updateRestoreButton();
-        console.log('[知识图谱] 已恢复内置图谱:', { nodes: newData.nodes.length, links: newData.links.length });
         return true;
     }
 
@@ -2395,66 +1997,100 @@ function renderGraph(container) {
         buildVaultGraphData: (vault, options) => buildVaultGraphData(vault, { ...(options || {}), theme: THEME, prefix: '_vault' }),
         detectVault: files => (typeof window.OBSIDIAN_VAULT !== 'undefined' ? window.OBSIDIAN_VAULT.detectVault(files) : null),
         auditRuntime: () => {
-            const data = Graph.graphData?.() || { nodes: [], links: [] };
+            const data = (typeof Graph !== 'undefined' && Graph.graphData?.()) || { nodes: [], links: [] };
             const realNodes = (data.nodes || []).filter(node => node.kind !== 'knowledge-detail');
-            const requiredFacets = ['definition', 'mechanism', 'evidence', 'frontier', 'retrieval'];
-            const invalidNodes = realNodes.filter(node => {
-                const facets = new Set((node.knowledgeBase || []).map(record => record.quality?.facet).filter(Boolean));
-                return requiredFacets.some(facet => !facets.has(facet));
+            const entityNodes = realNodes.filter(node => node.kind !== 'category' && node.kind !== 'root');
+            const invalidNodes = entityNodes.filter(node => {
+                const hasSource = (node.knowledgeBase || []).some(record =>
+                    record.evidenceLevel === 'encyclopedia-verbatim' &&
+                    record.citation?.revision &&
+                    record.citation?.url
+                );
+                return !node.qid || !hasSource;
             });
-            // 500 节点的下限只针对内置图谱；导入 vault/目录后节点数是用户数据决定的
-            const requiredNodeCount = importedGraphMode === 'builtin' ? 500 : 1;
+            const requiredNodeCount = importedGraphMode === 'builtin'
+                ? (graphLayerMode === 'all' ? 100 : 1)
+                : 1;
             return {
                 status: invalidNodes.length === 0 && realNodes.length >= requiredNodeCount ? 'pass' : 'fail',
                 nodeCount: realNodes.length,
+                entityCount: entityNodes.length,
+                categoryCount: realNodes.length - entityNodes.length,
+                fullEntityCount: window.WORLD_KNOWLEDGE_GRAPH?.meta?.nodeCount || 0,
+                layerMode: graphLayerMode,
                 linkCount: (data.links || []).length,
                 invalidNodeCount: invalidNodes.length,
                 invalidNodes: invalidNodes.slice(0, 20).map(node => node.name),
-                requiredFacets,
                 graphMode: importedGraphMode,
                 requiredNodeCount,
-                retrieverVersion: 'graph-rag-v3-evidence-graph'
+                retrieverVersion: getWorldRag()?.version || 'unavailable',
+                corpus: getWorldRag()?.stats() || null,
+                source: getWorldGraphStats()
             };
         },
-        retrieveKnowledge: async ({ nodeName, query, topK, liveExternal = false } = {}) => {
-            const targetNode = nodeName ? findGraphNode(nodeName) : null;
-            const selected = targetNode || (query ? findGraphNode(query) : null);
-            if (!selected) {
+        retrieveKnowledge: async ({ nodeName, query, topK } = {}) => {
+            if (window.WORLD_CORPUS_READY) await window.WORLD_CORPUS_READY;
+            const rag = getWorldRag();
+            if (!rag) {
                 return {
-                    error: 'node_not_found',
+                    error: 'world_rag_unavailable',
                     query: query || nodeName || '',
-                    message: '知识图谱中没有找到要检索的节点。'
+                    message: '本地世界知识检索器未加载。'
                 };
             }
-            const knowledge = await buildNodeKnowledgeBundle(selected, query || nodeName || '', { liveExternal: liveExternal === true });
-            const limit = Number.isFinite(topK) ? Math.max(1, Math.min(24, topK)) : 12;
+            const limit = Number.isFinite(topK) ? Math.max(1, Math.min(24, topK)) : 8;
+            const targetNode = nodeName ? findGraphNode(nodeName) : (query ? findGraphNode(query) : null);
+            const searchQuery = [targetNode?.name, query].filter(Boolean).join(' ').trim() || query || nodeName || '';
+            const result = rag.search(searchQuery, { topK: limit, graphExpand: true });
+            const graphContext = targetNode ? getNodeGraphContext(targetNode) : null;
             return {
-                node: {
-                    id: selected.id,
-                    name: selected.name,
-                    source: selected.source || '',
-                    scale: selected.scale || '',
-                    maturity: selected.maturity || '',
-                    layer: selected.layer || '',
-                    knowledgeBaseCount: Array.isArray(selected.knowledgeBase) ? selected.knowledgeBase.length : 0
+                node: targetNode ? {
+                    id: targetNode.id,
+                    name: targetNode.name,
+                    qid: targetNode.qid || '',
+                    source: targetNode.source || '',
+                    section: targetNode.section || '',
+                    knowledgeBaseCount: Array.isArray(targetNode.knowledgeBase) ? targetNode.knowledgeBase.length : 0
+                } : {
+                    id: '',
+                    name: result.seeds[0]?.name || '世界知识库',
+                    qid: result.seeds[0]?.qid || '',
+                    source: 'Wikipedia · Wikidata',
+                    section: '',
+                    knowledgeBaseCount: 0
                 },
-                profile: knowledge.profile,
+                profile: {
+                    query: searchQuery,
+                    primaryTerm: targetNode?.nameEn || targetNode?.name || searchQuery,
+                    graphPath: (graphContext?.path || []).join(' > ')
+                },
                 graph: {
-                    path: knowledge.graphContext.path,
-                    parent: knowledge.graphContext.parent?.name || '',
-                    children: knowledge.graphContext.children.slice(0, 16).map(item => item.name),
-                    siblings: knowledge.graphContext.siblings.slice(0, 16).map(item => item.name),
-                    nodeCount: knowledge.graphContext.nodeCount,
-                    linkCount: knowledge.graphContext.linkCount,
+                    path: graphContext?.path || [],
+                    parent: graphContext?.parent?.name || '',
+                    children: (graphContext?.children || []).slice(0, 16).map(item => item.name),
+                    siblings: (graphContext?.siblings || []).slice(0, 16).map(item => item.name),
+                    nodeCount: graphContext?.nodeCount || 0,
+                    linkCount: graphContext?.linkCount || 0
                 },
-                nodeKnowledgeBase: (selected.knowledgeBase || []).slice(0, Math.min(limit, 12)),
-                localRecords: knowledge.localRecords.slice(0, Math.min(limit, 10)),
-                externalRecords: knowledge.externalRecords.slice(0, limit),
-                evidenceGraph: knowledge.evidenceGraph,
-                retrievalPolicy: knowledge.retrievalPolicy,
-                diagnostics: knowledge.diagnostics,
-                mode: liveExternal === true ? 'local-plus-fast-live' : 'local-only',
+                seeds: result.seeds,
+                localRecords: result.matches.map(toWorldRetrievalRecord).slice(0, limit),
+                externalRecords: [],
+                evidenceGraph: result.evidenceGraph,
+                retrievalPolicy: [
+                    '只检索本地 Wikipedia 原文语料。',
+                    '每条记录带标题、URL、revision 与 CC BY-SA 4.0 许可。',
+                    'Wikidata 声明仅用于实体关系和消歧。'
+                ],
+                diagnostics: result.diagnostics,
+                mode: 'local-corpus'
             };
+        },
+        searchWorldKnowledge: (query, options = {}) => searchWorldKnowledge(query, options),
+        worldGraphStats: () => getWorldGraphStats(),
+        ragStats: () => getWorldRag()?.stats() || null,
+        resetRag: () => {
+            window.WORLD_RAG = null;
+            return 'reload-page-to-rebuild-index';
         },
         pause: () => {
             window.isZSTPActive = false;

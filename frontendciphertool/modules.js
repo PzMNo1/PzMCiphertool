@@ -49,22 +49,48 @@ const MODULES = {
 
 </div>`,
 
-    // 电子实验室模块
+    // 电子实验室模块（电路模拟 / 电路板布局 单按钮子模块切换）
     electroniclab: `
     <div id="electroniclab-content" class="content-section">
-        <div class="module-header">
+        <div class="module-header electronic-module-header">
             <h2 class="neon-title" data-text="ELECTRONIC LABORATORY">ELECTRONIC LABORATORY</h2>
+            <button type="button" id="electronic-submodule-toggle"
+                class="submodule-btn electronic-submodule-btn active"
+                data-active-panel="simulation" data-mode="SIM"
+                aria-pressed="false" aria-label="切换到电路板布局"
+                title="点击切换到电路板布局">
+                <span id="electronic-submodule-toggle-label" class="electronic-submodule-btn-label">电路模拟</span>
+            </button>
         </div>
-        <div class="engine-viewport">
-            <div id="circuit-loading" class="loading-mask active">
-                <div><i class="fas fa-spinner fa-spin"></i> 正在初始化电路引擎...</div>
-            </div>
-            <iframe 
-                id="circuit-frame" 
-                src="" 
-                data-src="./electronic/war/circuitjs.html" 
-                allowfullscreen>
-            </iframe>
+
+        <div class="electronic-submodule-stack">
+            <section id="electronic-submodule-simulation" class="electronic-submodule active" aria-label="电路模拟">
+                <div class="engine-viewport">
+                    <div id="circuit-loading" class="loading-mask active">
+                        <div><i class="fas fa-spinner fa-spin"></i> 正在初始化电路引擎...</div>
+                    </div>
+                    <iframe
+                        id="circuit-frame"
+                        src=""
+                        data-src="./electronic/war/circuitjs.html"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </section>
+
+            <section id="electronic-submodule-pcb" class="electronic-submodule" aria-label="电路板布局">
+                <div class="engine-viewport pcb-engine-viewport">
+                    <div id="pcb-loading" class="loading-mask active">
+                        <div><i class="fas fa-spinner fa-spin"></i> 正在初始化 PCB 设计引擎...</div>
+                    </div>
+                    <iframe
+                        id="pcb-frame"
+                        src=""
+                        data-src="./electronic/PCBLayout/index.html"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </section>
         </div>
     </div>
 `,
@@ -178,6 +204,7 @@ const MODULES = {
 
         <div id="zstp-import-layer">
             <div class="zstp-action-stack">
+                <button id="zstp-layer-toggle" class="zstp-import-btn">显示全部实体</button>
                 <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
                 <button id="zstp-guide-btn" class="zstp-import-btn" data-guide-id="zhishitupu">使用说明</button>
                 <button id="zstp-restore-btn" class="zstp-import-btn">恢复默认</button>
@@ -197,6 +224,7 @@ const MODULES = {
                     <div><span class="key">SCROLL</span> ZOOM 缩放</div>
                     <div><span class="key">CLICK</span> FOCUS 聚焦</div>
                 </div>
+                <div style="margin-top: 10px; font-size: 10px; line-height: 1.6; color: rgba(124, 247, 255, 0.62); letter-spacing: 0.5px;">由内向外：知识大陆 → 分类 → 条目<br>默认只看结构，右上角可显示全部实体<br>点击 PzM知识图谱 重置聚焦</div>
                 <div style="margin-top: 15px; font-size: 10px; color: #4a6; letter-spacing: 1px;">● SYSTEM ONLINE</div>
             </div>
         </div>
@@ -521,7 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
         zhishitupu: [
             './zhishitupu/obsidianVault.js',
             './zhishitupu/worldKnowledge.js',
-            './zhishitupu/nodeKnowledgeCorpus.js',
+            './zhishitupu/worldCorpusLoader.js',
+            './zhishitupu/worldRag.js',
             './zhishitupu/graphData.js',
             './zhishitupu/zhishitupu.js',
         ],
@@ -586,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261011';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -681,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const targetSection = document.getElementById(id + '-content');
         if (targetSection) {
-            targetSection.style.display = (id === 'workflow') ? 'flex' : 'block';
+            targetSection.style.display = (id === 'workflow' || id === 'electroniclab') ? 'flex' : 'block';
         }
 
         // 电子实验室懒加载

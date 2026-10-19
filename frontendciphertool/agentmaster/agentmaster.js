@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'You can answer questions normally, and when the user asks you to operate the page, call the ui_action tool.',
                 'Only use tools when the latest user message explicitly asks for a UI operation such as open, switch, click, fill, search, scroll, focus, highlight, close, reload, or navigate.',
                 'Do not use page-operation tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, Skill/MCP, or 联系我们.',
-                'Exception: when a selected knowledge-graph node explanation is active and the knowledge_graph_retrieve tool is available, retrieve that node knowledge base before answering.',
+                'Exception: for knowledge, definition and explanation questions, the runtime automatically retrieves the local Wikipedia/Wikidata corpus before answering; cite the retrieved records instead of answering from memory. When a selected knowledge-graph node explanation is active, retrieve that node knowledge base first.',
                 'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, and highlighting.',
                 'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
                 'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
@@ -666,8 +666,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const allowKnowledgeGraphRetrieval = shouldAllowKnowledgeGraphRetrieval(text);
         if (allowKnowledgeGraphRetrieval) {
-            await runKnowledgeGraphRag(text);
+            const handled = await runKnowledgeGraphRag(text, { requireEvidence: true });
+            if (handled) return;
+            addMsg('ai', '本地 Wikipedia/Wikidata 语料中没有检索到与该节点相关的原文段落。请先在知识图谱中重新编译世界知识数据，或换一个更具体的问法。');
             return;
+        }
+
+        if (shouldRetrieveWorldKnowledge(text)) {
+            const handled = await runKnowledgeGraphRag(text, { requireEvidence: false });
+            if (handled) return;
         }
 
         // 原生工具模式下始终挂载页面工具，由模型按系统提示词自主决定是否调用；
@@ -727,15 +734,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function runKnowledgeGraphRag(userText) {
+    async function runKnowledgeGraphRag(userText, { requireEvidence = false } = {}) {
         const loader = showLoading();
         try {
-            const result = await executeKnowledgeGraphRetrieve({ query: userText, topK: 8, liveExternal: false });
+            const result = await executeKnowledgeGraphRetrieve({ query: userText, topK: 8 });
             loader.remove();
+            if (!result.localCount) return false;
+            if (!requireEvidence && !result.seeds.length && result.coverage < 0.55) return false;
             await answerWithKnowledgeGraphRetrieval(userText, [result.message]);
+            return true;
         } catch (err) {
             loader.remove();
-            addMsg('ai', `**[Knowledge Graph Retrieval Error]** ${err.message}`);
+            if (requireEvidence) {
+                addMsg('ai', `**[Knowledge Graph Retrieval Error]** ${err.message}`);
+                return true;
+            }
+            return false;
         }
     }
 
@@ -895,6 +909,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function executeKnowledgeGraphRetrieve(args = {}) {
+        if (typeof window.ZSTP?.retrieveKnowledge !== 'function' && typeof window.ensureCipherModule === 'function') {
+            await window.ensureCipherModule('zhishitupu');
+        }
         const retriever = window.ZSTP?.retrieveKnowledge;
         if (typeof retriever !== 'function') {
             throw new Error('knowledge graph retriever is not available');
@@ -902,30 +919,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await retriever({
             query: args.query || '',
             nodeName: args.nodeName || pendingKnowledgeGraphContext?.nodeName || '',
-            topK: Number.isFinite(args.topK) ? args.topK : 8,
-            liveExternal: args.liveExternal === true
+            topK: Number.isFinite(args.topK) ? args.topK : 8
         });
+        const localRecords = result?.localRecords || [];
         return {
             message: JSON.stringify(compactKnowledgeGraphResult(result), null, 2),
-            tool: 'knowledge_graph_retrieve'
+            tool: 'knowledge_graph_retrieve',
+            localCount: localRecords.length,
+            topScore: Number(localRecords[0]?.score || 0),
+            coverage: Number(result?.diagnostics?.queryCoverage || 0),
+            seeds: result?.seeds || []
         };
     }
 
     function compactKnowledgeGraphResult(result) {
         if (!result || result.error) return result;
-        const records = (result.localRecords || []).slice(0, 8).map(record => ({
+        const records = (result.localRecords || []).slice(0, 8).map((record, index) => ({
+            citationId: `S${index + 1}`,
             type: record.type,
             title: record.title,
-            content: String(record.content || record.snippet || '').slice(0, 1400),
+            content: String(record.content || record.snippet || '').slice(0, 1800),
             source: record.source || '',
-            evidenceUsability: record.evidenceUsability || (record.type === 'node-knowledge-base' ? 'analysis-framework' : ''),
-            citation: record.citation || null,
+            evidenceLevel: record.evidenceLevel || '',
+            evidenceUsability: record.evidenceUsability || 'claim-supporting',
             graphRelation: record.graphRelation || ''
         }));
         const claims = (result.evidenceGraph?.nodes || [])
             .filter(node => node.type === 'claim')
-            .slice(0, 4)
-            .map(node => ({ statement: String(node.statement || '').slice(0, 1000), qualifiers: node.qualifiers, citation: node.citation }));
+            .slice(0, 6)
+            .map((node, index) => ({
+                citationId: `C${index + 1}`,
+                statement: String(node.statement || '').slice(0, 1000),
+                qualifiers: node.qualifiers
+            }));
         return {
             node: result.node,
             graph: {
@@ -936,7 +962,14 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             records,
             claims,
-            mode: result.mode || 'local-only'
+            mode: result.mode || 'local-corpus',
+            diagnostics: {
+                corpusChunks: result.diagnostics?.corpusChunks,
+                queryTokens: result.diagnostics?.queryTokens,
+                queryCoverage: result.diagnostics?.queryCoverage,
+                seeds: result.diagnostics?.seeds || result.seeds || [],
+                searchMs: result.diagnostics?.searchMs
+            }
         };
     }
 
@@ -947,17 +980,17 @@ document.addEventListener('DOMContentLoaded', () => {
             {
                 role: 'system',
                 content: [
-                    'Answer the user in Chinese using the retrieved knowledge graph context below.',
-                    'Write at expert or doctoral depth. Use established Chinese and English disciplinary terminology; do not invent substitute terms or dilute technical concepts into generic slogans.',
-                    'Structure the answer around: operational definition and boundary; mechanism or formal model; key metrics and validation protocol; strongest available evidence; graph neighborhood; engineering maturity; failure modes and risks; frontier disputes and open problems.',
-                    'For empirical claims, name the supporting retrieved source and its year when available. Distinguish consensus, replicated evidence, single-study findings, preprints, engineering demonstrations and community anecdotes.',
-                    'Only records marked evidenceUsability=claim-supporting may support concrete empirical claims. Treat discovery-only records as reading leads and analysis-framework records as reasoning scaffolds, never as factual citations.',
-                    'Use evidenceGraph claim nodes as source-asserted claim candidates, not automatically verified truth. Preserve each claim qualifier and cite its linked evidence node citation object.',
-                    'When evidenceGraph contains competing or differently scoped claims, present the disagreement and conditions instead of collapsing them into one answer.',
-                    'Never fabricate a paper, metric, result or citation. If retrieved evidence is thin, stale, indirect or conflicting, state the exact limitation and propose a professional follow-up query.',
+                    'Answer the user in Chinese using the retrieved local Wikipedia/Wikidata context below.',
+                    'Write at expert depth. Use established Chinese and English disciplinary terminology; do not invent substitute terms or dilute technical concepts into generic slogans.',
+                    'The records marked evidenceLevel=encyclopedia-verbatim are verbatim Wikipedia passages. They are the only evidence that may support concrete factual claims.',
+                    'Cite the exact citationId shown on each record in square brackets after the supported sentence, for example [S1]. Cite Wikidata claim records as [C1] and call them structured Wikidata statements, not prose evidence.',
+                    'Every factual sentence must be traceable to one of the retrieved records. If the records do not contain the answer, say exactly what is missing instead of filling the gap from memory.',
+                    'Never fabricate a paper, metric, date, result or citation. Preserve the source language of technical terms and note when a source is a lead section rather than the full article.',
+                    'Distinguish Wikipedia article statements, Wikidata structured claims, and your own synthesis. Do not present synthesis as a quoted source claim.',
+                    'Do not print external URLs, revision ids, license notices or source-button instructions; citation ids such as [S1] are sufficient.',
                     'Do not mention internal JSON or retrieval implementation details unless the user asks.',
                     '',
-                    'Retrieved context:',
+                    'Retrieved local corpus records:',
                     retrievalText
                 ].join('\n')
             },
@@ -1967,6 +2000,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return answerIntent && !hasExplicitOperationIntent(raw, normalized);
     }
 
+    function shouldRetrieveWorldKnowledge(text) {
+        const raw = String(text || '').trim();
+        const normalized = normalizeText(raw);
+        if (!normalized || raw.length < 4) return false;
+        if (hasExplicitOperationIntent(raw, normalized)) return false;
+        if (/^(?:你好|您好|hi|hello|hey|谢谢|多谢|再见|晚安|早上好|晚上好)[!！。,.，\s]*$/i.test(raw)) return false;
+        if (/^(?:写|帮我写|生成|画|翻译|润色|续写|总结一下这|把这段)/.test(raw)) return false;
+        if (isLikelyAnswerOnlyRequest(raw, normalized)) return true;
+        return /^[\u4e00-\u9fffA-Za-z0-9][\u4e00-\u9fffA-Za-z0-9 .·+\-]{1,40}$/.test(raw);
+    }
+
     function isLikelyAnswerOnlyRequest(raw, normalized) {
         const answerTerms = [
             '解释', '说明', '科普', '是什么', '什么意思', '含义', '定义', '用途', '原理', '为什么', '为何',
@@ -2407,11 +2451,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function normalizeDeepSeekModel(model) {
         const normalized = String(model || '').trim();
         if (normalized === 'deepseek-flash' || normalized === 'deepseek-v4-pro') return normalized;
-        // 旧版 v4 flash 名称（含历史 localStorage/config 残留）统一归一到 V4.1 Flash。
+        // 历史模型名及版本号写法统一归一到 V4.1-Flash-1017 的稳定模型名。
         if (normalized === 'deepseek-v4-flash'
             || normalized === 'deepseek-v4-flash-vision-exp'
             || normalized === 'deepseek-v4.1-flash'
             || normalized === 'deepseek-v4-1-flash'
+            || normalized === 'deepseek-v4.1-flash-1017'
+            || normalized === 'deepseek-v4-1-flash-1017'
             || normalized === 'deepseek-v4.1'
             || normalized === 'deepseekv4.1'
             || normalized === 'deepseekv4'

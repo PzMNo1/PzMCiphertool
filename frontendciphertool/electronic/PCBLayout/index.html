@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PCB 设计 / 仿真工作台 - tscircuit</title>
+  <link rel="stylesheet" href="./pcb_layout.css">
+</head>
+<body>
+  <div class="pcb-studio">
+    <header class="pcb-studio-header">
+      <div class="pcb-studio-brand">
+        <span class="pcb-studio-brand-dot" aria-hidden="true"></span>
+        <span class="pcb-studio-brand-title">PCB DESIGN STUDIO</span>
+        <span class="pcb-studio-brand-sub">tscircuit / MIT Open Source</span>
+      </div>
+      <div class="pcb-studio-actions">
+        <select id="pcb-template-select" class="pcb-select" aria-label="选择示例模板" title="选择示例模板">
+          <option value="main">LED + SPICE 仿真</option>
+          <option value="routed-board">已自动布线 LED 板</option>
+          <option value="rc-filter">RC 低通滤波仿真</option>
+        </select>
+        <button type="button" id="pcb-reset-btn" class="pcb-btn pcb-btn-ghost" title="恢复当前模板的初始代码">重置示例</button>
+        <label class="pcb-btn pcb-btn-ghost" for="pcb-import-input" title="导入 .tsx 文件">导入 TSX</label>
+        <input type="file" id="pcb-import-input" accept=".tsx,.ts,.txt" hidden>
+        <button type="button" id="pcb-export-btn" class="pcb-btn pcb-btn-ghost" title="导出 main.tsx">导出 TSX</button>
+        <button type="button" id="pcb-run-btn" class="pcb-btn pcb-btn-primary" title="重新载入引擎并运行 (Ctrl+Enter)">&#9654; 运行仿真</button>
+      </div>
+    </header>
+
+    <main class="pcb-studio-main">
+      <!-- 预览/引擎区域：铺满整个工作台，代码侧边栏以玻璃拟态浮层盖在左侧。 -->
+      <section class="pcb-viewer-pane">
+        <div class="pcb-pane-toolbar">
+          <span class="pcb-file-name">tscircuit 设计 / 仿真引擎</span>
+          <span class="pcb-engine-badge">PCB / Schematic / 3D / SPICE</span>
+        </div>
+        <div class="pcb-viewer-frame-wrap">
+          <iframe id="pcb-viewer-frame" title="tscircuit 设计 / 仿真引擎" data-src="./viewer.html" allowfullscreen></iframe>
+          <div id="pcb-viewer-loading" class="pcb-viewer-loading active">
+            <div class="pcb-viewer-loading-spinner" aria-hidden="true"></div>
+            <div id="pcb-viewer-loading-text" class="pcb-viewer-loading-text">正在启动 tscircuit 引擎...</div>
+            <div id="pcb-viewer-loading-sub" class="pcb-viewer-loading-sub">首次加载需解压约 13MB 本地引擎资源</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 代码侧边栏：可收起/展开，背景为透明玻璃拟态。 -->
+      <section class="pcb-editor-pane" id="pcb-editor-pane">
+        <div class="pcb-editor-inner">
+          <div class="pcb-pane-toolbar">
+            <span class="pcb-file-name">main.tsx</span>
+            <span id="pcb-editor-status" class="pcb-editor-status">就绪</span>
+          </div>
+          <textarea id="pcb-code-editor" class="pcb-code-editor" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+          <div class="pcb-editor-hint">Ctrl + Enter 运行 / 代码自动保存到浏览器本地</div>
+        </div>
+      </section>
+
+      <button type="button" id="pcb-sidebar-toggle" class="pcb-sidebar-toggle"
+        aria-expanded="true" aria-label="收起代码侧边栏" title="收起代码侧边栏">
+        <span id="pcb-sidebar-toggle-icon" aria-hidden="true">&#8249;</span>
+      </button>
+    </main>
+  </div>
+  <script src="./editor.js"></script>
+</body>
+</html>

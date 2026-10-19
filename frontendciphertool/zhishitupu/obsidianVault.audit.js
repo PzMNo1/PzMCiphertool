@@ -11,6 +11,8 @@ const vm = require('vm');
 
 const directory = __dirname;
 const vaultSource = fs.readFileSync(path.join(directory, 'obsidianVault.js'), 'utf8');
+const worldPath = path.join(directory, 'worldKnowledge.js');
+const worldSource = fs.existsSync(worldPath) ? fs.readFileSync(worldPath, 'utf8') : '';
 const graphSource = fs.readFileSync(path.join(directory, 'graphData.js'), 'utf8');
 const retrieverSource = fs.readFileSync(path.join(directory, 'zhishitupu.js'), 'utf8');
 
@@ -18,6 +20,7 @@ const context = { console };
 context.window = context;
 vm.createContext(context);
 vm.runInContext([
+    worldSource,
     vaultSource,
     graphSource,
     retrieverSource,
@@ -139,9 +142,9 @@ check(graph.links.length === built.linkStats.wikilinkEdges + built.linkStats.att
     '层级边数量不等于 节点数-1，目录骨架被双链污染');
 const indexNode = graph.nodes.find(node => node.path === 'TestVault/index.md');
 check(Boolean(indexNode), 'index 节点缺失');
-// 3 条 vault 记录 + graphData.js 固定追加的 5 条专家框架记录（vault 节点因此也能通过 ZSTP.auditRuntime 的 facet 校验）
+// 3 条 vault 记录；vault 节点不再追加 AI 专家框架记录
 const indexRecords = indexNode.knowledgeBase || [];
-check(indexRecords.length === 8, `笔记知识库记录数应为 8 (3 vault + 5 专家框架)，实际 ${indexRecords.length}`);
+check(indexRecords.length === 3, `笔记知识库记录数应为 3 条 vault 记录，实际 ${indexRecords.length}`);
 check(['vault-note', 'vault-outline', 'vault-links'].every(id => indexRecords.some(record => record.id === id)),
     '缺少 vault 笔记记录: ' + indexRecords.map(record => record.id).join(','));
 check(indexRecords.every(record => record.id && record.title && record.content), '笔记知识库记录不完整');
@@ -234,10 +237,11 @@ const scaleFixture = scaleNotes.map((item, index) => {
     return { path: `ScaleVault/${item.path}`, text: body };
 });
 scaleFixture.unshift({ path: 'ScaleVault/.obsidian/workspace.json', text: '{}' });
+scaleFixture.push({ path: 'ScaleVault/世界模型 World Models.md', text: '# 世界模型\n\n#hub #模型' });
 
 const scaleVault = Vault.parseVaultFiles(scaleFixture);
-check(scaleVault.notes.length === scaleNotes.length,
-    `规模测试笔记数应为 ${scaleNotes.length}，实际 ${scaleVault.notes.length}`);
+check(scaleVault.notes.length === scaleNotes.length + 1,
+    `规模测试笔记数应为 ${scaleNotes.length + 1}，实际 ${scaleVault.notes.length}`);
 check(!scaleVault.notes.some(item => item.outRefs.some(ref => ref.target.includes('代码块'))),
     '代码块内的双链被错误解析');
 check(!scaleVault.notes.some(item => item.outRefs.some(ref => ref.target.includes('围栏'))),
@@ -249,8 +253,8 @@ const scaleLaidOut = KG.applyReadableGraphLayout(scaleBuilt.graph);
 const scaleMs = Date.now() - scaleStarted;
 
 const scaleNoteNodes = scaleBuilt.graph.nodes.filter(node => node.path && node.path.endsWith('.md'));
-check(scaleNoteNodes.length === scaleNotes.length,
-    `规模测试图谱笔记节点数应为 ${scaleNotes.length}，实际 ${scaleNoteNodes.length}（疑似同名节点互相覆盖）`);
+check(scaleNoteNodes.length === scaleNotes.length + 1,
+    `规模测试图谱笔记节点数应为 ${scaleNotes.length + 1}，实际 ${scaleNoteNodes.length}（疑似同名节点互相覆盖）`);
 const scaleMissing = scaleLaidOut.nodes.filter(node => !Number.isFinite(node.__layoutX));
 check(scaleMissing.length === 0, `规模测试有 ${scaleMissing.length} 个节点未布局`);
 const scaleCoords = new Set(scaleLaidOut.nodes.map(node => `${node.__layoutX},${node.__layoutY},${node.__layoutZ}`));

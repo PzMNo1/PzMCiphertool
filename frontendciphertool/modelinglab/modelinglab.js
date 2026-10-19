@@ -85,7 +85,7 @@
 
         const tabs = Object.keys(VIEWS).map((key, index) => {
             const label = VIEWS[key].tab || VIEWS[key].title;
-            return `<button type="button" class="modelinglab-tab${index === 0 ? ' active' : ''}" data-view="${key}" role="tab" aria-selected="${index === 0}">${label}</button>`;
+            return `<button type="button" class="cyber-button modelinglab-tab${index === 0 ? ' active' : ''}" data-view="${key}" role="tab" aria-selected="${index === 0}"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">${label}</span></button>`;
         }).join('\n                        ');
 
         root.innerHTML = `

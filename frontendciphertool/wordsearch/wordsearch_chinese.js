@@ -193,12 +193,12 @@
 
   /**
    * 执行查询。
-   * @returns {Promise<{total:number, hits:Array, note:string}>}
+   * @returns {Promise<{total:number, hits:Array}>}
    */
   async function search(raw, limit = 300) {
     const q = parseQuery(raw);
     if (!q.pattern && !q.pinyin && !q.initials) {
-      return { total: 0, hits: [], note: '请输入查询条件' };
+      return { total: 0, hits: [] };
     }
 
     const wantIdiom = !q.type || q.type === '成语';
@@ -207,19 +207,15 @@
 
     const keys = null;   // 全部分片一起加载（见 ensureIdiom 的说明）
     const hits = [];
-    const notes = [];
 
     if (wantIdiom) {
       await ensureIdiom();
-      let scanned = 0;
       loadedIdiom.forEach(list => {
-        scanned += list.length;
         list.forEach(e => {
           const r = makeRecord(e[0], e[1], '成语', e[2]);
           if (matchRecord(r, q)) hits.push(r);
         });
       });
-      notes.push(`成语：扫描 ${scanned} 条`);
     }
 
     if (wantCiyu) {
@@ -228,7 +224,6 @@
         const r = makeRecord(e[0], e[1], '词语');
         if (matchRecord(r, q)) hits.push(r);
       });
-      notes.push(`词语：扫描 ${ciyuLoaded.length} 条`);
     }
 
     if (wantHanzi) {
@@ -237,7 +232,6 @@
         const r = makeRecord(ch, py, '汉字');
         if (matchRecord(r, q)) hits.push(r);
       });
-      notes.push(`汉字：扫描 ${hanziLoaded.length} 个`);
     }
 
     hits.sort((a, b) => {
@@ -247,14 +241,13 @@
       return a.word.localeCompare(b.word, 'zh');
     });
 
-    return { total: hits.length, hits: hits.slice(0, limit), note: notes.join('　') };
+    return { total: hits.length, hits: hits.slice(0, limit) };
   }
 
   /** 渲染成可读文本 */
   function render(result) {
     if (!result || !result.total) {
-      return (result && result.note ? result.note + '\n\n' : '') +
-        '没有匹配结果。\n\n可用条件：\n' +
+      return '没有匹配结果。\n\n可用条件：\n' +
         '  定字：  中?    ?国    一??意      （? 代表一个汉字）\n' +
         '  通配：  一*意   *心*             （* 代表任意多个汉字）\n' +
         '  拼音：  py=zhongguo   py=yixin\n' +
@@ -265,14 +258,12 @@
     const byKind = { 成语: [], 词语: [], 汉字: [] };
     result.hits.forEach(h => (byKind[h.kind] || (byKind[h.kind] = [])).push(h));
 
-    const lines = [`匹配 ${result.total} 条${result.total > result.hits.length ? `（只显示前 ${result.hits.length} 条）` : ''}`];
-    if (result.note) lines.push(result.note);
-    lines.push('');
-
+    // 结果只保留命中条目：去掉总数/扫描统计、分类标题和底部提示
+    const lines = [];
     ['成语', '词语', '汉字'].forEach(kind => {
       const list = byKind[kind];
       if (!list || !list.length) return;
-      lines.push(`【${kind}】${list.length} 条`);
+      if (lines.length) lines.push('');
       if (kind === '汉字') {
         for (let i = 0; i < list.length; i += 10) {
           lines.push('  ' + list.slice(i, i + 10).map(h => `${h.word}(${h.pinyin})`).join('  '));
@@ -280,9 +271,10 @@
       } else {
         list.forEach(h => lines.push(`  ${h.word}   ${h.pinyin}   ${h.initials}`));
       }
-      lines.push('');
     });
-    lines.push('提示：拼音与首字母都做了去声调处理，输入 zhongguo 或 zg 都能查到。');
+    if (result.total > result.hits.length) {
+      lines.push('', `（共 ${result.total} 条，仅显示前 ${result.hits.length} 条）`);
+    }
     return lines.join('\n');
   }
 

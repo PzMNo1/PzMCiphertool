@@ -2427,3 +2427,205 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =====================================================================
+   手机端（<=980px）适配
+   1) 子模块导航（仪表盘 / API Keys / 充值套餐 / 邀请返利 / 运营配置）
+      -> 与「加密实验室」移动端完全一致的底部圆盘 dock：
+         固定屏幕底部居中、圆形按钮、扇形错落、容器透明且点击穿透
+   2) 充值/套餐 子标签（充值 / 余额套餐 / 我的订单）
+      -> 由竖向改为横向三等分，并套用加密实验室的赛博按钮样式，
+         避免竖向排列占用手机纵向空间
+   ===================================================================== */
+@media (max-width: 980px) {
+
+  /* 给底部 dock 预留空间 */
+  #apizhongzhuanzhan-content {
+    padding-bottom: 6.75rem;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-layout {
+    padding-top: .25rem;
+  }
+
+  /* ---------- 1) 子模块导航 -> 加密实验室同款底部 dock ---------- */
+  #apizhongzhuanzhan-container .apizz-console-nav {
+    position: fixed !important;
+    top: auto !important;
+    left: 50% !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    transform: translateX(-50%);
+    width: min(94vw, 390px);
+    min-height: 76px;
+    display: flex !important;
+    justify-content: center;
+    align-items: flex-end;
+    gap: clamp(.2rem, 1.3vw, .55rem);
+    padding: .25rem .35rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 900;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a {
+    --apizz-dial-y: 0px;
+    --apizz-dial-r: 0deg;
+    flex: 0 0 clamp(52px, 15vw, 60px);
+    width: clamp(52px, 15vw, 60px);
+    height: clamp(52px, 15vw, 60px) !important;
+    min-height: 0 !important;
+    padding: .28rem .15rem !important;
+    justify-content: center;
+    border-radius: 50%;
+    clip-path: none;
+    font-size: clamp(.6rem, 2.4vw, .74rem) !important;
+    line-height: 1.05;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+    overflow: hidden;
+    transform: translateY(var(--apizz-dial-y)) rotate(var(--apizz-dial-r));
+    transition: transform .24s ease, border-color .24s ease, background .24s ease, color .24s ease, box-shadow .24s ease;
+    pointer-events: auto;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a:nth-child(1) { --apizz-dial-y: 14px; --apizz-dial-r: -15deg; }
+  #apizhongzhuanzhan-container .apizz-console-nav a:nth-child(2) { --apizz-dial-y: 4px;  --apizz-dial-r: -8deg; }
+  #apizhongzhuanzhan-container .apizz-console-nav a:nth-child(3) { --apizz-dial-y: -4px; }
+  #apizhongzhuanzhan-container .apizz-console-nav a:nth-child(4) { --apizz-dial-y: 4px;  --apizz-dial-r: 8deg; }
+  #apizhongzhuanzhan-container .apizz-console-nav a:nth-child(5) { --apizz-dial-y: 14px; --apizz-dial-r: 15deg; }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a::before {
+    inset: 7px;
+    width: auto;
+    height: auto;
+    border: 1px solid rgba(64, 224, 255, .22);
+    border-radius: 50%;
+    opacity: .42;
+    box-shadow: none;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a::after {
+    right: auto;
+    left: 50%;
+    bottom: 6px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(64, 224, 255, .38);
+    color: transparent;
+    font-size: 0;
+    letter-spacing: 0;
+    transform: translateX(-50%);
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a:hover {
+    transform: translateY(calc(var(--apizz-dial-y) - 4px)) rotate(var(--apizz-dial-r)) scale(1.04);
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a:hover::before {
+    width: auto;
+    height: auto;
+    border-color: rgba(255, 255, 255, .6);
+    box-shadow: none;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a:active {
+    transform: translateY(var(--apizz-dial-y)) rotate(var(--apizz-dial-r)) scale(.96);
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a.active {
+    transform: translateY(calc(var(--apizz-dial-y) - 6px)) rotate(var(--apizz-dial-r)) scale(1.06);
+  }
+
+  /* ---------- 2) 充值/套餐 子标签 -> 横向赛博按钮 ---------- */
+  #apizhongzhuanzhan-container .apizz-usage-switcher {
+    gap: .7rem;
+    padding: .85rem .8rem;
+  }
+
+  #apizhongzhuanzhan-container .apizz-subtab-nav {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: .4rem;
+    width: 100%;
+    padding: .3rem;
+    border: 1px solid rgba(64, 224, 255, .18);
+    border-radius: 12px;
+    background: rgba(0, 20, 40, .34);
+    overflow: visible;
+  }
+
+  #apizhongzhuanzhan-container .apizz-subtab {
+    position: relative;
+    min-width: 0;
+    min-height: 44px;
+    padding: .45rem .3rem;
+    border: 1px solid rgba(64, 224, 255, .15);
+    border-radius: 0;
+    background: linear-gradient(135deg, rgba(64, 224, 255, .06) 0%, rgba(120, 200, 255, .04) 50%, rgba(180, 140, 255, .06) 100%);
+    color: rgba(255, 255, 255, .72);
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    box-shadow: inset 0 0 18px rgba(64, 224, 255, .08);
+    transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+  }
+
+  #apizhongzhuanzhan-container .apizz-subtab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid rgba(64, 224, 255, .5);
+    border-left: 2px solid rgba(64, 224, 255, .5);
+    opacity: .6;
+    transition: all .3s ease;
+    pointer-events: none;
+  }
+
+  #apizhongzhuanzhan-container .apizz-subtab:hover::before {
+    width: 100%;
+    height: 100%;
+    border-color: rgba(255, 255, 255, .5);
+    opacity: 1;
+  }
+
+  #apizhongzhuanzhan-container .apizz-subtab:hover,
+  #apizhongzhuanzhan-container .apizz-subtab.active {
+    border-color: rgba(64, 224, 255, .72);
+    background: rgba(64, 224, 255, .14);
+    color: #fff;
+    text-shadow: 0 0 14px rgba(64, 224, 255, .85);
+    box-shadow: 0 8px 24px -12px rgba(0, 243, 255, .3), inset 0 0 20px rgba(64, 224, 255, .16);
+  }
+}
+
+@media (max-width: 430px) {
+  #apizhongzhuanzhan-container .apizz-console-nav {
+    width: min(96vw, 350px);
+    gap: .16rem;
+    padding-inline: .45rem;
+  }
+
+  #apizhongzhuanzhan-container .apizz-console-nav a {
+    flex-basis: clamp(50px, 16.5vw, 58px);
+    width: clamp(50px, 16.5vw, 58px);
+    height: clamp(50px, 16.5vw, 58px) !important;
+    font-size: clamp(.62rem, 2.6vw, .72rem) !important;
+  }
+}
