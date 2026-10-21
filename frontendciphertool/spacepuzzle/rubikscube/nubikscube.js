@@ -20,6 +20,18 @@ const STANDARD_CUBE_STYLES = `
     rgba(0, 0, 0, 0.22);
 }
 
+.space-workspace-header {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.space-mobile-actions {
+  display: none;
+}
+
 .cube-scene {
   width: 270px;
   height: 270px;
@@ -231,6 +243,61 @@ const STANDARD_CUBE_STYLES = `
     transform: rotateX(-90deg) translateZ(72px);
   }
 
+  #standard-cube-workspace {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  #standard-cube-workspace .space-workspace-header {
+    display: flex;
+    order: -2;
+  }
+
+  #standard-cube-workspace .space-workspace-header .space-back-btn {
+    margin-bottom: 0.35rem;
+  }
+
+  #standard-cube-workspace .space-workspace-header .space-title {
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  #standard-cube-workspace .space-workspace-header .space-subtitle {
+    margin-bottom: 0;
+  }
+
+  #standard-cube-workspace .space-mobile-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+  }
+
+  #standard-cube-workspace .space-mobile-actions .cyber-button {
+    min-height: 36px;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.78rem;
+  }
+
+  #standard-cube-workspace > .space-display-panel {
+    order: -1;
+  }
+
+  #standard-cube-workspace .cube-move-spatial {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "top top top"
+      "left front right"
+      "back bottom bottom";
+    gap: 0.5rem;
+  }
+
+  #standard-cube-workspace > .space-control-panel > .space-back-btn,
+  #standard-cube-workspace > .space-control-panel > .space-title,
+  #standard-cube-workspace > .space-control-panel > .space-subtitle {
+    display: none;
+  }
 }
 `;
 
@@ -671,7 +738,7 @@ const STANDARD_CUBE_STYLES = `
         const raw = document.getElementById('cube-history-count');
         const reduced = document.getElementById('cube-reduced-count');
         if (count) count.textContent = solution.length ? '1' : '0';
-        if (time) time.textContent = String(elapsed);
+        if (time) time.textContent = `${elapsed} ms`;
         if (raw) raw.textContent = String(rawHistoryLength);
         if (reduced) reduced.textContent = String(history.length);
         if (output) {
@@ -827,6 +894,17 @@ const STANDARD_CUBE_STYLES = `
 
             <div id="space-workspace-container" class="space-workspace-container">
                 <div id="standard-cube-workspace" class="space-workspace">
+                    <div class="space-workspace-header">
+                        <button class="cyber-button space-back-btn" onclick="window.backSpacePuzzle()"><span class="cyber-button__tag">← 返回空间类</span></button>
+                        <h2 class="neon-title space-title" data-text="STANDARD CUBE">STANDARD CUBE</h2>
+                        <div class="space-subtitle">标准三维魔方求解</div>
+                        <div class="space-mobile-actions">
+                            <button class="cyber-button" onclick="window.resetStandardCube()"><span class="cyber-button__tag">重置</span></button>
+                            <button class="cyber-button" onclick="window.scrambleStandardCube()"><span class="cyber-button__tag">扰乱</span></button>
+                            <button class="cyber-button cyber-glow" onclick="window.solveStandardCube()"><span class="cyber-button__tag">求解</span></button>
+                        </div>
+                    </div>
+
                     <div class="control-panel card cyber-border space-control-panel">
                         <button class="cyber-button space-back-btn" onclick="window.backSpacePuzzle()"><span class="cyber-button__tag">← 返回空间类</span></button>
                         <h2 class="neon-title space-title" data-text="STANDARD CUBE">STANDARD CUBE</h2>
@@ -844,7 +922,7 @@ const STANDARD_CUBE_STYLES = `
                         <div class="space-stats cube-stats-area" id="cube-stats-area">
                             <div class="cube-stat-grid">
                                 <div>解记录数: <span id="cube-solutionsCount">0</span></div>
-                                <div>算力耗时: <span id="cube-timeElapsed">0</span> ms</div>
+                                <div>算力耗时: <span id="cube-timeElapsed">0 ms</span></div>
                                 <div>历史步数: <span id="cube-history-count">0</span></div>
                                 <div>有效步数: <span id="cube-reduced-count">0</span></div>
                             </div>

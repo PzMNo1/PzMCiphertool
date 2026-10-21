@@ -18,13 +18,14 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class ApiRouterControllerSupport {
 
-    private static final String PAYMENT_REVIEWER_EMAIL = "1551601828@qq.com";
-
     private final ApiRouterService apiRouterService;
     private final RiskControlService riskControlService;
 
     @Value("${api-router.admin-emails:}")
-    private String adminEmails;
+    private String adminAccounts;
+
+    @Value("${api-router.payment-reviewers:}")
+    private String paymentReviewerAccounts;
 
     public void audit(String operatorEmail, String action, String targetType, String targetId, String targetEmail, String detail) {
         try {
@@ -45,22 +46,21 @@ public class ApiRouterControllerSupport {
         return builder.toString();
     }
 
-    public void requireAdmin(String email) {
-        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
-        boolean allowed = Arrays.stream(adminEmails == null ? new String[0] : adminEmails.split(","))
-                .map(value -> value.trim().toLowerCase(Locale.ROOT))
-                .filter(value -> !value.isBlank())
-                .anyMatch(value -> "*".equals(value) || value.equals(normalizedEmail));
-        if (!allowed) {
+    public void requireAdmin(String account) {
+        if (!matchesAny(adminAccounts, account)) {
             throw AuthService.AuthAccessException.unauthorized("需要管理员权限，请配置 API_ROUTER_ADMIN_EMAILS");
         }
     }
 
-    public void requirePaymentReviewer(String email) {
-        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
-        if (!PAYMENT_REVIEWER_EMAIL.equals(normalizedEmail)) {
-            throw AuthService.AuthAccessException.unauthorized("只有 1551601828@qq.com 可以审核微信支付订单");
+    public void requirePaymentReviewer(String account) {
+        if (matchesAny(paymentReviewerAccounts, account)) {
+            return;
         }
+        if (blank(paymentReviewerAccounts).isBlank()) {
+            requireAdmin(account);
+            return;
+        }
+        throw AuthService.AuthAccessException.unauthorized("只有支付审核人可以审核微信支付订单");
     }
 
     public void requireUserAndIpLimit(
@@ -94,6 +94,18 @@ public class ApiRouterControllerSupport {
 
     public String blank(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private boolean matchesAny(String accounts, String account) {
+        String normalizedAccount = normalize(account);
+        return Arrays.stream(blank(accounts).split(","))
+                .map(this::normalize)
+                .filter(value -> !value.isBlank())
+                .anyMatch(value -> "*".equals(value) || value.equals(normalizedAccount));
+    }
+
+    private String normalize(String account) {
+        return account == null ? "" : account.trim().toLowerCase(Locale.ROOT);
     }
 
     private int scaledIpLimit(int userLimit) {

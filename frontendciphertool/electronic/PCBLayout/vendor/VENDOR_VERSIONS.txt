@@ -1,3 +1,5 @@
 @tscircuit/runframe 0.0.3001 (standalone.min.js, MIT)
 @tscircuit/eval 0.0.1626 (dist/webworker/entrypoint.js, MIT)
 Patching: INJECT_TSCIRCUIT_EVAL_WEB_WORKER_BLOB_URL -> (globalThis.__PZMA_TSCIRCUIT_EVAL_WORKER_URL__||"./vendor/tscircuit-eval-worker.js")
+Patching: manifold-3d CDN URL -> ./vendor/manifold-3d (3D viewer offline support)
+manifold-3d 3.2.1 (manifold.js + manifold.wasm, Apache-2.0)

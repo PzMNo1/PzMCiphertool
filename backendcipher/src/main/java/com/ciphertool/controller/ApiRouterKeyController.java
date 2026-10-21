@@ -38,7 +38,7 @@ public class ApiRouterKeyController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest servletRequest,
             @Valid @RequestBody ApiRouterKeyRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         support.requireUserAndIpLimit(
                 ownerEmail,
                 servletRequest,
@@ -63,7 +63,7 @@ public class ApiRouterKeyController {
     public ApiResponse<ApiRouterDashboard> updateApiKeyStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterKeyStatusRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success(
                 "API key status updated",
                 apiRouterService.updateApiKeyStatus(
@@ -80,7 +80,7 @@ public class ApiRouterKeyController {
     public ApiResponse<ApiRouterDashboard> deleteApiKey(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterKeyStatusRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success(
                 "API key deleted",
                 apiRouterService.deleteApiKey(
@@ -96,7 +96,7 @@ public class ApiRouterKeyController {
     public ApiResponse<ApiRouterDashboard> updateApiKeyConfig(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterKeyConfigRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success(
                 "API key config updated",
                 apiRouterService.updateApiKeyConfig(

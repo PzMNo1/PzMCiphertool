@@ -35,12 +35,13 @@ PCBLayout/
  editor.js                   # 代码编辑 / 运行 / 模板 / 导入导出逻辑
  pcb_layout.css              # 暗色霓虹主题样式
  circuits/
-   main.tsx                 # 默认示例：LED 限流 + SPICE 仿真
-   routed-board.tsx         # 已自动布线示例（排针 + 电阻 + LED）
+   main.tsx                 # 默认示例：工业级 STM32 控制板（QFP48 + 电源树 + Flash + 隔离收发器）
+   routed-board.tsx         # 入门示例：排针 + 电阻 + LED
    rc-filter.tsx            # RC 低通滤波仿真示例
  vendor/
     tscircuit-runframe-standalone.min.js.gz  # @tscircuit/runframe 0.0.3001（MIT）gzip 压缩
     tscircuit-eval-worker.js.gz              # @tscircuit/eval 0.0.1626 WebWorker（MIT）gzip 压缩
+    manifold-3d/                             # manifold-3d 3.2.1（Apache-2.0），3D 视图本地化
     fflate.min.js                            # MIT，旧浏览器 gzip 解压兜底
     LICENSE-*.txt                            # 第三方许可证
     VENDOR_VERSIONS.txt                      # vendoring 版本记录
@@ -52,7 +53,8 @@ PCBLayout/
   - 优先使用浏览器原生 `DecompressionStream('gzip')`；
   - 旧浏览器回退到本地 `fflate` 的 `gunzipSync`。
 - 解压后的 RunFrame 以 `Blob` URL 注入 `<script>`，WebWorker 也以 Blob URL 启动，不依赖 CDN。
-- 首次进入「电路板布局」时才会加载引擎（iframe 懒加载），不会影响电子实验室首屏和「电路模拟」的性能。
+- `3D` 视图所需的 `manifold-3d` 已本地化到 `vendor/manifold-3d/`，RunFrame 内的 CDN 地址已替换为本地路径，完全离线也能进入 3D 视图。
+- 进入电子实验室后才会在后台预热 PCB 引擎；首屏和「电路模拟」不受影响，通常看完电路模拟再切换时引擎已就绪。
 - 默认将 PCB 渲染引擎设为 `canvas`（兼容 WebGL 浏览器）；引擎右上角菜单中可切换 `WebGPU (experimental)`。
 - `TSCIRCUIT_TELEMETRY_DISABLED = true`、`TSCIRCUIT_ALLOW_SELECTING_EVAL_VERSION = false`、`TSCIRCUIT_LATEST_EVAL_VERSION = '0.0.1626'`，避免遥测和版本 CDN 拉取。
 - 示例 `<board>` 默认带有 `bomDisabled`，用于关闭 JLCPCB 元件搜索 / BOM，使引擎在完全离线环境下也能快速渲染；如果需要元件价格和 BOM，可移除该属性。
@@ -62,9 +64,9 @@ PCBLayout/
 
 ## 4. 使用说明
 
-1. 进入电子实验室，点击右上角的单按钮切换器，从「电路模拟」切换到「电路板布局」。
+1. 进入电子实验室，点击右上角的单按钮切换器，从「电路模拟」切换到「电路板布局」。进入实验室后会在后台自动预热 PCB 引擎，先看一会儿电路模拟再切换通常无需等待。
 2. 左侧代码侧边栏可以通过右边缘的竖向把手收起 / 展开；收起后引擎视图完整可见。侧边栏采用透明玻璃拟态背景。
-3. 左侧编辑 `main.tsx`（tscircuit TSX 代码），按 `Ctrl + Enter` 或点击「▶ 运行仿真」重新渲染。
+3. 左侧编辑 `main.tsx`（tscircuit TSX 代码），按 `Ctrl + Enter` 或点击「▶ 运行仿真」重新渲染。默认模板是一块 120mm × 76mm 的工业级控制板：QFP48 主控、LDO 电源树、SPI Flash、8MHz 晶振、隔离收发器、SWD/UART 调试口、指示灯、测试点、基准点与安装孔。
 4. 右侧引擎视图：
    - `PCB`：PCB 布局 / 焊盘 / 走线 / 鼠线；
    - `Schematic`：原理图连线；
@@ -85,8 +87,10 @@ PCBLayout/
    (globalThis.__PZMA_TSCIRCUIT_EVAL_WORKER_URL__||"./vendor/tscircuit-eval-worker.js")
    ```
 3. 下载匹配版本的 `@tscircuit/eval` 的 `dist/webworker/entrypoint.js`；
-4. 将两个文件分别 gzip 成 `tscircuit-runframe-standalone.min.js.gz` 和 `tscircuit-eval-worker.js.gz`；
-5. 更新 `VENDOR_VERSIONS.txt`。`fflate.min.js` 仅在需要升级解压兜底库时更新。
+4. 将 manifest 中的 `https://cdn.jsdelivr.net/npm/manifold-3d@<版本>` 替换为 `./vendor/manifold-3d`，并把匹配版本的 `manifold.js`、`manifold.wasm`、`LICENSE` 放入 `vendor/manifold-3d/`；
+5. 将两个文件分别 gzip 成 `tscircuit-runframe-standalone.min.js.gz` 和 `tscircuit-eval-worker.js.gz`；
+6. 更新 `editor.js` / `viewer.html` / `electronic_lab.js` 中的 `ASSET_VERSION`，避免浏览器继续使用旧 gz 缓存；
+7. 更新 `VENDOR_VERSIONS.txt`。`fflate.min.js` 仅在需要升级解压兜底库时更新。
 
 ## 6. 许可与致谢
 
@@ -94,5 +98,6 @@ PCBLayout/
 - [@tscircuit/runframe](https://github.com/tscircuit/runframe) - MIT License
 - [@tscircuit/eval](https://github.com/tscircuit/tscircuit) - MIT License
 - [fflate](https://github.com/101arrowz/fflate) - MIT License
+- [manifold-3d](https://github.com/elalish/manifold) - Apache-2.0 License
 
-以上项目的许可证文本见 `vendor/LICENSE-*.txt`。
+以上项目的许可证文本见 `vendor/LICENSE-*.txt` 与 `vendor/manifold-3d/LICENSE`。

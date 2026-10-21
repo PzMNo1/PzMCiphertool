@@ -1,13 +1,13 @@
 /**
  * 登录系统逻辑
- * 包含 UI 生成、事件处理和后端 API 调用 (邮箱版)
+ * 包含 UI 生成、事件处理和后端 API 调用 (手机号版)
  */
 
 (function() {
     // === 配置 ===
-    const API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080'; 
+    const API_BASE = window.CIPHERTOOL_API_BASE || 'http://127.0.0.1:8080';
     const STORAGE_KEY = 'cipher_toolbox_user';
-    
+
     // === HTML 模板 ===
     const modalHTML = `
         <div class="auth-modal-overlay" id="authModal" style="display: none;">
@@ -18,10 +18,10 @@
                 </div>
                 <div class="auth-form">
                     <div class="auth-form-group">
-                        <input type="email" class="auth-input" id="authEmail" placeholder="请输入邮箱地址">
+                        <input type="tel" class="auth-input" id="authPhone" placeholder="请输入手机号" maxlength="11" inputmode="numeric" autocomplete="tel">
                     </div>
                     <div class="auth-form-group auth-code-container">
-                        <input type="text" class="auth-input" id="authCode" placeholder="验证码" maxlength="6">
+                        <input type="text" class="auth-input" id="authCode" placeholder="验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
                         <button class="auth-btn-code" id="authSendCode">获取验证码</button>
                     </div>
                     <button class="auth-btn-submit" id="authLoginBtn">登 录</button>
@@ -35,6 +35,12 @@
     function init() {
         if (document.querySelector('.auth-modal-overlay')) return; // 防止重复初始化
         document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const saved = getUser();
+        if (saved && !saved.phone) {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
         const sidebar = document.getElementById('sidebar');
         if (sidebar) {
             const btnContainer = document.createElement('div');
@@ -55,7 +61,7 @@
             container.innerHTML = `
                 <div class="login-sidebar-btn" id="authLogoutBtn">
                     <div class="logout-icon"></div>
-                    <span class="menu-text">退出登录 (${maskEmail(user.email)})</span>
+                    <span class="menu-text">退出登录 (${maskPhone(user.phone)})</span>
                 </div>
             `;
             // 绑定退出事件
@@ -72,11 +78,10 @@
         }
     }
 
-    function maskEmail(email) {
-        if (!email || !email.includes('@')) return email;
-        const [name, domain] = email.split('@');
-        if (name.length <= 3) return email;
-        return name.substring(0, 3) + '****@' + domain;
+    function maskPhone(phone) {
+        const value = String(phone || '').replace(/\D/g, '');
+        if (value.length !== 11) return phone || '';
+        return value.slice(0, 3) + '****' + value.slice(7);
     }
 
     // === 事件绑定 ===
@@ -107,7 +112,7 @@
         if (modal) {
             modal.style.display = 'flex'; // 先显示，再加 active
             // 强制重绘
-            modal.offsetHeight; 
+            modal.offsetHeight;
             modal.classList.add('active');
             showMessage('');
         }
@@ -124,13 +129,12 @@
     }
 
     async function handleSendCode() {
-        const email = document.getElementById('authEmail').value.trim();
+        const phone = document.getElementById('authPhone').value.trim();
         const btn = document.getElementById('authSendCode');
-        
-        // 简单邮箱正则
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            showMessage('请输入有效的邮箱地址', 'error');
+
+        const phoneRegex = /^1[3-9]\d{9}$/;
+        if (!phoneRegex.test(phone)) {
+            showMessage('请输入有效的手机号', 'error');
             return;
         }
 
@@ -141,13 +145,13 @@
             const response = await fetch(`${API_BASE}/api/auth/send-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email })
+                body: JSON.stringify({ phone: phone })
             });
 
             const result = await response.json();
 
             if (result.success) {
-                showMessage('验证码已发送，请查收邮件', 'success');
+                showMessage('验证码已发送，请查收短信', 'success');
                 startCountdown(60);
             } else {
                 showMessage(result.message || '发送失败', 'error');
@@ -165,7 +169,7 @@
     function startCountdown(seconds) {
         const btn = document.getElementById('authSendCode');
         let left = seconds;
-        
+
         btn.textContent = `${left}s 后重发`;
         btn.disabled = true;
 
@@ -182,16 +186,21 @@
     }
 
     async function handleLogin() {
-        const email = document.getElementById('authEmail').value.trim();
+        const phone = document.getElementById('authPhone').value.trim();
         const code = document.getElementById('authCode').value.trim();
 
-        if (!email || !code) {
+        if (!phone || !code) {
             showMessage('请填写完整信息', 'error');
             return;
         }
 
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+            showMessage('请输入有效的手机号', 'error');
+            return;
+        }
+
         const loginBtn = document.getElementById('authLoginBtn');
-        
+
         try {
             loginBtn.textContent = '登录中...';
             loginBtn.disabled = true;
@@ -199,7 +208,7 @@
             const response = await fetch(`${API_BASE}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, code: code })
+                body: JSON.stringify({ phone: phone, code: code })
             });
 
             const result = await response.json();
@@ -207,8 +216,8 @@
             if (result.success) {
                 // 登录成功
                 saveUser({
-                    email: result.data.email || email,
-                    maskedEmail: result.data.maskedEmail || maskEmail(email),
+                    phone: result.data.phone || phone,
+                    maskedPhone: result.data.maskedPhone || maskPhone(phone),
                     token: result.data.token || '',
                     loginTime: result.data.loginTime,
                     expiresAt: result.data.expiresAt
@@ -216,12 +225,12 @@
                 closeModal();
                 renderSidebarBtn();
                 alert('登录成功！');
-                
+
                 // 触发登录成功事件
                 window.dispatchEvent(new CustomEvent('cipher-login-success', { detail: getUser() }));
 
                 // 清空表单
-                document.getElementById('authEmail').value = '';
+                document.getElementById('authPhone').value = '';
                 document.getElementById('authCode').value = '';
             } else {
                 showMessage(result.message || '登录失败', 'error');

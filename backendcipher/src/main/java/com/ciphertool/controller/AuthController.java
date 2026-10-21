@@ -26,14 +26,14 @@ public class AuthController {
      */
     @PostMapping("/send-code")
     public ApiResponse<Void> sendCode(@Valid @RequestBody SendCodeRequest request) {
-        log.debug("Send code request: email={}", maskEmail(request.getEmail()));
-        
-        String error = authService.sendCode(request.getEmail());
-        
+        log.debug("Send code request: phone={}", maskPhone(request.getPhone()));
+
+        String error = authService.sendCode(request.getPhone());
+
         if (error != null) {
             return ApiResponse.error(error);
         }
-        
+
         return ApiResponse.success("验证码已发送");
     }
 
@@ -42,14 +42,14 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.debug("Login request: email={}", maskEmail(request.getEmail()));
-        
-        LoginResponse response = authService.verifyLogin(request.getEmail(), request.getCode());
-        
+        log.debug("Login request: phone={}", maskPhone(request.getPhone()));
+
+        LoginResponse response = authService.verifyLogin(request.getPhone(), request.getCode());
+
         if (response == null) {
             return ApiResponse.error("验证码错误或已过期");
         }
-        
+
         return ApiResponse.success("登录成功", response);
     }
 
@@ -61,22 +61,16 @@ public class AuthController {
         return ApiResponse.success("OK", "Service is running");
     }
 
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            return email;
+    private String maskPhone(String phone) {
+        String value = phone == null ? "" : phone.replaceAll("\\D", "");
+        if (value.startsWith("0086")) {
+            value = value.substring(4);
+        } else if (value.length() == 13 && value.startsWith("86")) {
+            value = value.substring(2);
         }
-        int atIndex = email.indexOf("@");
-        if (atIndex <= 3) {
-            return email;
+        if (value.length() != 11) {
+            return phone;
         }
-        return email.substring(0, 3) + "****" + email.substring(atIndex);
+        return value.substring(0, 3) + "****" + value.substring(7);
     }
 }
-
-
-
-
-
-
-
-

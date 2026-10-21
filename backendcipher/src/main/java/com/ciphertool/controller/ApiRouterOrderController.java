@@ -42,7 +42,7 @@ public class ApiRouterOrderController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest servletRequest,
             @Valid @RequestBody ApiRouterOrderRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         support.requireUserAndIpLimit(
                 ownerEmail,
                 servletRequest,
@@ -67,7 +67,7 @@ public class ApiRouterOrderController {
     public ApiResponse<List<ApiRouterDashboard.OrderInfo>> listOrders(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(defaultValue = "false") boolean admin) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         if (admin) {
             support.requirePaymentReviewer(ownerEmail);
         }
@@ -78,7 +78,7 @@ public class ApiRouterOrderController {
     public ApiResponse<List<ApiRouterDashboard.OrderInfo>> updateOrderStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterOrderStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requirePaymentReviewer(operatorEmail);
         List<ApiRouterDashboard.OrderInfo> orders = apiRouterService.updateOrderStatus(
                 operatorEmail,
@@ -96,7 +96,7 @@ public class ApiRouterOrderController {
     public ApiResponse<ApiRouterDashboard.OrderInfo> submitPaymentReview(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterOrderStatusRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         ApiRouterDashboard.OrderInfo order = apiRouterService.submitOrderPaymentReview(
                 ownerEmail,
                 request.getOrderId(),
@@ -110,7 +110,7 @@ public class ApiRouterOrderController {
     public ApiResponse<ApiRouterDashboard.OrderInfo> cancelOwnOrder(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterOrderStatusRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         ApiRouterDashboard.OrderInfo order = apiRouterService.cancelOwnOrder(
                 ownerEmail,
                 request.getOrderId(),
@@ -141,7 +141,7 @@ public class ApiRouterOrderController {
     public ApiResponse<ApiRouterPaymentReconciliation> reconcileOrders(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(defaultValue = "100") int limit) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         return ApiResponse.success("Reconciliation loaded", apiRouterService.reconcileOrders(support.safeAdminLimit(limit)));
     }
@@ -150,7 +150,7 @@ public class ApiRouterOrderController {
     public ApiResponse<ApiRouterPaymentReconciliation> resolveReconciliationIssue(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterReconciliationResolveRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         ApiRouterPaymentReconciliation result = apiRouterService.resolveReconciliationIssue(
                 request.getIssueId(),

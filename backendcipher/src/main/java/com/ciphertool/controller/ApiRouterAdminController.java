@@ -32,7 +32,7 @@ public class ApiRouterAdminController {
     @GetMapping("/channels")
     public ApiResponse<List<ApiRouterDashboard.ChannelInfo>> listChannels(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         return ApiResponse.success("Channels loaded", apiRouterService.listChannels());
     }
@@ -41,7 +41,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ChannelInfo>> saveChannel(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterChannelRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ChannelInfo> channels = apiRouterService.saveChannel(
                 request.getId(),
@@ -65,7 +65,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ChannelInfo>> updateChannelStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterChannelStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ChannelInfo> channels = apiRouterService.updateChannelStatus(
                 request.getChannelId(),
@@ -80,7 +80,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ChannelInfo>> deleteChannel(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterChannelStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ChannelInfo> channels = apiRouterService.deleteChannel(request.getChannelId());
         support.audit(operatorEmail, "channel.delete", "channel", request.getChannelId(), "", "");
@@ -90,7 +90,7 @@ public class ApiRouterAdminController {
     @GetMapping("/model-prices")
     public ApiResponse<List<ApiRouterDashboard.ModelPriceInfo>> listModelPrices(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         return ApiResponse.success("Model prices loaded", apiRouterService.listModelPrices());
     }
@@ -99,7 +99,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ModelPriceInfo>> saveModelPrice(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterModelPriceRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ModelPriceInfo> prices = apiRouterService.saveModelPrice(
                 request.getId(),
@@ -123,7 +123,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ModelPriceInfo>> updateModelPriceStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterModelPriceStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ModelPriceInfo> prices = apiRouterService.updateModelPriceStatus(
                 request.getId(),
@@ -138,7 +138,7 @@ public class ApiRouterAdminController {
     public ApiResponse<List<ApiRouterDashboard.ModelPriceInfo>> deleteModelPrice(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterModelPriceStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.ModelPriceInfo> prices = apiRouterService.deleteModelPrice(request.getId());
         support.audit(operatorEmail, "price.delete", "model_price", request.getId(), "", "");

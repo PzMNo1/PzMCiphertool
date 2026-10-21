@@ -30,7 +30,7 @@ public class ApiRouterDashboardController {
             @RequestParam(required = false) String email,
             @RequestParam(defaultValue = "7") String range,
             @RequestParam(defaultValue = "day") String granularity) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success("Success", apiRouterService.getDashboard(ownerEmail, range, granularity));
     }
 
@@ -38,7 +38,7 @@ public class ApiRouterDashboardController {
     public ApiResponse<ApiRouterDashboard> refreshDashboard(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterDashboardRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success(
                 "Dashboard refreshed",
                 apiRouterService.refreshDashboard(ownerEmail, request.getRange(), request.getGranularity())

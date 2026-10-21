@@ -2477,7 +2477,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch {
                 // Fall through to local backend.
             }
-            return 'http://localhost:8080';
+            return 'http://127.0.0.1:8080';
         })();
         return `${base}/api/chat/completions`;
     }

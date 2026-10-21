@@ -101,7 +101,7 @@ function filterAuthorInterview(container, query) {
     if (empty) empty.hidden = visibleCount !== 0;
 }
 
-const FEEDBACK_API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
+const FEEDBACK_API_BASE = window.CIPHERTOOL_API_BASE || 'http://127.0.0.1:8080';
 let feedbackAuthEventsBound = false;
 
 function initFeedbackBoard(container) {
@@ -341,8 +341,8 @@ function updateFeedbackAccount(container, canReply) {
         return;
     }
     account.textContent = canReply
-        ? `当前账号：${maskEmail(user.email)} · 作者回复权限`
-        : `当前账号：${maskEmail(user.email)}`;
+        ? `当前账号：${maskAccount(user.phone)} · 作者回复权限`
+        : `当前账号：${maskAccount(user.phone)}`;
     account.className = canReply ? 'feedback-account author' : 'feedback-account';
 }
 
@@ -385,8 +385,10 @@ function isUnauthorizedMessage(message) {
     return /登录|未授权|unauthorized/i.test(String(message || ''));
 }
 
-function maskEmail(email) {
-    const value = String(email || '');
+function maskAccount(account) {
+    const value = String(account || '');
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 11) return `${digits.slice(0, 3)}****${digits.slice(7)}`;
     if (!value.includes('@')) return value || '未登录';
     const [name, domain] = value.split('@');
     if (name.length <= 2) return `${'*'.repeat(name.length)}@${domain}`;

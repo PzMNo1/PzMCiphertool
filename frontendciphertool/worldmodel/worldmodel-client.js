@@ -14,7 +14,7 @@
         } catch (error) {
             // 忽略：localStorage 不可用时回退到本地后端
         }
-        return 'http://localhost:8080';
+        return 'http://127.0.0.1:8080';
     }
 
     function url(path) {

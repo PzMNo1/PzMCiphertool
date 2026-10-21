@@ -12,8 +12,17 @@
 
     class AgentDurableStore {
         constructor() {
-            this.storageKey = STORAGE_KEY;
             this.maxRecords = MAX_RECORDS;
+        }
+
+        get storageKey() {
+            try {
+                const user = window.CipherAuth?.getUser?.() || null;
+                const account = String(user?.phone || user?.username || user?.email || '').trim();
+                return account ? `${STORAGE_KEY}::u:${account}` : `${STORAGE_KEY}::guest`;
+            } catch (error) {
+                return `${STORAGE_KEY}::guest`;
+            }
         }
 
         startRun(input = {}) {

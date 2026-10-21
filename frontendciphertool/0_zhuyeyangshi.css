@@ -950,27 +950,33 @@ textarea {
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(1) {
-    --dial-y: 14px;
-    --dial-r: -15deg;
+    --dial-y: 16px;
+    --dial-r: -16deg;
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(2) {
-    --dial-y: 4px;
-    --dial-r: -8deg;
+    --dial-y: 6px;
+    --dial-r: -9deg;
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(3) {
-    --dial-y: -4px;
+    --dial-y: -2px;
+    --dial-r: -3deg;
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(4) {
-    --dial-y: 4px;
-    --dial-r: 8deg;
+    --dial-y: -2px;
+    --dial-r: 3deg;
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(5) {
-    --dial-y: 14px;
-    --dial-r: 15deg;
+    --dial-y: 6px;
+    --dial-r: 9deg;
+  }
+
+  :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn:nth-child(6) {
+    --dial-y: 16px;
+    --dial-r: 16deg;
   }
 
   #yijianfankui-content .cipher-lab-console-nav .submodule-btn:nth-child(1) {
@@ -1033,7 +1039,7 @@ textarea {
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn.active {
-    transform: translateY(calc(var(--dial-y) - 6px)) rotate(var(--dial-r)) scale(1.06);
+    transform: translateY(var(--dial-y)) rotate(var(--dial-r)) scale(1.08);
   }
 }
 
@@ -1055,9 +1061,9 @@ textarea {
   }
 
   :is(#jiamishiyanshi-content, #yijianfankui-content, #mcpskilllab-content) .cipher-lab-console-nav .submodule-btn {
-    flex-basis: clamp(48px, 16vw, 56px);
-    width: clamp(48px, 16vw, 56px);
-    height: clamp(48px, 16vw, 56px);
+    flex-basis: clamp(44px, 15vw, 56px);
+    width: clamp(44px, 15vw, 56px);
+    height: clamp(44px, 15vw, 56px);
     font-size: .68rem;
   }
 }
@@ -1089,7 +1095,7 @@ textarea {
 @media (max-width: 1100px) {
   #mcpskilllab-content .cipher-lab-console-nav {
     width: min(96vw, 560px);
-    justify-content: flex-start;
+    justify-content: safe center;
     gap: clamp(.22rem, 1.2vw, .55rem);
     padding: .95rem .8rem .9rem;
     overflow-x: auto;
@@ -1588,6 +1594,16 @@ body {
 
 #jiamishiyanshi-content #yuliu {
   padding-bottom: 24rem;
+}
+
+@media (max-width: 760px) {
+  #jiamishiyanshi-content #yuliu {
+    padding-bottom: 7rem;
+  }
+
+  #jiamishiyanshi-content #space-workspace-container {
+    padding-bottom: 7rem !important;
+  }
 }
 
 #jiamishiyanshi-content #logic-workspace-container,

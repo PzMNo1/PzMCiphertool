@@ -81,12 +81,12 @@ const MODULES = {
             <section id="electronic-submodule-pcb" class="electronic-submodule" aria-label="电路板布局">
                 <div class="engine-viewport pcb-engine-viewport">
                     <div id="pcb-loading" class="loading-mask active">
-                        <div><i class="fas fa-spinner fa-spin"></i> 正在初始化 PCB 设计引擎...</div>
+                        <div><i class="fas fa-spinner fa-spin"></i> 正在载入 PCB 设计引擎（首次约 10–20 秒，进入电子实验室后会自动预热）...</div>
                     </div>
                     <iframe
                         id="pcb-frame"
                         src=""
-                        data-src="./electronic/PCBLayout/index.html"
+                        data-src="./electronic/PCBLayout/index.html?v=20261021-3"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -111,7 +111,9 @@ const MODULES = {
         <textarea id="mainInputCoze" style="display:none"></textarea>
 
         <div class="wf-container">
-            <div class="wf-toolbar card">
+            <button type="button" id="wf-toolbar-toggle" class="wf-toolbar-toggle" aria-expanded="false" aria-controls="wf-toolbar">算法库</button>
+            <div id="wf-toolbar-backdrop" class="wf-toolbar-backdrop"></div>
+            <div class="wf-toolbar card" id="wf-toolbar">
                 <div class="wf-toolbar-search"><input type="text" id="wf-search" placeholder="搜索算法..."></div>
                 <div class="wf-toolbar-list">
                     <div class="wf-toolbar-category">
@@ -175,6 +177,9 @@ const MODULES = {
                     <button type="button" class="cyber-button" id="wf-clear-btn">
                         <span class="cyber-button__glitch"></span>
                         <span class="cyber-button__tag">清空画布</span>
+                    </button>
+                    <button type="button" class="cyber-button wf-toolbar-close" id="wf-toolbar-close">
+                        <span class="cyber-button__tag">收起算法库</span>
                     </button>
                 </div>
             </div>
@@ -337,7 +342,9 @@ const MODULES = {
                 <div class="search-container">
                     <input type="text" id="history-search" placeholder="搜索对话...">
                 </div>
-                
+
+                <div class="agent-usage-line">本账号使用次数：<span id="agent-usage-count">登录后启用</span></div>
+
                 <div id="chat-history-list">
                     <!-- 历史对话会动态添加到这里 -->
                 </div>
@@ -594,6 +601,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 每次切到该区都要执行的初始化（沿用原来 showModule 里的调用；脚本没到就先等脚本）
     const SWITCH_INITS = {
+        electroniclab: () => {
+            if (typeof window.electronicLabActivate === 'function') window.electronicLabActivate();
+        },
         jianmoshiyanshi: () => {
             if (typeof initModelingLab === 'function') initModelingLab();
             if (typeof window.modelingLabShowView === 'function') {
@@ -615,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021-3';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -759,3 +769,4 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     );
 });
+

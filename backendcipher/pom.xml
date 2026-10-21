@@ -87,11 +87,11 @@
             <version>${aliyun-sdk.version}</version>
         </dependency>
         
-        <!-- 阿里云短信SDK -->
+        <!-- 阿里云号码认证（短信认证）SDK -->
         <dependency>
             <groupId>com.aliyun</groupId>
-            <artifactId>aliyun-java-sdk-dysmsapi</artifactId>
-            <version>2.2.1</version>
+            <artifactId>aliyun-java-sdk-dypnsapi</artifactId>
+            <version>1.2.12</version>
         </dependency>
         
         <!-- Lombok -->

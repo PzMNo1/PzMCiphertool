@@ -580,7 +580,48 @@
      * @returns {Object|null} 用户信息或 null
      */
     function checkLogin() {
-        return true;
+        try {
+            return window.CipherAuth?.getUser?.() || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function getAgentUsageStorageKey() {
+        const user = checkLogin();
+        const account = String(user?.phone || user?.username || user?.email || '').trim();
+        return account ? `agentUsage::u:${account}` : null;
+    }
+
+    function readAgentUsage() {
+        const key = getAgentUsageStorageKey();
+        if (!key) return 0;
+        try {
+            return Math.max(0, parseInt(localStorage.getItem(key) || '0', 10) || 0);
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    function recordAgentUsage() {
+        const key = getAgentUsageStorageKey();
+        if (!key) return;
+        try {
+            localStorage.setItem(key, String(readAgentUsage() + 1));
+        } catch (error) {
+            return;
+        }
+        updateAgentUsageBadge();
+    }
+
+    function updateAgentUsageBadge() {
+        const badge = document.getElementById('agent-usage-count');
+        if (!badge) return;
+        if (!checkLogin()) {
+            badge.textContent = '登录后启用';
+            return;
+        }
+        badge.textContent = `${readAgentUsage()} 次`;
     }
 
     /**
@@ -588,8 +629,8 @@
      * @param {boolean} show
      */
     function showLoginOverlay(show) {
-        const chatMain = document.querySelector('.chat-main');
-        if (!chatMain) return;
+        const chatInterface = document.querySelector('.chat-interface');
+        if (!chatInterface) return;
 
         let overlay = document.getElementById('chat-login-overlay');
 
@@ -602,26 +643,28 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: rgba(0,0,0,0.85);
-                backdrop-filter: blur(8px);
+                background: rgba(0,0,0,0.88);
+                backdrop-filter: blur(10px);
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
-                z-index: 100;
+                z-index: 200;
                 color: #0ff;
+                padding: 24px;
+                text-align: center;
             `;
             overlay.innerHTML = `
                 <div style="font-size: 1.5rem; margin-bottom: 20px; text-shadow: 0 0 10px #0ff; font-family: 'Orbitron', sans-serif;">
                     SYSTEM LOCKED
                 </div>
-                <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">请登录以访问大模型系统</p>
+                <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">请登录后使用 Agent，使用次数与聊天记录将绑定当前账号</p>
                 <button class="cyber-button" onclick="window.CipherAuth && window.CipherAuth.openModal()">
                     <span class="cyber-button__tag">立即登录</span>
                 </button>
             `;
-            chatMain.style.position = 'relative';
-            chatMain.appendChild(overlay);
+            chatInterface.style.position = 'relative';
+            chatInterface.appendChild(overlay);
         } else if (!show && overlay) {
             overlay.remove();
         }
@@ -631,6 +674,7 @@
         const sendBtn = document.getElementById('send-message');
         if (input) input.disabled = show;
         if (sendBtn) sendBtn.disabled = show;
+        if (chatInterface) chatInterface.classList.toggle('agent-locked', show);
     }
 
     /**
@@ -1142,14 +1186,24 @@
 
         const rawMessage = inputElement.value.trim();
         const hasAttachments = attachments.length > 0;
-        if (!rawMessage && !hasAttachments) {
-            const runningEntry = getLatestActiveRunForChat(window.historyManager.getCurrentChatId());
-            if (abortActiveRun(runningEntry)) {
-                refreshSendButtonState();
-            }
+
+        // 已经在生成回答时，按钮语义是“停止”：先中止当前聊天里的所有 Run，不并发堆叠新请求。
+        const currentChatId = window.historyManager.getCurrentChatId();
+        const activeIds = [...(runningRunOrderByChat.get(currentChatId) || [])];
+        let abortedAny = false;
+        activeIds.forEach(messageId => {
+            const entry = getActiveRun(currentChatId, messageId);
+            if (entry?.status === 'running' && abortActiveRun(entry)) abortedAny = true;
+        });
+        if (abortedAny) {
+            refreshSendButtonState();
             return;
         }
+
+        if (!rawMessage && !hasAttachments) return;
+
         const message = rawMessage || '请阅读这些附件并总结重点。';
+        recordAgentUsage();
         const modelingModeToggle = document.getElementById('modeling-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
         const isModelingModeEnabled = modelingModeToggle && modelingModeToggle.classList.contains('active');
@@ -2424,46 +2478,55 @@
         eventsInitialized = true;
     }
 
+    function refreshAgentForCurrentAccount() {
+        if (!checkLogin()) {
+            showLoginOverlay(true);
+            window.chatUI.clearMessages();
+            selectedChatIds.clear();
+            const historyList = document.getElementById('chat-history-list');
+            if (historyList) historyList.innerHTML = '';
+            updateAgentUsageBadge();
+            return;
+        }
+
+        showLoginOverlay(false);
+        window.historyManager.getChatHistory();
+        recoverDurableRunsIntoHistory();
+        selectedChatIds.clear();
+        const currentId = window.historyManager.getCurrentChatId();
+        if (currentId) {
+            loadChat(currentId);
+        } else {
+            newChat();
+        }
+        updateHistoryUI();
+        updateAgentUsageBadge();
+    }
+
     /**
      * 初始化聊天功能
      */
     function initChatFunctions() {
-        recoverDurableRunsIntoHistory();
         // 初始化 UI
         window.chatUI.init();
 
         // 绑定事件
         bindEvents();
 
-        // 检查登录状态
-        if (!checkLogin()) {
-            showLoginOverlay(true);
-            window.chatUI.clearMessages();
-        } else {
-            showLoginOverlay(false);
-            // 加载或创建聊天
-            const currentId = window.historyManager.getCurrentChatId();
-            if (currentId) {
-                loadChat(currentId);
-            } else {
-                newChat();
-            }
+        // 登录后才能加载该账号的历史与 Agent
+        refreshAgentForCurrentAccount();
+
+        if (!window.__agentAuthEventsBound) {
+            window.__agentAuthEventsBound = true;
+            window.addEventListener('cipher-login-success', () => {
+                durableRecoveryInitialized = false;
+                refreshAgentForCurrentAccount();
+            });
+            window.addEventListener('cipher-logout-success', () => {
+                durableRecoveryInitialized = false;
+                refreshAgentForCurrentAccount();
+            });
         }
-
-        // 监听登录/登出事件
-        window.addEventListener('cipher-login-success', () => {
-            showLoginOverlay(false);
-            const currentId = window.historyManager.getCurrentChatId();
-            if (currentId) {
-                loadChat(currentId);
-            } else {
-                newChat();
-            }
-        });
-
-        window.addEventListener('cipher-logout-success', () => {
-            showLoginOverlay(false);
-        });
     }
 
     // 导出全局函数

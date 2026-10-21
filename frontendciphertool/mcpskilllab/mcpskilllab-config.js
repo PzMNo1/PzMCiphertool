@@ -3,7 +3,7 @@
     const FAVORITES_KEY = 'MCPSKILLLAB_FAVORITES';
     const BACKLOG_META_KEY = 'MCPSKILLLAB_BACKLOG_META';
     const CUSTOM_RESOURCES_KEY = 'MCPSKILLLAB_CUSTOM_RESOURCES';
-    const LOCAL_API_BASE = window.CIPHERTOOL_API_BASE || 'http://localhost:8080';
+    const LOCAL_API_BASE = window.CIPHERTOOL_API_BASE || 'http://127.0.0.1:8080';
 
     const fallbackResources = [
         {

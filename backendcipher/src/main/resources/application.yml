@@ -34,14 +34,6 @@ spring:
     baseline-on-migrate: ${CIPHERTOOL_FLYWAY_BASELINE_ON_MIGRATE:false}
     validate-on-migrate: true
 
-# Aliyun SMS Config
-# aliyun:
-#   sms:
-#     access-key-id: ${ALIYUN_ACCESS_KEY_ID}
-#     access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET}
-#     sign-name: ${ALIYUN_SMS_SIGN_NAME}
-#     template-code: ${ALIYUN_SMS_TEMPLATE_CODE}
-
 # Email Config
   mail:
     host: smtp.qq.com
@@ -55,6 +47,14 @@ spring:
           starttls:
             enable: true
 
+# Aliyun PNVS SMS Config
+aliyun:
+  sms:
+    access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:}
+    sign-name: ${ALIYUN_SMS_SIGN_NAME:}
+    template-code: ${ALIYUN_SMS_TEMPLATE_CODE:}
+
 # Auth Code Config
 auth:
   code:
@@ -66,6 +66,7 @@ auth:
     expire-hours: ${AUTH_SESSION_EXPIRE_HOURS:168}
 
 feedback:
+  author-account: ${FEEDBACK_AUTHOR_ACCOUNT:}
   risk:
     submit-per-hour: ${FEEDBACK_SUBMIT_PER_HOUR:20}
 
@@ -110,6 +111,7 @@ agent-earth:
 # API Router quota, rate limit and optional internal billing config
 api-router:
   admin-emails: ${API_ROUTER_ADMIN_EMAILS:}
+  payment-reviewers: ${API_ROUTER_PAYMENT_REVIEWER_EMAILS:}
   limit:
     rpm: ${API_ROUTER_RPM_LIMIT:60}
     tpm: ${API_ROUTER_TPM_LIMIT:120000}

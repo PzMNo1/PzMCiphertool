@@ -133,13 +133,16 @@
     <div class="status-sub" id="engine-boot-status-text">正在解压并启动本地 PCB 设计 / 仿真引擎...</div>
   </div>
 
-  <script src="./vendor/fflate.min.js"></script>
-  <script src="./viewer-i18n.js"></script>
+  <script src="./vendor/fflate.min.js?v=20261021-3"></script>
+  <script src="./viewer-i18n.js?v=20261021-3"></script>
   <script>
     (function () {
       'use strict';
 
       var CODE_STORAGE_KEY = 'pzma-pcb-code';
+      var ACTIVE_CODE_KEY = 'pzma-pcb-active-code';
+      var ASSET_VERSION = '20261021-3';
+      var codeRev = new URLSearchParams(location.search).get('codeRev') || '';
       var statusEl = document.getElementById('engine-boot-status');
       var statusTextEl = document.getElementById('engine-boot-status-text');
       var rootEl = document.getElementById('root');
@@ -236,10 +239,18 @@
 
       async function loadUserCode() {
         var code = null;
-        try { code = localStorage.getItem(CODE_STORAGE_KEY); } catch (e) { /* ignore */ }
+        try {
+          var active = JSON.parse(sessionStorage.getItem(ACTIVE_CODE_KEY) || 'null');
+          if (active && codeRev && active.rev === codeRev && typeof active.code === 'string') {
+            code = active.code;
+          }
+        } catch (e) { /* ignore */ }
+        if (!code) {
+          try { code = localStorage.getItem(CODE_STORAGE_KEY); } catch (e) { /* ignore */ }
+        }
         if (!code) {
           try {
-            var response = await fetch('./circuits/main.tsx', { cache: 'no-store' });
+            var response = await fetch('./circuits/main.tsx?v=' + ASSET_VERSION, { cache: 'no-store' });
             if (response.ok) code = await response.text();
           } catch (e) { /* ignore */ }
         }
@@ -261,13 +272,13 @@
           injectUserCode(code);
 
           setStatus('正在加载本地 SPICE / PCB 仿真 worker...', false);
-          var workerCode = await fetchGzipText('./vendor/tscircuit-eval-worker.js.gz');
+          var workerCode = await fetchGzipText('./vendor/tscircuit-eval-worker.js.gz?v=' + ASSET_VERSION);
           window.__PZMA_TSCIRCUIT_EVAL_WORKER_URL__ = URL.createObjectURL(
             new Blob([workerCode], { type: 'text/javascript' })
           );
 
           setStatus('正在加载 tscircuit 设计引擎（约 13MB 本地资源，仅首次较慢）...', false);
-          var bundleCode = await fetchGzipText('./vendor/tscircuit-runframe-standalone.min.js.gz');
+          var bundleCode = await fetchGzipText('./vendor/tscircuit-runframe-standalone.min.js.gz?v=' + ASSET_VERSION);
 
           var bundleScript = document.createElement('script');
           bundleScript.src = URL.createObjectURL(new Blob([bundleCode], { type: 'text/javascript' }));
@@ -298,3 +309,4 @@
   </script>
 </body>
 </html>
+

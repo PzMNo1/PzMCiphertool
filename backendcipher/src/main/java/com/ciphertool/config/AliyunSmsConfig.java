@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Aliyun SMS Configuration
+ * Aliyun PNVS SMS Configuration
  */
 @Getter
 @Setter

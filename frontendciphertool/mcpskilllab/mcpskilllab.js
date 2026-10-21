@@ -14,7 +14,7 @@
     const MAX_FAVORITES = config.maxFavorites || 500;
     const pageSize = Math.min(120, Math.max(6, Number(config.pageSize) || 24));
     const displayText = config.displayText || {};
-    const API_BASE = String(config.localApiBase || window.CIPHERTOOL_API_BASE || 'http://localhost:8080').replace(/\/$/, '');
+    const API_BASE = String(config.localApiBase || window.CIPHERTOOL_API_BASE || 'http://127.0.0.1:8080').replace(/\/$/, '');
 
     function clipText(value, maxLength, fallback = '') {
         const text = String(value === undefined || value === null ? fallback : value).trim();

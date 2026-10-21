@@ -19,7 +19,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Auth Service (Email Version)
+ * Auth Service (Phone Version)
  */
 @Slf4j
 @Service
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class AuthService {
 
     private final StringRedisTemplate redisTemplate;
-    private final EmailService emailService;
+    private final SmsService smsService;
 
     private static final String CODE_KEY_PREFIX = "auth:code:";
     private static final String LOCK_KEY_PREFIX = "auth:lock:";
@@ -53,19 +53,24 @@ public class AuthService {
     /**
      * Send verification code
      *
-     * @param email email address
+     * @param phone phone number
      * @return error message, null if success
      */
-    public String sendCode(String email) {
+    public String sendCode(String phone) {
+        String normalizedPhone = normalizePhone(phone);
+        if (!isValidPhone(normalizedPhone)) {
+            return "手机号格式不正确";
+        }
+
         // Check send lock (60s interval)
-        String lockKey = LOCK_KEY_PREFIX + email;
+        String lockKey = LOCK_KEY_PREFIX + normalizedPhone;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
             Long ttl = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS);
             return String.format("发送过于频繁，请%d秒后重试", ttl != null ? ttl : sendIntervalSeconds);
         }
 
         // Check hourly limit
-        String limitKey = LIMIT_KEY_PREFIX + email;
+        String limitKey = LIMIT_KEY_PREFIX + normalizedPhone;
         String countStr = redisTemplate.opsForValue().get(limitKey);
         int count = countStr != null ? Integer.parseInt(countStr) : 0;
         if (count >= maxSendPerHour) {
@@ -75,14 +80,14 @@ public class AuthService {
         // Generate code
         String code = generateCode();
 
-        // Send Email
-        boolean success = emailService.sendCode(email, code);
+        // Send SMS
+        boolean success = smsService.sendSmsCode(normalizedPhone, code);
         if (!success) {
-            return "邮件发送失败，请稍后重试";
+            return "短信发送失败，请稍后重试";
         }
 
         // Store code in Redis
-        String codeKey = CODE_KEY_PREFIX + email;
+        String codeKey = CODE_KEY_PREFIX + normalizedPhone;
         redisTemplate.opsForValue().set(codeKey, code, expireMinutes, TimeUnit.MINUTES);
 
         // Set send lock
@@ -95,71 +100,75 @@ public class AuthService {
             redisTemplate.opsForValue().increment(limitKey);
         }
 
-        log.info("Code sent successfully: email={}", maskEmail(email));
+        log.info("Code sent successfully: phone={}", maskPhone(normalizedPhone));
         return null;
     }
 
     /**
      * Verify login
      *
-     * @param email email address
+     * @param phone phone number
      * @param code  verification code
      * @return LoginResponse or null if failed
      */
-    public LoginResponse verifyLogin(String email, String code) {
-        String codeKey = CODE_KEY_PREFIX + email;
+    public LoginResponse verifyLogin(String phone, String code) {
+        String normalizedPhone = normalizePhone(phone);
+        if (!isValidPhone(normalizedPhone)) {
+            return null;
+        }
+
+        String codeKey = CODE_KEY_PREFIX + normalizedPhone;
         String storedCode = redisTemplate.opsForValue().get(codeKey);
 
         if (storedCode == null) {
-            log.warn("Code not found or expired: email={}", maskEmail(email));
+            log.warn("Code not found or expired: phone={}", maskPhone(normalizedPhone));
             return null;
         }
 
         if (!storedCode.equals(code)) {
-            log.warn("Code mismatch: email={}", maskEmail(email));
+            log.warn("Code mismatch: phone={}", maskPhone(normalizedPhone));
             return null;
         }
 
         // Delete code after successful verification
         redisTemplate.delete(codeKey);
 
-        log.info("Login successful: email={}", maskEmail(email));
+        log.info("Login successful: phone={}", maskPhone(normalizedPhone));
 
-        String normalizedEmail = normalizeEmail(email);
         String token = generateSessionToken();
         LocalDateTime loginTime = LocalDateTime.now();
         LocalDateTime expiresAt = loginTime.plusHours(Math.max(1, sessionExpireHours));
         redisTemplate.opsForValue().set(
                 SESSION_KEY_PREFIX + hashToken(token),
-                normalizedEmail,
+                normalizedPhone,
                 Math.max(1, sessionExpireHours),
                 TimeUnit.HOURS
         );
 
         return new LoginResponse(
-                normalizedEmail,
-                maskEmail(normalizedEmail),
+                normalizedPhone,
+                maskPhone(normalizedPhone),
                 token,
                 loginTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 expiresAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         );
     }
 
-    public String requireSessionEmail(String authorization) {
-        String email = resolveSessionEmail(authorization);
-        if (email == null || email.isBlank()) {
+    public String requireSessionAccount(String authorization) {
+        String account = resolveSessionAccount(authorization);
+        if (account == null || account.isBlank()) {
             throw AuthAccessException.unauthorized("请先登录");
         }
-        return email;
+        return account;
     }
 
-    public String resolveSessionEmail(String authorization) {
+    public String resolveSessionAccount(String authorization) {
         String token = extractBearerToken(authorization);
         if (token == null || token.isBlank()) {
             return null;
         }
-        String email = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + hashToken(token));
-        return email == null || email.isBlank() ? null : normalizeEmail(email);
+        String account = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + hashToken(token));
+        return account == null || account.isBlank() ? null : normalizeAccount(account);
     }
 
     private String generateCode() {
@@ -197,19 +206,35 @@ public class AuthService {
         }
     }
 
-    private String normalizeEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase();
+    private String normalizePhone(String phone) {
+        String value = phone == null ? "" : phone.trim().replaceAll("[\\s-]", "");
+        if (value.startsWith("+86")) {
+            value = value.substring(3);
+        } else if (value.startsWith("0086")) {
+            value = value.substring(4);
+        } else if (value.length() == 13 && value.startsWith("86")) {
+            value = value.substring(2);
+        }
+        return value;
     }
 
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            return email;
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.matches("1[3-9]\\d{9}");
+    }
+
+    private String normalizeAccount(String account) {
+        return account == null ? "" : account.trim().toLowerCase();
+    }
+
+    private String maskPhone(String phone) {
+        String value = phone == null ? "" : phone.replaceAll("\\D", "");
+        if (value.length() == 13 && value.startsWith("86")) {
+            value = value.substring(2);
         }
-        int atIndex = email.indexOf("@");
-        if (atIndex <= 3) {
-            return email;
+        if (value.length() != 11) {
+            return phone;
         }
-        return email.substring(0, 3) + "****" + email.substring(atIndex);
+        return value.substring(0, 3) + "****" + value.substring(7);
     }
 
     public static class AuthAccessException extends RuntimeException {

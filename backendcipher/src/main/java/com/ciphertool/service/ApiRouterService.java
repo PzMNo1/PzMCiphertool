@@ -710,7 +710,7 @@ public class ApiRouterService {
         List<ApiRouterInviteOverview.InviteeInfo> invitees = jdbcTemplate.query(
                 "select invitee_email, reward_amount, status, created_at, rewarded_at from api_router_invite_referrals where inviter_email = ? order by created_at desc limit 100",
                 (rs, rowNum) -> new ApiRouterInviteOverview.InviteeInfo(
-                        maskEmail(rs.getString("invitee_email")),
+                        maskAccount(rs.getString("invitee_email")),
                         rs.getDouble("reward_amount"),
                         rs.getString("status"),
                         rs.getString("created_at"),
@@ -745,7 +745,7 @@ public class ApiRouterService {
                 invitedUsers == null ? 0 : invitedUsers,
                 round4(pendingRewards),
                 round4(creditedRewards),
-                referredBy == null || referredBy.isBlank() ? "" : maskEmail(referredBy),
+                referredBy == null || referredBy.isBlank() ? "" : maskAccount(referredBy),
                 invitees
         );
     }
@@ -1368,7 +1368,7 @@ public class ApiRouterService {
             key.setUpdatedAt(nowStorage);
             saveKeyFile(validation.getEmail(), keyFile);
         } catch (IllegalArgumentException e) {
-            log.warn("Failed to update API key last-used state for {}", maskEmail(validation.getEmail()), e);
+            log.warn("Failed to update API key last-used state for {}", maskAccount(validation.getEmail()), e);
         }
 
         String modelName = model == null || model.isBlank() ? "unknown" : model;
@@ -1525,7 +1525,7 @@ public class ApiRouterService {
             appendUsageLedger(normalizeEmail(email), record, reservation);
             trimUsageRecords(normalizeEmail(email));
         } catch (RuntimeException e) {
-            log.warn("Failed to append API router usage for {}", maskEmail(email), e);
+            log.warn("Failed to append API router usage for {}", maskAccount(email), e);
         }
     }
 
@@ -1909,7 +1909,7 @@ public class ApiRouterService {
                 "INVITE_REWARD",
                 BigDecimal.valueOf(round4(amount)),
                 BigDecimal.valueOf(nextBalance),
-                "Invite reward from " + maskEmail(inviteeEmail),
+                "Invite reward from " + maskAccount(inviteeEmail),
                 now
         );
     }
@@ -2921,7 +2921,7 @@ public class ApiRouterService {
             if (legacy.getUpdatedAt() != null) dashboard.setUpdatedAt(legacy.getUpdatedAt());
             save(email, dashboard);
         } catch (IOException e) {
-            log.warn("Failed to migrate legacy dashboard for {}", maskEmail(email), e);
+            log.warn("Failed to migrate legacy dashboard for {}", maskAccount(email), e);
         }
     }
 
@@ -2941,7 +2941,7 @@ public class ApiRouterService {
             keyFile.setEmail(normalizeEmail(keyFile.getEmail()));
             return keyFile;
         } catch (IOException e) {
-            log.warn("Failed to read legacy API key data for {}", maskEmail(email), e);
+            log.warn("Failed to read legacy API key data for {}", maskAccount(email), e);
             return null;
         }
     }
@@ -2967,7 +2967,7 @@ public class ApiRouterService {
                 return new ApiRouterUsageFile(email, records == null ? new ArrayList<>() : new ArrayList<>(List.of(records)));
             } catch (IOException ignored) {
             }
-            log.warn("Failed to read legacy API router usage for {}", maskEmail(email), e);
+            log.warn("Failed to read legacy API router usage for {}", maskAccount(email), e);
             return null;
         }
     }
@@ -3720,15 +3720,19 @@ public class ApiRouterService {
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            return email;
+    private String maskAccount(String account) {
+        String value = account == null ? "" : account.trim();
+        if (value.matches("\\d{11}")) {
+            return value.substring(0, 3) + "****" + value.substring(7);
         }
-        int atIndex = email.indexOf("@");
+        if (!value.contains("@")) {
+            return value;
+        }
+        int atIndex = value.indexOf("@");
         if (atIndex <= 3) {
-            return email;
+            return value;
         }
-        return email.substring(0, 3) + "****" + email.substring(atIndex);
+        return value.substring(0, 3) + "****" + value.substring(atIndex);
     }
 
     private double round1(double value) {

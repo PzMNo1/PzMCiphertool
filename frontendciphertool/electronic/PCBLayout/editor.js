@@ -11,9 +11,14 @@
 
   var CODE_STORAGE_KEY = 'pzma-pcb-code';
   var TEMPLATE_STORAGE_KEY = 'pzma-pcb-template';
+  var BOARD_VERSION_KEY = 'pzma-pcb-board-version';
+  var BOARD_VERSION = '2026-industrial-v1';
+  var LEGACY_MIGRATED_KEY = 'pzma-pcb-legacy-migrated';
+  var ACTIVE_CODE_KEY = 'pzma-pcb-active-code';
+  var ASSET_VERSION = '20261021-3';
 
   var TEMPLATES = {
-    'main': { label: 'LED + SPICE 仿真', url: './circuits/main.tsx' },
+    'main': { label: '工业级控制板 (STM32)', url: './circuits/main.tsx' },
     'routed-board': { label: '已自动布线 LED 板', url: './circuits/routed-board.tsx' },
     'rc-filter': { label: 'RC 低通滤波仿真', url: './circuits/rc-filter.tsx' }
   };
@@ -115,7 +120,7 @@
     var tpl = TEMPLATES[templateId] || TEMPLATES.main;
     if (templateCache[tpl.url]) return templateCache[tpl.url];
     try {
-      var response = await fetch(tpl.url, { cache: 'no-store' });
+      var response = await fetch(tpl.url + '?v=' + ASSET_VERSION, { cache: 'no-store' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       var text = await response.text();
       templateCache[tpl.url] = text;
@@ -146,9 +151,14 @@
 
   function startViewer() {
     clearTimeout(viewerBootTimer);
-    setViewerLoading(true, '正在启动 tscircuit 引擎', '首次加载需解压约 13MB 本地引擎资源');
+    setViewerLoading(true, '正在启动 tscircuit 引擎', '首次加载约 10–20 秒；进入电子实验室后已开始后台预热');
+    // 把编辑器当前的代码快照交给 viewer，避免 viewer 读到旧的 localStorage 内容。
+    var codeRev = Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 8);
+    try {
+      sessionStorage.setItem(ACTIVE_CODE_KEY, JSON.stringify({ rev: codeRev, code: editor.value }));
+    } catch (e) { /* ignore */ }
     // 给 iframe 设置带时间戳的 src，避免浏览器缓存旧 viewer.html 状态。
-    viewerFrame.src = './viewer.html?t=' + Date.now();
+    viewerFrame.src = './viewer.html?t=' + Date.now() + '&codeRev=' + encodeURIComponent(codeRev);
     // 兜底：若 90 秒后仍未收到 ready/error，给出提示（不强制隐藏，避免误判）。
     viewerBootTimer = setTimeout(function () {
       if (viewerLoading && viewerLoading.classList.contains('active')) {
@@ -173,10 +183,21 @@
     // 1. 读取上次保存的代码；没有则载入默认模板。
     var storedCode = null;
     var storedTemplate = 'main';
+    var legacyMigrated = false;
     try {
       storedCode = localStorage.getItem(CODE_STORAGE_KEY);
       storedTemplate = localStorage.getItem(TEMPLATE_STORAGE_KEY) || 'main';
+      legacyMigrated = localStorage.getItem(LEGACY_MIGRATED_KEY) === '1';
     } catch (e) { /* ignore */ }
+
+    // 旧版示例是 V1 / J1 + R1 + D1 的小板；首次打开时换成工业级控制板，
+    // 之后保留用户自己导入 / 修改过的内容，不再无条件覆盖。
+    var hasIndustrialCore = /name="U1"/.test(storedCode || '') && /qfp48/.test(storedCode || '');
+    var looksLikeTinyDemo = /name="R1"/.test(storedCode || '') && /name="D1"/.test(storedCode || '') && !hasIndustrialCore;
+    if (!legacyMigrated && storedTemplate === 'main' && looksLikeTinyDemo) {
+      storedCode = null;
+      storedTemplate = 'main';
+    }
 
     if (storedTemplate && TEMPLATES[storedTemplate] && templateSelect) {
       templateSelect.value = storedTemplate;
@@ -189,6 +210,13 @@
       await loadTemplate(storedTemplate || 'main', true);
       setEditorStatus('已载入默认示例');
     }
+
+    try {
+      localStorage.setItem(BOARD_VERSION_KEY, BOARD_VERSION);
+      if (storedTemplate !== 'main' || /name="U1"/.test(editor.value)) {
+        localStorage.setItem(LEGACY_MIGRATED_KEY, '1');
+      }
+    } catch (e) { /* ignore */ }
 
     // 代码侧边栏：恢复上次的收起状态，并绑定切换把手。
     var sidebarCollapsed = false;

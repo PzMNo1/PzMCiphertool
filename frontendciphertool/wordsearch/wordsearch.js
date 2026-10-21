@@ -283,7 +283,7 @@ async function fetchData(query, startParam) {
     // nutrimatic.org 不发 Access-Control-Allow-Origin，浏览器不能直连，必须过代理。
     // 四个通道同时尝试、谁先返回有效内容就用谁：串行回退时只要排在前面的公共代理
     // 连不上，每个都要等满 12s，最快的本机后端反而最后才试，单次查询会拖到 20s 以上。
-    const apiBase = (window.CIPHERTOOL_API_BASE || 'http://localhost:8080').replace(/\/$/, '');
+    const apiBase = (window.CIPHERTOOL_API_BASE || 'http://127.0.0.1:8080').replace(/\/$/, '');
     const proxies = [
         {
             name: 'CodeTabs',

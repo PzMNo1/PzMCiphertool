@@ -97,7 +97,7 @@
 
     async function loadDashboard(root, options = {}) {
         const user = getCurrentUser();
-        if (!user || !user.email) {
+        if (!user || !user.phone) {
             renderLoginRequired(root);
             return;
         }
@@ -152,7 +152,7 @@
 
     async function postDashboard(root, endpoint, extra = {}) {
         const user = getCurrentUser();
-        if (!user || !user.email) {
+        if (!user || !user.phone) {
             renderLoginRequired(root);
             throw new Error('请先登录');
         }
@@ -194,7 +194,7 @@
         root.innerHTML = `
             <section class="apizz-shell">
                 <div class="apizz-card apizz-panel">
-                    <div class="apizz-panel-title">API 中转站需要登录 <small>按登录邮箱隔离后端数据</small></div>
+                    <div class="apizz-panel-title">API 中转站需要登录 <small>按登录账号隔离后端数据</small></div>
                     <p class="apizz-muted">请先登录或注册，再查看余额、密钥、用量和模型分发数据。</p>
                     <button id="apizz-login-btn" class="apizz-ghost-btn" type="button">登录 / 注册</button>
                 </div>
@@ -212,7 +212,7 @@
             <section class="apizz-shell">
                 <div class="apizz-card apizz-panel">
                     <div class="apizz-panel-title">正在连接 API 中转站后端</div>
-                    <p class="apizz-muted">正在按当前登录邮箱加载仪表盘数据。</p>
+                    <p class="apizz-muted">正在按当前登录账号加载仪表盘数据。</p>
                 </div>
             </section>
         `;
@@ -247,7 +247,7 @@
                         </div>
                     </div>
                     <div class="apizz-header-actions">
-                        <span class="apizz-pill">${escapeHtml(maskEmail(state.email))}</span>
+                        <span class="apizz-pill">${escapeHtml(maskAccount(state.email))}</span>
                         <span class="apizz-pill">后端通道已连接</span>
                         <span class="apizz-pill">余额 $${balance}</span>
                     </div>
@@ -304,7 +304,7 @@
             helpers: {
                 selected,
                 numberValue,
-                maskEmail,
+                maskAccount,
                 routerBaseUrl,
                 escapeHtml,
                 metricCard,
@@ -1100,8 +1100,10 @@
         return Number.isFinite(number) ? number : 0;
     }
 
-    function maskEmail(email) {
-        const value = String(email || '');
+    function maskAccount(account) {
+        const value = String(account || '');
+        const digits = value.replace(/\D/g, '');
+        if (digits.length === 11) return `${digits.slice(0, 3)}****${digits.slice(7)}`;
         if (!value.includes('@')) return value || '未登录';
         const [name, domain] = value.split('@');
         if (name.length <= 3) return value;
@@ -1117,7 +1119,7 @@
         const location = window.location || {};
         const origin = String(location.origin || '').replace(/\/+$/, '');
         const hostname = String(location.hostname || '').toLowerCase();
-        if (isLocalHost(hostname)) return 'http://localhost:8080';
+        if (isLocalHost(hostname)) return 'http://127.0.0.1:8080';
         return origin;
     }
 

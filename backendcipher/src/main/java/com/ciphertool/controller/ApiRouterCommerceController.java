@@ -38,7 +38,7 @@ public class ApiRouterCommerceController {
     @GetMapping("/subscription-plans")
     public ApiResponse<List<ApiRouterSubscriptionPlanInfo>> listSubscriptionPlans(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        authService.requireSessionEmail(authorization);
+        authService.requireSessionAccount(authorization);
         return ApiResponse.success("Subscription plans loaded", apiRouterService.listSubscriptionPlans());
     }
 
@@ -47,7 +47,7 @@ public class ApiRouterCommerceController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest servletRequest,
             @Valid @RequestBody ApiRouterSubscriptionOrderRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         support.requireUserAndIpLimit(
                 ownerEmail,
                 servletRequest,
@@ -70,7 +70,7 @@ public class ApiRouterCommerceController {
     @GetMapping("/invites/overview")
     public ApiResponse<ApiRouterInviteOverview> getInviteOverview(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success("Invite overview loaded", apiRouterService.getInviteOverview(ownerEmail));
     }
 
@@ -78,7 +78,7 @@ public class ApiRouterCommerceController {
     public ApiResponse<ApiRouterInviteOverview> applyInviteCode(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterInviteApplyRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         return ApiResponse.success("Invite code applied", apiRouterService.applyInviteCode(ownerEmail, request.getCode()));
     }
 }

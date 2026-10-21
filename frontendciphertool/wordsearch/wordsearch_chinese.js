@@ -121,9 +121,15 @@
 
   /* ---------------------------------------------------------------- 查询解析 */
 
+  const normalizeWildcards = s => String(s || '')
+    .replace(/[？]/g, '?')
+    .replace(/[＊]/g, '*')
+    .replace(/[－—]/g, '-');
+
   function tokenToRegex(token) {
     let out = '';
-    for (const ch of token) {
+    for (const raw of normalizeWildcards(token)) {
+      const ch = raw;
       if (ch === '?') out += '[\\u4e00-\\u9fff]';
       else if (ch === '*') out += '[\\u4e00-\\u9fff]*';
       else out += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -133,7 +139,7 @@
 
   function parseQuery(raw) {
     const q = { pattern: null, patternText: '', pinyin: null, initials: null, type: null, excludes: [] };
-    let text = String(raw || '').trim();
+    let text = normalizeWildcards(String(raw || '').trim());
     if (!text) return q;
 
     text = text.replace(/(\S+?)\s*[=＝]\s*(\S*)/g, (m, key, value) => {

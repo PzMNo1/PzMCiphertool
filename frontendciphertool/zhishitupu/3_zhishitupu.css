@@ -177,7 +177,7 @@
     z-index: 10;
     pointer-events: auto;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
 }
 
@@ -759,24 +759,50 @@
 
 @media (max-width: 760px) {
     #zstp-import-layer {
-        left: 12px;
-        right: 12px;
+        top: 94px;
+        left: 10px;
+        right: 10px;
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
 
     .zstp-mode-switch {
         grid-template-columns: repeat(3, 1fr);
+        padding: 3px;
     }
 
     .zstp-mode-btn {
-        font-size: 0.66rem;
+        height: 32px;
+        font-size: 0.64rem;
+        letter-spacing: 0.4px;
+    }
+
+    .zstp-mode-switch::before {
+        top: 3px;
+        left: 3px;
+        width: calc((100% - 14px) / 3);
+        height: calc(100% - 6px);
+    }
+
+    .zstp-action-stack {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .zstp-import-btn {
+        height: 38px;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.72rem;
+        letter-spacing: 1px;
     }
 
     .zstp-preview-panel {
-        top: 142px;
-        right: 12px;
-        width: calc(100vw - 24px);
-        max-height: calc(100vh - 166px);
+        top: 232px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 254px);
     }
 }

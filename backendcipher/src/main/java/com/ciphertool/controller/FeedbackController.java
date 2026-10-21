@@ -37,7 +37,7 @@ public class FeedbackController {
     @GetMapping
     public ApiResponse<FeedbackOverview> list(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String currentUserEmail = authService.resolveSessionEmail(authorization);
+        String currentUserEmail = authService.resolveSessionAccount(authorization);
         return ApiResponse.success("Feedback loaded", feedbackService.list(currentUserEmail));
     }
 
@@ -46,7 +46,7 @@ public class FeedbackController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest servletRequest,
             @Valid @RequestBody FeedbackCreateRequest request) {
-        String email = authService.resolveSessionEmail(authorization);
+        String email = authService.resolveSessionAccount(authorization);
         if (email == null || email.isBlank()) {
             riskControlService.requireIpAction(
                     riskControlService.clientIp(servletRequest),
@@ -72,7 +72,7 @@ public class FeedbackController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @PathVariable String id,
             @Valid @RequestBody FeedbackReplyRequest request) {
-        String email = authService.requireSessionEmail(authorization);
+        String email = authService.requireSessionAccount(authorization);
         return ApiResponse.success("回复已发布", feedbackService.reply(email, id, request.getContent()));
     }
 
@@ -80,7 +80,7 @@ public class FeedbackController {
     public ApiResponse<FeedbackOverview> delete(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @PathVariable String id) {
-        String email = authService.requireSessionEmail(authorization);
+        String email = authService.requireSessionAccount(authorization);
         return ApiResponse.success("反馈已删除", feedbackService.delete(email, id));
     }
 }

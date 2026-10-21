@@ -887,6 +887,29 @@
   gap: 10px;
 }
 
+.agent-usage-line {
+  margin: 0 15px 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(64, 224, 255, 0.16);
+  border-left: 2px solid rgba(64, 224, 255, 0.56);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(210, 245, 255, 0.66);
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+}
+
+.agent-usage-line span {
+  color: var(--neon-cyan, #40e0ff);
+  font-weight: 700;
+}
+
+.chat-interface.agent-locked .chat-sidebar {
+  filter: blur(1px);
+  opacity: 0.36;
+  pointer-events: none;
+}
+
 #chat-history-list {
   flex: 1;
   overflow-y: auto;

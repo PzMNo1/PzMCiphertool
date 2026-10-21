@@ -16,7 +16,7 @@
         if (el) el.textContent = text;
     }
 
-    function loadScripts(list, version = window.CIPHERTOOL_ASSET_VERSION || '20260531') {
+    function loadScripts(list, version = window.CIPHERTOOL_ASSET_VERSION || '20261021-3') {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
             s.src = src + '?v=' + version;
@@ -335,11 +335,25 @@
 }
 
 @media (max-width: 760px) {
+  .space-workspace-container {
+    padding-top: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
+  .space-workspace {
+    gap: 1rem;
+  }
+
   .space-control-panel,
   .space-display-panel {
+    flex: 0 0 auto;
     min-width: 0;
     width: 100%;
-    padding: 1.25rem;
+    padding: 1rem;
+  }
+
+  .space-display-panel {
+    padding: 1.1rem 0.85rem;
   }
 
   .space-title {
@@ -347,13 +361,39 @@
     white-space: normal;
   }
 
-  .space-action-grid,
+  .space-formula-input {
+    min-height: 68px;
+    margin-bottom: 0.9rem;
+  }
+
+  .space-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+  }
+
   .space-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem 0.6rem;
+    font-size: 0.82rem;
+  }
+
+  .space-solution-card,
+  .space-stats,
+  .space-instructions {
+    padding: 0.8rem;
+  }
+
+  .space-instructions {
+    font-size: 0.78em;
   }
 
   .cube-step-reader {
     grid-template-columns: 1fr;
+  }
+
+  .cube-step-reader .cyber-button {
+    min-height: 34px;
   }
 
   .cube-move-spatial {
@@ -384,3 +424,4 @@
 
     injectStyles(BASE_STYLE_ID, baseStyles);
 })();
+

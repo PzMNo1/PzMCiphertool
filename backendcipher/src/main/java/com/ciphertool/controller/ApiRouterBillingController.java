@@ -40,7 +40,7 @@ public class ApiRouterBillingController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             HttpServletRequest servletRequest,
             @Valid @RequestBody ApiRouterRedeemRequest request) {
-        String ownerEmail = authService.requireSessionEmail(authorization);
+        String ownerEmail = authService.requireSessionAccount(authorization);
         support.requireUserAndIpLimit(
                 ownerEmail,
                 servletRequest,
@@ -58,7 +58,7 @@ public class ApiRouterBillingController {
     @GetMapping("/redeem-codes")
     public ApiResponse<List<ApiRouterDashboard.RedeemCodeInfo>> listRedeemCodes(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         return ApiResponse.success("Redeem codes loaded", apiRouterService.listRedeemCodes());
     }
@@ -67,7 +67,7 @@ public class ApiRouterBillingController {
     public ApiResponse<List<ApiRouterDashboard.RedeemCodeInfo>> createRedeemCode(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterRedeemCodeRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.RedeemCodeInfo> codes = apiRouterService.createRedeemCode(
                 operatorEmail,
@@ -88,7 +88,7 @@ public class ApiRouterBillingController {
     public ApiResponse<List<ApiRouterDashboard.RedeemCodeInfo>> updateRedeemCodeStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterRedeemCodeStatusRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         List<ApiRouterDashboard.RedeemCodeInfo> codes = apiRouterService.updateRedeemCodeStatus(request.getCode(), request.getEnabled());
         support.audit(operatorEmail, "redeem.status", "redeem_code", request.getCode(), "",

@@ -29,7 +29,7 @@ public class ApiRouterOpsController {
     public ApiResponse<ApiRouterStatus> getStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(defaultValue = "false") boolean admin) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         if (admin) {
             support.requireAdmin(operatorEmail);
         }
@@ -40,7 +40,7 @@ public class ApiRouterOpsController {
     public ApiResponse<ApiRouterStatus> checkStatus(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody ApiRouterChannelHealthCheckRequest request) {
-        String operatorEmail = authService.requireSessionEmail(authorization);
+        String operatorEmail = authService.requireSessionAccount(authorization);
         support.requireAdmin(operatorEmail);
         return ApiResponse.success("Channel health checked", apiRouterService.checkChannelHealth(request.getChannelId(), true));
     }

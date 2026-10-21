@@ -5,8 +5,8 @@
 
 class HistoryManager {
     constructor() {
-        this.STORAGE_KEY = 'chatHistory';
-        this.CURRENT_CHAT_KEY = 'currentChatId';
+        this.LEGACY_STORAGE_KEY = 'chatHistory';
+        this.LEGACY_CURRENT_CHAT_KEY = 'currentChatId';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
         this.MAX_AGENT_EVENTS = 400;
@@ -18,9 +18,39 @@ class HistoryManager {
         this.MAX_STORED_IMAGE_URL_CHARS = 4200000;
     }
 
+    getAccountScope() {
+        try {
+            const user = window.CipherAuth?.getUser?.() || null;
+            const account = String(user?.phone || user?.username || user?.email || '').trim();
+            return account ? `u:${account}` : 'guest';
+        } catch (error) {
+            return 'guest';
+        }
+    }
+
+    get STORAGE_KEY() {
+        return `chatHistory::${this.getAccountScope()}`;
+    }
+
+    get CURRENT_CHAT_KEY() {
+        return `currentChatId::${this.getAccountScope()}`;
+    }
 
     getChatHistory() {
-        const history = localStorage.getItem(this.STORAGE_KEY);
+        let history = localStorage.getItem(this.STORAGE_KEY);
+        if (!history && this.getAccountScope() !== 'guest') {
+            const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
+            if (legacy) {
+                history = legacy;
+                localStorage.setItem(this.STORAGE_KEY, legacy);
+                localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+                const legacyCurrent = localStorage.getItem(this.LEGACY_CURRENT_CHAT_KEY);
+                if (legacyCurrent && !localStorage.getItem(this.CURRENT_CHAT_KEY)) {
+                    localStorage.setItem(this.CURRENT_CHAT_KEY, legacyCurrent);
+                }
+                localStorage.removeItem(this.LEGACY_CURRENT_CHAT_KEY);
+            }
+        }
         if (!history) return {};
         try {
             return JSON.parse(history) || {};

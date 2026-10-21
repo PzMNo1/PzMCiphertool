@@ -1,7 +1,7 @@
 // 逻辑区按需加载器
 // modules.js 只加载此文件；具体谜题脚本在用户点击对应谜题时再加载。
 (function () {
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20260531';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021-3';
     const loadedScripts = new Set();
     const loadedPuzzles = new Set();
 
@@ -149,3 +149,4 @@
             if (typeof initLogicModule === 'function') initLogicModule();
         });
 })();
+

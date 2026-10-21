@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginResponse {
 
-    private String email;
+    private String phone;
 
-    private String maskedEmail;
+    private String maskedPhone;
 
     private String token;
 
@@ -22,10 +22,3 @@ public class LoginResponse {
 
     private String expiresAt;
 }
-
-
-
-
-
-
-

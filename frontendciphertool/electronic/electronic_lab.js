@@ -6,10 +6,12 @@
  */
 
 var ELECTRONIC_LAB_CIRCUIT_SRC = './electronic/war/circuitjs.html';
-var ELECTRONIC_LAB_PCB_SRC = './electronic/PCBLayout/index.html';
+var ELECTRONIC_LAB_PCB_VERSION = '20261021-3';
+var ELECTRONIC_LAB_PCB_SRC = './electronic/PCBLayout/index.html?v=' + ELECTRONIC_LAB_PCB_VERSION;
 
 var electronicLabPcbReady = false;
 var electronicLabPcbFallbackTimer = null;
+var electronicLabPcbPrewarmTimer = null;
 
 function electronicLabGet(id) {
     return document.getElementById(id);
@@ -93,11 +95,30 @@ function electronicLabEnsurePcbFrameLoaded() {
     if (needsReload) {
         frame.dataset.failed = 'false';
         if (loading) loading.classList.add('active');
-        var baseSrc = frame.getAttribute('data-src') || ELECTRONIC_LAB_PCB_SRC;
+        var baseSrc = ELECTRONIC_LAB_PCB_SRC;
         frame.src = baseSrc + (baseSrc.indexOf('?') >= 0 ? '&' : '?') + 'retry=' + Date.now();
     } else if (!electronicLabPcbReady && loading) {
         loading.classList.add('active');
     }
+}
+
+/**
+ * 进入电子实验室后，趁用户查看电路模拟时在后台预热 PCB 引擎。
+ * 这样切到“电路板布局”时，13MB 引擎与自动布线通常已经完成。
+ */
+function electronicLabPrewarmPcb() {
+    clearTimeout(electronicLabPcbPrewarmTimer);
+    electronicLabPcbPrewarmTimer = setTimeout(function () {
+        var frame = electronicLabGet('pcb-frame');
+        if (!frame || frame.getAttribute('src') || frame.dataset.failed === 'true') return;
+        frame.dataset.prewarmed = 'true';
+        frame.src = ELECTRONIC_LAB_PCB_SRC + '&prewarm=1';
+    }, 900);
+}
+
+function electronicLabActivate() {
+    electronicLabEnsureCircuitFrameLoaded();
+    electronicLabPrewarmPcb();
 }
 
 /**
@@ -203,3 +224,4 @@ window.electronicLabShowSubmodule = function (name) {
 
 // modules.js 的懒加载初始化通过全局函数名调用。
 window.initElectronicLab = initElectronicLab;
+window.electronicLabActivate = electronicLabActivate;

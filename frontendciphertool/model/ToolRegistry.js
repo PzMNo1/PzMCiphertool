@@ -34,7 +34,7 @@ class ToolRegistry {
         } catch (error) {
             // Fall through to the local default.
         }
-        return 'http://localhost:8080';
+        return 'http://127.0.0.1:8080';
     }
 
     isToolAvailable(name) {

@@ -285,6 +285,41 @@ function initWorkflowCoze() {
     // Hidden input for sync with cipher/999_funtion.js
     const hiddenInput = document.getElementById('mainInputCoze');
 
+    // === 移动端算法库抽屉 ===
+    const toolbar = document.getElementById('wf-toolbar');
+    const toolbarToggle = document.getElementById('wf-toolbar-toggle');
+    const toolbarClose = document.getElementById('wf-toolbar-close');
+    const toolbarBackdrop = document.getElementById('wf-toolbar-backdrop');
+    const isMobileWorkflow = () => window.matchMedia('(max-width: 768px)').matches;
+
+    function setToolbarOpen(open) {
+        if (!toolbar) return;
+        const next = Boolean(open);
+        toolbar.classList.toggle('open', next);
+        document.body.classList.toggle('wf-drawer-open', next);
+        if (toolbarBackdrop) toolbarBackdrop.classList.toggle('active', next);
+        if (toolbarToggle) toolbarToggle.setAttribute('aria-expanded', String(next));
+    }
+
+    if (toolbarToggle) {
+        toolbarToggle.addEventListener('click', event => {
+            event.preventDefault();
+            setToolbarOpen(!toolbar.classList.contains('open'));
+        });
+    }
+    if (toolbarClose) {
+        toolbarClose.addEventListener('click', event => {
+            event.preventDefault();
+            setToolbarOpen(false);
+        });
+    }
+    if (toolbarBackdrop) {
+        toolbarBackdrop.addEventListener('click', () => setToolbarOpen(false));
+    }
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') setToolbarOpen(false);
+    });
+
     function requestRenderConnections() {
         if (connectionsFrame) return;
         connectionsFrame = requestAnimationFrame(() => {
@@ -847,6 +882,7 @@ function initWorkflowCoze() {
 
     // === 工具栏拖拽到画布添加 ===
     let toolbarDrag = null; // { el, ghost, type, algo }
+    let toolbarDropGuard = false;
 
     document.querySelectorAll('.wf-toolbar-item').forEach(el => {
         el.addEventListener('mousedown', e => {
@@ -862,6 +898,14 @@ function initWorkflowCoze() {
             document.body.appendChild(ghost);
             toolbarDrag = { el, ghost, type, algo };
         });
+
+        el.addEventListener('click', () => {
+            if (!isMobileWorkflow() || toolbarDropGuard) return;
+            if (!toolbar.classList.contains('open')) return;
+            const cp = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+            addNode('cipher', cp.x - 100, cp.y - 40, el.dataset.algo || '');
+            setToolbarOpen(false);
+        });
     });
 
     document.addEventListener('mousemove', e => {
@@ -874,14 +918,18 @@ function initWorkflowCoze() {
     document.addEventListener('mouseup', e => {
         if (toolbarDrag) {
             toolbarDrag.ghost.remove();
-            // 检查是否在画布区域内释放
+            // 检查是否在画布区域内释放（在算法库抽屉内松手不算落点）
             const cr = canvas.getBoundingClientRect();
-            if (e.clientX >= cr.left && e.clientX <= cr.right &&
+            const releasedInToolbar = Boolean(e.target?.closest?.('#wf-toolbar'));
+            if (!releasedInToolbar &&
+                e.clientX >= cr.left && e.clientX <= cr.right &&
                 e.clientY >= cr.top && e.clientY <= cr.bottom) {
                 const cp = screenToCanvas(e.clientX, e.clientY);
                 if (toolbarDrag.type === 'cipher') {
                     addNode('cipher', cp.x - 100, cp.y - 40, toolbarDrag.algo);
                 }
+                toolbarDropGuard = true;
+                setTimeout(() => { toolbarDropGuard = false; }, 320);
             }
             toolbarDrag = null;
         }

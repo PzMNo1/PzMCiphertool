@@ -15,7 +15,7 @@
 
 ## 关键流程
 1. 用户输入手机号 → 前端调用 `/api/auth/send-code`
-2. 后端调用阿里云短信 API 发送验证码
+2. 后端调用阿里云号码认证（短信认证）发送验证码
 3. 用户输入验证码 → 前端调用 `/api/auth/login`
 4. 后端验证码检查 + 生成 JWT Token
 5. 前端保存 Token 到 localStorage/sessionStorage
@@ -30,13 +30,13 @@
 ## 修改规则
 - 改进登录 UI → 修改 auth.js 的表单和提示
 - 样式调整 → 修改 auth.css（复用 0_zhuyeyangshi.css 变量）
-- 修改短信内容 → 修改后端的 AliyunSmsServiceImpl.java
+- 修改短信内容 → 短信认证使用平台赠送模板，内容不可改；只能调整 TemplateParam 的 code/min
 
 ## 常见任务
 
 ### 更改验证码发送方式
 LOCATE: 后端 AliyunSmsServiceImpl.java
-ACTION: 修改 `buildSmsParams()` 方法改变模板和内容
+ACTION: 修改 `SendSmsVerifyCode` 的 `TemplateParam`（code/min）
 TEST: 收到的短信格式正确
 
 ### 修改验证码有效期
@@ -64,4 +64,4 @@ TEST: 登出后无法访问受保护资源
 ↑ modules.js（路由）
 ← backendconfig.js（API 配置）
 ← 后端 API（AuthController、AuthService、SmsService）
-← 外部服务（阿里云短信 API）
+← 外部服务（阿里云号码认证短信认证 API）

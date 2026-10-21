@@ -84,6 +84,12 @@
     z-index: 1;
 }
 
+.wf-toolbar-toggle,
+.wf-toolbar-backdrop,
+.wf-toolbar-close {
+    display: none;
+}
+
 .wf-toolbar {
     width: 220px;
     min-width: 220px;
@@ -718,45 +724,136 @@
 }
 
 @media (max-width: 768px) {
+    #workflow-content .module-header {
+        display: none;
+    }
+
     .wf-container {
-        height: calc(100vh - 80px);
-        flex-direction: column;
+        height: 100%;
+        flex-direction: row;
+    }
+
+    .wf-toolbar-toggle {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 32;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 92px;
+        height: 38px;
+        padding: 0 0.85rem;
+        border: 1px solid rgba(99, 235, 255, 0.42);
+        border-radius: 8px;
+        background: rgba(4, 16, 28, 0.82);
+        color: #d9fbff;
+        font-family: 'Orbitron', 'Segoe UI', sans-serif;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32), inset 0 0 16px rgba(99, 235, 255, 0.08);
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+    }
+
+    .wf-toolbar-toggle::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        margin-right: 0.45rem;
+        border-radius: 50%;
+        background: var(--wf-cyan);
+        box-shadow: 0 0 8px rgba(99, 235, 255, 0.8);
+    }
+
+    .wf-toolbar-backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 36;
+        display: block;
+        background: rgba(0, 4, 10, 0.62);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.22s ease, visibility 0.22s ease;
+    }
+
+    .wf-toolbar-backdrop.active {
+        opacity: 1;
+        visibility: visible;
     }
 
     .wf-toolbar {
-        width: 100%;
-        min-width: unset;
-        height: 148px;
-        min-height: 148px;
-        padding-top: 0;
-        border-right: none;
-        border-bottom: 1px solid rgba(99, 235, 255, 0.18);
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(84vw, 320px);
+        min-width: 0;
+        height: 100%;
+        min-height: 0;
+        padding: 16px 0 0;
+        border-right: 1px solid rgba(99, 235, 255, 0.24);
+        border-bottom: none;
+        background:
+            radial-gradient(circle at 20% 8%, rgba(69, 169, 255, 0.16), transparent 36%),
+            rgba(3, 11, 20, 0.96);
+        box-shadow: 18px 0 40px rgba(0, 0, 0, 0.48);
+        transform: translateX(-104%);
+        transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+        z-index: 40;
+    }
+
+    .wf-toolbar.open {
+        transform: translateX(0);
     }
 
     .wf-toolbar-search {
-        padding: 0.55rem 0.6rem;
+        padding: 0.55rem 0.7rem;
     }
 
     .wf-toolbar-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.3rem;
-        padding: 0.3rem;
+        display: block;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0.4rem 0.55rem;
     }
 
     .wf-toolbar-item {
-        padding: 0.34rem 0.54rem 0.34rem 0.62rem;
-        font-size: 0.7rem;
-        flex-shrink: 0;
-        margin-bottom: 0;
+        padding: 0.5rem 0.62rem;
+        font-size: 0.76rem;
+        margin-bottom: 0.1rem;
     }
 
     .wf-toolbar-category {
-        display: contents;
+        margin-bottom: 0.4rem;
     }
 
     .wf-toolbar-category-title {
-        display: none;
+        display: block;
+        padding: 0.5rem 0.5rem 0.25rem;
+    }
+
+    .wf-toolbar-actions {
+        padding: 0.6rem 0.7rem calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
+        gap: 0.5rem;
+    }
+
+    .wf-toolbar-actions .cyber-button {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .wf-toolbar-close {
+        display: inline-flex;
+    }
+
+    body.wf-drawer-open .sidebar {
+        transform: translateX(-140%);
+        opacity: 0;
+        pointer-events: none;
     }
 
     .wf-node {
