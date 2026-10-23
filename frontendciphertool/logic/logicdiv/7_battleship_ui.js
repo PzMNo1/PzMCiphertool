@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('battleship-workspace', 'battl
     LogicUI.singleSizeInput('bs-size', { val: 10, placeholder: '通常为10x10', max: 15 }) +
     LogicUI.actionGrid4([
         { label: '生成网格', onclick: 'window.initBattleshipGrid && window.initBattleshipGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveBattleshipPuzzle && window.solveBattleshipPuzzle()', id: 'bs-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveBattleshipPuzzle && window.solveBattleshipPuzzle()', id: 'bs-solve-btn', glow: true },
         { label: '重置清理', onclick: 'window.clearBattleshipGrid && window.clearBattleshipGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleBattleshipExample && window.buildSimpleBattleshipExample()' }
     ]) +

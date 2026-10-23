@@ -12,7 +12,7 @@
             </select></div>` +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initStatueparkGrid && window.initStatueparkGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveStatueparkUI && window.solveStatueparkUI()', id: 'sp-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveStatueparkUI && window.solveStatueparkUI()', id: 'sp-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearStatueparkGrid && window.clearStatueparkGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleStatueparkExample && window.buildSimpleStatueparkExample()' }
         ]) +

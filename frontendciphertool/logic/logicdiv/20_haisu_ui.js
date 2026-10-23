@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('haisu-rows', 'haisu-cols', { rowVal: 6, colVal: 6 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHaisuGrid && window.initHaisuGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHaisuPuzzleUI && window.solveHaisuPuzzleUI()', id: 'haisu-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHaisuPuzzleUI && window.solveHaisuPuzzleUI()', id: 'haisu-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHaisuGrid && window.clearHaisuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHaisuExample && window.buildSimpleHaisuExample()' }
         ]) +

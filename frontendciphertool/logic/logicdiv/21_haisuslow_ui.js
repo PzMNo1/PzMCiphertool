@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('haisuslow-rows', 'haisuslow-cols', { rowVal: 6, colVal: 6 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHaisuslowGrid && window.initHaisuslowGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHaisuslowPuzzleUI && window.solveHaisuslowPuzzleUI()', id: 'haisuslow-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHaisuslowPuzzleUI && window.solveHaisuslowPuzzleUI()', id: 'haisuslow-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHaisuslowGrid && window.clearHaisuslowGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHaisuslowExample && window.buildSimpleHaisuslowExample()' }
         ]) +

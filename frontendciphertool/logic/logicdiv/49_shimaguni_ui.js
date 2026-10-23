@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('smg-rows', 'smg-cols', { rowVal: 6, colVal: 6, rowMin: 2, colMin: 2, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initShimaguniGrid&&window.initShimaguniGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveShimaguniUI&&window.solveShimaguniUI()', id: 'smg-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveShimaguniUI&&window.solveShimaguniUI()', id: 'smg-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearShimaguniGrid&&window.clearShimaguniGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleShimaguniExample&&window.buildSimpleShimaguniExample()' }
         ]) +

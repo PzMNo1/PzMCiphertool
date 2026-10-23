@@ -12,7 +12,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('castlewall-workspace', 'castl
     </div>` +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initCastlewallGrid && window.initCastlewallGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveCastlewallPuzzle && window.solveCastlewallPuzzle()', id: 'cw-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveCastlewallPuzzle && window.solveCastlewallPuzzle()', id: 'cw-solve-btn', glow: true },
         { label: '清空线段', onclick: 'window.clearCastlewallGrid && window.clearCastlewallGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleCastlewallExample && window.buildSimpleCastlewallExample()' }
     ]) +

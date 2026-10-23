@@ -6,7 +6,7 @@
         window.LogicUI.singleSizeInput('sky-size', { val: 4, min: 3, max: 9, placeholder: '尺寸 N' }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initSkyscrapersGrid && window.initSkyscrapersGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveSkyscrapersUI && window.solveSkyscrapersUI()', id: 'sky-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveSkyscrapersUI && window.solveSkyscrapersUI()', id: 'sky-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearSkyscrapersGrid && window.clearSkyscrapersGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleSkyscrapersExample && window.buildSimpleSkyscrapersExample()' }
         ]) +

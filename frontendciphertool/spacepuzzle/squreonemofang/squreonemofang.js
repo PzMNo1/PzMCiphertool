@@ -24,8 +24,8 @@
 }
 
 .squareone-scene {
-  width: 330px;
-  height: 300px;
+  width: 340px;
+  height: 360px;
   display: grid;
   place-items: center;
   perspective: 920px;
@@ -56,53 +56,58 @@
   height: 244px;
   margin: -122px 0 0 -122px;
   transform-style: preserve-3d;
-  filter: drop-shadow(0 0 14px rgba(64, 224, 255, 0.12));
 }
 
 .squareone-layer-top {
-  transform: translateZ(45px);
+  transform: translateZ(122px);
 }
 
 .squareone-layer-bottom {
-  transform: translateZ(-45px) rotateY(180deg);
-  opacity: 0.96;
+  transform: translateZ(-122px) rotateY(180deg);
+}
+
+.squareone-side-panel {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 244px;
+  height: 81.333px;
+  margin-top: -40.667px;
+  display: flex;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  border-top: 1px solid rgba(2, 12, 18, 0.72);
+  border-bottom: 1px solid rgba(2, 12, 18, 0.72);
+  box-shadow: inset 0 0 9px rgba(0, 0, 0, 0.32);
+}
+
+.squareone-side-panel span {
+  display: block;
+  height: 100%;
+  border-right: 1px solid rgba(2, 12, 18, 0.55);
+}
+
+.squareone-side-panel span:last-child {
+  border-right: 0;
 }
 
 .squareone-slice-core {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 222px;
-  height: 222px;
-  margin: -111px 0 0 -111px;
-  border-radius: 8px;
-  border: 1px solid rgba(64, 224, 255, 0.18);
-  background:
-    linear-gradient(90deg, rgba(64, 224, 255, 0.09), rgba(255, 218, 89, 0.06)),
-    rgba(2, 12, 18, 0.68);
-  box-shadow:
-    inset 0 0 20px rgba(64, 224, 255, 0.1),
-    0 0 18px rgba(0, 0, 0, 0.24);
-  transform: translateZ(0);
-}
-
-.squareone-slice-core::before,
-.squareone-slice-core::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
+  width: 244px;
+  height: 244px;
+  margin: -122px 0 0 -122px;
+  transform-style: preserve-3d;
   pointer-events: none;
 }
 
-.squareone-slice-core::before {
-  border-top: 5px solid rgba(255, 255, 255, 0.08);
-  border-left: 5px solid rgba(64, 224, 255, 0.08);
-}
-
-.squareone-slice-core::after {
-  border-right: 8px solid rgba(0, 0, 0, 0.3);
-  border-bottom: 8px solid rgba(0, 0, 0, 0.32);
+.squareone-core-panel {
+  background:
+    linear-gradient(180deg, rgba(17, 45, 55, 0.98), rgba(3, 14, 20, 0.98));
+  border-top-color: rgba(64, 224, 255, 0.24);
+  border-bottom-color: rgba(0, 0, 0, 0.62);
 }
 
 .squareone-layer-svg {
@@ -112,23 +117,14 @@
   overflow: visible;
 }
 
+.squareone-layer-base {
+  fill: rgba(3, 14, 20, 0.98);
+}
+
 .squareone-unit {
   fill: var(--piece-color);
   stroke: rgba(2, 12, 18, 0.92);
   stroke-width: 1.8;
-  filter:
-    drop-shadow(0 0 5px rgba(0, 0, 0, 0.26))
-    drop-shadow(0 0 5px rgba(255, 255, 255, 0.04));
-}
-
-.squareone-unit.corner {
-  filter:
-    drop-shadow(0 0 8px rgba(64, 224, 255, 0.12))
-    drop-shadow(0 0 4px rgba(255, 255, 255, 0.08));
-}
-
-.squareone-unit.edge {
-  opacity: 0.92;
 }
 
 .squareone-unit.cut {
@@ -136,18 +132,10 @@
   stroke-width: 2.2;
 }
 
-.squareone-side-unit {
-  fill: var(--side-color);
-  stroke: rgba(2, 12, 18, 0.84);
-  stroke-width: 1.5;
-  opacity: 0.95;
-}
-
 .squareone-layer-core {
   fill: rgba(2, 12, 18, 0.92);
   stroke: rgba(64, 224, 255, 0.42);
   stroke-width: 1.5;
-  filter: drop-shadow(0 0 8px rgba(64, 224, 255, 0.18));
 }
 
 .squareone-cut-line {
@@ -231,34 +219,9 @@
   }
 
   .squareone-scene {
-    width: 270px;
-    height: 255px;
+    width: 320px;
+    height: 340px;
     margin-bottom: 1.6rem;
-  }
-
-  .squareone-3d {
-    width: 206px;
-    height: 206px;
-  }
-
-  .squareone-layer {
-    width: 204px;
-    height: 204px;
-    margin: -102px 0 0 -102px;
-  }
-
-  .squareone-layer-top {
-    transform: translateZ(36px);
-  }
-
-  .squareone-layer-bottom {
-    transform: translateZ(-36px) rotateY(180deg);
-  }
-
-  .squareone-slice-core {
-    width: 186px;
-    height: 186px;
-    margin: -93px 0 0 -93px;
   }
 
   .squareone-move-spatial {
@@ -288,6 +251,19 @@
     const BOTTOM_COLOR = '#ffd84a';
     const EDGE_COLORS = ['#19d27f', '#ff4d5e', '#2688ff', '#ff9f2e', '#48d6c8', '#9f7cff', '#ff6b8a', '#40e0ff'];
     const TURN_OPTIONS = [-3, -2, -1, 1, 2, 3];
+    const SIDE_WIDTHS = [21.13, 28.87, 28.87, 21.13];
+    const SIDE_BANDS = [
+        { key: 'north', units: [10, 11, 0, 1] },
+        { key: 'east', units: [1, 2, 3, 4] },
+        { key: 'south', units: [4, 5, 6, 7] },
+        { key: 'west', units: [7, 8, 9, 10] }
+    ];
+    const SIDE_TRANSFORMS = {
+        north: z => `translate3d(0, -122px, ${z}px) rotateX(90deg)`,
+        east: z => `translate3d(122px, 0, ${z}px) rotateY(90deg) rotateZ(90deg)`,
+        south: z => `translate3d(0, 122px, ${z}px) rotateX(-90deg)`,
+        west: z => `translate3d(-122px, 0, ${z}px) rotateY(-90deg) rotateZ(90deg)`
+    };
 
     let topLayer = createSolvedLayer('U', TOP_COLOR, 0);
     let bottomLayer = createSolvedLayer('D', BOTTOM_COLOR, 4);
@@ -556,12 +532,18 @@
         return start === 0 || start === 6 || end === 6 || end === UNIT_COUNT;
     }
 
-    function renderLayerSideWalls(layer) {
-        return layer.map((unit, index) => {
-            const start = index * 30;
-            const end = start + 30;
-            return `<path class="squareone-side-unit" d="${squareWedgePath(start, end, 108, 120)}" style="--side-color:${unit.sideColor}" />`;
+    function renderLayerSidePanels(layer) {
+        return SIDE_BANDS.map(band => {
+            const segments = band.units.map((unitIndex, index) => {
+                const unit = layer[unitIndex];
+                return `<span style="width:${SIDE_WIDTHS[index]}%;background:${unit.sideColor}"></span>`;
+            }).join('');
+            return `<div class="squareone-side-panel" style="transform:${SIDE_TRANSFORMS[band.key](-40.667)}">${segments}</div>`;
         }).join('');
+    }
+
+    function renderCoreBand() {
+        return SIDE_BANDS.map(band => `<div class="squareone-side-panel squareone-core-panel" style="transform:${SIDE_TRANSFORMS[band.key](0)}"></div>`).join('');
     }
 
     function renderLayerFacePieces(layer) {
@@ -569,7 +551,7 @@
             const start = piece.start * 30;
             const end = (piece.start + piece.span) * 30;
             const cutClass = isSliceBoundaryPiece(piece.start, piece.span) ? 'cut' : '';
-            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${squareWedgePath(start, end, 18, 108)}" style="--piece-color:${piece.unit.faceColor};--side-color:${piece.unit.sideColor}" />`;
+            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${squareWedgePath(start, end, 18, 118)}" style="--piece-color:${piece.unit.faceColor};--side-color:${piece.unit.sideColor}" />`;
         }).join('');
     }
 
@@ -586,7 +568,7 @@
 
     function renderLayerSvg(layer, label, className) {
         return `<svg class="squareone-layer-svg ${className}" viewBox="-122 -122 244 244" aria-label="${label}">
-            ${renderLayerSideWalls(layer)}
+            <rect class="squareone-layer-base" x="-122" y="-122" width="244" height="244"></rect>
             ${renderLayerFacePieces(layer)}
             <path class="squareone-layer-core" d="${squareCorePath(18)}"></path>
             <line class="squareone-cut-line" x1="0" y1="-122" x2="0" y2="122"></line>
@@ -627,8 +609,8 @@
             if (!dragging) return;
             const dx = event.clientX - startX;
             const dy = event.clientY - startY;
-            squareOneRotY = startRotY + dx * 0.45;
-            squareOneRotX = Math.max(-78, Math.min(78, startRotX - dy * 0.45));
+            squareOneRotY = startRotY - dx * 0.45;
+            squareOneRotX = Math.max(-78, Math.min(78, startRotX + dy * 0.45));
             applySquareOneRotation();
         });
 
@@ -675,9 +657,9 @@
         const mount = document.getElementById('squareone-3d');
         if (mount) {
             mount.innerHTML = `
-                <div class="squareone-layer squareone-layer-top">${renderLayerSvg(topLayer, 'TOP', 'top')}</div>
-                <div class="squareone-slice-core"></div>
-                <div class="squareone-layer squareone-layer-bottom">${renderLayerSvg(bottomLayer, 'BOTTOM', 'bottom')}</div>
+                <div class="squareone-layer squareone-layer-top">${renderLayerSvg(topLayer, 'TOP', 'top')}${renderLayerSidePanels(topLayer)}</div>
+                <div class="squareone-slice-core">${renderCoreBand()}</div>
+                <div class="squareone-layer squareone-layer-bottom">${renderLayerSvg(bottomLayer, 'BOTTOM', 'bottom')}${renderLayerSidePanels(bottomLayer)}</div>
             `;
             applySquareOneRotation();
             bindSquareOneDrag();
@@ -707,7 +689,7 @@
                     <button class="cyber-button" onclick="window.applySquareOneFormula()"><span class="cyber-button__tag">应用公式</span></button>
                     <button class="cyber-button" onclick="window.scrambleSquareOne()"><span class="cyber-button__tag">随机扰乱</span></button>
                     <button class="cyber-button" onclick="window.resetSquareOne()"><span class="cyber-button__tag">重置魔方</span></button>
-                    <button class="cyber-button cyber-glow" onclick="window.solveSquareOne()"><span class="cyber-button__tag">规约求解</span></button>
+                    <button class="cyber-button cyber-glow" onclick="window.solveSquareOne()"><span class="cyber-button__tag">求解</span></button>
                     <button class="cyber-button" onclick="window.executeSquareOneSolution()"><span class="cyber-button__tag">执行全部</span></button>
                     <button class="cyber-button" onclick="window.clearSquareOneHistory()"><span class="cyber-button__tag">清空记录</span></button>
                 </div>

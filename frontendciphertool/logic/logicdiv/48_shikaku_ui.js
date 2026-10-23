@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('shk-rows', 'shk-cols', { rowVal: 7, colVal: 7, rowMin: 2, colMin: 2, rowMax: 15, colMax: 15 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initShikakuGrid && window.initShikakuGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveShikakuPuzzleUI && window.solveShikakuPuzzleUI()', id: 'shk-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveShikakuPuzzleUI && window.solveShikakuPuzzleUI()', id: 'shk-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearShikakuGrid && window.clearShikakuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleShikakuExample && window.buildSimpleShikakuExample()' }
         ]) +

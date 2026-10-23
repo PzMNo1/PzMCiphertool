@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('kakuro-rows', 'kakuro-cols', { rowVal: 8, colVal: 8, rowMin: 3, colMin: 3, rowMax: 15, colMax: 15 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initKakuroGrid && window.initKakuroGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveKakuroPuzzleUI && window.solveKakuroPuzzleUI()', id: 'kakuro-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveKakuroPuzzleUI && window.solveKakuroPuzzleUI()', id: 'kakuro-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearKakuroGrid && window.clearKakuroGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleKakuroExample && window.buildSimpleKakuroExample()' }
         ]) +

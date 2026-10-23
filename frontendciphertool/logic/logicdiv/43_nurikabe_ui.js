@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('nurikabe-rows', 'nurikabe-cols', { rowVal: 7, colVal: 7, rowMin: 3, colMin: 3, rowMax: 15, colMax: 15 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initNurikabeGrid && window.initNurikabeGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveNurikabePuzzleUI && window.solveNurikabePuzzleUI()', id: 'nurikabe-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveNurikabePuzzleUI && window.solveNurikabePuzzleUI()', id: 'nurikabe-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearNurikabeGrid && window.clearNurikabeGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNurikabeExample && window.buildSimpleNurikabeExample()' }
         ]) +

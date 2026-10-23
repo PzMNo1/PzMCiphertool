@@ -621,7 +621,7 @@
                     <button class="cyber-button" onclick="window.applySkewbFormula()"><span class="cyber-button__tag">应用公式</span></button>
                     <button class="cyber-button" onclick="window.scrambleSkewb()"><span class="cyber-button__tag">随机扰乱</span></button>
                     <button class="cyber-button" onclick="window.resetSkewb()"><span class="cyber-button__tag">重置魔方</span></button>
-                    <button class="cyber-button cyber-glow" onclick="window.solveSkewb()"><span class="cyber-button__tag">规约求解</span></button>
+                    <button class="cyber-button cyber-glow" onclick="window.solveSkewb()"><span class="cyber-button__tag">求解</span></button>
                     <button class="cyber-button" onclick="window.executeSkewbSolution()"><span class="cyber-button__tag">执行全部</span></button>
                     <button class="cyber-button" onclick="window.clearSkewbHistory()"><span class="cyber-button__tag">清空记录</span></button>
                 </div>

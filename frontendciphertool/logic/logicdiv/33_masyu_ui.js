@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('masyu-rows', 'masyu-cols', { rowVal: 5, colVal: 5, rowMin: 4, colMin: 4, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initMasyuGrid && window.initMasyuGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveMasyuPuzzleUI && window.solveMasyuPuzzleUI()', id: 'masyu-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveMasyuPuzzleUI && window.solveMasyuPuzzleUI()', id: 'masyu-solve-btn', glow: true },
             { label: '清空回路', onclick: 'window.clearMasyuGrid && window.clearMasyuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMasyuExample && window.buildSimpleMasyuExample()' }
         ]) +

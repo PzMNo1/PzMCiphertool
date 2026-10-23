@@ -916,7 +916,7 @@ const STANDARD_CUBE_STYLES = `
                             <button class="cyber-button" onclick="window.resetStandardCube()"><span class="cyber-button__tag">重置魔方</span></button>
                             <button class="cyber-button" onclick="window.scrambleStandardCube()"><span class="cyber-button__tag">随机扰乱</span></button>
                             <button class="cyber-button" onclick="window.applyCubeFormula()"><span class="cyber-button__tag">执行公式</span></button>
-                            <button class="cyber-button cyber-glow" id="cube-solve-btn" onclick="window.solveStandardCube()"><span class="cyber-button__tag">规约求解</span></button>
+                            <button class="cyber-button cyber-glow" id="cube-solve-btn" onclick="window.solveStandardCube()"><span class="cyber-button__tag">求解</span></button>
                         </div>
 
                         <div class="space-stats cube-stats-area" id="cube-stats-area">

@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('sto-rows', 'sto-cols', { rowVal: 6, colVal: 6, rowMin: 4, colMin: 4, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initStostoneGrid && window.initStostoneGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveStostonePuzzleUI && window.solveStostonePuzzleUI()', id: 'sto-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveStostonePuzzleUI && window.solveStostonePuzzleUI()', id: 'sto-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearStostoneGrid && window.clearStostoneGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleStostoneExample && window.buildSimpleStostoneExample()' }
         ]) +

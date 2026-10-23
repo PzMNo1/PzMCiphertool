@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('cave-workspace', 'cave-layout
     LogicUI.sizeInputs('cave-rows', 'cave-cols', { rowVal: 7, colVal: 7, rowMin: 4, colMin: 4 }) +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initCaveGrid && window.initCaveGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveCavePuzzle && window.solveCavePuzzle()', id: 'cave-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveCavePuzzle && window.solveCavePuzzle()', id: 'cave-solve-btn', glow: true },
         { label: '清空非线索', onclick: 'window.clearCaveGrid && window.clearCaveGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleCaveExample && window.buildSimpleCaveExample()' }
     ]) +

@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('onsen-rows', 'onsen-cols', { rowVal: 4, colVal: 4, rowMin: 2, colMin: 2, rowMax: 8, colMax: 8 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initOnsenGrid && window.initOnsenGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveOnsenUI && window.solveOnsenUI()', id: 'onsen-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveOnsenUI && window.solveOnsenUI()', id: 'onsen-solve-btn', glow: true },
             { label: '清空线索', onclick: 'window.clearOnsenClues && window.clearOnsenClues()' },
             { label: '简单示例', onclick: 'window.buildOnsenExample && window.buildOnsenExample()' }
         ]) +

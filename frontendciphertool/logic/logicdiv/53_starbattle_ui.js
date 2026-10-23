@@ -7,7 +7,7 @@
         `<div style="margin-bottom:1rem;display:flex;gap:10px;align-items:center;justify-content:center"><label style="color:var(--neon-cyan);font-size:.85rem;font-weight:700">★ 星星数</label><input type="text" inputmode="numeric" id="sb-stars" value="1" style="width:50px;height:32px;text-align:center;background:rgba(255,255,255,.06);border:1px solid rgba(0,255,231,.3);border-radius:6px;color:#fff;font-size:.95rem;font-weight:700;outline:0"></div>` +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initSBGrid && window.initSBGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveSBUI && window.solveSBUI()', id: 'sb-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveSBUI && window.solveSBUI()', id: 'sb-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearSBGrid && window.clearSBGrid()' },
             { label: '简单示例', onclick: 'window.buildSBExample && window.buildSBExample()' }
         ]) +

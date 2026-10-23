@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('hitori-rows', 'hitori-cols', { rowVal: 8, colVal: 8 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHitoriGrid && window.initHitoriGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHitoriPuzzleUI && window.solveHitoriPuzzleUI()', id: 'hitori-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHitoriPuzzleUI && window.solveHitoriPuzzleUI()', id: 'hitori-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHitoriGrid && window.clearHitoriGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHitoriExample && window.buildSimpleHitoriExample()' }
         ]) +

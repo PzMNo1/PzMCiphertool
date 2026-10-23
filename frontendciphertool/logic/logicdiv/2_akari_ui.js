@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('akari-workspace', 'akari-layo
     LogicUI.singleSizeInput('akari-size', { val: 10, placeholder: '谜题大小 (默认10)' }) +
     LogicUI.actionGrid4([
         { label: '生成网格', onclick: 'window.initAkariGrid && window.initAkariGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveAkariPuzzle && window.solveAkariPuzzle()', id: 'akari-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveAkariPuzzle && window.solveAkariPuzzle()', id: 'akari-solve-btn', glow: true },
         { label: '清空填涂', onclick: 'window.clearAkariGrid && window.clearAkariGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAkariExample && window.buildSimpleAkariExample()' }
     ]) +

@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('rip-rows', 'rip-cols', { rowVal: 6, colVal: 6, rowMin: 2, colMin: 2, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initRippleGrid && window.initRippleGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveRippleUI && window.solveRippleUI()', id: 'rip-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveRippleUI && window.solveRippleUI()', id: 'rip-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearRippleGrid && window.clearRippleGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleRippleExample && window.buildSimpleRippleExample()' }
         ]) +

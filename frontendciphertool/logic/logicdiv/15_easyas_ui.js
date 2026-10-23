@@ -12,7 +12,7 @@ window.logicWorkspaceHTMLs.push(window.LogicUI.workspace('easyas-workspace', 'ea
     ` +
     window.LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initEasyasGrid && window.initEasyasGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveEasyasPuzzleUI && window.solveEasyasPuzzleUI()', id: 'easyas-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveEasyasPuzzleUI && window.solveEasyasPuzzleUI()', id: 'easyas-solve-btn', glow: true },
         { label: '清空填涂', onclick: 'window.clearEasyasGrid && window.clearEasyasGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleEasyasExample && window.buildSimpleEasyasExample()' }
     ]) +

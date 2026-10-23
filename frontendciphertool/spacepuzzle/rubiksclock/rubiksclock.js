@@ -15,74 +15,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.clock-pattern-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-bottom: 1rem;
-}
-
-.clock-pattern-btn {
-  min-width: 0;
-}
-
-.clock-pattern-btn.active {
-  border-color: rgba(255, 218, 89, 0.82);
-  background: rgba(255, 218, 89, 0.11);
-  box-shadow:
-    inset 0 0 16px rgba(255, 218, 89, 0.1),
-    0 0 18px rgba(255, 218, 89, 0.22);
-}
-
-.clock-wheel-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-  margin-bottom: 1.2rem;
-}
-
-.clock-wheel-card {
-  min-width: 0;
-  padding: 0.85rem;
-  border: 1px solid rgba(64, 224, 255, 0.18);
-  background:
-    linear-gradient(135deg, rgba(64, 224, 255, 0.06), rgba(255, 218, 89, 0.05)),
-    rgba(0, 0, 0, 0.26);
-  border-radius: 6px;
-}
-
-.clock-wheel-title {
-  margin-bottom: 0.65rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.clock-wheel-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
-}
-
-.clock-wheel-actions button {
-  min-width: 0;
-  min-height: 34px;
-  border: 1px solid rgba(64, 224, 255, 0.28);
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(4, 18, 24, 0.82);
-  border-radius: 4px;
-  font-family: 'Orbitron', 'Segoe UI', sans-serif;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.clock-wheel-actions button:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 218, 89, 0.8);
-  box-shadow: 0 0 14px rgba(255, 218, 89, 0.18);
-}
-
 .rubiks-clock-panel {
   min-width: 460px;
   background:
@@ -160,6 +92,12 @@
   background:
     radial-gradient(circle at 50% 50%, rgba(64, 224, 255, 0.06), transparent 58%),
     rgba(0, 0, 0, 0.22);
+  cursor: grab;
+  touch-action: none;
+}
+
+.rubiks-clock-board.gear-dragging .rubiks-clock-grid {
+  cursor: grabbing;
 }
 
 .rubiks-clock-dial {
@@ -257,7 +195,8 @@
   color: rgba(255, 255, 255, 0.86);
   background: rgba(3, 16, 22, 0.94);
   box-shadow: 0 0 14px rgba(64, 224, 255, 0.2);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   transform: translate(-50%, -50%);
   z-index: 3;
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
@@ -328,9 +267,7 @@
     padding: 1.25rem;
   }
 
-  .clock-action-grid,
-  .clock-wheel-grid,
-  .clock-pattern-row {
+  .clock-action-grid {
     grid-template-columns: 1fr;
   }
 
@@ -372,17 +309,6 @@
         D: ['DL', 'DR'],
         L: ['UL', 'DL'],
         ALL: ['UL', 'UR', 'DL', 'DR']
-    };
-    const PATTERN_LABELS = {
-        UL: 'UL',
-        UR: 'UR',
-        DL: 'DL',
-        DR: 'DR',
-        U: '上排',
-        R: '右列',
-        D: '下排',
-        L: '左列',
-        ALL: '全盘'
     };
     const WHEEL_FOR_PATTERN = {
         UL: 'UL',
@@ -689,12 +615,12 @@
         const dials = faces[side].map((_, index) => renderClockDial(side, index)).join('');
         const pinButtons = PIN_KEYS.map(pin => {
             const stateClass = pins[pin] ? ' up' : ' down';
-            return `<button class="rubiks-clock-pin rubiks-clock-pin-${pin.toLowerCase()}${stateClass}" type="button" onclick="window.focusRubiksClockSide('${side}'); window.toggleRubiksClockPin('${pin}')" title="${PIN_LABELS[pin]}针">
+            return `<button class="rubiks-clock-pin rubiks-clock-pin-${pin.toLowerCase()}${stateClass}" type="button" data-pin="${pin}" onclick="window.focusRubiksClockSide('${side}'); window.toggleRubiksClockPin('${pin}')" title="${PIN_LABELS[pin]}针">
                 <span>${pin}</span>
             </button>`;
         }).join('');
 
-        return `<div class="rubiks-clock-side${activeClass}">
+        return `<div class="rubiks-clock-side${activeClass}" data-side="${side}">
             <div class="rubiks-clock-side-head">
                 <span>${SIDE_NAMES[side]}</span>
                 <button class="rubiks-clock-focus-btn" type="button" onclick="window.focusRubiksClockSide('${side}')">${side === activeSide ? '操作中' : '操作此面'}</button>
@@ -712,11 +638,78 @@
         board.innerHTML = renderClockSide('front') + renderClockSide('back');
     }
 
-    function updatePatternButtons() {
-        const pattern = getPatternFromPins(getVisiblePins(activeSide));
-        document.querySelectorAll('[data-clock-pattern]').forEach(button => {
-            button.classList.toggle('active', button.dataset.clockPattern === pattern);
+    function gearPinFromGrid(grid, clientX, clientY) {
+        const rect = grid.getBoundingClientRect();
+        const column = clientX - rect.left < rect.width / 2 ? 0 : 1;
+        const row = clientY - rect.top < rect.height / 2 ? 0 : 1;
+        return PIN_KEYS[row * 2 + column];
+    }
+
+    function bindClockGearDrag() {
+        const board = document.getElementById('rubiks-clock-board');
+        if (!board || board.dataset.dragReady === 'true') return;
+        board.dataset.dragReady = 'true';
+
+        let drag = null;
+        let suppressClickUntil = 0;
+
+        board.addEventListener('click', event => {
+            if (performance.now() > suppressClickUntil) return;
+            suppressClickUntil = 0;
+            event.preventDefault();
+            event.stopPropagation();
+        }, true);
+
+        board.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            const grid = event.target.closest('.rubiks-clock-grid');
+            if (!grid) return;
+            const pinElement = event.target.closest('.rubiks-clock-pin');
+            const sideElement = grid.closest('.rubiks-clock-side');
+            if (!sideElement) return;
+            const side = sideElement.dataset.side;
+            if (side !== 'front' && side !== 'back') return;
+            const pin = pinElement ? pinElement.dataset.pin : gearPinFromGrid(grid, event.clientX, event.clientY);
+            if (!PIN_KEYS.includes(pin)) return;
+
+            drag = {
+                pointerId: event.pointerId,
+                side,
+                pin,
+                startY: event.clientY,
+                applied: 0
+            };
+            board.classList.add('gear-dragging');
+            if (board.setPointerCapture) board.setPointerCapture(event.pointerId);
         });
+
+        board.addEventListener('pointermove', event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const steps = Math.trunc((drag.startY - event.clientY) / 22);
+            const delta = steps - drag.applied;
+            if (!delta) return;
+            drag.applied = steps;
+            suppressClickUntil = performance.now() + 250;
+            const direction = delta > 0 ? 1 : -1;
+            for (let index = 0; index < Math.abs(delta); index++) {
+                applyClockTurn(drag.pin, direction, {
+                    side: drag.side,
+                    record: true,
+                    label: formatManualMove(drag.pin, direction, getVisiblePins(drag.side), drag.side)
+                });
+            }
+            renderRubiksClock();
+        });
+
+        const stopDrag = event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            if (board.releasePointerCapture) board.releasePointerCapture(event.pointerId);
+            drag = null;
+            board.classList.remove('gear-dragging');
+        };
+
+        board.addEventListener('pointerup', stopDrag);
+        board.addEventListener('pointercancel', stopDrag);
     }
 
     function updateSolutionPanel() {
@@ -750,7 +743,7 @@
 
     function renderRubiksClock() {
         renderClockBoards();
-        updatePatternButtons();
+        bindClockGearDrag();
         updateSolutionPanel();
         setText('clock-active-side', SIDE_NAMES[activeSide]);
         setText('clock-active-pattern', getPatternFromPins(getVisiblePins(activeSide)));
@@ -768,21 +761,6 @@
     }
 
     function getWorkspaceHTML() {
-        const patternButtons = ['UR', 'DR', 'DL', 'UL', 'U', 'R', 'D', 'L', 'ALL'].map(pattern => {
-            return `<button class="cyber-button clock-pattern-btn" data-clock-pattern="${pattern}" type="button" onclick="window.setRubiksClockPinPattern('${pattern}')"><span class="cyber-button__tag">${PATTERN_LABELS[pattern]}</span></button>`;
-        }).join('');
-        const wheelCards = PIN_KEYS.map(pin => {
-            return `<div class="clock-wheel-card">
-                <div class="clock-wheel-title">${PIN_LABELS[pin]}齿轮</div>
-                <div class="clock-wheel-actions">
-                    <button type="button" onclick="window.turnRubiksClockWheel('${pin}', -3)">-3</button>
-                    <button type="button" onclick="window.turnRubiksClockWheel('${pin}', -1)">-1</button>
-                    <button type="button" onclick="window.turnRubiksClockWheel('${pin}', 1)">+1</button>
-                    <button type="button" onclick="window.turnRubiksClockWheel('${pin}', 3)">+3</button>
-                </div>
-            </div>`;
-        }).join('');
-
         return `<div id="rubiksclock-workspace" class="space-workspace">
             <div class="grid-container card space-control-panel rubiks-clock-control">
                 <button class="cyber-button space-back-btn" onclick="window.backSpacePuzzle()"><span class="cyber-button__tag">← 返回空间类</span></button>
@@ -797,15 +775,7 @@
                     <button class="cyber-button" onclick="window.resetRubiksClock()"><span class="cyber-button__tag">重置时钟</span></button>
                     <button class="cyber-button" onclick="window.flipRubiksClockView()"><span class="cyber-button__tag">翻转视角</span></button>
                     <button class="cyber-button" onclick="window.setRubiksClockPinPattern('DOWN')"><span class="cyber-button__tag">针位全下</span></button>
-                    <button class="cyber-button cyber-glow" onclick="window.solveRubiksClock()"><span class="cyber-button__tag">规约求解</span></button>
-                </div>
-
-                <div class="clock-pattern-row">
-                    ${patternButtons}
-                </div>
-
-                <div class="clock-wheel-grid">
-                    ${wheelCards}
+                    <button class="cyber-button cyber-glow" onclick="window.solveRubiksClock()"><span class="cyber-button__tag">求解</span></button>
                 </div>
 
                 <div class="space-stats">
@@ -835,7 +805,7 @@
                 <div class="instructions space-instructions">
                     <h3>系统规则:</h3>
                     <p>支持 WCA 风格记号：UR、DR、DL、UL、U、R、D、L、ALL，加 0-11 和 +/-，可用 y2 翻面。</p>
-                    <p>手动模式先选择针位，再用四个角齿轮转动；正反面会按针位联动。</p>
+                    <p>手动模式先点击针位，再在棋盘上拖动对应角落转动齿轮；正反面会按针位联动。</p>
                     <p>求解会反向执行本模块记录的扰乱历史，适合随机扰乱、公式输入和手动操作后的复原。</p>
                 </div>
             </div>
@@ -844,6 +814,7 @@
                 <div class="space-cube-hud">
                     <span id="clock-status">Rubik's Clock 处于还原态</span>
                 </div>
+                <div class="cube-drag-hint">拖动棋盘转动四角齿轮（上拖 + / 下拖 −），点击针位切换上下</div>
                 <div id="rubiks-clock-board" class="rubiks-clock-board"></div>
             </div>
         </div>`;
@@ -893,17 +864,6 @@
         pins[pin] = !pins[pin];
         setVisiblePinsFromMap(pins, activeSide);
         renderRubiksClock();
-    };
-
-    window.turnRubiksClockWheel = function (pin, amount) {
-        if (!PIN_KEYS.includes(pin)) return;
-        const pins = getVisiblePins(activeSide);
-        const changed = applyClockTurn(pin, amount, {
-            side: activeSide,
-            record: true,
-            label: formatManualMove(pin, normalizeSignedAmount(amount), pins, activeSide)
-        });
-        if (changed) renderRubiksClock();
     };
 
     window.flipRubiksClockView = function () {

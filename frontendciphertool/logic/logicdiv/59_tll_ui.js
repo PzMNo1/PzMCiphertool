@@ -6,7 +6,7 @@
         window.LogicUI.singleSizeInput('tll-size', { val: 6, min: 3, max: 10, placeholder: '网格尺寸' }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initTllGrid && window.initTllGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveTllPuzzleUI && window.solveTllPuzzleUI()', id: 'tll-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveTllPuzzleUI && window.solveTllPuzzleUI()', id: 'tll-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearTllGrid && window.clearTllGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTllExample && window.buildSimpleTllExample()' }
         ]) +

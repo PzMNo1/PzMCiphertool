@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('heteromino-rows', 'heteromino-cols', { rowVal: 8, colVal: 8 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHeterominoGrid && window.initHeterominoGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHeterominoPuzzleUI && window.solveHeterominoPuzzleUI()', id: 'heteromino-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHeterominoPuzzleUI && window.solveHeterominoPuzzleUI()', id: 'heteromino-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHeterominoGrid && window.clearHeterominoGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHeterominoExample && window.buildSimpleHeterominoExample()' }
         ]) +

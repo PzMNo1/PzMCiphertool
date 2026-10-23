@@ -5,7 +5,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('sudoku-workspace', 'sudoku-la
     LogicUI.title('数独 求解器', { color: 'var(--neon-blue)' }) +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initSudokuGrid && window.initSudokuGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveSudokuPuzzle && window.solveSudokuPuzzle()', id: 'sudoku-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveSudokuPuzzle && window.solveSudokuPuzzle()', id: 'sudoku-solve-btn', glow: true },
         { label: '清空填涂 / 返回上步', onclick: 'window.undoSudokuLastStep && window.undoSudokuLastStep()' },
         { label: '简单示例', onclick: 'window.buildSimpleSudokuExample && window.buildSimpleSudokuExample()' }
     ]) +

@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('hashi-rows', 'hashi-cols', { rowVal: 7, colVal: 7 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHashiGrid && window.initHashiGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHashiPuzzleUI && window.solveHashiPuzzleUI()', id: 'hashi-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHashiPuzzleUI && window.solveHashiPuzzleUI()', id: 'hashi-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHashiGrid && window.clearHashiGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHashiExample && window.buildSimpleHashiExample()' }
         ]) +

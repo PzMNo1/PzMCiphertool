@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('chocona-workspace', 'chocona-
     LogicUI.sizeInputs('chocona-rows', 'chocona-cols', { rowVal: 7, colVal: 7 }) +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initChoconaGrid && window.initChoconaGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveChoconaPuzzle && window.solveChoconaPuzzle()', id: 'chocona-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveChoconaPuzzle && window.solveChoconaPuzzle()', id: 'chocona-solve-btn', glow: true },
         { label: '清空填涂', onclick: 'window.clearChoconaGrid && window.clearChoconaGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleChoconaExample && window.buildSimpleChoconaExample()' }
     ]) +

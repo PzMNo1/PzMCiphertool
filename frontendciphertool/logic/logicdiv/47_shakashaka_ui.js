@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('shaka-rows', 'shaka-cols', { rowVal: 5, colVal: 5, rowMin: 2, colMin: 2, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initShakashakaGrid && window.initShakashakaGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveShakashakaPuzzleUI && window.solveShakashakaPuzzleUI()', id: 'shaka-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveShakashakaPuzzleUI && window.solveShakashakaPuzzleUI()', id: 'shaka-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearShakashakaGrid && window.clearShakashakaGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleShakashakaExample && window.buildSimpleShakashakaExample()' }
         ]) +

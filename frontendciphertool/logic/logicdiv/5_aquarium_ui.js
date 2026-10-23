@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquarium-workspace', 'aquariu
     LogicUI.sizeInputs('aquarium-rows', 'aquarium-cols', { rowVal: 6, colVal: 6, rowMin: 2, colMin: 2 }) +
     LogicUI.actionGrid4([
         { label: '生成网格', onclick: 'window.initAquariumGrid && window.initAquariumGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveAquariumPuzzle && window.solveAquariumPuzzle()', id: 'aquarium-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveAquariumPuzzle && window.solveAquariumPuzzle()', id: 'aquarium-solve-btn', glow: true },
         { label: '重置清理', onclick: 'window.clearAquariumGrid && window.clearAquariumGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAquariumExample && window.buildSimpleAquariumExample()' }
     ]) +

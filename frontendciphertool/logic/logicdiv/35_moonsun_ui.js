@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('msu-rows', 'msu-cols', { rowVal: 5, colVal: 5, rowMin: 4, colMin: 4, rowMax: 10, colMax: 10 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initMSUGrid && window.initMSUGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveMSUPuzzleUI && window.solveMSUPuzzleUI()', id: 'msu-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveMSUPuzzleUI && window.solveMSUPuzzleUI()', id: 'msu-solve-btn', glow: true },
             { label: '清空回路', onclick: 'window.clearMSUGrid && window.clearMSUGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMSUExample && window.buildSimpleMSUExample()' }
         ]) +

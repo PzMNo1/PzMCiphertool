@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('nuribou-rows', 'nuribou-cols', { rowVal: 7, colVal: 7, rowMin: 3, colMin: 3, rowMax: 15, colMax: 15 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initNuribouGrid && window.initNuribouGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveNuribouPuzzleUI && window.solveNuribouPuzzleUI()', id: 'nuribou-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveNuribouPuzzleUI && window.solveNuribouPuzzleUI()', id: 'nuribou-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearNuribouGrid && window.clearNuribouGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNuribouExample && window.buildSimpleNuribouExample()' }
         ]) +

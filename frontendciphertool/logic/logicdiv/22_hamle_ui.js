@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('hamle-rows', 'hamle-cols', { rowVal: 6, colVal: 6 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHamleGrid && window.initHamleGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHamlePuzzleUI && window.solveHamlePuzzleUI()', id: 'hamle-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHamlePuzzleUI && window.solveHamlePuzzleUI()', id: 'hamle-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHamleGrid && window.clearHamleGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHamleExample && window.buildSimpleHamleExample()' }
         ]) +

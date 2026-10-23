@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('ms-rows', 'ms-cols', { rowVal: 5, colVal: 5, rowMin: 3, colMin: 3, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initMSGrid && window.initMSGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveMSPuzzleUI && window.solveMSPuzzleUI()', id: 'ms-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveMSPuzzleUI && window.solveMSPuzzleUI()', id: 'ms-solve-btn', glow: true },
             { label: '清空标记', onclick: 'window.clearMSGrid && window.clearMSGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleMSExample && window.buildSimpleMSExample()' }
         ]) +

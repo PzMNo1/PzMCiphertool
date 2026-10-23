@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('ng-rows', 'ng-cols', { rowVal: 5, colVal: 5, rowMin: 3, colMin: 3, rowMax: 10, colMax: 10 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initNGGrid && window.initNGGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveNGPuzzleUI && window.solveNGPuzzleUI()', id: 'ng-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveNGPuzzleUI && window.solveNGPuzzleUI()', id: 'ng-solve-btn', glow: true },
             { label: '清空标记', onclick: 'window.clearNGGrid && window.clearNGGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNGExample && window.buildSimpleNGExample()' }
         ]) +

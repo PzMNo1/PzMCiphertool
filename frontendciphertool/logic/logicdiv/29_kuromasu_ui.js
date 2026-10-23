@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('kuromasu-rows', 'kuromasu-cols', { rowVal: 8, colVal: 8, rowMin: 3, colMin: 3, rowMax: 15, colMax: 15 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initKuromasuGrid && window.initKuromasuGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveKuromasuPuzzleUI && window.solveKuromasuPuzzleUI()', id: 'kuromasu-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveKuromasuPuzzleUI && window.solveKuromasuPuzzleUI()', id: 'kuromasu-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearKuromasuGrid && window.clearKuromasuGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleKuromasuExample && window.buildSimpleKuromasuExample()' }
         ]) +

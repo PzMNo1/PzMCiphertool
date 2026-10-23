@@ -7,7 +7,7 @@
         window.LogicUI.singleSizeInput('tapa-size', { val: 7, min: 3, max: 12, placeholder: '网格大小 (N×N)' }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initTapaGrid && window.initTapaGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveTapaPuzzleUI && window.solveTapaPuzzleUI()', id: 'tapa-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveTapaPuzzleUI && window.solveTapaPuzzleUI()', id: 'tapa-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearTapaGrid && window.clearTapaGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTapaExample && window.buildSimpleTapaExample()' }
         ]) +

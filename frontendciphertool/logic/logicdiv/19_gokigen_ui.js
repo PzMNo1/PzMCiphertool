@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('gokigen-rows', 'gokigen-cols', { rowVal: 5, colVal: 5 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initGokigenGrid && window.initGokigenGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveGokigenPuzzleUI && window.solveGokigenPuzzleUI()', id: 'gokigen-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveGokigenPuzzleUI && window.solveGokigenPuzzleUI()', id: 'gokigen-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearGokigenGrid && window.clearGokigenGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleGokigenExample && window.buildSimpleGokigenExample()' }
         ]) +

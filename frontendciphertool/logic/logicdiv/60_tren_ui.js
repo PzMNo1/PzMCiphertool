@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('trn-rows', 'trn-cols', { rowVal: 6, colVal: 6, rowMin: 3, colMin: 3, rowMax: 12, colMax: 12 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initTrenGrid && window.initTrenGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveTrenPuzzleUI && window.solveTrenPuzzleUI()', id: 'trn-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveTrenPuzzleUI && window.solveTrenPuzzleUI()', id: 'trn-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearTrenGrid && window.clearTrenGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleTrenExample && window.buildSimpleTrenExample()' }
         ]) +

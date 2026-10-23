@@ -6,7 +6,7 @@
         window.LogicUI.singleSizeInput('yy-size', { val: 6, min: 4, max: 10, placeholder: 'N×N' }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initYinyangGrid&&window.initYinyangGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveYinyangPuzzleUI&&window.solveYinyangPuzzleUI()', id: 'yy-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveYinyangPuzzleUI&&window.solveYinyangPuzzleUI()', id: 'yy-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearYinyangGrid&&window.clearYinyangGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleYinyangExample&&window.buildSimpleYinyangExample()' }
         ]) +

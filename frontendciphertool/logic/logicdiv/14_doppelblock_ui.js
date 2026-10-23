@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('doppelblock-workspace', 'dopp
     LogicUI.singleSizeInput('doppelblock-size', { val: 5, min: 3, max: 9, placeholder: 'Size (NxN)' }) +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initDoppelblockGrid && window.initDoppelblockGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveDoppelblockPuzzle && window.solveDoppelblockPuzzle()', id: 'doppelblock-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveDoppelblockPuzzle && window.solveDoppelblockPuzzle()', id: 'doppelblock-solve-btn', glow: true },
         { label: '清空填涂', onclick: 'window.clearDoppelblockGrid && window.clearDoppelblockGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleDoppelblockExample && window.buildSimpleDoppelblockExample()' }
     ]) +

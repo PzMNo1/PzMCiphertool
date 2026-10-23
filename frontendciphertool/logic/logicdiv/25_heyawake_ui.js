@@ -7,7 +7,7 @@
         window.LogicUI.sizeInputs('heyawake-rows', 'heyawake-cols', { rowVal: 8, colVal: 8 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initHeyawakeGrid && window.initHeyawakeGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveHeyawakePuzzleUI && window.solveHeyawakePuzzleUI()', id: 'heyawake-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveHeyawakePuzzleUI && window.solveHeyawakePuzzleUI()', id: 'heyawake-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearHeyawakeGrid && window.clearHeyawakeGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleHeyawakeExample && window.buildSimpleHeyawakeExample()' }
         ]) +

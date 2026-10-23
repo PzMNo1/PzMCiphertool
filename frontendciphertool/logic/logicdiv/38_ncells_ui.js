@@ -11,7 +11,7 @@
         </div>` +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initNCGrid && window.initNCGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveNCPuzzleUI && window.solveNCPuzzleUI()', id: 'nc-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveNCPuzzleUI && window.solveNCPuzzleUI()', id: 'nc-solve-btn', glow: true },
             { label: '清空线索', onclick: 'window.clearNCGrid && window.clearNCGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleNCExample && window.buildSimpleNCExample()' }
         ]) +

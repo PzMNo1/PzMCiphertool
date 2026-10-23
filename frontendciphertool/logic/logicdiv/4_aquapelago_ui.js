@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('aquapelago-workspace', 'aquap
     LogicUI.singleSizeInput('aq-size', { val: 8, placeholder: '谜题大小 (默认8)', max: 20 }) +
     LogicUI.actionGrid4([
         { label: '生成网格', onclick: 'window.initAquapelagoGrid && window.initAquapelagoGrid()' },
-        { label: '计算核心分析', onclick: 'window.startAquapelagoSolve && window.startAquapelagoSolve()', glow: true },
+        { label: '求解谜题', onclick: 'window.startAquapelagoSolve && window.startAquapelagoSolve()', glow: true },
         { label: '重置清理', onclick: 'window.clearAquapelagoGrid && window.clearAquapelagoGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleAquapelagoExample && window.buildSimpleAquapelagoExample()' }
     ]) +

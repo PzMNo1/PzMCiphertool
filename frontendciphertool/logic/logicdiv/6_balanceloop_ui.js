@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('balanceloop-workspace', 'bala
     LogicUI.sizeInputs('bl-rows', 'bl-cols', { rowVal: 8, colVal: 8, rowMin: 2, colMin: 2 }) +
     LogicUI.actionGrid4([
         { label: '生成网格', onclick: 'window.initBalanceloopGrid && window.initBalanceloopGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveBalanceloopPuzzle && window.solveBalanceloopPuzzle()', id: 'bl-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveBalanceloopPuzzle && window.solveBalanceloopPuzzle()', id: 'bl-solve-btn', glow: true },
         { label: '重置清理', onclick: 'window.clearBalanceloopGrid && window.clearBalanceloopGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleBalanceloopExample && window.buildSimpleBalanceloopExample()' }
     ]) +

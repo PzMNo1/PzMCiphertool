@@ -596,7 +596,7 @@
                         <div class="space-action-grid">
                             <button class="cyber-button" onclick="window.resetNumberHuarong()"><span class="cyber-button__tag">重置棋盘</span></button>
                             <button class="cyber-button" onclick="window.scrambleNumberHuarong()"><span class="cyber-button__tag">随机打乱</span></button>
-                            <button class="cyber-button cyber-glow" onclick="window.solveNumberHuarong()"><span class="cyber-button__tag">规约求解</span></button>
+                            <button class="cyber-button cyber-glow" onclick="window.solveNumberHuarong()"><span class="cyber-button__tag">求解</span></button>
                             <button class="cyber-button" onclick="window.executeNumberHuarongSolution()"><span class="cyber-button__tag">执行解法</span></button>
                         </div>
 

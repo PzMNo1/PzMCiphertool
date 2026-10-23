@@ -6,7 +6,7 @@
         window.LogicUI.sizeInputs('yaj-rows', 'yaj-cols', { rowVal: 7, colVal: 7, rowMin: 3, colMin: 3, rowMax: 10, colMax: 10 }) +
         window.LogicUI.actionGrid4([
             { label: '重置网格', onclick: 'window.initYajilinGrid && window.initYajilinGrid()' },
-            { label: '计算核心分析', onclick: 'window.solveYajilinPuzzleUI && window.solveYajilinPuzzleUI()', id: 'yaj-solve-btn', glow: true },
+            { label: '求解谜题', onclick: 'window.solveYajilinPuzzleUI && window.solveYajilinPuzzleUI()', id: 'yaj-solve-btn', glow: true },
             { label: '清空填涂', onclick: 'window.clearYajilinGrid && window.clearYajilinGrid()' },
             { label: '简单示例', onclick: 'window.buildSimpleYajilinExample && window.buildSimpleYajilinExample()' }
         ]) +

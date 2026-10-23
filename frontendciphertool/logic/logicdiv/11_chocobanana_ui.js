@@ -6,7 +6,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('chocobanana-workspace', 'choc
     LogicUI.sizeInputs('cb-rows', 'cb-cols', { rowVal: 8, colVal: 8, rowMin: 4, colMin: 4 }) +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initChocobananaGrid && window.initChocobananaGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveChocobananaPuzzle && window.solveChocobananaPuzzle()', id: 'cb-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveChocobananaPuzzle && window.solveChocobananaPuzzle()', id: 'cb-solve-btn', glow: true },
         { label: '清空填涂', onclick: 'window.clearChocobananaGrid && window.clearChocobananaGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleChocobananaExample && window.buildSimpleChocobananaExample()' }
     ]) +

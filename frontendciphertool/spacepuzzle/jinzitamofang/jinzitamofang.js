@@ -202,6 +202,7 @@
         B: ['front', 'right', 'left']
     };
     const PYRAMINX_VIEWBOX = { width: 360, height: 310, perspective: 660 };
+    const PYRAMINX_ZOOM = 1.35;
     const ROTATE_STEP = (Math.PI * 2) / 3;
     const CENTER = { x: 90, y: TRIANGLE_HEIGHT * 2 / 3 };
     const TRIANGLE_POINTS = [
@@ -215,31 +216,26 @@
         [[90, TRIANGLE_HEIGHT * 2 / 3], [150, TRIANGLE_HEIGHT * 2 / 3], [120, TRIANGLE_HEIGHT]],
         [[150, TRIANGLE_HEIGHT * 2 / 3], [120, TRIANGLE_HEIGHT], [180, TRIANGLE_HEIGHT]]
     ];
-    const EDGE_GROUPS = {
-        left: [0, 1, 4],
-        right: [0, 3, 8],
-        bottom: [4, 6, 8]
-    };
-    const MOVE_CYCLES = {
+    const EDGE_CYCLES = {
         U: [
-            { face: 'L', edge: 'right' },
-            { face: 'R', edge: 'left' },
-            { face: 'B', edge: 'left' }
+            [['L', 0], ['L', 3], ['L', 8]],
+            [['R', 4], ['R', 1], ['R', 0]],
+            [['B', 8], ['B', 6], ['B', 4]]
         ],
         L: [
-            { face: 'U', edge: 'left' },
-            { face: 'B', edge: 'bottom' },
-            { face: 'R', edge: 'left' }
+            [['U', 0], ['U', 1], ['U', 4]],
+            [['B', 8], ['B', 3], ['B', 0]],
+            [['R', 8], ['R', 3], ['R', 0]]
         ],
         R: [
-            { face: 'U', edge: 'right' },
-            { face: 'L', edge: 'bottom' },
-            { face: 'B', edge: 'right' }
+            [['U', 0], ['U', 3], ['U', 8]],
+            [['L', 4], ['L', 1], ['L', 0]],
+            [['B', 4], ['B', 1], ['B', 0]]
         ],
         B: [
-            { face: 'U', edge: 'bottom' },
-            { face: 'R', edge: 'bottom' },
-            { face: 'L', edge: 'left' }
+            [['U', 4], ['U', 6], ['U', 8]],
+            [['R', 4], ['R', 6], ['R', 8]],
+            [['L', 4], ['L', 6], ['L', 8]]
         ]
     };
 
@@ -251,8 +247,8 @@
     let lastSolution = [];
     let solutionIndex = 0;
     let solutionElapsed = 0;
-    let pyraminxRotX = -22;
-    let pyraminxRotY = -34;
+    let pyraminxRotX = -35;
+    let pyraminxRotY = -125;
 
     function centroid(points) {
         return points.reduce((acc, point) => {
@@ -364,21 +360,19 @@
     }
 
     function cycleEdges(state, face, dir) {
-        const cycle = MOVE_CYCLES[face];
-        const values = cycle.map(item => EDGE_GROUPS[item.edge].map(index => state[item.face][index]));
-        cycle.forEach((item, index) => {
-            const sourceIndex = dir === 1
-                ? (index + cycle.length - 1) % cycle.length
-                : (index + 1) % cycle.length;
-            EDGE_GROUPS[item.edge].forEach((targetIndex, stickerIndex) => {
-                state[item.face][targetIndex] = values[sourceIndex][stickerIndex];
+        const cycle = EDGE_CYCLES[face];
+        const values = cycle.map(triple => triple.map(([targetFace, index]) => state[targetFace][index]));
+        cycle.forEach((triple, tripleIndex) => {
+            const source = values[dir === 1 ? (tripleIndex + 2) % 3 : (tripleIndex + 1) % 3];
+            triple.forEach(([targetFace, index], stickerIndex) => {
+                state[targetFace][index] = source[stickerIndex];
             });
         });
     }
 
     function turnState(state, move) {
         const face = move.charAt(0);
-        if (!MOVE_CYCLES[face]) return;
+        if (!EDGE_CYCLES[face]) return;
         const turns = move.endsWith('2') ? 2 : 1;
         const dir = move.endsWith("'") ? -1 : 1;
         for (let i = 0; i < turns; i++) {
@@ -424,6 +418,22 @@
 
     function subtract3(a, b) {
         return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+    }
+
+    function cross3(a, b) {
+        return {
+            x: a.y * b.z - a.z * b.y,
+            y: a.z * b.x - a.x * b.z,
+            z: a.x * b.y - a.y * b.x
+        };
+    }
+
+    function faceOutwardNormal(face) {
+        const [apexKey, leftKey, rightKey] = FACE_VERTEX_KEYS[face];
+        const apex = TETRA_VERTICES[apexKey];
+        const left = TETRA_VERTICES[leftKey];
+        const right = TETRA_VERTICES[rightKey];
+        return cross3(subtract3(left, apex), subtract3(right, apex));
     }
 
     function divide3(v, scalar) {
@@ -474,8 +484,8 @@
         const rotated = rotate3D(point);
         const scale = PYRAMINX_VIEWBOX.perspective / (PYRAMINX_VIEWBOX.perspective - rotated.z);
         return {
-            x: PYRAMINX_VIEWBOX.width / 2 + rotated.x * scale,
-            y: PYRAMINX_VIEWBOX.height / 2 + rotated.y * scale,
+            x: PYRAMINX_VIEWBOX.width / 2 + rotated.x * scale * PYRAMINX_ZOOM,
+            y: PYRAMINX_VIEWBOX.height / 2 + rotated.y * scale * PYRAMINX_ZOOM,
             z: rotated.z
         };
     }
@@ -489,7 +499,8 @@
         if (!solid) return;
 
         const polygons = [];
-        FACE_NAMES.forEach(face => {
+        const visibleFaces = FACE_NAMES.filter(face => rotate3D(faceOutwardNormal(face)).z > 0.001);
+        visibleFaces.forEach(face => {
             TRIANGLE_POINTS.forEach((points, index) => {
                 const projected = points.map(point => project3D(localFacePointTo3D(face, point)));
                 polygons.push({
@@ -503,7 +514,7 @@
         });
         polygons.sort((a, b) => a.depth - b.depth);
 
-        const labels = FACE_NAMES.map(face => {
+        const labels = visibleFaces.map(face => {
             const center = project3D(localFacePointTo3D(face, [90, TRIANGLE_HEIGHT * 0.66]));
             return { face, center };
         }).sort((a, b) => a.center.z - b.center.z);
@@ -639,8 +650,8 @@
             if (!dragging) return;
             const dx = event.clientX - startX;
             const dy = event.clientY - startY;
-            pyraminxRotY = startRotY + dx * 0.45;
-            pyraminxRotX = Math.max(-170, Math.min(170, startRotX - dy * 0.45));
+            pyraminxRotY = startRotY - dx * 0.45;
+            pyraminxRotX = Math.max(-170, Math.min(170, startRotX + dy * 0.45));
             applyPyraminxRotation();
         });
 
@@ -676,7 +687,7 @@
                         <button class="cyber-button" onclick="window.resetPyraminx()"><span class="cyber-button__tag">重置魔方</span></button>
                         <button class="cyber-button" onclick="window.scramblePyraminx()"><span class="cyber-button__tag">随机扰乱</span></button>
                         <button class="cyber-button" onclick="window.applyPyraminxFormula()"><span class="cyber-button__tag">执行公式</span></button>
-                        <button class="cyber-button cyber-glow" onclick="window.solvePyraminx()"><span class="cyber-button__tag">规约求解</span></button>
+                        <button class="cyber-button cyber-glow" onclick="window.solvePyraminx()"><span class="cyber-button__tag">求解</span></button>
                     </div>
 
                     <div class="space-stats">

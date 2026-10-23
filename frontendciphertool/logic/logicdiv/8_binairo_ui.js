@@ -9,7 +9,7 @@ window.logicWorkspaceHTMLs.push(LogicUI.workspace('binairo-workspace', 'binairo-
     </div>` +
     LogicUI.actionGrid4([
         { label: '重置网格', onclick: 'window.initBinairoGrid && window.initBinairoGrid()' },
-        { label: '计算核心分析', onclick: 'window.solveBinairoPuzzle && window.solveBinairoPuzzle()', id: 'bi-solve-btn', glow: true },
+        { label: '求解谜题', onclick: 'window.solveBinairoPuzzle && window.solveBinairoPuzzle()', id: 'bi-solve-btn', glow: true },
         { label: '清空非固定', onclick: 'window.clearBinairoGrid && window.clearBinairoGrid()' },
         { label: '简单示例', onclick: 'window.buildSimpleBinairoExample && window.buildSimpleBinairoExample()' }
     ]) +
