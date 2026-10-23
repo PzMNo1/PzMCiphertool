@@ -5,7 +5,7 @@
 
 ## 文件结构
 - sendfeedback.js → 反馈主程序
-- caifangzuozhe.md → 作者采访文档
+- caifangzuozhe.md → 技术答疑文档
 - zuozhetupian/ → 作者相关资源
   - zuozhedeBilibili.jpg → B站头像
   - zuozhedezhihu.jpg → 知乎头像

@@ -817,13 +817,83 @@ class ChatUI {
      * @param {string} fullContent - 完整的内容文本
      */
     updateContent(container, fullContent, options = {}) {
+        if (!container?.contentDiv) return;
+        if (!options.streaming || options.force) {
+            this.cancelPendingContent(container);
+            this.renderContentNow(container, fullContent, options);
+            return;
+        }
+
+        container._pendingStreamContent = String(fullContent ?? '');
+        const interval = Number(options.interval) > 0
+            ? Number(options.interval)
+            : (container._pendingStreamContent.length > 12000 ? 180 : 120);
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const elapsed = now - (Number(container._lastContentRenderAt) || 0);
+
+        if (!container._contentRenderTimer && elapsed >= interval) {
+            this.renderPendingContent(container);
+            return;
+        }
+        if (container._contentRenderTimer) return;
+        container._contentRenderTimer = setTimeout(() => {
+            container._contentRenderTimer = null;
+            this.renderPendingContent(container);
+        }, Math.max(16, interval - elapsed));
+    }
+
+    renderPendingContent(container) {
+        if (!container || container._pendingStreamContent === undefined) return;
+        const content = container._pendingStreamContent;
+        container._pendingStreamContent = undefined;
+        this.renderContentNow(container, content, { streaming: true });
+    }
+
+    cancelPendingContent(container) {
+        if (!container) return;
+        if (container._contentRenderTimer) {
+            clearTimeout(container._contentRenderTimer);
+            container._contentRenderTimer = null;
+        }
+        container._pendingStreamContent = undefined;
+    }
+
+    flushContentUpdate(container) {
+        if (!container) return;
+        if (container._contentRenderTimer) {
+            clearTimeout(container._contentRenderTimer);
+            container._contentRenderTimer = null;
+        }
+        if (container._pendingStreamContent !== undefined) {
+            const content = container._pendingStreamContent;
+            container._pendingStreamContent = undefined;
+            this.renderContentNow(container, content, { streaming: false });
+        }
+        container.contentDiv?.classList.remove('is-streaming');
+    }
+
+    renderContentNow(container, fullContent, options = {}) {
+        if (!container?.contentDiv) return;
+        const nearBottom = this.isNearBottom();
         this._activeSourceMap = container?._sourceUrlMap || null;
         container.contentDiv.innerHTML = this.formatMessage(fullContent);
         this._activeSourceMap = null;
-        if (!options.preserveScroll) {
+        container.contentDiv.classList.toggle('is-streaming', Boolean(options.streaming));
+        if (!options.preserveScroll && nearBottom && this.messagesContainer) {
             this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
         }
-        this.debouncedMathJax(container.contentDiv);
+        if (!options.streaming) {
+            this.debouncedMathJax(container.contentDiv);
+        }
+        container._lastContentRenderAt = (typeof performance !== 'undefined' && performance.now)
+            ? performance.now()
+            : Date.now();
+    }
+
+    isNearBottom() {
+        const el = this.messagesContainer;
+        if (!el) return true;
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     }
 
     displayGeneratedImages(container, images = [], caption = '') {
@@ -1910,6 +1980,7 @@ class ChatUI {
      */
     finalizeMessage(container) {
         this.stopRuntimeTimer(container);
+        this.flushContentUpdate(container);
         container.reasoningDetails?.classList.remove('thinking-state');
         this.setReasoningStatus(container, '运行完成');
         if (container.cursorSpan?.parentNode) {
@@ -1918,7 +1989,22 @@ class ChatUI {
         this.hideEmptyReasoning(container);
         this.setThoughtStatus(container, '运行完成', true);
 
+        if (container.contentDiv && String(container.contentDiv.textContent || '').trim()) {
+            container.contentDiv.classList.remove('content-reveal');
+            void container.contentDiv.offsetWidth;
+            container.contentDiv.classList.add('content-reveal');
+            setTimeout(() => container.contentDiv?.classList.remove('content-reveal'), 360);
+        }
         this.debouncedMathJax(container.contentDiv, true);
+        // 收尾时立即补渲染流式期间被跳过的图表/Mermaid，避免最后几秒一直看到源码。
+        setTimeout(() => {
+            try {
+                window.agentChartRenderer?.renderAll?.(document);
+                window.agentDiagramRenderer?.renderAll?.(document);
+            } catch (error) {
+                // ignore renderer refresh failures
+            }
+        }, 60);
     }
 
     /**
@@ -1927,6 +2013,7 @@ class ChatUI {
      */
     showInterrupted(container) {
         this.stopRuntimeTimer(container);
+        container.contentDiv?.classList.remove('is-streaming');
         container.reasoningDetails?.classList.remove('thinking-state');
         this.setReasoningStatus(container, 'ANALYSIS INTERRUPTED');
         if (container.cursorSpan?.parentNode) {
@@ -1943,6 +2030,7 @@ class ChatUI {
      */
     showError(container, errorMessage) {
         this.stopRuntimeTimer(container);
+        container.contentDiv?.classList.remove('is-streaming');
         if (container?.reasoningDetails) {
             container.reasoningDetails.classList.remove('thinking-state');
             this.setReasoningStatus(container, '运行出错');

@@ -13,6 +13,11 @@ class ToolRegistry {
             search: { active: 0, max: 16, queue: [] },
             fetch: { active: 0, max: 8, queue: [] }
         };
+        // 同一个 Run 里多个专家会重复查同一批关键词，短 TTL 缓存 + 并发去重能直接砍掉重复请求。
+        this.deepseekSearchCache = new Map();
+        this.deepseekFetchCache = new Map();
+        this.deepseekSearchInflight = new Map();
+        this.deepseekFetchInflight = new Map();
 
         // 动态获取后端 API 基础路径
         this.getApiBase = () => {
@@ -135,49 +140,91 @@ class ToolRegistry {
         if (value.includes('/read_webpage')) return 45000;
         if (value.includes('/community_snapshot')) return 45000;
         if (value.includes('/search_urls')) return 45000;
-        if (value.includes('/deepseek/search')) return 30000;
-        if (value.includes('/deepseek/fetch')) return 40000;
+        if (value.includes('/deepseek/search')) return 25000;
+        if (value.includes('/deepseek/fetch')) return 30000;
         return 30000;
     }
 
     async deepseekSearchRequest(query, count = 12, needContent = false) {
-        await this.acquireRequestSlot('search');
-        try {
-            const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/search`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query,
-                    count: Math.max(1, Math.min(50, Number(count) || 12)),
-                    need_content: Boolean(needContent)
-                })
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'DeepSeek Search 调用失败');
-            const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
-            if (data.error) throw new Error(data.error);
-            return data;
-        } finally {
-            this.releaseRequestSlot('search');
-        }
+        const normalizedCount = Math.max(1, Math.min(50, Number(count) || 12));
+        const cacheKey = `${String(query || '').trim()}|${normalizedCount}|${needContent ? 1 : 0}`;
+        const cached = this.getCached(this.deepseekSearchCache, cacheKey, 120000);
+        if (cached) return cached;
+        if (this.deepseekSearchInflight.has(cacheKey)) return this.deepseekSearchInflight.get(cacheKey);
+
+        const task = (async () => {
+            await this.acquireRequestSlot('search');
+            try {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query,
+                        count: normalizedCount,
+                        need_content: Boolean(needContent)
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'DeepSeek Search 调用失败');
+                const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
+                if (data.error) throw new Error(data.error);
+                this.setCached(this.deepseekSearchCache, cacheKey, data);
+                return data;
+            } finally {
+                this.releaseRequestSlot('search');
+            }
+        })().finally(() => this.deepseekSearchInflight.delete(cacheKey));
+
+        this.deepseekSearchInflight.set(cacheKey, task);
+        return task;
     }
 
     async deepseekFetchRequest(url) {
-        await this.acquireRequestSlot('fetch');
-        try {
-            const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/fetch`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'DeepSeek Fetch 调用失败');
-            const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
-            if (data.error) throw new Error(data.error);
-            return data;
-        } finally {
-            this.releaseRequestSlot('fetch');
+        const cacheKey = String(url || '').trim();
+        const cached = this.getCached(this.deepseekFetchCache, cacheKey, 300000);
+        if (cached) return cached;
+        if (this.deepseekFetchInflight.has(cacheKey)) return this.deepseekFetchInflight.get(cacheKey);
+
+        const task = (async () => {
+            await this.acquireRequestSlot('fetch');
+            try {
+                const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/fetch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'DeepSeek Fetch 调用失败');
+                const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
+                if (data.error) throw new Error(data.error);
+                this.setCached(this.deepseekFetchCache, cacheKey, data);
+                return data;
+            } finally {
+                this.releaseRequestSlot('fetch');
+            }
+        })().finally(() => this.deepseekFetchInflight.delete(cacheKey));
+
+        this.deepseekFetchInflight.set(cacheKey, task);
+        return task;
+    }
+
+    getCached(cache, key, ttlMs) {
+        if (!key || !cache.has(key)) return null;
+        const entry = cache.get(key);
+        if (!entry || Date.now() - entry.at > ttlMs) {
+            cache.delete(key);
+            return null;
         }
+        return entry.value;
+    }
+
+    setCached(cache, key, value) {
+        if (!key) return;
+        if (cache.size > 240) {
+            const oldest = cache.keys().next().value;
+            if (oldest !== undefined) cache.delete(oldest);
+        }
+        cache.set(key, { at: Date.now(), value });
     }
 
     acquireRequestSlot(kind) {
@@ -238,6 +285,11 @@ class ToolRegistry {
         const matched = paragraphs.filter(item => item.toLowerCase().includes(needle.toLowerCase()));
         if (!matched.length) return text;
         return matched.join('\n\n').slice(0, 28000);
+    }
+
+    clipText(value, max) {
+        const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+        return text.length <= max ? text : text.slice(0, max) + '…';
     }
 
     /**
@@ -542,7 +594,7 @@ class ToolRegistry {
 
         this.register({
             name: 'web_research',
-            description: 'Primary web research tool, powered by the DeepSeek Search API. Runs 2-6 query variants in parallel against DeepSeek’s own search engine, merges/deduplicates results, and (depth=deep) fetches the top sources in parallel through DeepSeek Fetch. Use this FIRST for any current fact, market, policy, company, technology, or news question. It automatically falls back to the legacy multi-engine crawler if DeepSeek Search is unavailable. Never use Baidu.',
+            description: 'Primary web research tool, powered by the DeepSeek Search API. Put 2-6 query variants in ONE queries array: they run in parallel against DeepSeek’s search engine, results are deduplicated, and (depth=deep) the top 3 pages are fetched in parallel through DeepSeek Fetch. Default depth=fast returns compact long summaries. Repeat calls reuse a 2-minute cache, so never issue the same query twice. Never use Baidu.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -553,7 +605,7 @@ class ToolRegistry {
                     queries: {
                         type: 'array',
                         items: { type: 'string' },
-                        description: 'Optional 2-6 query variants covering official docs, news, community discussions, academic/paper sources, region-specific terms, or site-targeted primary-source searches'
+                        description: '2-6 query variants. Put ALL variants in this array in ONE call; they run in parallel. Do not call web_research several times in the same turn.'
                     },
                     mode: {
                         type: 'string',
@@ -563,11 +615,11 @@ class ToolRegistry {
                     depth: {
                         type: 'string',
                         enum: ['fast', 'deep'],
-                        description: 'fast returns deduplicated source candidates only; deep also reads top sources in parallel for evidence passages. Use fast for maps, deep for evidence.'
+                        description: 'fast (default) returns structured results with long summaries; deep also fetches the top 3 pages through DeepSeek Fetch. Use deep only when you need exact original wording.'
                     },
                     max_results: {
                         type: 'integer',
-                        description: 'Maximum deduplicated sources to return. Use 32-40 for broad research and evidence-heavy answers.'
+                        description: 'Maximum deduplicated sources to return (10-30; default 20). Keep it compact so the model can iterate quickly.'
                     },
                     read_top: {
                         type: 'boolean',
@@ -585,8 +637,8 @@ class ToolRegistry {
                 risk: 'network_read',
                 sideEffect: false,
                 requiresApproval: false,
-                timeoutMs: 120000,
-                maxOutputChars: 80000,
+                timeoutMs: 75000,
+                maxOutputChars: 40000,
                 cachePolicy: 'per_run',
                 retryPolicy: 'once',
                 networkAccess: true,
@@ -595,40 +647,36 @@ class ToolRegistry {
                 sourceKind: 'search_and_optional_read',
                 tags: ['research', 'search', 'evidence']
             },
-            execute: async ({ query, queries = [], mode = 'auto', depth = 'deep', max_results = 40, read_top, focus_keyword = '' }) => {
+            execute: async ({ query, queries = [], mode = 'auto', depth = 'fast', max_results = 20, read_top, focus_keyword = '' }) => {
                 try {
                     const normalizedDepth = depth === 'deep' ? 'deep' : 'fast';
                     const effectiveReadTop = typeof read_top === 'boolean' ? read_top : normalizedDepth === 'deep';
                     const parsedMaxResults = Number(max_results);
-                    const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 40;
-                    const effectiveMaxResults = Math.max(16, Math.min(requestedMaxResults, 40));
+                    const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 20;
+                    const effectiveMaxResults = Math.max(8, Math.min(requestedMaxResults, 30));
                     const queryVariants = Array.from(new Set([query, ...(Array.isArray(queries) ? queries : [])]
                         .map(item => String(item || '').trim())
                         .filter(Boolean))).slice(0, 6);
 
-                    // DeepSeek Search 为主通道：多查询变体并行，单次请求拿回结构化 title/url/snippet/summary。
-                    const perQueryCount = Math.max(6, Math.min(20, Math.ceil(effectiveMaxResults / Math.max(1, queryVariants.length)) + 2));
+                    // DeepSeek Search 为主通道：所有查询变体一次性并行发出。
+                    const perQueryCount = Math.max(4, Math.min(12, Math.ceil(effectiveMaxResults / Math.max(1, queryVariants.length)) + 2));
                     const searches = await Promise.allSettled(queryVariants.map(item =>
                         this.deepseekSearchRequest(item, perQueryCount, false)));
 
                     const merged = [];
                     const seenUrls = new Set();
-                    let searchError = '';
                     searches.forEach(settled => {
-                        if (settled.status !== 'fulfilled') {
-                            searchError = String(settled.reason?.message || settled.reason || '');
-                            return;
-                        }
+                        if (settled.status !== 'fulfilled') return;
                         (settled.value.results || []).forEach(item => {
                             const url = String(item.url || '').trim();
                             if (!/^https?:\/\//i.test(url) || seenUrls.has(url)) return;
                             seenUrls.add(url);
                             merged.push({
-                                title: item.title || '',
+                                title: this.clipText(item.title || '', 140),
                                 url,
-                                snippet: item.snippet || '',
-                                summary: item.summary || '',
-                                site_name: item.site_name || '',
+                                snippet: this.clipText(item.snippet || '', 180),
+                                summary: this.clipText(item.summary || '', 420),
+                                site_name: this.clipText(item.site_name || '', 60),
                                 date: item.date || null,
                                 authority: Number(item.authority) || 0,
                                 rerank_score: Number(item.rerank_score) || 0
@@ -637,16 +685,15 @@ class ToolRegistry {
                     });
 
                     if (!merged.length) {
-                        const fallback = await this.researchFallback({
+                        return await this.researchFallback({
                             query, queries, mode, max_results: effectiveMaxResults, read_top: effectiveReadTop, focus_keyword
                         });
-                        return fallback;
                     }
 
                     const selected = merged.slice(0, effectiveMaxResults);
                     if (effectiveReadTop) {
-                        // Fetch 是独立 QPS 限制，只深读最靠前的一批来源，避免拖慢整轮。
-                        const readTargets = selected.slice(0, Math.min(6, selected.length));
+                        // 只深读最靠前的 3 篇，并压缩正文长度；证据由 summary + 正文摘要共同承载。
+                        const readTargets = selected.slice(0, Math.min(3, selected.length));
                         const reads = await Promise.allSettled(readTargets.map(item => this.deepseekFetchRequest(item.url)));
                         reads.forEach((settled, index) => {
                             if (settled.status !== 'fulfilled') return;
@@ -654,8 +701,8 @@ class ToolRegistry {
                             const target = readTargets[index];
                             const content = String(page.content || '').trim();
                             if (content) {
-                                target.content = content.slice(0, 6000);
-                                if (!target.summary) target.summary = content.slice(0, 800);
+                                target.content = this.clipText(content, 2400);
+                                if (!target.summary) target.summary = this.clipText(content, 500);
                                 target.read_via = 'deepseek-fetch';
                             }
                         });
@@ -668,13 +715,13 @@ class ToolRegistry {
                         mode,
                         count: selected.length,
                         results: selected,
-                        note: 'DeepSeek Search 为主检索通道；snippet/summary 可直接引用，content 为 DeepSeek Fetch 的正文抓取。'
-                    }, null, 2);
+                        note: 'DeepSeek Search 为主检索通道；summary 可直接引用，content 仅对前 3 篇做正文抓取。'
+                    });
                 } catch (e) {
                     try {
                         return await this.researchFallback({
                             query, queries, mode,
-                            max_results: Number(max_results) || 40,
+                            max_results: Number(max_results) || 20,
                             read_top: typeof read_top === 'boolean' ? read_top : depth === 'deep',
                             focus_keyword
                         });

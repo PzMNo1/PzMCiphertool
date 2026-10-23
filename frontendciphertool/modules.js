@@ -427,7 +427,7 @@ const MODULES = {
         <div class="apizz-console-layout cipher-lab-console-layout">
             <aside class="apizz-console-nav cipher-lab-console-nav" aria-label="联系我们导航">
                 <button type="button" class="submodule-btn contact-submodule-btn active" data-target="guanyuzuozhe">关于作者</button>
-                <button type="button" class="submodule-btn contact-submodule-btn" data-target="zuozhecaifang">作者采访</button>
+                <button type="button" class="submodule-btn contact-submodule-btn" data-target="zuozhecaifang">技术答疑</button>
                 <button type="button" class="submodule-btn contact-submodule-btn" data-target="yijianfankui">意见反馈</button>
                 <button type="button" class="submodule-btn contact-submodule-btn" data-target="kaifarizhi">开发日志</button>
             </aside>
@@ -680,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261023-18';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261023-19';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

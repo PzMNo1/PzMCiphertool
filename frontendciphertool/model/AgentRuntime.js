@@ -557,7 +557,7 @@ class AgentRuntime {
                     if (deferVisibleContent) {
                         this.ui.setReasoningStatus(container, '正在整理回答');
                     } else {
-                        this.ui.updateContent(container, full);
+                        this.ui.updateContent(container, full, { streaming: true });
                     }
                     if (full && full.length - synthProgressChars > 900) {
                         synthProgressChars = full.length;
@@ -699,7 +699,7 @@ class AgentRuntime {
                 if (deferVisibleContent) {
                     this.ui.setReasoningStatus(container, '正在检索并整理证据');
                 } else {
-                    this.ui.updateContent(container, latestStreamedContent);
+                    this.ui.updateContent(container, latestStreamedContent, { streaming: true });
                 }
                 if (latestStreamedContent.length - loopProgressChars > 900) {
                     loopProgressChars = latestStreamedContent.length;
@@ -1287,7 +1287,7 @@ class AgentRuntime {
                     if (container.reasoningDetails.classList.contains('thinking-state')) {
                         this.ui.finishReasoning(container);
                     }
-                    this.ui.updateContent(container, full);
+                    this.ui.updateContent(container, full, { streaming: true });
                     this.notifyRunSnapshot(runState, 'content.updated', { content: full });
                 }
             });

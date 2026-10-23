@@ -525,7 +525,8 @@ textarea {
   max-height: 50px;
 }
 
-#cardSearch {
+#cardSearch,
+.author-interview-search-input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.7rem;
@@ -534,7 +535,8 @@ textarea {
   box-shadow: 0 0 10px 8px rgba(225, 225, 225, 0.13);
 }
 
-#cardSearch:focus {
+#cardSearch:focus,
+.author-interview-search-input:focus {
   outline: none;
   background-color: rgba(255, 255, 255, 0.13);
   box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);

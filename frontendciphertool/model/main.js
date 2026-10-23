@@ -1393,7 +1393,7 @@
                             window.chatUI.finishReasoning(container);
                         }
                         finalContent = full;
-                        window.chatUI.updateContent(container, full);
+                        window.chatUI.updateContent(container, full, { streaming: true });
                         persistActiveRun(activeRun, {
                             content: finalContent,
                             reasoning_content: finalReasoning || null

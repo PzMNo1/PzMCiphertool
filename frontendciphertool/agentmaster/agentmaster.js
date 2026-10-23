@@ -1523,7 +1523,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             {
                 target: 'zuozhecaifang',
-                names: ['zuozhecaifang', '作者采访', '采访', 'interview']
+                names: ['zuozhecaifang', '技术答疑', '采访', 'interview']
             },
             {
                 target: 'yijianfankui',
