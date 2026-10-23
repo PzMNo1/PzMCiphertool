@@ -22,6 +22,7 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
   - AgentProfiles.js → 角色库
   - AgentPolicyResolver.js → 策略解析
   - AgentExpertPanel.js → 专家面板
+  - AgentChartRenderer.js → Nature 风格统计图渲染（bar/line/scatter/control/pie/box 等）
   - (其他 Agent 工具)
 
 ## 核心对象
@@ -29,6 +30,11 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
 - `AgentRuntime` → Agent 执行引擎
 - `ToolRegistry` → 工具注册表
 - `AgentContextManager` → 上下文管理
+
+## 每日用量
+- Agent 每天 3 次、Agentmaster 每天 10 次，后端 `UsageQuotaService` 按账号计数（未登录按 IP），开发者账号与作者手机号免限
+- 同一条用户消息内的多次模型调用共用一个 `X-Agent-Turn`，只扣 1 次
+- 侧边栏“本账号剩余使用次数”来自 `GET /api/usage/summary`
 
 ## 绝对禁止
 - 修改 contracts/ 中的协议定义（已稳定）

@@ -71,7 +71,15 @@ function refreshHanziCodes() {
     if (typeof CCCHandler === 'undefined') return;
     const query = mainInput().trim();
     if (!query) return;
-    setResult('hanziResult', CCCHandler.cardConvert(query, CCCHandler.mode, 'auto'));
+    const modes = [
+        ['cccResult', 'ccc'],
+        ['quweiResult', 'quwei'],
+        ['gb2312Result', 'gb2312'],
+        ['gbkResult', 'gbk'],
+        ['gb18030Result', 'gb18030'],
+        ['radicalResult', 'radical']
+    ];
+    modes.forEach(([id, mode]) => setResult(id, CCCHandler.cardConvert(query, mode, 'auto')));
 }
 
 const _ownOutputResultIds = new Set();
@@ -228,6 +236,46 @@ function scheduleUpdateAll() {
     updateAllFrame = requestAnimationFrame(runScheduledUpdateAll);
 }
 
+function computeParamCards() {
+    if (getActiveCipherSubmodule() !== 'xiandaiqu') return;
+    setCipherText('rsaResult', RSACipher.process(
+        '',
+        cipherValue('rsaMode', 'decrypt') || 'decrypt',
+        cipherValue('rsaN'),
+        cipherValue('rsaE'),
+        cipherValue('rsaD'),
+        cipherValue('rsaC'),
+        cipherValue('rsaE2'),
+        cipherValue('rsaC2'),
+        cipherValue('rsaRadix', 'dec') || 'dec',
+        cipherValue('rsaDp'),
+        cipherValue('rsaBroadcast')
+    ));
+    setCipherText('ecdsaResult', ECDSATool.process(
+        cipherValue('ecdsaCurve', 'secp256k1') || 'secp256k1',
+        cipherValue('ecdsaR'),
+        cipherValue('ecdsaS1'),
+        cipherValue('ecdsaS2'),
+        cipherValue('ecdsaZ1'),
+        cipherValue('ecdsaZ2'),
+        cipherValue('ecdsaRadix', 'dec') || 'dec'
+    ));
+    setCipherText('eccResult', ECCCalc.process(
+        cipherValue('eccCurve', 'secp256k1') || 'secp256k1',
+        cipherValue('eccMode', 'check') || 'check',
+        cipherValue('eccRadix', 'hex') || 'hex',
+        cipherValue('eccP'),
+        cipherValue('eccA'),
+        cipherValue('eccB'),
+        cipherValue('eccN'),
+        cipherValue('eccPx'),
+        cipherValue('eccPy'),
+        cipherValue('eccQx'),
+        cipherValue('eccQy'),
+        cipherValue('eccK')
+    ));
+}
+
 async function runScheduledUpdateAll() {
     updateAllFrame = 0;
     if (updateAllRunning) { updateAllQueued = true; return; }
@@ -235,6 +283,7 @@ async function runScheduledUpdateAll() {
     try {
         await updateAll();
         computeCipherCards();
+        computeParamCards();
     } finally {
         updateAllRunning = false;
         if (updateAllQueued) {
@@ -281,7 +330,7 @@ async function updateAll() {
 
         // 进制转换 摩尔斯电码 手机九键 比尔密码 反切码 mRNA V字键盘 QWE键盘 培根密码
         // 柱状栅栏 W型栅栏 01248密码 元音密码 ASCII转换 四角号码 ROT密码转换
-        // （中文电码/区位码/GBK 等已并入「汉字编码卡组」，见 1_cipherlab.js 尾部登记的那张卡）
+        // （中文电码/区位码/GBK 等现在是下方独立卡片，不再合并）
         const fromBase = parseInt(cipherValue('fromBase'), 10) || 36;
         const toBase = parseInt(cipherValue('toBase'), 10) || 2;
         const bealeKey = cipherValue('bealeKey');
@@ -297,12 +346,14 @@ async function updateAll() {
         setCipherText('baseResult', `结果: ${BaseConverter.convert(t, fromBase, toBase)}\n` + `字符隔开结果: ${BaseConverter.convertByChar(t, fromBase, toBase)}`);
         setCipherText('a1z26Result', `编码: ${A1Z26Cipher.e(t, a1z26Mode)}\n解码: ${A1Z26Cipher.d(t, a1z26Mode)}`);
         setCipherText('morseResult', MorseVariants.process(t, morseVariant, morseKey));
-        setCipherText('phoneResult', `加密: ${PhoneKeyCipher.e(t)}\n解密: ${PhoneKeyCipher.d(t)}`);
+        setCipherText('phoneResult', PhoneKeyCipher.process(t, cipherValue('phoneMode', 'coord') || 'coord'));
         setCipherText('bealeResult', `解密: ${BealeCipher.e(t, bealeKey)}`);
         setCipherText('fanqieResult', `解密: ${FanqieCipher.e(t)}\n加密: ${FanqieCipher.d(t)}`);
         setCipherText('dnaResult', `解密: ${DnaCipher.e(t)}\n加密: ${DnaCipher.d(t)}`);
         setCipherText('vKeyboardResult', `解密: ${VKeyboardCipher.e(t)}\n加密: ${VKeyboardCipher.d(t)}`);
-        setCipherText('qweResult', `解密: ${QweCipher.e(t)}\n加密: ${QweCipher.d(t)}`);
+        setCipherText('qweResult', QweCipher.process(t, cipherValue('qweMode', 'qwe') || 'qwe'));
+
+        setCipherText('kbdResult', KeyboardLayout.process(t, cipherValue('kbdLayout', 'dvorak') || 'dvorak'));
         setCipherText('baconResult', `加密: ${BaconCipher.e(t)}\n解密: ${BaconCipher.d(t)}`);
         setSymbolCipherResult(symbolCipher, symbolCipherSource);
         setCipherText('columnarRailResult', `加密: ${ColumnarRailCipher.e(t, columnarRails)}\n解密: ${ColumnarRailCipher.d(t, columnarRails)}`);
@@ -341,7 +392,47 @@ async function updateAll() {
         const baseOutputType = cipherValue('baseOutputType');
         setCipherText('baseEncodeResult', `结果: ${baseCipher.e(t, baseOutputType)}\n加密结果: ${baseCipher.d(t, baseOutputType)}`);
 
-        // 汉字编码卡组：HTML 在 0_cipher_div_batch.js 里，和上面这些卡一样在这一轮里算
+        const quagmireVariant = cipherValue('quagmireVariant', 'quagmire3') || 'quagmire3';
+        const quagmireKeyA = cipherValue('quagmireKeyA', 'CIPHER') || 'CIPHER';
+        const quagmireKeyB = cipherValue('quagmireKeyB', 'KEYWORD') || 'KEYWORD';
+        const quagmireIndicator = cipherValue('quagmireIndicator', 'KEY') || 'KEY';
+        setCipherText('quagmireResult', Quagmire.process(t, quagmireVariant, quagmireKeyA, quagmireKeyB, quagmireIndicator));
+
+        const webEncodingType = cipherValue('webEncodingType', 'url') || 'url';
+        setCipherText('webEncodingResult', WebEncodingCipher.process(t, webEncodingType));
+
+        const codeTableType = cipherValue('codeTableType', 'nato') || 'nato';
+        setCipherText('codeTableResult', CodeTables.process(t, codeTableType));
+
+        const bookCipherMode = cipherValue('bookCipherMode', 'lineWordLetter') || 'lineWordLetter';
+        const bookCipherBase = parseInt(cipherValue('bookCipherBase'), 10) === 0 ? 0 : 1;
+        const bookCipherText = cipherValue('bookCipherText');
+        setCipherText('bookCipherResult', bookCipherText.trim()
+            ? BookCipher.process(t, t, bookCipherText, bookCipherMode, bookCipherBase)
+            : '请在卡片内粘贴书文');
+
+        const chaoLeft = cipherValue('chaoLeft', 'CHAOBDEFGIJKLMNPQRSTUVWXYZ') || 'CHAOBDEFGIJKLMNPQRSTUVWXYZ';
+        const chaoRight = cipherValue('chaoRight', 'CIPHERABDFGJKLMNOQSTUVWXYZ') || 'CIPHERABDFGJKLMNOQSTUVWXYZ';
+        setCipherText('chaoResult', Chaocipher.process(t, chaoLeft, chaoRight));
+
+        const morbitKey = cipherValue('morbitKey', 'MORSECODE') || 'MORSECODE';
+        setCipherText('morbitResult', MorbitCipher.process(t, morbitKey));
+
+        setCipherText('polluxResult', PolluxCipher.process(
+            t,
+            cipherValue('polluxDot', '047') || '047',
+            cipherValue('polluxDash', '158') || '158',
+            cipherValue('polluxSpace', '2369') || '2369'
+        ));
+
+        const solitaireKey = cipherValue('solitaireKey');
+        setCipherText('solitaireResult', Solitaire.process(t, solitaireKey));
+
+        const dtKey1 = cipherValue('dtKey1', 'KEY') || 'KEY';
+        const dtKey2 = cipherValue('dtKey2', 'WORD') || 'WORD';
+        setCipherText('dtResult', DoubleTransposition.process(t, dtKey1, dtKey2));
+
+        // 汉字编码六张独立卡：HTML 在 0_cipher_div_batch.js 里，和上面这些卡一样在这一轮里算
         refreshHanziCodes();
     }
 
@@ -367,6 +458,104 @@ async function updateAll() {
         setCipherText('SHA256Result', `结果: ${await SHA256Cipher.e(t)}` + (sha256Key?.trim() ? `\nHMAC结果: ${await SHA256Cipher.hmac(sha256Key, t)}` : ''));
         setCipherText('SHA384Result', `结果: ${await SHA384Cipher.e(t)}` + (sha384Key?.trim() ? `\nHMAC结果: ${await SHA384Cipher.hmac(sha384Key, t)}` : ''));
         setCipherText('SHA512Result', `结果: ${await SHA512Cipher.e(t)}` + (sha512Key?.trim() ? `\nHMAC结果: ${await SHA512Cipher.hmac(sha512Key, t)}` : ''));
+
+        setCipherText('aesResult', await AESCipher.process(
+            t,
+            cipherValue('aesMode', 'CBC') || 'CBC',
+            cipherValue('aesKey'),
+            cipherValue('aesIv'),
+            cipherValue('aesInputFmt', 'text') || 'text',
+            cipherValue('aesOutputFmt', 'hex') || 'hex',
+            cipherValue('aesPadding', 'pkcs7') || 'pkcs7'
+        ));
+
+        setCipherText('rsaResult', RSACipher.process(
+            t,
+            cipherValue('rsaMode', 'decrypt') || 'decrypt',
+            cipherValue('rsaN'),
+            cipherValue('rsaE'),
+            cipherValue('rsaD'),
+            cipherValue('rsaC'),
+            cipherValue('rsaE2'),
+            cipherValue('rsaC2'),
+            cipherValue('rsaRadix', 'dec') || 'dec',
+            cipherValue('rsaDp'),
+            cipherValue('rsaBroadcast')
+        ));
+
+        setCipherText('md4Result', await HashToolbox.digest('MD4', t));
+        setCipherText('sha3_256Result', await HashToolbox.digest('SHA3-256', t));
+        setCipherText('sha3_512Result', await HashToolbox.digest('SHA3-512', t));
+        setCipherText('ripemd160Result', await HashToolbox.digest('RIPEMD-160', t));
+        setCipherText('sm3Result', await HashToolbox.digest('SM3', t));
+        setCipherText('crc32Result', await HashToolbox.digest('CRC32', t));
+        setCipherText('jwtResult', await JWTTool.process(t, cipherValue('jwtSecret')));
+
+        setCipherText('prngResult', PRNGTool.process(
+            t,
+            cipherValue('prngMode', 'mt') || 'mt',
+            cipherValue('prngCount', '5') || '5',
+            cipherValue('prngMod'),
+            cipherValue('prngA'),
+            cipherValue('prngC')
+        ));
+
+        setCipherText('rc4Result', SymmetricCipher.process(
+            t, 'RC4', 'ECB',
+            cipherValue('rc4Key'), '',
+            cipherValue('rc4InputFmt', 'text') || 'text',
+            cipherValue('rc4OutputFmt', 'hex') || 'hex',
+            'none'
+        ));
+
+        setCipherText('desResult', SymmetricCipher.process(
+            t, 'DES', cipherValue('desMode', 'ECB') || 'ECB',
+            cipherValue('desKey'), cipherValue('desIv'),
+            cipherValue('desInputFmt', 'text') || 'text',
+            cipherValue('desOutputFmt', 'hex') || 'hex',
+            cipherValue('desPadding', 'pkcs7') || 'pkcs7'
+        ));
+
+        setCipherText('tdesResult', SymmetricCipher.process(
+            t, '3DES', cipherValue('tdesMode', 'ECB') || 'ECB',
+            cipherValue('tdesKey'), cipherValue('tdesIv'),
+            cipherValue('tdesInputFmt', 'text') || 'text',
+            cipherValue('tdesOutputFmt', 'hex') || 'hex',
+            cipherValue('tdesPadding', 'pkcs7') || 'pkcs7'
+        ));
+
+        setCipherText('chachaResult', SymmetricCipher.process(
+            t, 'ChaCha20', 'ECB',
+            cipherValue('chachaKey'), cipherValue('chachaNonce'),
+            cipherValue('chachaInputFmt', 'text') || 'text',
+            cipherValue('chachaOutputFmt', 'hex') || 'hex',
+            'none'
+        ));
+
+        setCipherText('ecdsaResult', ECDSATool.process(
+            cipherValue('ecdsaCurve', 'secp256k1') || 'secp256k1',
+            cipherValue('ecdsaR'),
+            cipherValue('ecdsaS1'),
+            cipherValue('ecdsaS2'),
+            cipherValue('ecdsaZ1'),
+            cipherValue('ecdsaZ2'),
+            cipherValue('ecdsaRadix', 'dec') || 'dec'
+        ));
+
+        setCipherText('eccResult', ECCCalc.process(
+            cipherValue('eccCurve', 'secp256k1') || 'secp256k1',
+            cipherValue('eccMode', 'check') || 'check',
+            cipherValue('eccRadix', 'hex') || 'hex',
+            cipherValue('eccP'),
+            cipherValue('eccA'),
+            cipherValue('eccB'),
+            cipherValue('eccN'),
+            cipherValue('eccPx'),
+            cipherValue('eccPy'),
+            cipherValue('eccQx'),
+            cipherValue('eccQy'),
+            cipherValue('eccK')
+        ));
     }
 }
 

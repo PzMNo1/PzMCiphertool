@@ -14,6 +14,10 @@
 - `textarea` → 输入框
 - `history` → 消息历史显示区
 
+## 每日用量
+- 请求统一走 `buildUsageHeaders()`：携带登录 token、`X-Agent-Surface: agentmaster`
+- 每天 10 次，由后端 `UsageQuotaService` 计数，超出后聊天窗口提示“今日 Agentmaster 使用次数已用完”
+
 ## 绝对禁止
 - 新增和修改agentmaster的任何样式
 

@@ -82,7 +82,7 @@
 
     /* 顶栏、侧栏、向导里的按钮统一使用 cyber-button，样式集中在文件末尾。 */
 
-    /* ---------- 主体：侧栏浮在预览之上，与建模编辑器的可收起侧栏一致 ---------- */
+    /* ---------- 主体：侧栏浮在预览之上，与建模实验室的侧栏风格一致 ---------- */
     .fc-main {
       position: relative;
       flex: 1 1 auto;
@@ -579,7 +579,6 @@
     </div>
     <div class="fc-top-actions">
       <button type="button" class="cyber-button fc-cyber" id="fc-guide-btn"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">使用说明</span></button>
-      <button type="button" class="cyber-button fc-cyber" id="fc-open-editor"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">前往建模编辑器</span></button>
     </div>
   </header>
 
@@ -623,7 +622,7 @@
           <button type="button" class="cyber-button fc-cyber" id="fc-export" disabled><span class="cyber-button__glitch"></span><span class="cyber-button__tag">导出 GLB 并下载</span></button>
         </div>
         <div class="fc-meta" id="fc-export-meta" style="margin-top:9px">
-          导出的 GLB 可直接在建模编辑器里用「本地导入」打开。
+          导出的 GLB 可直接下载使用。
         </div>
       </section>
 
@@ -648,7 +647,7 @@
         <div>
           <strong>MODEL FORMAT CONVERTER</strong>
           左侧导入或直接拖入模型文件<br />
-          任意格式 → 预览 → 导出 GLB → 建模编辑器本地导入
+          任意格式 → 预览 → 导出 GLB
         </div>
       </div>
       <div class="fc-busy" id="fc-busy">正在解析模型…</div>
@@ -659,12 +658,11 @@
   <div class="fc-guide" id="fc-guide">
     <div class="fc-guide-box">
       <h2>使用说明 · 模型格式转换台</h2>
-      <p class="muted">把各种常见 3D 格式统一转成 GLB，再放进建模实验室的编辑器里使用。</p>
+      <p class="muted">把各种常见 3D 格式统一转成 GLB，方便后续在三维工具里继续使用。</p>
 
       <h4>为什么需要这一步</h4>
-      <p>建模实验室的编辑器本体基于 Three.js（WebGPU 渲染，自动回退 WebGL2），它的「本地导入」只接受
-        <code>.glb</code> / <code>.fbx</code>。其余格式（OBJ、STL、PLY、GLTF 文本、DAE 等）不是渲染引擎的限制，
-        而是导入入口只做了这两种后缀的校验，所以先用本页转成 GLB 是最省事的通路。</p>
+      <p>GLB 是三维工具通用的交换格式，模型与贴图可以打包进单个文件；OBJ、STL、PLY、GLTF 文本、DAE 等
+        格式在不同工具里的兼容性不一致，先转成 GLB 最省事。</p>
 
       <h4>支持导入的格式</h4>
       <ul>
@@ -680,10 +678,8 @@
       <ul>
         <li>1. 拖入模型文件；带贴图的模型建议直接拖<b>整个文件夹</b>，程序会自动关联贴图与 .bin。</li>
         <li>2. 在「模型列表」里切换已导入的模型，右侧预览可左键旋转 / 右键平移 / 滚轮缩放。</li>
-        <li>3. 需要时打开「自动居中」「底部对齐地面」，方便在编辑器里摆位。</li>
+        <li>3. 需要时打开「自动居中」「底部对齐地面」，方便后续摆位。</li>
         <li>4. 点「导出 GLB 并下载」，得到 <code>&lt;模型名&gt;.glb</code>。</li>
-        <li>5. 回到建模实验室（ORBITAL HARDWARE STUDIO），用工具栏「本地导入」选择这个 GLB；或直接点本页顶部
-          「前往建模编辑器」。</li>
       </ul>
 
       <h4>注意事项</h4>
@@ -1520,7 +1516,7 @@
       $('fc-anim-wrap').style.display = 'none';
       $('fc-hud').innerHTML = '等待导入模型…';
       $('fc-import-meta').textContent = '尚未导入任何文件。';
-      $('fc-export-meta').textContent = '导出的 GLB 可直接在建模编辑器里用「本地导入」打开。';
+      $('fc-export-meta').textContent = '导出的 GLB 可直接下载使用。';
       renderModelList();
       toast('已清空。');
     }
@@ -1588,8 +1584,8 @@
           `验证：mesh ${result.report.meshes} / 三角面 ${fmtNum(result.report.triangles)}` +
           `${result.report.animations ? ` / 动画 ${result.report.animations}` : ''}` +
           `${result.report.images ? ` / 内嵌贴图 ${result.report.images}` : ''}）。<br />` +
-          `在建模编辑器里用「本地导入」选择该文件即可。` + growNote +
-          (heavy ? '<br /><span style="color:#ff5f6d">模型较大，导入编辑器可能需要较长加载时间。</span>' : '');
+          `GLB 已下载，可直接用于支持 GLB 的三维工具。` + growNote +
+          (heavy ? '<br /><span style="color:#ff5f6d">模型较大，后续加载可能需要较长时间。</span>' : '');
         toast('导出成功，已开始下载。', 'ok');
       } catch (err) {
         console.error(err);
@@ -1756,16 +1752,6 @@
     $('fc-guide').addEventListener('click', e => {
       if (e.target === $('fc-guide')) $('fc-guide').classList.remove('on');
     });
-
-    $('fc-open-editor').onclick = () => {
-      try {
-        if (window.parent && window.parent !== window) {
-          window.parent.postMessage({ type: 'modelinglab:open-editor' }, '*');
-          return;
-        }
-      } catch (e) { /* 跨域则直接跳转 */ }
-      location.href = './three-webgpu-editor/docs/index.html';
-    };
 
     /* ---------- 示例模型（用于快速验证链路） ---------- */
     $('fc-demo').onclick = async () => {

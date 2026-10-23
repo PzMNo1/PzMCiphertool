@@ -89,6 +89,7 @@
         const closeBtn = document.getElementById('authClose');
         const sendCodeBtn = document.getElementById('authSendCode');
         const loginBtn = document.getElementById('authLoginBtn');
+        const accountInput = document.getElementById('authPhone');
         const inputs = document.querySelectorAll('.auth-input');
 
         // 关闭模态框
@@ -99,6 +100,9 @@
 
         // 登录
         if(loginBtn) loginBtn.addEventListener('click', handleLogin);
+
+        // 账号输入时切换验证码/密码输入态
+        if(accountInput) accountInput.addEventListener('input', syncSecretInputMode);
 
         // 输入框聚焦清除错误信息
         inputs.forEach(input => {
@@ -186,29 +190,39 @@
     }
 
     async function handleLogin() {
-        const phone = document.getElementById('authPhone').value.trim();
-        const code = document.getElementById('authCode').value.trim();
+        const account = document.getElementById('authPhone').value.trim();
+        const secret = document.getElementById('authCode').value.trim();
 
-        if (!phone || !code) {
+        if (!account || !secret) {
             showMessage('请填写完整信息', 'error');
             return;
         }
 
-        if (!/^1[3-9]\d{9}$/.test(phone)) {
+        const isPhone = /^1[3-9]\d{9}$/.test(account);
+        if (!isPhone && !/[^\d\s]/.test(account)) {
             showMessage('请输入有效的手机号', 'error');
             return;
         }
 
+        if (isPhone && !/^\d{4,6}$/.test(secret)) {
+            showMessage('请输入有效的验证码', 'error');
+            return;
+        }
+
         const loginBtn = document.getElementById('authLoginBtn');
+        const endpoint = isPhone ? '/api/auth/login' : '/api/auth/developer-login';
+        const payload = isPhone
+            ? { phone: account, code: secret }
+            : { account: account, password: secret };
 
         try {
             loginBtn.textContent = '登录中...';
             loginBtn.disabled = true;
 
-            const response = await fetch(`${API_BASE}/api/auth/login`, {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: phone, code: code })
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
@@ -216,8 +230,8 @@
             if (result.success) {
                 // 登录成功
                 saveUser({
-                    phone: result.data.phone || phone,
-                    maskedPhone: result.data.maskedPhone || maskPhone(phone),
+                    phone: result.data.phone || account,
+                    maskedPhone: result.data.maskedPhone || maskPhone(account),
                     token: result.data.token || '',
                     loginTime: result.data.loginTime,
                     expiresAt: result.data.expiresAt
@@ -232,6 +246,7 @@
                 // 清空表单
                 document.getElementById('authPhone').value = '';
                 document.getElementById('authCode').value = '';
+                syncSecretInputMode();
             } else {
                 showMessage(result.message || '登录失败', 'error');
             }
@@ -242,6 +257,20 @@
             loginBtn.textContent = '登 录';
             loginBtn.disabled = false;
         }
+    }
+
+    function syncSecretInputMode() {
+        const accountInput = document.getElementById('authPhone');
+        const secretInput = document.getElementById('authCode');
+        if (!accountInput || !secretInput) return;
+
+        const account = accountInput.value.trim();
+        const phoneMode = !account || /^\d+$/.test(account);
+
+        secretInput.maxLength = phoneMode ? 6 : 64;
+        secretInput.setAttribute('inputmode', phoneMode ? 'numeric' : 'text');
+        secretInput.setAttribute('autocomplete', phoneMode ? 'one-time-code' : 'current-password');
+        secretInput.placeholder = phoneMode ? '验证码' : '密码';
     }
 
     function handleLogout() {

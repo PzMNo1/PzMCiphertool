@@ -6,7 +6,7 @@
  */
 
 var ELECTRONIC_LAB_CIRCUIT_SRC = './electronic/war/circuitjs.html';
-var ELECTRONIC_LAB_PCB_VERSION = '20261021-3';
+var ELECTRONIC_LAB_PCB_VERSION = '20261023-18';
 var ELECTRONIC_LAB_PCB_SRC = './electronic/PCBLayout/index.html?v=' + ELECTRONIC_LAB_PCB_VERSION;
 
 var electronicLabPcbReady = false;
@@ -220,6 +220,56 @@ window.addEventListener('message', function (event) {
 // 暴露给外部（例如侧边栏搜索、Agent 工具）按名称切换到对应子模块。
 window.electronicLabShowSubmodule = function (name) {
     electronicLabSetSubmodule(name === 'pcb' ? 'pcb' : 'simulation', true);
+};
+
+// ---- Agentmaster 控制左侧 TSX 面板的桥接 ----
+function electronicLabOpenPcbEditor() {
+    var item = document.querySelector('.menu-item[data-target="electroniclab"]');
+    if (item && !item.classList.contains('active')) item.click();
+    electronicLabSetSubmodule('pcb', true);
+}
+
+function electronicLabGetPcbEditorApi() {
+    var frame = electronicLabGet('pcb-frame');
+    if (!frame) return null;
+    try {
+        var win = frame.contentWindow;
+        return win && win.PzmaPcbEditor ? win.PzmaPcbEditor : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function electronicLabWaitPcbEditor(timeoutMs) {
+    return new Promise(function (resolve) {
+        var deadline = Date.now() + (timeoutMs || 25000);
+        (function poll() {
+            var api = electronicLabGetPcbEditorApi();
+            if (api) { resolve(api); return; }
+            if (Date.now() >= deadline) { resolve(null); return; }
+            setTimeout(poll, 150);
+        })();
+    });
+}
+
+window.electronicLabWritePcbCode = function (code, options) {
+    options = options || {};
+    var text = String(code == null ? '' : code);
+    if (!text.trim()) return Promise.resolve({ ok: false, message: 'TSX 代码为空' });
+    electronicLabOpenPcbEditor();
+    return electronicLabWaitPcbEditor(options.timeoutMs).then(function (api) {
+        if (!api) return { ok: false, message: '电路板布局编辑器尚未就绪（首次加载约 10–20 秒），请稍后重试' };
+        return api.setCode(text, { run: options.run !== false, reason: options.reason || '' });
+    });
+};
+
+window.electronicLabReadPcbCode = function (options) {
+    options = options || {};
+    electronicLabOpenPcbEditor();
+    return electronicLabWaitPcbEditor(options.timeoutMs).then(function (api) {
+        if (!api) return { ok: false, message: '电路板布局编辑器尚未就绪，请稍后重试' };
+        return { ok: true, code: api.getCode() };
+    });
 };
 
 // modules.js 的懒加载初始化通过全局函数名调用。

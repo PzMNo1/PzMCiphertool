@@ -427,10 +427,10 @@
             text: chunk.text,
             snippet: bestSnippet(chunk.text, queryTokens(queryText), 360),
             score: chunk.score,
-            source: 'Wikipedia',
+            source: '百科',
             url: chunk.url,
             citation: {
-                source: 'Wikipedia',
+                source: '百科',
                 title: chunk.title,
                 url: chunk.url,
                 revision: chunk.revision,

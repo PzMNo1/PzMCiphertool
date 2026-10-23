@@ -34,9 +34,22 @@ public class WebCrawlerController {
         return Map.of("success", true, "data", result);
     }
 
+    @PostMapping("/deepseek/search")
+    public Map<String, Object> deepseekSearch(@RequestBody Map<String, Object> request) {
+        String query = (String) request.getOrDefault("query", "");
+        Integer count = request.get("count") instanceof Number number ? number.intValue() : 10;
+        Boolean needContent = request.get("need_content") instanceof Boolean value ? value : Boolean.FALSE;
+        return Map.of("success", true, "data", webCrawlerService.deepseekSearch(query, count, needContent));
+    }
+
+    @PostMapping("/deepseek/fetch")
+    public Map<String, Object> deepseekFetch(@RequestBody Map<String, Object> request) {
+        String url = (String) request.getOrDefault("url", "");
+        return Map.of("success", true, "data", webCrawlerService.deepseekFetch(url));
+    }
+
     @PostMapping("/community_snapshot")
-    public Map<String, Object> communitySnapshot(@RequestBody Map<String, Object> request) {
-        try {
+    public Map<String, Object> communitySnapshot(@RequestBody Map<String, Object> request) {        try {
             Map<String, Object> safeRequest = request == null ? Map.of() : request;
             List<String> sources = safeRequest.get("sources") instanceof List<?> list
                     ? list.stream().map(String::valueOf).toList()

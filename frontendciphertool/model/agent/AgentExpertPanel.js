@@ -60,7 +60,7 @@
         constructor(runtime, options = {}) {
             this.runtime = runtime;
             this.config = Object.assign({
-                maxConcurrency: 4,
+                maxConcurrency: 5,
                 maxIterationsPerExpert: 4,
                 maxFindingsChars: 2200,
                 // 专家材料总上限。这是写作提示词里最大的一块，过大会拖慢预填充并挤压生成时间。
@@ -167,7 +167,8 @@
                 executeTool = null,
                 onStatus = null,
                 perfMonitor = null,
-                clientFactory = null
+                clientFactory = null,
+                onThought = null
             } = options;
 
             const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
@@ -222,7 +223,9 @@
                     enableThinking: false,
                     maxIterations: this.config.maxIterationsPerExpert,
                     signal,
-                    onReasoning: () => { },
+                    onReasoning: text => {
+                        if (onThought) onThought(dimensionKey, text);
+                    },
                     onContent: (delta) => {
                         if (perfMonitor && llmCallId && iterationFirstTokenAt === 0 && delta) {
                             iterationFirstTokenAt = now();
@@ -343,7 +346,8 @@
                 onStatus = null,
                 onTrace = null,
                 perfMonitor = null,
-                clientFactory = null
+                clientFactory = null,
+                onThought = null
             } = options;
 
             if (!this.isEnabled()) {
@@ -387,6 +391,7 @@
                         executeTool,
                         perfMonitor,
                         clientFactory,
+                        onThought,
                         onStatus: status => {
                             experts[index] = { ...experts[index], ...status };
                             if (onStatus) onStatus(experts.slice());

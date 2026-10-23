@@ -238,7 +238,7 @@
             <button type="button" id="demo">载入样片</button>
         </div>
 
-        <div id="hint">左键拖动转视角 · 滚轮前后移动 · 右键或双指平移 · R 键回到原点</div>
+        <div id="hint">左键拖动转视角 · WASD 移动 · 滚轮前后移动 · 右键或双指平移 · R 键回到原点</div>
 
         <div class="overlay" id="bottombar">
             <span class="field">
@@ -297,6 +297,14 @@
         let renderProbeFrames = 0;
         /** 复用的尺寸临时对象，避免每帧分配 */
         const _sizeScratch = { width: 0, height: 0 };
+        /** WASD 平移：按键状态 + 行走速度（米/秒） */
+        const MOVE_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+        const MOVE_SPEED = 3;
+        const pressedKeys = new Set();
+        const _forward = new THREE.Vector3();
+        const _right = new THREE.Vector3();
+        const _move = new THREE.Vector3();
+        let lastFrameAt = performance.now();
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x04070c);
@@ -377,7 +385,7 @@
         function loadCurrent() {
             const url = state.spzUrls[state.resolution] || state.spzUrls.full_res || firstUrl(state.spzUrls);
             if (!url) {
-                fail('这个作品没有可用的 SPZ 高斯溅射文件。', '可以改用「Marble 官方查看」或下载该世界的全景图预览。');
+                fail('这个作品没有可用的 SPZ 高斯溅射文件。', '可以改用「全景图」查看该世界的预览。');
                 return;
             }
             loadSplat(url);
@@ -422,7 +430,7 @@
                 fail(
                     'SPZ 加载失败。',
                     cors
-                        ? message + '\n（浏览器可能拦了跨域下载。这类 CDN 通常带 CORS 头，若持续失败可改用「Marble 官方查看」。）'
+                        ? message + '\n（浏览器可能拦了跨域下载。这类 CDN 通常带 CORS 头，若持续失败可在作品里改用「全景图」查看。）'
                         : message
                 );
             }
@@ -523,6 +531,50 @@
 
         /* ---------------- 交互 ---------------- */
 
+        function isFormTarget(target) {
+            if (!target || !target.tagName) return false;
+            return target.tagName === 'INPUT'
+                || target.tagName === 'SELECT'
+                || target.tagName === 'TEXTAREA'
+                || target.isContentEditable === true;
+        }
+
+        function setMoveKey(code, down) {
+            if (!MOVE_CODES.has(code)) return;
+            if (down) pressedKeys.add(code);
+            else pressedKeys.delete(code);
+        }
+
+        function clearMoveKeys() {
+            pressedKeys.clear();
+        }
+
+        /** 沿相机朝向的水平面移动，同时平移视点与目标点，保持当前视角。 */
+        function applyMovement(dt) {
+            if (!pressedKeys.size || !state.splat) return;
+            camera.getWorldDirection(_forward);
+            _forward.y = 0;
+            if (_forward.lengthSq() < 1e-6) {
+                // 正上方/正下方俯视时前向退化，用相机上方向投影兜底。
+                _forward.set(0, 1, 0).applyQuaternion(camera.quaternion);
+                _forward.y = 0;
+            }
+            if (_forward.lengthSq() < 1e-6) return;
+            _forward.normalize();
+            _right.crossVectors(_forward, camera.up).normalize();
+
+            _move.set(0, 0, 0);
+            if (pressedKeys.has('KeyW')) _move.add(_forward);
+            if (pressedKeys.has('KeyS')) _move.sub(_forward);
+            if (pressedKeys.has('KeyD')) _move.add(_right);
+            if (pressedKeys.has('KeyA')) _move.sub(_right);
+            if (_move.lengthSq() < 1e-6) return;
+
+            _move.normalize().multiplyScalar(MOVE_SPEED * dt);
+            camera.position.add(_move);
+            controls.target.add(_move);
+        }
+
         document.getElementById('reset').onclick = resetView;
         document.getElementById('fit').onclick = fitScene;
         document.getElementById('demo').onclick = loadDemo;
@@ -551,12 +603,30 @@
 
         window.addEventListener('keydown', event => {
             if (event.key === 'r' || event.key === 'R') resetView();
+            if (!MOVE_CODES.has(event.code)) return;
+            if (event.ctrlKey || event.metaKey || event.altKey) return;
+            if (isFormTarget(event.target)) return;
+            event.preventDefault();
+            setMoveKey(event.code, true);
+        });
+
+        window.addEventListener('keyup', event => {
+            if (MOVE_CODES.has(event.code)) setMoveKey(event.code, false);
+        });
+
+        window.addEventListener('blur', clearMoveKeys);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) clearMoveKeys();
         });
 
         /** 宿主页面（建模实验室）通过 postMessage 送新世界进来 */
         window.addEventListener('message', event => {
             const data = event.data;
             if (!data || typeof data !== 'object') return;
+            if (data.type === 'worldmodel:key') {
+                setMoveKey(data.code, data.down === true);
+                return;
+            }
             if (data.type === 'worldmodel:load' && data.spzUrls) {
                 setWorld(data);
             }
@@ -611,6 +681,7 @@
                 splatPosition: state.splat ? state.splat.position.toArray() : null,
                 materialType: state.splat?.material?.type || null,
                 visible: state.splat ? state.splat.visible : null,
+                moveKeys: Array.from(pressedKeys),
                 backend: renderer?.backend ? (renderer.backend.isWebGPUBackend ? 'webgpu' : 'webgl2') : 'none',
                 renderCalls: info ? info.render.calls : null,
                 renderTriangles: info ? info.render.triangles : null
@@ -683,6 +754,12 @@
             // 宿主切页签时画布会是 0×0；这时候直接渲染会让 WebGPU 去建 0×0 的
             // 颜色/深度纹理并抛 GPUValidationError。以真实 drawingBuffer 为准跳过。
             if (!hasRenderableSize()) return;
+
+            const now = performance.now();
+            const dt = Math.min((now - lastFrameAt) / 1000, 0.1);
+            lastFrameAt = now;
+
+            applyMovement(dt);
             controls.update();
             renderer.render(scene, camera);
 
@@ -701,8 +778,8 @@
         renderer.init?.().then(() => {
             const isWebGPU = renderer.backend && renderer.backend.isWebGPUBackend === true;
             document.getElementById('hint').textContent = isWebGPU
-                ? '渲染后端 WebGPU · 左键拖动转视角 · 滚轮前后移动 · 右键平移 · R 键回到原点'
-                : '渲染后端 WebGL2（未启用 WebGPU）· 左键拖动转视角 · 滚轮前后移动 · 右键平移 · R 键回到原点';
+                ? '渲染后端 WebGPU · 左键拖动转视角 · WASD 移动 · 滚轮前后移动 · 右键平移 · R 键回到原点'
+                : '渲染后端 WebGL2（未启用 WebGPU）· 左键拖动转视角 · WASD 移动 · 滚轮前后移动 · 右键平移 · R 键回到原点';
         }).catch(error => {
             console.error('[splat] 渲染器初始化失败', error);
             fail('GPU 渲染器初始化失败。', String((error && error.message) || error));

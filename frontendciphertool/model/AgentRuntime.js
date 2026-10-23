@@ -56,9 +56,9 @@ class AgentRuntime {
         const override = (typeof window !== 'undefined' && window.PZM_AGENT_RUN_CONFIG) || {};
         const style = (typeof window !== 'undefined' && window.PZM_AGENT_STYLE) || {};
         return {
-            maxConcurrency: Number(override.expertConcurrency) > 0 ? Number(override.expertConcurrency) : 4,
+            maxConcurrency: Number(override.expertConcurrency) > 0 ? Number(override.expertConcurrency) : 5,
             maxIterationsPerExpert: Number(override.expertIterations) > 0 ? Number(override.expertIterations) : 3,
-            mainLoopIterations: Number(override.mainLoopIterations) > 0 ? Number(override.mainLoopIterations) : 4,
+            mainLoopIterations: Number(override.mainLoopIterations) > 0 ? Number(override.mainLoopIterations) : 3,
             // 18000 中文字约需 27000+ token；实测上游接受 max_tokens=65536
             synthesisMaxTokens: Number(override.synthesisMaxTokens) > 0 ? Number(override.synthesisMaxTokens) : 56000,
             // 实测单次调用自然收敛在 ~15000 中文字，18000 档需要补充阶段兜底，故默认允许 2 次
@@ -75,7 +75,13 @@ class AgentRuntime {
     createExpertClient() {
         try {
             if (typeof this.clientFactory === 'function') return this.clientFactory();
-            if (window.DeepSeekClient) return new window.DeepSeekClient();
+            if (window.DeepSeekClient) {
+                const client = new window.DeepSeekClient();
+                if (this.client?.usageTurnId && typeof client.beginUsageTurn === 'function') {
+                    client.beginUsageTurn(this.client.usageTurnId);
+                }
+                return client;
+            }
         } catch (error) {
             console.warn('Failed to create dedicated expert client, reusing runtime client.', error);
         }
@@ -244,6 +250,9 @@ class AgentRuntime {
             : null;
         plan.contract = contract;
         runState.contract = contract;
+        // 研究档位：工具循环只产出内部草稿，正文由唯一的交付物写作阶段输出，
+        // 避免用户先看到一版完整正文、随后又被另一版覆盖。
+        const deferVisibleContent = Boolean(contract && contract.minChars > 0 && this.researchContract);
         const runtimeConfig = this.resolvePanelConfig();
 
         // 让运行面板提前准备好专家状态容器（面板在 createAgentRunPanel 时据此创建）
@@ -356,26 +365,31 @@ class AgentRuntime {
                     ? this.performanceMonitor.beginLLMCall('plan')
                     : null;
                 let planFirstTokenSeen = false;
+                let planTextBuffer = '';
                 
                 const planResponse = await this.client.chat({
                     messages: [...agentMessages, {
                         role: 'user',
-                        content: '请先制定一个深入的执行计划（10-15 行）：\n1) 任务定位：这个问题要回答到什么程度才算答透。\n2) 信息维度：拆出 6-10 个必须覆盖的维度/视角（按问题实际需要，例如政策/技术路线/产业链上下游/市场格局/竞争/地缘/人才/资本等）。\n3) 检索策略：每个维度用什么工具、并行怎么铺、检索关键词方向、优先哪些一手/权威来源。\n4) 输出形态：最终答案的结构与篇幅规划。\n只写计划本身，不要调用工具，不要开始写正文。'
+                        content: '请先制定一个简洁的执行计划（6-10 行）：\n1) 任务定位：回答到什么程度算答透。\n2) 信息维度：拆出 6-10 个必须覆盖的维度/视角。\n3) 检索策略：每个维度用什么工具、并行怎么铺、优先哪些一手来源。\n4) 输出形态：最终答案的结构与篇幅规划。\n只写计划本身，不要调用工具，不要开始写正文。'
                     }],
                     enableThinking,
                     signal,
-                    maxTokens: 1600,
-                    onReasoning: () => { },
+                    maxTokens: 900,
+                    onReasoning: text => {
+                        this.appendThought(runState, 'plan', text, { streamKey: 'plan-reasoning' });
+                    },
                     onContent: (delta, full) => {
                         if (this.performanceMonitor && planCallId && !planFirstTokenSeen && delta) {
                             planFirstTokenSeen = true;
                             this.performanceMonitor.markFirstToken(planCallId);
                         }
-                        if (container.reasoningDetails.classList.contains('thinking-state')) {
-                            this.ui.finishReasoning(container);
-                        }
-                        this.ui.updateContent(container, full);
-                        this.notifyRunSnapshot(runState, 'plan.updated', { content: full || '' });
+                        // 计划是内部产物，只进入思维链，不写进正文。
+                        planTextBuffer = full || planTextBuffer;
+                        this.appendThought(runState, 'plan', delta || '', {
+                            streamKey: 'plan-output',
+                            status: '制定计划中'
+                        });
+                        this.ui.setReasoningStatus(container, '正在制定执行计划');
                     }
                 });
                 
@@ -387,13 +401,18 @@ class AgentRuntime {
                     this.contextManager.updateFromUsage(planResponse.usage);
                 }
                 
-                const planText = String(planResponse?.content || '').trim();
+                const planText = String(planResponse?.content || planTextBuffer || '').trim();
                 if (planText) {
                     agentMessages.splice(agentMessages.indexOf(agentSystemMessage) + 1, 0, {
                         role: 'system',
                         content: '[你的初始执行计划，作为后续执行的参考]\n' + planText
                     });
                     this.ui.addAgentTrace(container, 'plan', '模型计划：' + this.previewValue(planText, 240));
+                    this.appendThought(runState, 'plan', `计划完成（${planText.length} 字）`, {
+                        streamKey: 'plan-done',
+                        replace: true,
+                        status: '计划完成'
+                    });
                 }
             } catch (error) {
                 console.warn('Plan call failed, continuing without a pre-plan.', error);
@@ -407,7 +426,7 @@ class AgentRuntime {
         let panelUsage = null;
         if (this.expertPanel && contract && contract.needsExpertPanel) {
             try {
-                this.ui.setAgentStage(container, 'route', 'active', '并行专家研究');
+                this.ui.setAgentStage(container, 'route', 'active', '并行Agent研究');
                 const panel = await this.expertPanel.run({
                     query: userMessage,
                     contract,
@@ -424,9 +443,13 @@ class AgentRuntime {
                     },
                     onTrace: (type, message) => {
                         this.ui.addAgentTrace(container, 'route', message);
+                        this.appendThought(runState, 'route', message);
                         this.emitEvent(runState, type, { message }, { stage: 'route', visibility: 'history' });
                     },
-                    onStatus: experts => this.renderExpertStatus(container, experts, runState)
+                    onStatus: experts => this.renderExpertStatus(container, experts, runState),
+                    onThought: (key, text) => this.appendThought(runState, 'route', text, {
+                        streamKey: 'expert-think-' + key
+                    })
                 });
 
                 if (panel && panel.digest) {
@@ -506,12 +529,15 @@ class AgentRuntime {
             // 记录 LLM 调用开始
             const llmCallId = this.performanceMonitor ? this.performanceMonitor.beginLLMCall('synthesize') : null;
             let firstTokenRecorded = false;
+            let synthProgressChars = 0;
             
             const response = await this.client.chat({
                 messages: agentMessages,
                 enableThinking,
                 signal,
-                onReasoning: () => { },
+                onReasoning: text => {
+                    this.appendThought(runState, 'synthesize', text, { streamKey: 'synth-reasoning' });
+                },
                 onUsage: usage => {
                     this.recordModelUsage(runState, usage);
                     if (this.contextManager) {
@@ -528,9 +554,21 @@ class AgentRuntime {
                     if (container.reasoningDetails.classList.contains('thinking-state')) {
                         this.ui.finishReasoning(container);
                     }
-                    this.ui.updateContent(container, full);
+                    if (deferVisibleContent) {
+                        this.ui.setReasoningStatus(container, '正在整理回答');
+                    } else {
+                        this.ui.updateContent(container, full);
+                    }
+                    if (full && full.length - synthProgressChars > 900) {
+                        synthProgressChars = full.length;
+                        this.appendThought(runState, 'synthesize', `生成正文 ${full.length} 字`, {
+                            streamKey: 'synth-progress',
+                            replace: true,
+                            status: '生成正文中'
+                        });
+                    }
                     this.recordModelDelta(runState, delta, full, 'synthesize');
-                    this.notifyRunSnapshot(runState, 'content.updated', { content: full || '' });
+                    this.notifyRunSnapshot(runState, 'content.updated', deferVisibleContent ? {} : { content: full || '' });
                 }
             });
             
@@ -558,6 +596,8 @@ class AgentRuntime {
                     if (response) response.content = noToolContent;
                     runState.metrics.deliverable_ok = Boolean(deliverable.verification?.ok);
                     runState.metrics.deliverable_chars = deliverable.verification?.stats?.chars || 0;
+                } else if (deferVisibleContent) {
+                    this.ui.updateContent(container, noToolContent);
                 }
             }
 
@@ -580,7 +620,7 @@ class AgentRuntime {
             if (response) {
                 response.reasoning_content = null;
             }
-            response.agent_run = this.snapshotRun(container, plan, runState);
+            response.agent_run = this.snapshotRun(container, plan, runState, { includeThoughts: true });
             this.notifyRunSnapshot(runState, 'run.completed', { content: response?.content || '' });
             return response;
         }
@@ -621,6 +661,8 @@ class AgentRuntime {
 
         let iterationLLMCallId = null;
         let iterationFirstTokenSeen = false;
+        let loopIteration = 1;
+        let loopProgressChars = 0;
 
         finalResponse = await this.client.chatWithTools({
             messages: agentMessages,
@@ -628,7 +670,11 @@ class AgentRuntime {
             enableThinking,
             maxIterations: mainLoopIterations,
             signal,
-            onReasoning: () => { },
+            onReasoning: text => {
+                this.appendThought(runState, 'act', text, {
+                    streamKey: 'loop-reasoning-' + loopIteration
+                });
+            },
             onContent: (delta, full, meta = {}) => {
                 // 全部内容实时流式渲染：每轮进度句与最终答案都直接刷新到正文。
                 latestStreamedContent = full || latestStreamedContent;
@@ -650,10 +696,25 @@ class AgentRuntime {
                     // 本轮还没出现工具调用且正文已经较长：模型在直接产出最终答案 → 切到 Synthesize
                     beginSynthesisStage();
                 }
-                this.ui.updateContent(container, latestStreamedContent);
-                this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
+                if (deferVisibleContent) {
+                    this.ui.setReasoningStatus(container, '正在检索并整理证据');
+                } else {
+                    this.ui.updateContent(container, latestStreamedContent);
+                }
+                if (latestStreamedContent.length - loopProgressChars > 900) {
+                    loopProgressChars = latestStreamedContent.length;
+                    this.appendThought(runState, 'act', `第 ${loopIteration} 轮生成 ${latestStreamedContent.length} 字`, {
+                        streamKey: 'loop-progress-' + loopIteration,
+                        replace: true,
+                        status: '生成中'
+                    });
+                }
+                this.notifyRunSnapshot(runState, 'content.updated', deferVisibleContent ? {} : { content: latestStreamedContent });
             },
             onIterationStart: iteration => {
+                loopIteration = iteration;
+                loopProgressChars = 0;
+                this.appendThought(runState, 'act', `Iteration ${iteration} 开始`, { status: '执行中' });
                 this.recordIteration(runState, iteration);
                 iterationToolCallSeen = false;
                 iterationFirstTokenSeen = false;
@@ -697,6 +758,15 @@ class AgentRuntime {
                 });
                 this.ui.setAgentStage(container, 'act', 'active', toolCall.function.name);
                 this.ui.displayToolCall(container, toolCall);
+                let toolArgsPreview = '';
+                try {
+                    toolArgsPreview = this.previewValue(JSON.parse(toolCall.function.arguments || '{}'), 180);
+                } catch (error) {
+                    toolArgsPreview = this.previewValue(toolCall.function.arguments || '', 180);
+                }
+                this.appendThought(runState, 'act', `${toolCall.function.name}：${toolArgsPreview}`, {
+                    status: '调用工具'
+                });
                 
                 // 记录工具调用开始（用于性能监控计时）
                 if (this.performanceMonitor) {
@@ -708,6 +778,13 @@ class AgentRuntime {
                 this.recordToolResult(runState, toolCallId, result, success);
                 this.ui.setAgentStage(container, 'observe', success ? 'active' : 'error', success ? '观察完成' : '工具失败');
                 this.ui.updateToolResult(toolCallId, this.summarizeToolResult(result), success);
+                const toolName = runState.toolCalls.find(item => item.id === toolCallId)?.name || '工具';
+                this.appendThought(
+                    runState,
+                    'observe',
+                    `${toolName} ${success ? '返回' : '失败'}：${String(result ?? '').length} 字`,
+                    { status: success ? '观察结果' : '工具失败' }
+                );
                 
                 // 记录工具调用耗时
                 if (this.performanceMonitor) {
@@ -731,6 +808,9 @@ class AgentRuntime {
                     content_chars: String(response?.content || '').length
                 }, { stage: count ? 'observe' : 'synthesize', visibility: 'history' });
                 this.ui.addAgentTrace(container, 'observe', 'Iteration ' + iteration + ': ' + count + ' tool call(s) observed.');
+                this.appendThought(runState, 'act', `Iteration ${iteration} 完成：${count} 个工具调用`, {
+                    status: count ? '继续补缺' : '进入合成'
+                });
             },
             onUsage: usage => {
                 this.recordModelUsage(runState, usage);
@@ -777,6 +857,12 @@ class AgentRuntime {
                 deliverableVerification = deliverable.verification;
                 latestStreamedContent = deliverable.content;
             }
+        }
+
+        // 交付阶段没有产出时，才把工具循环的草稿作为唯一正文显示出来。
+        if (deferVisibleContent && !deliverableContent && latestStreamedContent) {
+            this.ui.updateContent(container, latestStreamedContent);
+            this.notifyRunSnapshot(runState, 'content.updated', { content: latestStreamedContent });
         }
 
         if (finalResponse) {
@@ -827,7 +913,7 @@ class AgentRuntime {
                 warnings: runState.warnings
             }, { stage: 'synthesize', visibility: 'history' });
             finalResponse.agent_tool_calls = collectedToolCalls;
-            finalResponse.agent_run = this.snapshotRun(container, plan, runState);
+            finalResponse.agent_run = this.snapshotRun(container, plan, runState, { includeThoughts: true });
             this.notifyRunSnapshot(runState, 'run.completed', { content: finalResponse.content || latestStreamedContent || '' });
         }
         return finalResponse;
@@ -1045,16 +1131,28 @@ class AgentRuntime {
             repairs: 0,
             ok: verification.ok
         };
+        const maxRepairs = Math.max(0, Number(runtimeConfig.repairPasses) || 0);
+        const stats = verification.stats || {};
+        // 只有明显不达标才补写：接近达标的稿子直接采用，避免读完后又被整篇替换。
+        const needsRepair = !verification.ok && (
+            Number(stats.chars || 0) < contract.minChars * 0.85
+            || Number(stats.tables || 0) === 0
+            || Number(stats.diagrams || 0) === 0
+            || Number(stats.citations || 0) < Math.max(3, Math.floor(contract.minCitations * 0.5))
+        );
         this.ui.addAgentTrace(
             container,
             'synthesize',
             '交付校验：' + verification.stats.chars + ' 中文字 / 表格 ' + verification.stats.tables
             + ' / 图表 ' + verification.stats.diagrams + ' / 引用 ' + verification.stats.citations
-            + (verification.ok ? ' → 达标' : ' → 未达标，补充一次')
+            + (verification.ok ? ' → 达标' : needsRepair ? ' → 明显不达标，静默补写' : ' → 接近达标，直接采用')
         );
+        this.appendThought(runState, 'synthesize',
+            `交付校验：${verification.stats.chars} 字 / 表格 ${verification.stats.tables} / 图表 ${verification.stats.diagrams} / 引用 ${verification.stats.citations}`,
+            { streamKey: 'deliverable-verify', replace: true, status: verification.ok ? '校验通过' : '校验未通过' });
 
-        const maxRepairs = Math.max(0, Number(runtimeConfig.repairPasses) || 0);
-        for (let attempt = 0; attempt < maxRepairs && !verification.ok; attempt += 1) {
+        let contentChanged = false;
+        for (let attempt = 0; attempt < maxRepairs && needsRepair && !verification.ok; attempt += 1) {
             const repairInstruction = this.researchContract.buildRepairInstruction(contract, verification.issues);
             const repaired = await this.streamDeliverable({
                 messages: [
@@ -1068,10 +1166,13 @@ class AgentRuntime {
                 container,
                 runState,
                 maxTokens: runtimeConfig.synthesisMaxTokens,
-                stageNote: '正在补充交付物（第 ' + (attempt + 1) + ' 次）'
+                stageNote: '正在校验交付物',
+                // 补充阶段只在后台收束，不再把整篇正文重新打一遍
+                silent: true
             });
             if (repaired && repaired.length > content.length * 0.6) {
                 content = repaired;
+                contentChanged = true;
             }
             verification = this.researchContract.verify(content, contract);
             runState.metrics.deliverable.repairs = attempt + 1;
@@ -1087,6 +1188,15 @@ class AgentRuntime {
                 + ' / 图表 ' + verification.stats.diagrams + ' / 引用 ' + verification.stats.citations
                 + (verification.ok ? ' → 达标' : ' → 仍未达标')
             );
+            this.appendThought(runState, 'synthesize',
+                `补充后校验：${verification.stats.chars} 字 / 表格 ${verification.stats.tables} / 图表 ${verification.stats.diagrams} / 引用 ${verification.stats.citations}`,
+                { streamKey: 'deliverable-verify', replace: true, status: verification.ok ? '补写达标' : '补写后仍未达标' });
+        }
+
+        // 如果补充稿被采用，只在最后原子替换一次，不再逐字重新输出，也不打断阅读位置。
+        if (contentChanged) {
+            this.ui.updateContent(container, content, { preserveScroll: true });
+            this.notifyRunSnapshot(runState, 'content.updated', { content });
         }
 
         if (!verification.ok) {
@@ -1132,12 +1242,16 @@ class AgentRuntime {
     /**
      * 流式执行一次写作请求，把内容实时刷到正文。
      */
-    async streamDeliverable({ messages, enableThinking, signal, container, runState, maxTokens, stageNote }) {
+    async streamDeliverable({ messages, enableThinking, signal, container, runState, maxTokens, stageNote, silent = false }) {
         const callId = this.performanceMonitor ? this.performanceMonitor.beginLLMCall('deliverable') : null;
         let firstTokenSeen = false;
         let full = '';
+        let lastProgressChars = 0;
 
-        this.ui.setAgentStage(container, 'synthesize', 'active', stageNote || '撰写中');
+        if (!silent) {
+            this.ui.setAgentStage(container, 'synthesize', 'active', stageNote || '撰写中');
+            this.ui.setReasoningStatus(container, stageNote || '正在撰写交付物');
+        }
 
         try {
             const response = await this.client.chat({
@@ -1145,7 +1259,11 @@ class AgentRuntime {
                 enableThinking,
                 signal,
                 maxTokens,
-                onReasoning: () => { },
+                onReasoning: text => {
+                    this.appendThought(runState, 'synthesize', text, {
+                        streamKey: silent ? 'deliverable-repair-reasoning' : 'deliverable-reasoning'
+                    });
+                },
                 onUsage: usage => {
                     this.recordModelUsage(runState, usage);
                     if (this.contextManager) this.contextManager.updateFromUsage(usage);
@@ -1156,6 +1274,16 @@ class AgentRuntime {
                         this.performanceMonitor.markFirstToken(callId);
                     }
                     full = content || full;
+                    if (full && full.length - lastProgressChars > 1000) {
+                        lastProgressChars = full.length;
+                        this.appendThought(runState, 'synthesize',
+                            `${silent ? '后台补写交付物' : '正在撰写交付物'} ${full.length} 字`, {
+                                streamKey: silent ? 'deliverable-repair-progress' : 'deliverable-progress',
+                                replace: true,
+                                status: silent ? '静默补写中' : '撰写交付物中'
+                            });
+                    }
+                    if (silent) return;
                     if (container.reasoningDetails.classList.contains('thinking-state')) {
                         this.ui.finishReasoning(container);
                     }
@@ -1188,7 +1316,7 @@ class AgentRuntime {
     }
 
     completeSourceLinks(text, evidence) {
-        const sourceHeading = /^\s*(#{1,6}\s*)?(来源|参考|引用|Sources|References)\s*[:：]?\s*$/i;
+        const sourceHeading = /^\s*(#{1,6}\s*)?\*{0,2}(来源|参考|引用|Sources|References)\*{0,2}\s*[:：]?\s*$/i;
         const lines = String(text || '').split('\n');
         let inSources = false;
         return lines.map(line => {
@@ -1197,7 +1325,7 @@ class AgentRuntime {
                 return line;
             }
             if (!inSources) return line;
-            const match = line.match(/^(\s*)\[(\d+)\]\s*(.*)$/);
+            const match = line.match(/^(\s*)\*{0,2}\[(\d+)\]\*{0,2}\s*(.*)$/);
             if (!match) return line;
             const body = (match[3] || '').trim();
             if (/https?:\/\//i.test(body)) return line;
@@ -1209,7 +1337,8 @@ class AgentRuntime {
         }).join('\n');
     }
 
-    snapshotRun(container, plan, runState = null) {
+    snapshotRun(container, plan, runState = null, options = {}) {
+        const includeThoughts = options.includeThoughts === true;
         const stages = Array.from(container.agentStages?.querySelectorAll('.agent-stage') || []).map(stage => ({
             id: stage.dataset.stage,
             label: stage.querySelector('.agent-stage-label')?.textContent || stage.dataset.stage,
@@ -1237,6 +1366,14 @@ class AgentRuntime {
             context_pack_summary: runState?.contextPack?.summary || null,
             tool_contracts: this.getSelectedToolContracts(plan.selectedTools),
             events: runState?.events || [],
+            thought_trace: includeThoughts
+                ? (runState?.thoughtTrace || []).slice(-60).map(item => ({
+                    stage: item.stage || 'act',
+                    key: item.key || '',
+                    text: this.previewValue(item.text || '', 900),
+                    at: item.at || null
+                }))
+                : undefined,
             metrics: runState?.metrics || null,
             warnings: runState?.warnings || [],
             tool_results: runState?.toolCalls || [],
@@ -1284,8 +1421,40 @@ class AgentRuntime {
             events: [],
             eventSeq: 0,
             warnings: [],
+            thoughtTrace: [],
+            thoughtChars: 0,
             onSnapshot: null
         };
+    }
+
+    /**
+     * 追加一条思维链。streamKey 相同的分片会合并成同一行，避免每 token 建一行。
+     * 同时写入 runState，运行结束/落盘后可在历史会话里恢复。
+     */
+    appendThought(runState, stage, text, options = {}) {
+        const value = String(text || '');
+        if (!runState || !value) return;
+        const key = options.streamKey || '';
+        const trace = runState.thoughtTrace || (runState.thoughtTrace = []);
+        let entry = key ? trace.find(item => item.key === key) : null;
+        const beforeLength = entry ? String(entry.text || '').length : 0;
+        if (entry) {
+            entry.text = options.replace ? value : entry.text + value;
+            entry.at = Date.now();
+        } else {
+            entry = { stage: stage || 'act', key, text: value, at: Date.now() };
+            trace.push(entry);
+        }
+
+        let total = Number(runState.thoughtChars) || 0;
+        total += Math.max(0, String(entry.text || '').length - beforeLength);
+        while (trace.length > 180 || total > 22000) {
+            const removed = trace.shift();
+            total -= String(removed?.text || '').length;
+        }
+        runState.thoughtChars = Math.max(0, total);
+
+        this.ui?.appendAgentThought?.(runState.uiContainer, stage, value, options);
     }
 
     notifyRunSnapshot(runState, reason = 'update', meta = {}) {
@@ -1296,7 +1465,9 @@ class AgentRuntime {
             const important = reason === 'panel.created' || reason === 'run.completed';
             let snapshot;
             if (important || now - lastAt >= 250 || !runState._lastSnapshot) {
-                snapshot = this.snapshotRun(runState.uiContainer, runState.plan, runState);
+                snapshot = this.snapshotRun(runState.uiContainer, runState.plan, runState, {
+                    includeThoughts: reason === 'run.completed'
+                });
                 runState._lastSnapshotAt = now;
                 runState._lastSnapshot = snapshot;
             } else {

@@ -19,7 +19,7 @@
    *
    * 两种切换方式二选一：
    *   - 有下拉框：给 selectId，点击索引项即选中对应 option 并派发 change
-   *   - 没有下拉框：给 apply(value)，由卡片自己切换模式（例如汉字编码卡组）
+   *   - 没有下拉框：给 apply(value)，由卡片自己切换模式
    */
   const ALIAS_INDEX = [
     {
@@ -31,7 +31,8 @@
         { name: 'Variant Beaufort 变体博福特', value: 'variantBeaufort', hint: '明文减密钥' },
         { name: 'Autokey 自主密钥', value: 'autokey', hint: '明文续密钥，抗卡西斯基' },
         { name: 'Gronsfeld 格龙斯费尔德', value: 'gronsfeld', hint: '数字密钥逐位位移' },
-        { name: 'Porta 波尔塔', value: 'porta', hint: '13 组密钥对，自反' }
+        { name: 'Porta 波尔塔', value: 'porta', hint: '13 组密钥对，自反' },
+        { name: 'Running Key 文本密钥', value: 'runningKey', hint: '用一段文本当密钥' }
       ]
     },
     {
@@ -90,18 +91,141 @@
       ]
     },
     {
-      // 这张卡没有下拉框：查法清单和「当前查法」都是卡片自己的状态，
-      // 所以条目直接取 CCCHandler.MODES，点击交给 CCCHandler.setMode() —— 
-      // 这里只负责「连接到卡片」，不负责知道它怎么重算。
-      // 注意 CCCHandler 是顶层 const（全局词法绑定，不是 window 属性），
-      // 所以只能用 typeof 探测，写 window.CCCHandler 会永远取到 undefined。
-      label: '汉字编码卡组',
-      cardBadge: '汉字编码卡组 电码/区位/GBK/部首',
-      apply: value => { CCCHandler.setMode(value); },
-      items: (typeof CCCHandler !== 'undefined' && CCCHandler.MODES
-        ? CCCHandler.MODES
-        : []
-      ).map(m => ({ name: m.label, value: m.id, hint: m.hint }))
+      label: 'Quagmire I–IV',
+      cardBadge: 'Quagmire I–IV',
+      selectId: 'quagmireVariant',
+      items: [
+        { name: 'Quagmire I', value: 'quagmire1', hint: 'keyed 明文 + 标准密文' },
+        { name: 'Quagmire II', value: 'quagmire2', hint: '标准明文 + keyed 密文' },
+        { name: 'Quagmire III', value: 'quagmire3', hint: '同一 keyed 字母表' },
+        { name: 'Quagmire IV', value: 'quagmire4', hint: '两张 keyed 字母表' }
+      ]
+    },
+    {
+      label: 'Polybius 方阵家族',
+      cardBadge: 'Polybius Square 波利比乌斯方阵',
+      selectId: 'polybiusVariant',
+      items: [
+        { name: 'Polybius', value: 'polybius', hint: '5×5 坐标' },
+        { name: 'Bifid-like', value: 'bifid', hint: '坐标分行读取' },
+        { name: 'Trifid', value: 'trifid', hint: '3×3×3 三分密码' },
+        { name: 'Four-square', value: 'fourSquare', hint: '四格方阵' },
+        { name: 'Two-square', value: 'twoSquare', hint: '两格方阵' },
+        { name: 'Nihilist', value: 'nihilist', hint: '坐标加法' }
+      ]
+    },
+    {
+      label: 'Web 文本编码',
+      cardBadge: 'Web 文本编码',
+      selectId: 'webEncodingType',
+      items: [
+        { name: 'URL 编码', value: 'url', hint: 'percent encoding' },
+        { name: 'HTML Entity', value: 'html', hint: '命名/数字实体' },
+        { name: 'Unicode Escape', value: 'unicode', hint: '\\uXXXX' },
+        { name: 'UUencode', value: 'uu', hint: '每行 45 字节' },
+        { name: 'XXencode', value: 'xx', hint: 'XXencode 字母表' },
+        { name: 'Quoted-Printable', value: 'qp', hint: '=XX 转义' }
+      ]
+    },
+    {
+      label: '通用码表',
+      cardBadge: '通用码表 Code Tables',
+      selectId: 'codeTableType',
+      items: [
+        { name: 'NATO 音标', value: 'nato', hint: 'Alpha Bravo ...' },
+        { name: '罗马数字', value: 'roman', hint: 'I V X L C D M' },
+        { name: '七段数码管', value: 'seven', hint: 'abcdefg' },
+        { name: '元素周期表', value: 'element', hint: '原子序数 ↔ 元素符号' },
+        { name: '音乐唱名', value: 'music', hint: 'C D E ↔ Do Re Mi' },
+        { name: 'Scrabble 分值', value: 'scrabble', hint: '字母分值' }
+      ]
+    },
+    {
+      label: '书码 / Ottendorf',
+      cardBadge: '书码 Book Cipher',
+      selectId: 'bookCipherMode',
+      items: [
+        { name: '行-词-字', value: 'lineWordLetter', hint: '最常用的 Ottendorf 索引' },
+        { name: '词-字', value: 'wordLetter', hint: '全书词序号 + 字母序号' },
+        { name: '绝对字符位置', value: 'absolute', hint: '整段书文的字符序号' }
+      ]
+    },
+    {
+      label: 'AES 模式',
+      cardBadge: 'AES',
+      selectId: 'aesMode',
+      items: [
+        { name: 'AES-CBC', value: 'CBC', hint: '最常见' },
+        { name: 'AES-ECB', value: 'ECB', hint: '块独立' },
+        { name: 'AES-CFB', value: 'CFB', hint: '流式反馈' },
+        { name: 'AES-OFB', value: 'OFB', hint: '输出反馈' },
+        { name: 'AES-CTR', value: 'CTR', hint: '计数器' },
+        { name: 'AES-GCM', value: 'GCM', hint: '带认证' }
+      ]
+    },
+    {
+      label: 'RSA 模式',
+      cardBadge: 'RSA',
+      selectId: 'rsaMode',
+      items: [
+        { name: 'RSA 解密', value: 'decrypt', hint: 'c + d → m' },
+        { name: 'RSA 加密', value: 'encrypt', hint: 'm + e → c' },
+        { name: '小 e 开方', value: 'smallE', hint: 'm^e < n' },
+        { name: '共模攻击', value: 'commonMod', hint: '同 n，不同 e' },
+        { name: 'Wiener 小 d', value: 'wiener', hint: '连分数' },
+        { name: 'Fermat 分解', value: 'fermat', hint: 'p、q 接近' },
+        { name: 'Pollard 分解', value: 'pollard', hint: 'rho / p-1' },
+        { name: 'Hastad 广播', value: 'hastad', hint: '多组 n:c' },
+        { name: 'dp 泄露', value: 'dpLeak', hint: '由 dp 恢复 p' }
+      ]
+    },
+    {
+      label: 'PRNG 模式',
+      cardBadge: 'PRNG',
+      selectId: 'prngMode',
+      items: [
+        { name: 'MT19937', value: 'mt', hint: '624 个输出恢复状态' },
+        { name: 'LCG', value: 'lcg', hint: '线性同余' }
+      ]
+    },
+    {
+      label: '手机九键模式',
+      cardBadge: '手机九键 Phone Keypad',
+      selectId: 'phoneMode',
+      items: [
+        { name: '键位坐标', value: 'coord', hint: '21 / 22 / 23' },
+        { name: '多击 T9', value: 'multitap', hint: '2 / 22 / 222' }
+      ]
+    },
+    {
+      label: 'QWE 键盘模式',
+      cardBadge: 'QWE键盘 QWE Keyboard',
+      selectId: 'qweMode',
+      items: [
+        { name: 'QWE 字母替换', value: 'qwe', hint: 'q→a, w→b …' },
+        { name: '键盘坐标', value: 'coord', hint: '1-1 / 2-1' },
+        { name: '整体左移', value: 'shiftLeft', hint: '每个键取左邻' },
+        { name: '整体右移', value: 'shiftRight', hint: '每个键取右邻' }
+      ]
+    },
+    {
+      label: '键盘布局',
+      cardBadge: '键盘布局 Keyboard Layout',
+      selectId: 'kbdLayout',
+      items: [
+        { name: 'Dvorak', value: 'dvorak', hint: 'QWERTY ↔ Dvorak' },
+        { name: 'AZERTY', value: 'azerty', hint: 'QWERTY ↔ AZERTY' },
+        { name: 'Colemak', value: 'colemak', hint: 'QWERTY ↔ Colemak' }
+      ]
+    },
+    {
+      label: 'ECDSA 曲线',
+      cardBadge: 'ECDSA nonce reuse',
+      selectId: 'ecdsaCurve',
+      items: [
+        { name: 'secp256k1', value: 'secp256k1', hint: '比特币曲线' },
+        { name: 'P-256', value: 'p256', hint: 'NIST P-256' }
+      ]
     }
   ];
 
@@ -297,8 +421,8 @@
 
   /**
    * 按 badge 文字找卡片。
-   * 卡片徽章上常带后缀（「汉字编码卡组 电码/区位/GBK/部首」），
-   * 所以先精确匹配，再退化成「徽章以该文字开头」，避免为了对齐后缀而重复维护字符串。
+   * 卡片徽章上常带后缀，所以先精确匹配，再退化成「徽章以该文字开头」，
+   * 避免为了对齐后缀而重复维护字符串。
    */
   function findCard(badgeText) {
     const want = String(badgeText || '').replace(/\s+/g, ' ').trim();

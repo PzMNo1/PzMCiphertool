@@ -224,7 +224,10 @@
                 `- 档位：${contract.tierLabel}`,
                 `- 正文篇幅：不少于 ${contract.minChars} 个中文字（不含来源列表与 URL）。宁可写长，不可写短。`,
                 `- 必须包含至少 ${contract.minTables} 个 Markdown 表格（用 | 分隔，含表头与分隔行），用于承载可比较的数据、指标、参与者、时间线。`,
-                `- 必须包含至少 ${contract.minDiagrams} 个 Mermaid 图表，用 \`\`\`mermaid 围栏包裹。推荐用法：因果/归因分析用 flowchart（鱼骨式：把多个成因分支汇入结果节点）；结构占比用 pie；量级对比或帕累托分析用 xychart-beta（柱状，按数值降序排列即帕累托图）；时间线用 timeline 或 gantt。`,
+                `- 必须包含至少 ${contract.minDiagrams} 个数据图表，用 \`\`\`mermaid（流程/因果/时间线）或 \`\`\`chart（Nature 风格统计图 JSON）围栏包裹。`,
+                '- 统计图优先用 ```chart：type 可选 bar / line / trend / scatter / control / pie / donut / box / histogram / pareto / area；柱/折线/散点/控制图要给出 categories 或 x、series（或 values），控制图另给 center/ucl/lcl。示例：```chart {"type":"bar","title":"…","unit":"%","categories":["A","B"],"series":[{"name":"份额","values":[31,24]}]}```。',
+                '- 需要展示相关性时用 scatter（x/y 或 points，自动带回归趋势线与 R²）；展示过程稳定性时用 control（values + center/ucl/lcl）；展示时间趋势时用 line。',
+                '- Mermaid 只用于流程、归因、时间线与路线图：flowchart / timeline / gantt。量级对比、趋势、相关性、过程控制不要用 Mermaid，改用上面的 chart。',
                 `- 引用：全文至少 ${contract.minCitations} 个 [n] 编号引用，编号必须与文末来源列表一一对应，不得跳号或编造。`,
                 '- 结构与篇幅分配建议（可按实际情况增删章节，但不得缺失这些主题）：'
             ];
@@ -299,7 +302,7 @@
                 '1. 直接输出正文，不要写开场白，不要复述本指令，不要输出修改说明。',
                 '2. 开篇是执行摘要：给出核心结论与关键数字，不写"本文分为几部分"这类目录式元话语。',
                 `3. 全文不少于 ${contract.minChars} 个中文字，用小标题分隔章节。`,
-                `4. 至少 ${contract.minTables} 个 Markdown 表格、${contract.minDiagrams} 个 Mermaid 图表，放在最能承载信息的位置；仅为凑数而存在的图表不要出现。`,
+                `4. 至少 ${contract.minTables} 个 Markdown 表格、${contract.minDiagrams} 个数据图表（统计图用 \`\`\`chart，流程/时间线用 \`\`\`mermaid），放在最能承载信息的位置；仅为凑数而存在的图表不要出现。`,
                 '5. 文末依次为「局限与数据说明」与「来源：」两节；来源每条一行「[n] 标题 — URL」，编号与正文引用严格对应。',
                 '6. 保持用户使用的语言。',
                 '7. 正文中不得出现任何关于检索过程的叙述（本轮、本次、本简报、检索、采集、未取得、缺口等）。'
@@ -316,7 +319,7 @@
                 '上一次交付物未达到交付标准，请针对下列问题重写或扩写，并输出完整交付物（不是补丁、不是差异说明）：',
                 ...issues.map(issue => `- ${issue}`),
                 '',
-                `篇幅下限 ${contract.minChars} 个中文字；表格下限 ${contract.minTables} 个；Mermaid 图表下限 ${contract.minDiagrams} 个；引用下限 ${contract.minCitations} 个。`,
+                `篇幅下限 ${contract.minChars} 个中文字；表格下限 ${contract.minTables} 个；图表下限 ${contract.minDiagrams} 个（chart 与 mermaid 合计）；引用下限 ${contract.minCitations} 个。`,
                 '不要重复堆砌已有段落来凑字数：需要补充的是新的数据点、对比、机制解释、边界条件与反面证据。',
                 '如果某处信息确实不足以支撑强主张，请用证据动词降低主张强度（如"尚不能判定"），而不是写"证据缺口"或用泛泛议论填充。'
             ].join('\n');
@@ -341,7 +344,8 @@
         }
 
         countDiagrams(text) {
-            return (String(text || '').match(/```mermaid\b/gi) || []).length;
+            const matches = String(text || '').matchAll(/```(?:mermaid|chart)\b/gi);
+            return Array.from(matches).length;
         }
 
         countCitations(text) {
@@ -380,7 +384,7 @@
                 issues.push(`Markdown 表格只有 ${stats.tables} 个，需要至少 ${contract.minTables} 个。`);
             }
             if (stats.diagrams < contract.minDiagrams) {
-                issues.push(`Mermaid 图表只有 ${stats.diagrams} 个，需要至少 ${contract.minDiagrams} 个。`);
+                issues.push(`数据图表只有 ${stats.diagrams} 个，需要至少 ${contract.minDiagrams} 个（chart 与 mermaid 合计）。`);
             }
             if (stats.citations < contract.minCitations) {
                 issues.push(`引用编号只有 ${stats.citations} 个，需要至少 ${contract.minCitations} 个。`);

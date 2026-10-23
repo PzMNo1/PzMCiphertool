@@ -62,7 +62,7 @@ async function initKnowledgeGraph() {
 
     try {
         if (window.WORLD_CORPUS_READY) {
-            if (loader) loader.innerText = '正在加载本地 Wikipedia 正文...';
+            if (loader) loader.innerText = '正在加载本地世界知识正文...';
             await window.WORLD_CORPUS_READY;
             if (loader) loader.innerText = '正在装配世界知识图谱...';
         }
@@ -158,7 +158,7 @@ function staticWorldRecord(match) {
         title: `${match.title}${match.heading ? ` · ${match.heading}` : ' · 导言'}`,
         content: match.text,
         snippet: match.snippet,
-        source: 'Wikipedia',
+        source: '百科',
         url: match.url,
         citation: match.citation,
         evidenceLevel: 'encyclopedia-verbatim',
@@ -188,11 +188,11 @@ async function staticRetrieveKnowledge({ nodeName, query, topK } = {}) {
     const context = staticWorldGraphContext(target);
     return {
         node: target ? {
-            id: target.id, name: target.name, qid: target.qid || '', source: 'Wikipedia · Wikidata',
+            id: target.id, name: target.name, qid: target.qid || '', source: '世界知识',
             section: target.section || '', knowledgeBaseCount: 0
         } : {
             id: '', name: result.seeds[0]?.name || '世界知识库', qid: result.seeds[0]?.qid || '',
-            source: 'Wikipedia · Wikidata', section: '', knowledgeBaseCount: 0
+            source: '世界知识', section: '', knowledgeBaseCount: 0
         },
         profile: {
             query: searchQuery,
@@ -212,7 +212,7 @@ async function staticRetrieveKnowledge({ nodeName, query, topK } = {}) {
         externalRecords: [],
         evidenceGraph: result.evidenceGraph,
         retrievalPolicy: [
-            '只检索本地 Wikipedia 原文语料。',
+            '只检索本地百科原文语料。',
             '每条记录带标题、URL、revision 与 CC BY-SA 4.0 许可。',
             'Wikidata 声明仅用于实体关系和消歧。'
         ],
@@ -298,9 +298,9 @@ function applySixDirectionLayout(data) {
         weightCache.set(node.id, value);
         return value;
     };
-    const rootDistance = 320;
-    const depthGap = 160;
-    const halfTile = 360;
+    const rootDistance = 460;
+    const depthGap = 240;
+    const halfTile = 620;
     let maxRadius = 0;
 
     setNode(center, 0, 0, 0, 0, center.id, '', SIX_AXES[0], 0, '');
@@ -687,6 +687,7 @@ function renderGraph(container) {
         const factor = focusOpacityFactor(dim);
         if (link.__hierarchy === false) {
             if (link.__attachment) return colorToRgba(0xffdd44, 0.3 * factor);
+            if (link.relation === 'cross-disciplinary') return colorToRgba(0xff66aa, 0.45 * factor);
             const opacity = (link.relation ? 0.06 : 0.5) * factor;
             return colorToRgba(link.__embed ? 0xff66aa : 0x7cf7ff, opacity);
         }
@@ -698,17 +699,25 @@ function renderGraph(container) {
     function linkWidthFor(link) {
         const dim = Number(link.__focusDim) || 0;
         const factor = dim === 2 ? 0.15 : (dim === 1 ? 0.7 : 1);
-        if (link.__hierarchy === false) return (link.__attachment ? 0.18 : (link.relation ? 0.1 : 0.42)) * factor;
+        if (link.__hierarchy === false) {
+            if (link.relation === 'cross-disciplinary') return 0.7 * factor;
+            return (link.__attachment ? 0.18 : (link.relation ? 0.1 : 0.42)) * factor;
+        }
         const target = getLinkNode(link, 'target');
         const depth = target?.__layoutDepth || 1;
         return (depth <= 1 ? 1.8 : (depth === 2 ? 1.25 : 0.75)) * factor;
     }
 
     // 4. 初始化图谱
+    const GRAPH_DRAG_THRESHOLD = 8;
+    const GRAPH_CLICK_SUPPRESS_MS = 320;
+    let suppressGraphClickUntil = 0;
+
     const Graph = ForceGraph3D()(container)
         .graphData(gData)
         .backgroundColor('#000005') 
         .showNavInfo(false)
+        .enableNodeDrag(false)
         .width(container.clientWidth)
         .height(container.clientHeight)
         
@@ -718,7 +727,8 @@ function renderGraph(container) {
             // 4.1 核心几何体
             let geometry, material, mesh;
             const color = node.color || 0xffffff;
-            const size = Math.sqrt(node.val || 1) * 1.7;
+            const sizeScale = node.group === 'root' ? 2.2 : 3.0;
+            const size = Math.sqrt(node.val || 1) * sizeScale;
 
             if (node.group === 'root') {
                 // 根节点：复杂的环绕球体
@@ -773,7 +783,8 @@ function renderGraph(container) {
                 blending: THREE.AdditiveBlending
             });
             const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.scale.set(size * 4, size * 4, 1);
+            const glowScale = size * 4;
+            sprite.scale.set(glowScale, glowScale, 1);
             group.add(sprite);
 
             // 4.3 文本标签
@@ -785,13 +796,18 @@ function renderGraph(container) {
                 text.strokeWidth = 0.3;              // 轻微描边增加清晰度
                 text.strokeColor = '#000000';        // 黑色描边
                 const depth = Number.isFinite(node.__layoutDepth) ? node.__layoutDepth : 3;
-                const dense = graphNodeById.size > 400;
-                text.textHeight = dense
-                    ? (node.group === 'root' ? 12 : (depth <= 1 ? 8 : (depth === 2 ? 5 : 3.5)))
-                    : (node.group === 'root' ? 22 : (depth <= 1 ? 15 : (depth === 2 ? 10 : 7)));
+                const dense = graphNodeById.size > 700;
+                const isExpansionNode = node.kind === 'expansion';
+                text.textHeight = isExpansionNode
+                    ? (dense ? 4.8 : 7)
+                    : (dense
+                        ? (node.group === 'root' ? 16 : (depth <= 1 ? 10 : (depth === 2 ? 7 : (depth === 3 ? 5.4 : 4.4))))
+                        : (node.group === 'root' ? 24 : (depth <= 1 ? 16 : (depth === 2 ? 11 : (depth === 3 ? 8 : 6)))));
                 text.position.y = size + 2; 
                 text.material.transparent = true;
-                text.material.opacity = node.group === 'root' ? 1 : (depth <= 1 ? 0.95 : (depth === 2 ? (dense ? 0.65 : 0.85) : 0.45));
+                text.material.opacity = isExpansionNode
+                    ? 0.62
+                    : (node.group === 'root' ? 1 : (depth <= 1 ? 0.95 : (depth === 2 ? (dense ? 0.68 : 0.85) : (depth === 3 ? 0.62 : 0.48))));
                 group.add(text);
             }
 
@@ -829,15 +845,24 @@ function renderGraph(container) {
         
         // --- 交互 ---
         .onNodeClick((node, event) => {
+            if (performance.now() < suppressGraphClickUntil) return;
             runGraphNodeAction(node, event);
         });
 
     installGraphCanvasClickFallback();
 
-    // 5. 场景增强 (星空背景)
+    // 5. 场景增强：静态宇宙背景（星空 + 银河带）
     const scene = Graph.scene();
     scene.add(new THREE.AmbientLight(0xbbbbbb));
     scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
+
+    const graphCamera = typeof Graph.camera === 'function' ? Graph.camera() : null;
+    if (graphCamera) {
+        graphCamera.near = 0.5;
+        graphCamera.far = 20000;
+        graphCamera.updateProjectionMatrix();
+    }
+
     let layoutGuideGroup = null;
 
     function refreshLayoutGuides() {
@@ -851,47 +876,166 @@ function renderGraph(container) {
     }
     refreshLayoutGuides(gData);
 
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000; // 恢复到 2000 个星星
-    const posArray = new Float32Array(starCount * 3);
-    for(let i = 0; i < starCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 2000; 
+    function gaussianRandom() {
+        let u = 0;
+        let v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
     }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const starMat = new THREE.PointsMaterial({
-        size: 1.5,
-        color: 0x88ccff,
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending
-    });
-    const starMesh = new THREE.Points(starGeo, starMat);
-    scene.add(starMesh);
 
-    // 6. 动画循环 (星空旋转)
-    let angle = 0;
-    
-    // 初始化全局状态标记
-    window.isZSTPActive = true;
+    function createCosmicBackdrop() {
+        const group = new THREE.Group();
+        group.name = 'zstp-cosmic-backdrop';
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const viewDir = new THREE.Vector3(-1.02, -0.82, -1.18).normalize();
+        const bandSide = new THREE.Vector3().crossVectors(viewDir, new THREE.Vector3(0, 1, 0)).normalize();
+        bandSide.applyAxisAngle(viewDir, 0.62);
+        const bandNormal = new THREE.Vector3().crossVectors(bandSide, viewDir).normalize();
+        const bandDirection = new THREE.Vector3();
+        const starPalette = [
+            [0.80, 0.88, 1.00],
+            [1.00, 1.00, 1.00],
+            [1.00, 0.93, 0.82],
+            [0.70, 0.82, 1.00],
+            [0.92, 0.86, 1.00]
+        ];
 
-    let starsAnimating = false;
-    const animateStars = () => {
-        // 添加运行状态检查，如果未激活则停止循环
-        if (!window.isZSTPActive) {
-            starsAnimating = false;
-            return;
+        function directionFor(longitude, latitude, radius) {
+            const cosLat = Math.cos(latitude);
+            return bandDirection
+                .copy(viewDir).multiplyScalar(cosLat * Math.cos(longitude))
+                .addScaledVector(bandSide, cosLat * Math.sin(longitude))
+                .addScaledVector(bandNormal, Math.sin(latitude))
+                .normalize()
+                .multiplyScalar(radius);
         }
 
-        starsAnimating = true;
-        angle += 0.0003;
-        starMesh.rotation.y = angle;
-        starMesh.rotation.x = angle * 0.2;
-        requestAnimationFrame(animateStars);
-    };
-    function ensureStarsAnimating() {
-        if (!starsAnimating) animateStars();
+        function addPoint(positions, colors, point, color, brightness) {
+            positions.push(point.x, point.y, point.z);
+            colors.push(
+                Math.min(1, color[0] * brightness),
+                Math.min(1, color[1] * brightness),
+                Math.min(1, color[2] * brightness)
+            );
+        }
+
+        function addStarLayer(positions, colors, size, opacity) {
+            if (!positions.length) return;
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            const material = new THREE.PointsMaterial({
+                size: size * pixelRatio,
+                sizeAttenuation: false,
+                vertexColors: true,
+                transparent: true,
+                opacity,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const points = new THREE.Points(geometry, material);
+            points.frustumCulled = false;
+            group.add(points);
+        }
+
+        const deepPositions = [];
+        const deepColors = [];
+        for (let i = 0; i < 8000; i += 1) {
+            const vertical = Math.random() * 2 - 1;
+            const ring = Math.sqrt(1 - vertical * vertical);
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 4400 + Math.random() * 1600;
+            const color = starPalette[(Math.random() * starPalette.length) | 0];
+            const brightness = 0.2 + Math.random() * 0.35;
+            deepPositions.push(
+                Math.cos(angle) * ring * radius,
+                vertical * radius,
+                Math.sin(angle) * ring * radius
+            );
+            deepColors.push(
+                Math.min(1, color[0] * brightness),
+                Math.min(1, color[1] * brightness),
+                Math.min(1, color[2] * brightness)
+            );
+        }
+
+        const CORE_LONGITUDE = 0.38;
+        const bandPositions = [];
+        const bandColors = [];
+        const coolStar = [0.66, 0.79, 1.00];
+        const warmStar = [1.00, 0.84, 0.62];
+        const bandCount = 17000;
+        for (let i = 0; i < bandCount; i += 1) {
+            const nearCore = i < bandCount * 0.55;
+            const longitude = nearCore
+                ? CORE_LONGITUDE + gaussianRandom() * 1.05
+                : Math.random() * Math.PI * 2;
+            const latitude = gaussianRandom() * (Math.random() < 0.86 ? 0.04 : 0.15);
+            const radius = 4700 + Math.random() * 900;
+            const point = directionFor(longitude, latitude, radius);
+            const coreGlow = Math.exp(-Math.abs(longitude - CORE_LONGITUDE) * 0.6 - Math.abs(latitude) * 6);
+            const warmth = coreGlow * 1.2 + Math.random() * 0.16;
+            const brightness = 0.15 + Math.random() * 0.28 + coreGlow * 0.25;
+            addPoint(bandPositions, bandColors, point, warmth > 0.55 ? warmStar : coolStar, brightness);
+        }
+
+        const corePositions = [];
+        const coreColors = [];
+        for (let i = 0; i < 3200; i += 1) {
+            const longitude = CORE_LONGITUDE + gaussianRandom() * 0.28;
+            const latitude = gaussianRandom() * 0.1;
+            const radius = 4750 + Math.random() * 750;
+            const point = directionFor(longitude, latitude, radius);
+            addPoint(corePositions, coreColors, point, [1.0, 0.88, 0.70], 0.3 + Math.random() * 0.4);
+        }
+
+        const brightPositions = [];
+        const brightColors = [];
+        for (let i = 0; i < 450; i += 1) {
+            const longitude = Math.random() * Math.PI * 2;
+            const latitude = gaussianRandom() * 0.16;
+            const radius = 4800 + Math.random() * 800;
+            const point = directionFor(longitude, latitude, radius);
+            const color = starPalette[(Math.random() * starPalette.length) | 0];
+            addPoint(brightPositions, brightColors, point, color, 0.7 + Math.random() * 0.25);
+        }
+
+        const nebulaSpecs = [
+            { longitude: CORE_LONGITUDE, latitude: 0.03, radius: 5400, scale: 4200, color: 0xffc98d, opacity: 0.15 },
+            { longitude: CORE_LONGITUDE - 0.55, latitude: 0.04, radius: 5300, scale: 2600, color: 0xffa66b, opacity: 0.1 },
+            { longitude: CORE_LONGITUDE - 0.95, latitude: 0.10, radius: 5250, scale: 2400, color: 0x7d9bff, opacity: 0.1 },
+            { longitude: CORE_LONGITUDE + 0.95, latitude: -0.12, radius: 5300, scale: 2200, color: 0xb07cff, opacity: 0.09 }
+        ];
+        nebulaSpecs.forEach(spec => {
+            const material = new THREE.SpriteMaterial({
+                map: glowTexture,
+                color: spec.color,
+                transparent: true,
+                opacity: spec.opacity,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const sprite = new THREE.Sprite(material);
+            const point = directionFor(spec.longitude, spec.latitude, spec.radius);
+            sprite.position.copy(point);
+            sprite.scale.set(spec.scale, spec.scale * 0.62, 1);
+            group.add(sprite);
+        });
+
+        addStarLayer(deepPositions, deepColors, 1.4, 0.7);
+        addStarLayer(bandPositions, bandColors, 1.2, 0.5);
+        addStarLayer(corePositions, coreColors, 1.3, 0.5);
+        addStarLayer(brightPositions, brightColors, 2.4, 0.8);
+
+        scene.add(group);
+        return group;
     }
-    ensureStarsAnimating();
+
+    createCosmicBackdrop();
+
+    // 初始化全局状态标记
+    window.isZSTPActive = true;
 
     // 7. 图谱结构参数：节点坐标由分区布局固定，物理力只保留轻微缓动。
     Graph.d3Force('charge').strength(-18);
@@ -906,11 +1050,14 @@ function renderGraph(container) {
 
     function frameGraphOverview(duration = 1200, padding = 150) {
         if (typeof Graph.cameraPosition !== 'function') return;
+        const camera = typeof Graph.camera === 'function' ? Graph.camera() : null;
+        if (camera) camera.up.set(0, 1, 0);
         const data = Graph.graphData() || {};
         const nodes = data.nodes || [];
         const radius = Math.max(620, ...nodes.map(node => Math.hypot(node.x || 0, node.y || 0, node.z || 0)));
+        const viewScale = graphLayerMode === 'all' ? 1.15 : 1.45;
         const position = data.__layoutMode === 'six-direction'
-            ? { x: radius * 1.02, y: radius * 0.82, z: radius * 1.18 }
+            ? { x: radius * 0.5667 * viewScale, y: radius * 0.4556 * viewScale, z: radius * 0.6556 * viewScale }
             : { x: 0, y: 0, z: radius * 1.8 };
         Graph.cameraPosition(position, { x: 0, y: 0, z: 0 }, 0);
     }
@@ -954,6 +1101,180 @@ function renderGraph(container) {
         }
     }
 
+    function snapViewAxis(vector) {
+        const x = Math.abs(vector.x);
+        const y = Math.abs(vector.y);
+        const z = Math.abs(vector.z);
+        if (x >= y && x >= z) return new THREE.Vector3(vector.x >= 0 ? 1 : -1, 0, 0);
+        if (y >= x && y >= z) return new THREE.Vector3(0, vector.y >= 0 ? 1 : -1, 0);
+        return new THREE.Vector3(0, 0, vector.z >= 0 ? 1 : -1);
+    }
+
+    function defaultUpFor(normal) {
+        if (Math.abs(normal.y) > 0.5) return new THREE.Vector3(0, 0, normal.y > 0 ? -1 : 1);
+        return new THREE.Vector3(0, 1, 0);
+    }
+
+    function axisKeyForNormal(normal) {
+        if (normal.x) return normal.x > 0 ? '+x' : '-x';
+        if (normal.y) return normal.y > 0 ? '+y' : '-y';
+        return normal.z > 0 ? '+z' : '-z';
+    }
+
+    function graphViewDistance() {
+        const nodes = Graph.graphData()?.nodes || [];
+        let radius = 620;
+        nodes.forEach(node => {
+            radius = Math.max(radius, Math.hypot(node.x || 0, node.y || 0, node.z || 0));
+        });
+        return radius * 1.2;
+    }
+
+    function focusGraphDirection(direction) {
+        if (typeof Graph.cameraPosition !== 'function' || typeof THREE === 'undefined') return null;
+        const camera = Graph.camera();
+        if (!camera) return null;
+        const controls = typeof Graph.controls === 'function' ? Graph.controls() : null;
+        const target = controls?.target || { x: 0, y: 0, z: 0 };
+        const offset = new THREE.Vector3(
+            camera.position.x - (target.x || 0),
+            camera.position.y - (target.y || 0),
+            camera.position.z - (target.z || 0)
+        );
+        if (offset.lengthSq() < 1e-4) return null;
+        const normal = snapViewAxis(offset.normalize());
+        const cameraUp = camera.up.clone().normalize();
+        const upProjection = cameraUp.addScaledVector(normal, -cameraUp.dot(normal));
+        let up = upProjection.lengthSq() > 1e-4 ? snapViewAxis(upProjection) : defaultUpFor(normal);
+        if (Math.abs(up.dot(normal)) > 0.5) up = defaultUpFor(normal);
+        const right = new THREE.Vector3().crossVectors(up, normal).normalize();
+        const nextNormal = normal.clone();
+        const nextUp = up.clone();
+        if (direction === 'right') {
+            nextNormal.copy(right);
+        } else if (direction === 'left') {
+            nextNormal.copy(right).negate();
+        } else if (direction === 'up') {
+            nextNormal.copy(up);
+            nextUp.copy(normal).negate();
+        } else if (direction === 'down') {
+            nextNormal.copy(up).negate();
+            nextUp.copy(normal);
+        } else {
+            return null;
+        }
+        const distance = graphViewDistance();
+        camera.up.copy(nextUp);
+        Graph.cameraPosition(
+            { x: nextNormal.x * distance, y: nextNormal.y * distance, z: nextNormal.z * distance },
+            { x: 0, y: 0, z: 0 },
+            700
+        );
+        return axisKeyForNormal(nextNormal);
+    }
+
+    function setupDirectionCompass() {
+        const pad = document.getElementById('zstp-compass');
+        if (!pad) return;
+        const storageKey = 'zstp-compass-position';
+        const buttons = [...pad.querySelectorAll('.zstp-compass-btn')];
+        const clampPosition = (left, top) => {
+            const rect = pad.getBoundingClientRect();
+            const halfWidth = rect.width / 2 || 60;
+            const halfHeight = rect.height / 2 || 60;
+            return {
+                left: Math.min(Math.max(left, halfWidth + 10), window.innerWidth - halfWidth - 10),
+                top: Math.min(Math.max(top, halfHeight + 10), window.innerHeight - halfHeight - 10)
+            };
+        };
+        const applyPosition = (left, top) => {
+            const next = clampPosition(left, top);
+            pad.style.left = `${next.left}px`;
+            pad.style.top = `${next.top}px`;
+            return next;
+        };
+
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+            if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                requestAnimationFrame(() => applyPosition(saved.left, saved.top));
+            }
+        } catch {}
+
+        let drag = null;
+        let suppressClickUntil = 0;
+
+        const endDrag = event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const moved = drag.moved;
+            const rect = pad.getBoundingClientRect();
+            drag = null;
+            pad.classList.remove('is-dragging');
+            pad.releasePointerCapture?.(event.pointerId);
+            if (!moved) return;
+            suppressClickUntil = performance.now() + 350;
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({
+                    left: rect.left + rect.width / 2,
+                    top: rect.top + rect.height / 2
+                }));
+            } catch {}
+        };
+
+        pad.addEventListener('pointerdown', event => {
+            if (event.button !== 0 && event.pointerType === 'mouse') return;
+            const rect = pad.getBoundingClientRect();
+            drag = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                offsetX: event.clientX - (rect.left + rect.width / 2),
+                offsetY: event.clientY - (rect.top + rect.height / 2),
+                moved: false
+            };
+        });
+        pad.addEventListener('pointermove', event => {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            if (!drag.moved) {
+                if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <= 5) return;
+                drag.moved = true;
+                pad.classList.add('is-dragging');
+                pad.setPointerCapture?.(event.pointerId);
+            }
+            applyPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+            event.preventDefault();
+        });
+        pad.addEventListener('pointerup', endDrag);
+        pad.addEventListener('pointercancel', endDrag);
+        window.addEventListener('resize', () => {
+            if (!pad.isConnected || !pad.offsetWidth || !pad.offsetHeight) return;
+            const rect = pad.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            applyPosition(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+
+        buttons.forEach(button => {
+            button.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (performance.now() < suppressClickUntil) return;
+                const direction = button.dataset.dir;
+                if (direction === 'center') {
+                    clearGraphFocus();
+                    frameGraphOverview(900, 120);
+                    return;
+                }
+                const axisKey = focusGraphDirection(direction);
+                if (!axisKey) return;
+                document.getElementById('zstp-preview-panel')?.classList.remove('active');
+                const continent = (Graph.graphData()?.nodes || []).find(node =>
+                    node.__layoutDepth === 1 && node.__layoutAxis === axisKey);
+                if (continent) applyGraphFocus(continent);
+                else clearGraphFocus();
+            });
+        });
+    }
+
     if (hudCloseBtn) {
         hudCloseBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // 防止触发其它点击事件
@@ -964,6 +1285,7 @@ function renderGraph(container) {
 
     // 初始调用
     resetPanel();
+    setupDirectionCompass();
 
     let lastGraphNodeAction = { node: null, time: 0 };
     let focusedGraphNodeId = null;
@@ -1090,6 +1412,8 @@ function renderGraph(container) {
         const raycaster = new THREE.Raycaster();
         const pointer = new THREE.Vector2();
         let pointerDown = null;
+        let lastPointer = null;
+        let pointerTravel = 0;
 
         canvas.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
@@ -1097,20 +1421,38 @@ function renderGraph(container) {
                 x: event.clientX,
                 y: event.clientY
             };
+            lastPointer = { ...pointerDown };
+            pointerTravel = 0;
+        }, { capture: true, passive: true });
+
+        canvas.addEventListener('pointermove', event => {
+            if (!pointerDown || !lastPointer) return;
+            pointerTravel += Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y);
+            lastPointer = { x: event.clientX, y: event.clientY };
+        }, { capture: true, passive: true });
+
+        canvas.addEventListener('pointercancel', () => {
+            pointerDown = null;
+            lastPointer = null;
         }, { capture: true, passive: true });
 
         canvas.addEventListener('pointerup', event => {
             if (event.button !== 0) return;
             const start = pointerDown;
             pointerDown = null;
+            lastPointer = null;
             if (!start) return;
-            const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-            if (moved > 6) return;
+            const moved = Math.max(pointerTravel, Math.hypot(event.clientX - start.x, event.clientY - start.y));
+            if (moved > GRAPH_DRAG_THRESHOLD) {
+                suppressGraphClickUntil = performance.now() + GRAPH_CLICK_SUPPRESS_MS;
+                return;
+            }
             const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);
             if (node) runGraphNodeAction(node, event);
         }, { capture: true, passive: false });
 
         canvas.addEventListener('click', event => {
+            if (performance.now() < suppressGraphClickUntil) return;
             const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);
             if (node) runGraphNodeAction(node, event);
         }, { capture: true, passive: false });
@@ -1235,7 +1577,9 @@ function renderGraph(container) {
                         <div class="zstp-preview-kicker">GRAPH INSPECTOR</div>
                         <h3 id="zstp-preview-title">节点阅览</h3>
                     </div>
-                    <button id="zstp-preview-close" class="zstp-preview-close">×</button>
+                    <button id="zstp-preview-close" class="zstp-preview-close cyber-button" type="button" aria-label="关闭">
+                        <span class="cyber-button__tag">×</span>
+                    </button>
                 </div>
                 <div id="zstp-preview-meta" class="zstp-preview-meta"></div>
                 <div id="zstp-preview-body" class="zstp-preview-body"></div>
@@ -1244,6 +1588,12 @@ function renderGraph(container) {
             panel.querySelector('#zstp-preview-close').addEventListener('click', () => {
                 panel.classList.remove('active');
                 revokeActivePreviewUrl();
+            });
+            panel.querySelector('#zstp-preview-body').addEventListener('click', event => {
+                const trigger = event.target.closest?.('[data-graph-node-id]');
+                if (!trigger) return;
+                const target = graphNodeById.get(trigger.getAttribute('data-graph-node-id'));
+                if (target) runGraphNodeAction(target, null);
             });
         }
 
@@ -1405,8 +1755,69 @@ function renderGraph(container) {
         );
     }
 
+    function sanitizeKnowledgeText(value) {
+        return String(value || '')
+            .replace(/Wikipedia\s*三级重要条目/gi, '世界知识条目')
+            .replace(/Wikipedia/gi, '百科')
+            .replace(/维基百科|維基百科/g, '百科');
+    }
+
+    function getCrossNeighbors(node) {
+        const data = Graph.graphData?.() || { nodes: [], links: [] };
+        const byId = new Map((data.nodes || []).map(item => [item.id, item]));
+        const result = [];
+        const seen = new Set();
+        (data.links || []).forEach(link => {
+            if (link.relation !== 'cross-disciplinary') return;
+            const sourceId = typeof link.source === 'object' ? link.source?.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target?.id : link.target;
+            let otherId = null;
+            if (sourceId === node.id) otherId = targetId;
+            else if (targetId === node.id) otherId = sourceId;
+            if (!otherId || seen.has(otherId)) return;
+            const other = byId.get(otherId);
+            if (!other) return;
+            seen.add(otherId);
+            result.push(other);
+        });
+        return result;
+    }
+
+    function renderExpansionKnowledgeSection(node) {
+        const descriptionZh = sanitizeKnowledgeText(node.descriptionZh || '');
+        const descriptionEn = sanitizeKnowledgeText(node.descriptionEn || '');
+        const neighbors = getCrossNeighbors(node);
+        const tags = [node.expansionCategory, node.crossDomain ? '跨学科 Cross-disciplinary' : '', node.section].filter(Boolean);
+        const neighborHtml = neighbors.length
+            ? `<div class="zstp-vault-links">${neighbors.map(item =>
+                `<button type="button" class="zstp-vault-link" data-graph-node-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`
+            ).join('')}</div>`
+            : '<p class="zstp-vault-empty">暂无跨学科关联。</p>';
+        return `
+            <section class="zstp-world">
+                <div class="zstp-world-entity">
+                    <div class="zstp-world-label">${escapeHtml(node.nameZh || '')} ${escapeHtml(node.nameEn || '')}</div>
+                    ${descriptionZh ? `<p class="zstp-world-desc">${escapeHtml(descriptionZh)}</p>` : ''}
+                    ${descriptionEn ? `<p class="zstp-world-aliases">${escapeHtml(descriptionEn)}</p>` : ''}
+                </div>
+                <div class="zstp-vault-tags">${tags.map(tag =>
+                    `<span class="zstp-vault-tag">${escapeHtml(tag)}</span>`
+                ).join('')}</div>
+                <section class="zstp-kb-record">
+                    <h4>跨学科关联 (${neighbors.length})</h4>
+                    ${neighborHtml}
+                </section>
+                <div class="zstp-world-sources">
+                    <a class="zstp-vault-link" href="${escapeHtml(node.sourceUrl)}" target="_blank" rel="noopener">DBpedia 条目</a>
+                </div>
+                <p class="zstp-world-provenance">来源：DBpedia · CC BY-SA 3.0 · 由 compileWorldExpansion.js 生成</p>
+            </section>
+        `;
+    }
+
     // 节点面板的“世界知识”区块，是节点的主视图：先给实体与正文，再给关系声明。
     function renderWorldKnowledgeSection(node) {
+        if (node.kind === 'expansion') return renderExpansionKnowledgeSection(node);
         const entry = typeof getGraphNodeWorldKnowledge === 'function' ? getGraphNodeWorldKnowledge(node.name) : null;
         if (!entry) {
             return `
@@ -1415,8 +1826,8 @@ function renderGraph(container) {
                         <span class="zstp-world-kicker">WORLD KNOWLEDGE · 世界知识</span>
                         <span class="zstp-world-badge is-empty">尚未编译</span>
                     </header>
-                    <p class="zstp-world-empty">这个节点没有对应的 Wikipedia/Wikidata 实体记录。
-                    运行 <code>node compileWorldGraph.js</code> 会从 Wikipedia 三级重要条目与 Wikidata 重新生成，然后重新加载页面。</p>
+                    <p class="zstp-world-empty">这个节点没有对应的实体记录。
+                    运行 <code>node compileWorldGraph.js</code> 会重新生成本地世界知识图谱，然后重新加载页面。</p>
                 </section>
             `;
         }
@@ -1449,8 +1860,8 @@ function renderGraph(container) {
             }
         }
 
-        const prose = (entity && entity.wikipedia && entity.wikipedia.extract) || (article && article.extract) || '';
-        const proseTitle = (entity && entity.wikipedia && entity.wikipedia.title) || (article && article.title) || '';
+        const prose = sanitizeKnowledgeText((entity && entity.wikipedia && entity.wikipedia.extract) || (article && article.extract) || '');
+        const proseTitle = sanitizeKnowledgeText((entity && entity.wikipedia && entity.wikipedia.title) || (article && article.title) || '');
         if (prose) {
             const paragraphs = String(prose).split(/\n{2,}/).map(part => part.trim()).filter(Boolean);
             const proseHtml = (paragraphs.length ? paragraphs : [String(prose)])
@@ -1469,6 +1880,14 @@ function renderGraph(container) {
 
     function inspectKnowledgeGraphNode(node) {
         const context = getNodeGraphContext(node);
+        if (node.kind === 'expansion') {
+            showPreview(
+                node.name,
+                `${(context.path || []).join(' > ')} · DBpedia 概念`,
+                renderExpansionKnowledgeSection(node)
+            );
+            return;
+        }
         const allRecords = node.knowledgeBase || [];
         const worldRecords = allRecords.filter(record => record.evidenceLevel === 'encyclopedia-verbatim');
         const records = allRecords
@@ -1604,11 +2023,11 @@ function renderGraph(container) {
             domain: {
                 id: 'world-knowledge',
                 label: node.section || '世界知识',
-                summary: 'Wikipedia 与 Wikidata 的原文和结构化声明。',
-                sources: ['Wikipedia', 'Wikidata'],
+                summary: '本地百科原文与结构化声明。',
+                sources: ['世界知识'],
                 questions: []
             },
-            source: node.source || 'Wikipedia · Wikidata'
+            source: '世界知识'
         };
     }
 
@@ -1619,7 +2038,7 @@ function renderGraph(container) {
             title: `${match.title}${match.heading ? ` · ${match.heading}` : ' · 导言'}`,
             content: match.text,
             snippet: match.snippet,
-            source: 'Wikipedia',
+            source: '百科',
             url: match.url,
             citation: match.citation,
             evidenceLevel: 'encyclopedia-verbatim',
@@ -1658,7 +2077,7 @@ function renderGraph(container) {
             externalRecords: [],
             evidenceGraph: result.evidenceGraph,
             retrievalPolicy: [
-                '只检索本地 worldKnowledge.js 中带 revision 与 URL 的 Wikipedia 原文段落。',
+                '只检索本地 worldKnowledge.js 中带 revision 与 URL 的百科原文段落。',
                 'Wikidata 声明只作为结构化关系，不替代原文段落。',
                 '所有回答必须能够回指到检索记录的 citation。'
             ],
@@ -1771,7 +2190,7 @@ function renderGraph(container) {
     if (layerToggleBtn) {
         layerToggleBtn.addEventListener('click', () => {
             graphLayerMode = graphLayerMode === 'all' ? 'structure' : 'all';
-            layerToggleBtn.textContent = graphLayerMode === 'all' ? '只看知识结构' : '显示全部实体';
+            layerToggleBtn.textContent = graphLayerMode === 'all' ? '只看知识结构' : '显示全部节点';
             if (importedGraphMode === 'builtin') rebuildBuiltinGraph();
             else restoreBuiltinGraph();
         });
@@ -1999,7 +2418,9 @@ function renderGraph(container) {
         auditRuntime: () => {
             const data = (typeof Graph !== 'undefined' && Graph.graphData?.()) || { nodes: [], links: [] };
             const realNodes = (data.nodes || []).filter(node => node.kind !== 'knowledge-detail');
-            const entityNodes = realNodes.filter(node => node.kind !== 'category' && node.kind !== 'root');
+            const expansionNodes = realNodes.filter(node => node.kind === 'expansion');
+            const entityNodes = realNodes.filter(node =>
+                node.kind !== 'category' && node.kind !== 'root' && node.kind !== 'expansion');
             const invalidNodes = entityNodes.filter(node => {
                 const hasSource = (node.knowledgeBase || []).some(record =>
                     record.evidenceLevel === 'encyclopedia-verbatim' &&
@@ -2008,19 +2429,30 @@ function renderGraph(container) {
                 );
                 return !node.qid || !hasSource;
             });
+            const invalidExpansion = expansionNodes.filter(node => {
+                const nameOk = Boolean(node.nameZh && node.nameEn && node.name === `${node.nameZh} ${node.nameEn}`
+                    && /[\u4e00-\u9fff]/.test(node.nameZh) && /[A-Za-z]/.test(node.nameEn));
+                const sourceOk = String(node.sourceUrl || '').startsWith('https://dbpedia.org/');
+                const descriptionOk = Boolean(node.descriptionZh || node.descriptionEn);
+                return !nameOk || !sourceOk || !descriptionOk;
+            });
             const requiredNodeCount = importedGraphMode === 'builtin'
                 ? (graphLayerMode === 'all' ? 100 : 1)
                 : 1;
             return {
-                status: invalidNodes.length === 0 && realNodes.length >= requiredNodeCount ? 'pass' : 'fail',
+                status: invalidNodes.length === 0 && invalidExpansion.length === 0 && realNodes.length >= requiredNodeCount ? 'pass' : 'fail',
                 nodeCount: realNodes.length,
                 entityCount: entityNodes.length,
-                categoryCount: realNodes.length - entityNodes.length,
+                expansionCount: expansionNodes.length,
+                categoryCount: realNodes.length - entityNodes.length - expansionNodes.length,
                 fullEntityCount: window.WORLD_KNOWLEDGE_GRAPH?.meta?.nodeCount || 0,
                 layerMode: graphLayerMode,
                 linkCount: (data.links || []).length,
+                crossLinkCount: (data.links || []).filter(link => link.relation === 'cross-disciplinary').length,
                 invalidNodeCount: invalidNodes.length,
                 invalidNodes: invalidNodes.slice(0, 20).map(node => node.name),
+                invalidExpansionCount: invalidExpansion.length,
+                invalidExpansion: invalidExpansion.slice(0, 20).map(node => node.name),
                 graphMode: importedGraphMode,
                 requiredNodeCount,
                 retrieverVersion: getWorldRag()?.version || 'unavailable',
@@ -2048,14 +2480,14 @@ function renderGraph(container) {
                     id: targetNode.id,
                     name: targetNode.name,
                     qid: targetNode.qid || '',
-                    source: targetNode.source || '',
+                    source: '世界知识',
                     section: targetNode.section || '',
                     knowledgeBaseCount: Array.isArray(targetNode.knowledgeBase) ? targetNode.knowledgeBase.length : 0
                 } : {
                     id: '',
                     name: result.seeds[0]?.name || '世界知识库',
                     qid: result.seeds[0]?.qid || '',
-                    source: 'Wikipedia · Wikidata',
+                    source: '世界知识',
                     section: '',
                     knowledgeBaseCount: 0
                 },
@@ -2077,9 +2509,9 @@ function renderGraph(container) {
                 externalRecords: [],
                 evidenceGraph: result.evidenceGraph,
                 retrievalPolicy: [
-                    '只检索本地 Wikipedia 原文语料。',
-                    '每条记录带标题、URL、revision 与 CC BY-SA 4.0 许可。',
-                    'Wikidata 声明仅用于实体关系和消歧。'
+                    '只检索本地百科原文语料。',
+                    '每条记录带标题、URL、revision 与许可信息。',
+                    '结构化声明仅用于实体关系和消歧。'
                 ],
                 diagnostics: result.diagnostics,
                 mode: 'local-corpus'
@@ -2101,7 +2533,6 @@ function renderGraph(container) {
             window.isZSTPActive = true;
             if (Graph && typeof Graph.resumeAnimation === 'function') Graph.resumeAnimation(); // 恢复物理计算和交互
             resizeGraph();
-            ensureStarsAnimating(); // 重启星空动画循环
             resetPanel(); // 重置面板显示和定时器
             console.log('知识图谱已恢复');
         }

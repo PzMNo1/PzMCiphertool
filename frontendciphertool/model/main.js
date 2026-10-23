@@ -587,41 +587,47 @@
         }
     }
 
-    function getAgentUsageStorageKey() {
-        const user = checkLogin();
-        const account = String(user?.phone || user?.username || user?.email || '').trim();
-        return account ? `agentUsage::u:${account}` : null;
+    let agentUsageRequestSeq = 0;
+
+    function resolveUsageSummaryUrl() {
+        const base = (() => {
+            try {
+                const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+                if (/^https?:\/\//i.test(override)) {
+                    return override.replace(/\/+$/, '');
+                }
+            } catch (error) {
+                // Fall through to local backend.
+            }
+            return 'http://127.0.0.1:8080';
+        })();
+        return `${base}/api/usage/summary`;
     }
 
-    function readAgentUsage() {
-        const key = getAgentUsageStorageKey();
-        if (!key) return 0;
-        try {
-            return Math.max(0, parseInt(localStorage.getItem(key) || '0', 10) || 0);
-        } catch (error) {
-            return 0;
-        }
-    }
-
-    function recordAgentUsage() {
-        const key = getAgentUsageStorageKey();
-        if (!key) return;
-        try {
-            localStorage.setItem(key, String(readAgentUsage() + 1));
-        } catch (error) {
-            return;
-        }
-        updateAgentUsageBadge();
-    }
-
-    function updateAgentUsageBadge() {
+    async function updateAgentUsageBadge() {
         const badge = document.getElementById('agent-usage-count');
         if (!badge) return;
         if (!checkLogin()) {
             badge.textContent = '登录后启用';
             return;
         }
-        badge.textContent = `${readAgentUsage()} 次`;
+
+        const seq = ++agentUsageRequestSeq;
+        try {
+            const response = await fetch(resolveUsageSummaryUrl(), {
+                headers: window.CipherAuth?.getAuthHeaders?.() || {}
+            });
+            const result = await response.json();
+            if (seq !== agentUsageRequestSeq) return;
+            const agentUsage = result?.data?.agent;
+            if (!result?.success || !agentUsage) {
+                badge.textContent = '暂不可用';
+                return;
+            }
+            badge.textContent = agentUsage.unlimited ? '不限次' : `${agentUsage.remaining} 次`;
+        } catch (error) {
+            if (seq === agentUsageRequestSeq) badge.textContent = '暂不可用';
+        }
     }
 
     /**
@@ -747,6 +753,10 @@
             'agentEventTimeline',
             'agentEventLog',
             'agentEventCount',
+            'agentThoughtPanel',
+            'agentThoughtBody',
+            'agentThoughtStatus',
+            'agentThoughtCount',
             'runtimeStartTime',
             'runtimeElapsedMs',
             'runtimeTimerId',
@@ -1203,7 +1213,6 @@
         if (!rawMessage && !hasAttachments) return;
 
         const message = rawMessage || '请阅读这些附件并总结重点。';
-        recordAgentUsage();
         const modelingModeToggle = document.getElementById('modeling-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
         const isModelingModeEnabled = modelingModeToggle && modelingModeToggle.classList.contains('active');
@@ -1232,6 +1241,8 @@
         if (!chatId) {
             chatId = window.historyManager.createNewChat();
         }
+        window.agentPerformanceMonitor?.setChatContext?.(chatId);
+        window.agentContextManager?.setChatContext?.(chatId);
         const priorStoredMessages = window.historyManager.getMessages(chatId);
         const priorMessages = window.historyManager.getMessagesForAPI(chatId);
         const priorAgentRuns = buildPriorAgentRunSummaries(priorStoredMessages);
@@ -1249,6 +1260,9 @@
         const container = window.chatUI.createAssistantMessageContainer();
         const assistantMessageId = createAssistantMessageId();
         const runClient = createRunClient();
+        if (typeof runClient.beginUsageTurn === 'function') {
+            runClient.beginUsageTurn(`agent_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`);
+        }
         const abortController = new AbortController();
         let runRuntime = null;
         let activeRun = null;
@@ -1455,6 +1469,48 @@
             runClient.reset();
             updateHistoryUI();
             refreshSendButtonState();
+            updateAgentUsageBadge();
+        }
+    }
+
+    /**
+     * 把会话自己的性能/上下文指标恢复到输入框下方，避免沿用上一个会话的实时数字。
+     */
+    function restoreChatTelemetry(chatId, messages = []) {
+        const latest = (() => {
+            for (let i = messages.length - 1; i >= 0; i -= 1) {
+                const run = resolveAgentRunForMessage(messages[i]);
+                if (run && (run.performance || run.context_usage)) {
+                    return { run, message: messages[i] };
+                }
+            }
+            return null;
+        })();
+
+        const performanceMonitor = window.agentPerformanceMonitor;
+        if (performanceMonitor) {
+            performanceMonitor.setChatContext(chatId || '');
+            if (latest?.run?.performance) {
+                const label = latest.message?.created_at
+                    ? `历史 · ${window.historyManager.formatDate(latest.message.created_at)}`
+                    : '历史对话';
+                performanceMonitor.showHistorical(latest.run.performance, { chatId, label });
+            } else if (!(performanceMonitor.run && performanceMonitor.runChatId === chatId)) {
+                performanceMonitor.reset();
+            }
+        }
+
+        const contextManager = window.agentContextManager;
+        if (contextManager) {
+            contextManager.setChatContext?.(chatId || '');
+            const historyMessages = messages.filter(message => message && message.role !== 'system');
+            if (latest?.run?.context_usage) {
+                contextManager.showHistorical(latest.run.context_usage, historyMessages);
+            } else if (historyMessages.length) {
+                contextManager.showHistorical({}, historyMessages);
+            } else {
+                contextManager.reset();
+            }
         }
     }
 
@@ -1491,6 +1547,7 @@
         }
 
         updateHistoryUI();
+        restoreChatTelemetry(chatId, messages);
 
         // 移动端关闭侧边栏
         if (window.innerWidth <= 768) {
@@ -1530,6 +1587,10 @@
         const newChatId = window.historyManager.createNewChat();
         window.historyManager.saveChatHistory(newChatId);
         window.chatUI.clearMessages();
+        window.agentPerformanceMonitor?.reset?.();
+        window.agentPerformanceMonitor?.setChatContext?.(newChatId);
+        window.agentContextManager?.reset?.();
+        window.agentContextManager?.setChatContext?.(newChatId);
         updateHistoryUI();
         refreshSendButtonState();
     }

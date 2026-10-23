@@ -122,12 +122,26 @@
                     lineColor: 'rgba(142,231,255,0.75)',
                     secondaryColor: 'rgba(24,60,72,0.7)',
                     tertiaryColor: 'rgba(12,25,34,0.7)',
-                    fontSize: '13px'
+                    fontSize: '12px',
+                    pie1: '#0072B2',
+                    pie2: '#D55E00',
+                    pie3: '#009E73',
+                    pie4: '#CC79A7',
+                    pie5: '#E69F00',
+                    pie6: '#56B4E9',
+                    pie7: '#4D4D4D',
+                    pie8: '#F0E442'
                 },
                 flowchart: { htmlLabels: false, curve: 'basis', useMaxWidth: true },
                 sequence: { useMaxWidth: true },
-                pie: { useMaxWidth: true },
-                xychart: { useMaxWidth: true }
+                pie: { useMaxWidth: true, textPosition: 0.65 },
+                xyChart: {
+                    width: 470,
+                    height: 290,
+                    plotColorPalette: '#0072B2,#D55E00,#009E73,#CC79A7,#E69F00,#56B4E9'
+                },
+                gantt: { useMaxWidth: false },
+                timeline: { useMaxWidth: false }
             });
 
             this.initialized = true;
@@ -182,9 +196,16 @@
 
             const hash = this.hash(code);
 
+            // 历史消息里的 Mermaid pie / xychart 交给 Nature 风格渲染器，保持一致。
+            if (/^(pie|xychart)\b/i.test(code.trim())
+                && window.agentChartRenderer?.renderMermaidChart?.(host, code)) {
+                this.stats.rendered += 1;
+                return true;
+            }
+
             // 命中缓存：直接注入，避免流式重绘时重复渲染
             if (this.svgCache.has(hash)) {
-                this.injectSvg(host, this.svgCache.get(hash), hash);
+                this.injectSvg(host, this.svgCache.get(hash), hash, code);
                 this.stats.cached += 1;
                 return true;
             }
@@ -211,7 +232,7 @@
                     const svg = result && result.svg ? result.svg : '';
                     if (!svg) throw new Error('empty svg');
                     this.rememberSvg(hash, svg);
-                    this.injectSvg(host, svg, hash);
+                    this.injectSvg(host, svg, hash, code);
                     this.stats.rendered += 1;
                     return true;
                 } catch (error) {
@@ -241,10 +262,14 @@
             this.svgCache.set(hash, svg);
         }
 
-        injectSvg(host, svg, hash) {
+        injectSvg(host, svg, hash, code = '') {
             if (!host) return;
             const wrapper = document.createElement('div');
             wrapper.className = 'agent-diagram';
+            const lowerCode = String(code || '').toLowerCase();
+            if (/\b(gantt|timeline|journey|gitgraph)\b/.test(lowerCode)) {
+                wrapper.classList.add('agent-diagram--wide');
+            }
             wrapper.dataset.mermaidState = 'done';
             wrapper.dataset.mermaidHash = hash;
             wrapper.innerHTML = svg;

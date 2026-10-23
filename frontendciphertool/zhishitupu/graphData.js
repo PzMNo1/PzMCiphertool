@@ -28,8 +28,20 @@ function getWorldGraphStore() {
     return null;
 }
 
+function getWorldExpansionStore() {
+    if (typeof window !== 'undefined' && window.WORLD_KNOWLEDGE_EXPANSION) return window.WORLD_KNOWLEDGE_EXPANSION;
+    return null;
+}
+
 function worldSectionColor(section) {
     return WORLD_SECTION_COLORS[section] || WORLD_SECTION_COLORS.default;
+}
+
+function sanitizeDisplayText(value) {
+    return String(value || '')
+        .replace(/Wikipedia\s*三级重要条目/gi, '世界知识条目')
+        .replace(/Wikipedia/gi, '世界知识')
+        .replace(/维基百科|維基百科/g, '世界知识');
 }
 
 function worldNodeDisplayName(node) {
@@ -51,7 +63,7 @@ function worldClaimSummary(entry) {
 function worldCitation(node, language, title) {
     const wiki = node.wiki?.[language] || {};
     return {
-        source: 'Wikipedia',
+        source: '百科',
         title: wiki.title || title || node.name,
         url: wiki.url || node.sourceUrl || '',
         revision: wiki.revision || '',
@@ -95,7 +107,7 @@ function buildWorldEntityKnowledge(node, store) {
                 title: `${wiki.title || node.name}${doc.heading ? ` · ${doc.heading}` : ' · 导言'}`,
                 content: doc.text,
                 snippet: doc.text,
-                source: 'Wikipedia',
+                source: '百科',
                 url: wiki.url || '',
                 evidenceLevel: 'encyclopedia-verbatim',
                 evidenceUsability: 'claim-supporting',
@@ -134,11 +146,11 @@ function buildWorldCategoryKnowledge(node, members, store) {
         content: names.length
             ? `该章节共 ${names.length} 个条目：${names.slice(0, 120).join('；')}`
             : '该章节暂无已编译条目。',
-        source: 'Wikipedia',
+        source: '百科',
         url: node.sourceUrl || '',
         evidenceLevel: 'source-index',
         citation: {
-            source: 'Wikipedia',
+            source: '百科',
             title: `Vital articles / ${node.name}`,
             url: node.sourceUrl || '',
             retrievedAt: getWorldGraphStore()?.meta?.builtAt || ''
@@ -153,7 +165,7 @@ function buildWorldTree(store) {
             name: '世界知识图谱尚未编译',
             val: 40,
             group: 'root',
-            description: '运行 node compileWorldGraph.js 从 Wikipedia 与 Wikidata 生成本地世界知识图谱。',
+            description: '运行 node compileWorldGraph.js 重新生成本地世界知识图谱。',
             source: 'PzMAgentool',
             knowledgeBase: [{
                 id: 'world-graph-missing',
@@ -180,14 +192,121 @@ function buildWorldTree(store) {
         entitiesBySection.get(sectionId).push(entity);
     }
 
+    const expansion = getWorldExpansionStore();
+    const expansionMeta = expansion?.meta || {};
+    const expansionByParent = new Map();
+    for (const category of expansion?.categories || []) {
+        if (!category.parentId) continue;
+        if (!expansionByParent.has(category.parentId)) expansionByParent.set(category.parentId, []);
+        expansionByParent.get(category.parentId).push(category);
+    }
+
+    const toExpansionRaw = (entry, category) => {
+        const nameZh = entry.nameZh || '';
+        const nameEn = entry.nameEn || '';
+        if (!nameZh || !nameEn) return null;
+        const description = sanitizeDisplayText(entry.descriptionZh || entry.descriptionEn || '');
+        const citation = {
+            source: 'DBpedia',
+            title: nameEn,
+            url: entry.sourceUrl || `https://dbpedia.org/page/${entry.resource || ''}`,
+            license: 'CC BY-SA 3.0',
+            retrievedAt: expansionMeta.builtAt || ''
+        };
+        const records = [{
+            id: `${entry.worldId}:description`,
+            title: 'DBpedia 概念说明',
+            content: [
+                entry.descriptionZh ? `中文：${entry.descriptionZh}` : '',
+                entry.descriptionEn ? `English: ${entry.descriptionEn}` : ''
+            ].filter(Boolean).join('\n\n'),
+            source: 'DBpedia',
+            url: citation.url,
+            evidenceLevel: 'external-description',
+            evidenceUsability: 'concept-definition',
+            citation,
+            keywords: [nameZh, nameEn, category.name].filter(Boolean)
+        }, {
+            id: `${entry.worldId}:category`,
+            title: '所属领域',
+            content: category.name,
+            source: 'DBpedia',
+            url: citation.url,
+            evidenceLevel: 'source-index',
+            citation,
+            keywords: [category.nameZh, category.nameEn].filter(Boolean)
+        }];
+        return {
+            name: `${nameZh} ${nameEn}`,
+            val: 10,
+            group: 'concept',
+            kind: 'expansion',
+            color: entry.cross ? 0xff66aa : (category.color || 0x00e5ff),
+            description,
+            source: 'DBpedia',
+            worldId: entry.worldId,
+            qid: '',
+            nameZh,
+            nameEn,
+            aliases: [nameZh, nameEn],
+            section: category.section || '',
+            expansionCategory: category.name,
+            descriptionZh: sanitizeDisplayText(entry.descriptionZh || ''),
+            descriptionEn: sanitizeDisplayText(entry.descriptionEn || ''),
+            sourceUrl: entry.sourceUrl || '',
+            wikiUrl: entry.wikiUrl || '',
+            curated: entry.curated === true,
+            crossDomain: entry.cross === true,
+            knowledgeBase: records
+        };
+    };
+
+    const buildExpansionCategory = category => {
+        const children = (category.nodes || [])
+            .map(node => toExpansionRaw(node, category))
+            .filter(Boolean);
+        if (!children.length) return null;
+        return {
+            name: category.name,
+            val: 26,
+            group: 'category',
+            kind: 'category',
+            color: category.color || 0x00e5ff,
+            description: sanitizeDisplayText(category.description || ''),
+            source: 'DBpedia',
+            worldId: category.id,
+            qid: '',
+            nameZh: category.nameZh || '',
+            nameEn: category.nameEn || '',
+            section: category.section || '',
+            knowledgeBase: [{
+                id: `${category.id}:members`,
+                title: `${category.name} · 概念清单`,
+                content: `${children.length} 个概念：${children.map(node => node.name).join('；')}`,
+                source: 'DBpedia',
+                url: 'https://dbpedia.org/',
+                evidenceLevel: 'source-index',
+                citation: {
+                    source: 'DBpedia',
+                    title: category.nameEn || category.name,
+                    url: 'https://dbpedia.org/',
+                    license: 'CC BY-SA 3.0',
+                    retrievedAt: expansionMeta.builtAt || ''
+                },
+                keywords: [category.nameZh, category.nameEn].filter(Boolean)
+            }],
+            children
+        };
+    };
+
     const toEntityRaw = entity => ({
         name: entity.name,
         val: 14,
         group: 'entity',
         kind: 'entity',
         color: worldSectionColor(entity.section),
-        description: entity.description || '',
-        source: 'Wikipedia · Wikidata',
+        description: sanitizeDisplayText(entity.description || ''),
+        source: '世界知识',
         worldId: entity.id,
         qid: entity.qid || '',
         nameEn: entity.nameEn || '',
@@ -202,9 +321,13 @@ function buildWorldTree(store) {
             .map(buildCategory)
             .filter(Boolean);
         const members = entitiesBySection.get(category.id) || [];
+        const expansionCategories = (expansionByParent.get(category.id) || [])
+            .map(buildExpansionCategory)
+            .filter(Boolean);
         const children = [
             ...subcategories,
-            ...members.map(toEntityRaw)
+            ...members.map(toEntityRaw),
+            ...expansionCategories
         ];
         if (!children.length) return null;
         return {
@@ -213,8 +336,8 @@ function buildWorldTree(store) {
             group: 'category',
             kind: 'category',
             color: category.color || worldSectionColor(category.section),
-            description: category.description || '',
-            source: 'Wikipedia',
+            description: sanitizeDisplayText(category.description || ''),
+            source: '百科',
             worldId: category.id,
             qid: '',
             nameEn: category.nameEn || '',
@@ -312,9 +435,17 @@ function buildGraphData(roots, THEME, prefix) {
             worldId: raw.worldId || '',
             qid: raw.qid || '',
             nameEn: raw.nameEn || '',
+            nameZh: raw.nameZh || '',
             aliases: raw.aliases || [],
             section: raw.section || '',
             subsection: raw.subsection || '',
+            expansionCategory: raw.expansionCategory || '',
+            descriptionZh: raw.descriptionZh || '',
+            descriptionEn: raw.descriptionEn || '',
+            sourceUrl: raw.sourceUrl || '',
+            wikiUrl: raw.wikiUrl || '',
+            curated: raw.curated === true,
+            crossDomain: raw.crossDomain === true,
             knowledgeBase: normalizeGraphKnowledgeBase(raw.knowledgeBase)
         };
         nodes.push(node);
@@ -349,6 +480,22 @@ function buildGraphData(roots, THEME, prefix) {
             });
             added += 1;
             if (added >= WORLD_EDGE_LIMIT) break;
+        }
+    }
+
+    const expansion = getWorldExpansionStore();
+    if (prefix === undefined && expansion && Array.isArray(expansion.crossLinks)) {
+        for (const edge of expansion.crossLinks) {
+            const sourceId = byWorldId.get(edge.source);
+            const targetId = byWorldId.get(edge.target);
+            if (!sourceId || !targetId || sourceId === targetId) continue;
+            links.push({
+                source: sourceId,
+                target: targetId,
+                __hierarchy: false,
+                relation: 'cross-disciplinary',
+                label: edge.label || '跨学科关联'
+            });
         }
     }
     return { nodes, links };
@@ -391,7 +538,7 @@ function getGraphNodeWorldKnowledge(nodeName) {
             article: {
                 title: category.name,
                 url: category.sourceUrl || '',
-                description: category.description || '',
+                description: sanitizeDisplayText(category.description || ''),
                 extract: members.length ? `该章节收录：${members.map(item => item.name).slice(0, 80).join('；')}` : '',
                 revision: store.meta?.sourcePage?.revision || '',
                 excerptFromSearch: false
@@ -414,7 +561,7 @@ function getGraphNodeWorldKnowledge(nodeName) {
             id: node.qid,
             uri: `https://www.wikidata.org/wiki/${node.qid}`,
             label: { zh: node.nameZh || node.name, en: node.nameEn },
-            description: { zh: node.description, en: node.descriptionEn },
+            description: { zh: sanitizeDisplayText(node.description), en: sanitizeDisplayText(node.descriptionEn) },
             aliases: node.aliases || [],
             wikipedia: {
                 site: 'zh.wikipedia.org',

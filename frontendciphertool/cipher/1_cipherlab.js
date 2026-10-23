@@ -80,9 +80,57 @@ const Vigenere = {
       case 'autokey': return `加密: ${Vigenere.autokeyE(t, k)}\n解密: ${Vigenere.autokeyD(t, k)}`;
       case 'gronsfeld': return `加密: ${Vigenere.gronsfeldE(t, k)}\n解密: ${Vigenere.gronsfeldD(t, k)}`;
       case 'porta': return `加密/解密: ${Vigenere.porta(t, k)}`;
+      case 'runningKey': return `加密: ${Vigenere.e(t, k)}\n解密: ${Vigenere.d(t, k)}`;
       default: return `加密: ${Vigenere.e(t, k)}\n解密: ${Vigenere.d(t, k)}`;
     }
   }
+}
+
+// Quagmire I-IV
+const Quagmire = {
+  ALPHA: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  keyed: key => {
+    const raw = ((key || '') + Quagmire.ALPHA).toUpperCase().replace(/[^A-Z]/g, '');
+    const seen = new Set();
+    return [...raw].filter(c => !seen.has(c) && seen.add(c)).join('').slice(0, 26);
+  },
+  alphabets: (variant, keyA, keyB) => {
+    const k1 = Quagmire.keyed(keyA || 'KEYWORD');
+    const k2 = Quagmire.keyed(keyB || 'CIPHER');
+    switch (variant) {
+      case 'quagmire1': return { pa: k1, ca: Quagmire.ALPHA };
+      case 'quagmire2': return { pa: Quagmire.ALPHA, ca: k1 };
+      case 'quagmire3': return { pa: k1, ca: k1 };
+      case 'quagmire4': return { pa: k1, ca: k2 };
+      default: return { pa: k1, ca: k1 };
+    }
+  },
+  run: (t, variant, keyA, keyB, indicator, decrypt = false) => {
+    const { pa, ca } = Quagmire.alphabets(variant, keyA, keyB);
+    const inds = Vigenere.keyLetters(indicator || 'KEY');
+    const posA = Math.max(0, pa.indexOf('A'));
+    let out = '', ii = 0;
+    for (const ch of (t || '')) {
+      const up = ch.toUpperCase();
+      if (!/[A-Z]/.test(up)) { out += ch; continue; }
+      const ind = inds[ii++ % inds.length];
+      const caIdx = Math.max(0, ca.indexOf(ind));
+      let p;
+      if (decrypt) {
+        const cIdx = ca.indexOf(up);
+        p = (cIdx - caIdx + posA + 26) % 26;
+      } else {
+        p = pa.indexOf(up);
+        if (p < 0) { out += ch; continue; }
+        p = (p - posA + caIdx + 26) % 26;
+      }
+      const res = decrypt ? pa[p] : ca[p];
+      out += ch === up ? res : res.toLowerCase();
+    }
+    return out;
+  },
+  process: (t, variant, keyA, keyB, indicator) =>
+    `加密: ${Quagmire.run(t, variant, keyA, keyB, indicator, false)}\n解密: ${Quagmire.run(t, variant, keyA, keyB, indicator, true)}`
 }
 
 // 栅栏密码
@@ -328,7 +376,28 @@ const PhoneKeyCipher = {
   d: t => t.split(' ')
     .map(c => Object.keys(PhoneKeyCipher.dict)
       .find(k => PhoneKeyCipher.dict[k] === c) || c)
-    .join('')
+    .join(''),
+  multitapE(t) {
+    return String(t || '').toUpperCase().split(/\s+/).map(word =>
+      [...word].map(c => {
+        const code = PhoneKeyCipher.dict[c];
+        if (!code) return c;
+        return code[0].repeat(Number(code[1]) || 1);
+      }).join(' ')
+    ).join(' / ');
+  },
+  multitapD(t) {
+    const map = {};
+    for (const [k, v] of Object.entries(PhoneKeyCipher.dict)) {
+      map[v[0].repeat(Number(v[1]) || 1)] = k;
+    }
+    return String(t || '').split('/').map(word =>
+      word.trim().split(/\s+/).filter(Boolean).map(code => map[code] || '?').join('')
+    ).join(' ');
+  },
+  process: (t, mode) => mode === 'multitap'
+    ? `加密: ${PhoneKeyCipher.multitapE(t)}\n解密: ${PhoneKeyCipher.multitapD(t)}`
+    : `加密: ${PhoneKeyCipher.e(t)}\n解密: ${PhoneKeyCipher.d(t)}`
 }
 
 // 比尔密码
@@ -425,6 +494,38 @@ const QweCipher = {
     const invalid = chars.find(c => c !== ' ' && !this.reverseMap[c])
     return invalid ? `无效字符: ${invalid}`
       : chars.map(c => c === ' ' ? ' ' : this.reverseMap[c]).join('')
+  },
+  rows: ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'],
+  coordE(t) {
+    const pos = {};
+    this.rows.forEach((row, r) => [...row].forEach((c, i) => pos[c] = `${r + 1}-${i + 1}`));
+    return String(t || '').toLowerCase().split(/\s+/).map(word =>
+      [...word].map(c => pos[c] || c).join(' ')
+    ).join(' / ');
+  },
+  coordD(t) {
+    return String(t || '').split('/').map(word =>
+      word.trim().split(/\s+/).filter(Boolean).map(code => {
+        const m = code.match(/^(\d)-(\d)$/);
+        return m ? (this.rows[Number(m[1]) - 1] || '')[Number(m[2]) - 1] || '?' : '?';
+      }).join('')
+    ).join(' ');
+  },
+  shift(t, dir) {
+    let out = '';
+    for (const ch of String(t || '').toLowerCase()) {
+      const row = this.rows.find(r => r.includes(ch));
+      if (!row) { out += ch; continue; }
+      const i = row.indexOf(ch);
+      out += row[(i + dir + row.length) % row.length];
+    }
+    return out;
+  },
+  process(t, mode) {
+    if (mode === 'coord') return `编码: ${this.coordE(t)}\n解码: ${this.coordD(t)}`;
+    if (mode === 'shiftLeft') return `左移: ${this.shift(t, -1)}`;
+    if (mode === 'shiftRight') return `右移: ${this.shift(t, 1)}`;
+    return `解密: ${this.e(t)}\n加密: ${this.d(t)}`;
   }
 }
 
@@ -1245,6 +1346,32 @@ const baseCipher = {
           return r.padEnd(Math.ceil(r.length / 8) * 8, '=');
         }
         case '64': return t ? btoa(unescape(encodeURIComponent(t))) : '';
+        case '45': {
+          if (!t) return '';
+          const a = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+          const b = new TextEncoder().encode(t);
+          let r = '';
+          for (let i = 0; i < b.length; i += 2) {
+            if (i + 1 < b.length) {
+              const n = b[i] * 256 + b[i + 1];
+              r += a[n % 45] + a[Math.floor(n / 45) % 45] + a[Math.floor(n / 2025)];
+            } else {
+              r += a[b[i] % 45] + a[Math.floor(b[i] / 45)];
+            }
+          }
+          return r;
+        }
+        case '62': {
+          if (!t) return '';
+          const a = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+          const b = new TextEncoder().encode(t);
+          let v = 0n;
+          for (const x of b) v = v * 256n + BigInt(x);
+          if (v === 0n) return a[0];
+          let r = '';
+          while (v > 0n) { r = a[Number(v % 62n)] + r; v /= 62n; }
+          return r;
+        }
         case '58': {
           if (!t) return ''; const a = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
           const b = new TextEncoder().encode(t); let z = 0; while (z < b.length && b[z] === 0) z++;
@@ -1303,6 +1430,36 @@ const baseCipher = {
           return new TextDecoder().decode(new Uint8Array(b));
         }
         case '64': return t ? decodeURIComponent(escape(atob(t))) : '';
+        case '45': {
+          const a = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+          const s = t.replace(/[\r\n]+/g, '').toUpperCase();
+          if (!s.length || s.length % 3 === 1) return '无效的Base45编码';
+          const out = [];
+          for (let i = 0; i < s.length; i += 3) {
+            if (i + 2 < s.length) {
+              const n = a.indexOf(s[i]) + a.indexOf(s[i + 1]) * 45 + a.indexOf(s[i + 2]) * 2025;
+              if (n < 0 || n > 0xFFFF) return '无效的Base45编码';
+              out.push((n >> 8) & 0xFF, n & 0xFF);
+            } else {
+              const n = a.indexOf(s[i]) + a.indexOf(s[i + 1]) * 45;
+              if (n < 0 || n > 0xFF) return '无效的Base45编码';
+              out.push(n);
+            }
+          }
+          return new TextDecoder().decode(new Uint8Array(out));
+        }
+        case '62': {
+          const a = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+          let v = 0n;
+          for (const c of t.trim()) {
+            const idx = a.indexOf(c);
+            if (idx < 0) return '无效的Base62字符';
+            v = v * 62n + BigInt(idx);
+          }
+          const out = [];
+          while (v > 0n) { out.unshift(Number(v & 255n)); v >>= 8n; }
+          return new TextDecoder().decode(new Uint8Array(out));
+        }
         case '58': {
           const a = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
           let z = 0; while (t[z] === '1') z++;
@@ -1438,7 +1595,7 @@ const PigpenCipher = {
   }
 }
 
-// Substitution 替换分析助手
+// 频率分析 Substitution
 const SubstitutionTools = {
   unique: s => [...(s || '')].filter((c, i, a) => c && a.indexOf(c) === i).join(''),
   mapAlphabet: (from, to) => {

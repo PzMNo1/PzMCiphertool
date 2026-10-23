@@ -8,6 +8,11 @@ class ToolRegistry {
         this.tools = new Map();
         this.dynamicAvailability = new Map();
         this.agentEarthStatusCheckedAt = 0;
+        // DeepSeek Search / Fetch 的账号级 QPS 分别是 100 / 25，前端再压一层并发。
+        this.requestSlots = {
+            search: { active: 0, max: 16, queue: [] },
+            fetch: { active: 0, max: 8, queue: [] }
+        };
 
         // 动态获取后端 API 基础路径
         this.getApiBase = () => {
@@ -130,7 +135,109 @@ class ToolRegistry {
         if (value.includes('/read_webpage')) return 45000;
         if (value.includes('/community_snapshot')) return 45000;
         if (value.includes('/search_urls')) return 45000;
+        if (value.includes('/deepseek/search')) return 30000;
+        if (value.includes('/deepseek/fetch')) return 40000;
         return 30000;
+    }
+
+    async deepseekSearchRequest(query, count = 12, needContent = false) {
+        await this.acquireRequestSlot('search');
+        try {
+            const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    count: Math.max(1, Math.min(50, Number(count) || 12)),
+                    need_content: Boolean(needContent)
+                })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'DeepSeek Search 调用失败');
+            const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
+            if (data.error) throw new Error(data.error);
+            return data;
+        } finally {
+            this.releaseRequestSlot('search');
+        }
+    }
+
+    async deepseekFetchRequest(url) {
+        await this.acquireRequestSlot('fetch');
+        try {
+            const response = await this.fetchWithAbort(`${this.getApiBase()}/deepseek/fetch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'DeepSeek Fetch 调用失败');
+            const data = typeof result.data === 'string' ? JSON.parse(result.data) : (result.data || {});
+            if (data.error) throw new Error(data.error);
+            return data;
+        } finally {
+            this.releaseRequestSlot('fetch');
+        }
+    }
+
+    acquireRequestSlot(kind) {
+        const slot = this.requestSlots[kind];
+        if (!slot) return Promise.resolve();
+        if (slot.active < slot.max) {
+            slot.active += 1;
+            return Promise.resolve();
+        }
+        return new Promise(resolve => slot.queue.push(resolve));
+    }
+
+    releaseRequestSlot(kind) {
+        const slot = this.requestSlots[kind];
+        if (!slot) return;
+        if (slot.queue.length) {
+            const next = slot.queue.shift();
+            next();
+            return;
+        }
+        slot.active = Math.max(0, slot.active - 1);
+    }
+
+    async searchFallback(query) {
+        const response = await this.fetchWithAbort(`${this.getApiBase()}/search_urls`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        const result = await response.json();
+        return result.success ? result.data : `搜索失败: ${result.message}`;
+    }
+
+    async researchFallback({ query, queries = [], mode = 'auto', max_results = 40, read_top = true, focus_keyword = '' }) {
+        const endpoint = read_top ? '/research/deep' : '/research/fast';
+        const response = await this.fetchWithAbort(`${this.getApiBase()}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query,
+                queries,
+                mode,
+                max_results,
+                read_top,
+                depth: read_top ? 'deep' : 'fast',
+                focus_keyword: focus_keyword || query
+            })
+        });
+        const result = await response.json();
+        return result.success ? result.data : `聚合检索失败: ${result.message}`;
+    }
+
+    filterContentByKeyword(content, keyword) {
+        const text = String(content || '');
+        const needle = String(keyword || '').trim();
+        if (!needle || !text) return text;
+        const paragraphs = text.split(/\n{2,}/);
+        const matched = paragraphs.filter(item => item.toLowerCase().includes(needle.toLowerCase()));
+        if (!matched.length) return text;
+        return matched.join('\n\n').slice(0, 28000);
     }
 
     /**
@@ -435,7 +542,7 @@ class ToolRegistry {
 
         this.register({
             name: 'web_research',
-            description: 'Grok/Gemini-style web research with first-hand source expansion. Search query variants run in bounded parallel batches; each query fans out to search engines in parallel, then top pages are deep-read in parallel. Use depth="fast" only for a quick source map, and depth="deep" read_top=true for research-grade final evidence. For any current information, market, policy, report, or news question, prefer first_hand_news, official_policy, institution_report, academic_primary, and community_original evidence over section_fallback pages. Never use Baidu. Treat HTTP 451/403/429 as source access-blocked, not as absence of evidence; when blocked, continue with site: search snippets, alternate first-hand reports, official sources, or community originals before finalizing.',
+            description: 'Primary web research tool, powered by the DeepSeek Search API. Runs 2-6 query variants in parallel against DeepSeek’s own search engine, merges/deduplicates results, and (depth=deep) fetches the top sources in parallel through DeepSeek Fetch. Use this FIRST for any current fact, market, policy, company, technology, or news question. It automatically falls back to the legacy multi-engine crawler if DeepSeek Search is unavailable. Never use Baidu.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -494,27 +601,124 @@ class ToolRegistry {
                     const effectiveReadTop = typeof read_top === 'boolean' ? read_top : normalizedDepth === 'deep';
                     const parsedMaxResults = Number(max_results);
                     const requestedMaxResults = Number.isFinite(parsedMaxResults) ? Math.floor(parsedMaxResults) : 40;
-                    const effectiveMaxResults = effectiveReadTop
-                        ? Math.max(32, Math.min(requestedMaxResults, 40))
-                        : Math.max(16, Math.min(requestedMaxResults, 40));
-                    const endpoint = effectiveReadTop ? '/research/deep' : '/research/fast';
-                    const response = await this.fetchWithAbort(`${this.getApiBase()}${endpoint}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query,
-                            queries,
-                            mode,
-                            max_results: effectiveMaxResults,
-                            read_top: effectiveReadTop,
-                            depth: effectiveReadTop ? 'deep' : 'fast',
-                            focus_keyword: focus_keyword || query
-                        })
+                    const effectiveMaxResults = Math.max(16, Math.min(requestedMaxResults, 40));
+                    const queryVariants = Array.from(new Set([query, ...(Array.isArray(queries) ? queries : [])]
+                        .map(item => String(item || '').trim())
+                        .filter(Boolean))).slice(0, 6);
+
+                    // DeepSeek Search 为主通道：多查询变体并行，单次请求拿回结构化 title/url/snippet/summary。
+                    const perQueryCount = Math.max(6, Math.min(20, Math.ceil(effectiveMaxResults / Math.max(1, queryVariants.length)) + 2));
+                    const searches = await Promise.allSettled(queryVariants.map(item =>
+                        this.deepseekSearchRequest(item, perQueryCount, false)));
+
+                    const merged = [];
+                    const seenUrls = new Set();
+                    let searchError = '';
+                    searches.forEach(settled => {
+                        if (settled.status !== 'fulfilled') {
+                            searchError = String(settled.reason?.message || settled.reason || '');
+                            return;
+                        }
+                        (settled.value.results || []).forEach(item => {
+                            const url = String(item.url || '').trim();
+                            if (!/^https?:\/\//i.test(url) || seenUrls.has(url)) return;
+                            seenUrls.add(url);
+                            merged.push({
+                                title: item.title || '',
+                                url,
+                                snippet: item.snippet || '',
+                                summary: item.summary || '',
+                                site_name: item.site_name || '',
+                                date: item.date || null,
+                                authority: Number(item.authority) || 0,
+                                rerank_score: Number(item.rerank_score) || 0
+                            });
+                        });
                     });
-                    const result = await response.json();
-                    return result.success ? result.data : `聚合检索失败: ${result.message}`;
+
+                    if (!merged.length) {
+                        const fallback = await this.researchFallback({
+                            query, queries, mode, max_results: effectiveMaxResults, read_top: effectiveReadTop, focus_keyword
+                        });
+                        return fallback;
+                    }
+
+                    const selected = merged.slice(0, effectiveMaxResults);
+                    if (effectiveReadTop) {
+                        // Fetch 是独立 QPS 限制，只深读最靠前的一批来源，避免拖慢整轮。
+                        const readTargets = selected.slice(0, Math.min(6, selected.length));
+                        const reads = await Promise.allSettled(readTargets.map(item => this.deepseekFetchRequest(item.url)));
+                        reads.forEach((settled, index) => {
+                            if (settled.status !== 'fulfilled') return;
+                            const page = settled.value || {};
+                            const target = readTargets[index];
+                            const content = String(page.content || '').trim();
+                            if (content) {
+                                target.content = content.slice(0, 6000);
+                                if (!target.summary) target.summary = content.slice(0, 800);
+                                target.read_via = 'deepseek-fetch';
+                            }
+                        });
+                    }
+
+                    return JSON.stringify({
+                        provider: 'deepseek-search',
+                        query,
+                        queries: queryVariants,
+                        mode,
+                        count: selected.length,
+                        results: selected,
+                        note: 'DeepSeek Search 为主检索通道；snippet/summary 可直接引用，content 为 DeepSeek Fetch 的正文抓取。'
+                    }, null, 2);
                 } catch (e) {
-                    return `聚合检索请求失败: ${e.message}`;
+                    try {
+                        return await this.researchFallback({
+                            query, queries, mode,
+                            max_results: Number(max_results) || 40,
+                            read_top: typeof read_top === 'boolean' ? read_top : depth === 'deep',
+                            focus_keyword
+                        });
+                    } catch (fallbackError) {
+                        return `聚合检索请求失败: ${e.message}；旧检索通道也失败: ${fallbackError.message}`;
+                    }
+                }
+            }
+        });
+
+        // DeepSeek Search 直连工具：单查询、低延迟，作为 web_research 的轻量替代。
+        this.register({
+            name: 'deepseek_search',
+            description: 'DeepSeek 自研搜索引擎（官方 Search API）。单次查询返回结构化结果（title/url/snippet/summary/site/date/authority），支持 site:、after:、before:、lang: 等搜索语法。任何需要实时网页信息的场景优先用它；需要多角度覆盖时用 web_research。',
+            parameters: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: '搜索词，支持 site: / after: / before: / lang: 语法' },
+                    count: { type: 'integer', description: '返回条数 1-50，默认 12' },
+                    need_content: { type: 'boolean', description: '是否同时返回网页正文（较慢，默认 false）' }
+                },
+                required: ['query']
+            },
+            metadata: {
+                package: 'research_tools',
+                risk: 'network_read',
+                sideEffect: false,
+                requiresApproval: false,
+                timeoutMs: 30000,
+                maxOutputChars: 80000,
+                cachePolicy: 'per_run',
+                retryPolicy: 'once',
+                networkAccess: true,
+                projectAccess: 'none',
+                owner: 'backend',
+                sourceKind: 'search_results',
+                tags: ['search', 'deepseek', 'primary']
+            },
+            execute: async ({ query, count = 12, need_content = false }) => {
+                try {
+                    const data = await this.deepseekSearchRequest(query, count, need_content);
+                    return JSON.stringify(data, null, 2);
+                } catch (e) {
+                    return this.searchFallback(query);
                 }
             }
         });
@@ -522,7 +726,7 @@ class ToolRegistry {
         // 搜索引擎搜索 (多步搜索第一步)
         this.register({
             name: 'search_urls',
-            description: '使用搜索引擎获取相关网页链接。用于补充 web_research 的第二轮精确查询，尤其适合 site:reuters.com、site:bloomberg.com、site:cnbc.com、site:cls.cn、site:sec.gov、site:pbc.gov.cn、site:coinshares.com、site:glassnode.com、site:reddit.com 等一手源/政策/研报/社区定向检索。',
+            description: '使用 DeepSeek Search 获取相关网页链接（主通道；失败时回退旧搜索引擎）。用于补充 web_research 的第二轮精确查询，尤其适合 site:reuters.com、site:bloomberg.com、site:cnbc.com、site:cls.cn、site:sec.gov、site:pbc.gov.cn 等一手源/政策/研报定向检索。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -550,15 +754,10 @@ class ToolRegistry {
             },
             execute: async ({ query }) => {
                 try {
-                    const response = await this.fetchWithAbort(`${this.getApiBase()}/search_urls`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query })
-                    });
-                    const result = await response.json();
-                    return result.success ? result.data : `搜索失败: ${result.message}`;
+                    const data = await this.deepseekSearchRequest(query, 20, false);
+                    return JSON.stringify(data, null, 2);
                 } catch (e) {
-                    return `搜索请求失败: ${e.message}`;
+                    return this.searchFallback(query);
                 }
             }
         });
@@ -566,7 +765,7 @@ class ToolRegistry {
         // 深度读取网页全文 (多步搜索第二步)
         this.register({
             name: 'read_webpage',
-            description: '深度抓取指定网页并返回结构化正文与读取状态。可直接打开 Reuters/AP/CNBC/Bloomberg/财联社/政策页/研报/论文/社区原帖等权威 URL；返回 read_method、source_tier、article_like、section_fallback、blocked、http_status 等字段。HTTP 451/403/429 表示访问受限，需要继续用搜索结果、官方公告、替代一手源或社区原帖交叉验证。',
+            description: '深度抓取指定网页并返回结构化正文。主通道为 DeepSeek Fetch（返回 Markdown），失败时回退后端网页解析；保留 focus_keyword 过滤与 chunk_index 分页。HTTP 451/403/429 表示访问受限，需要继续用搜索结果、官方公告、替代一手源交叉验证。',
             parameters: {
                 type: 'object',
                 properties: {
@@ -602,15 +801,32 @@ class ToolRegistry {
             },
             execute: async ({ url, focus_keyword = '', chunk_index = 0 }) => {
                 try {
-                    const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url, focus_keyword, chunk_index })
-                    });
-                    const result = await response.json();
-                    return result.success ? result.data : `获取网页失败: ${result.message}`;
+                    const data = await this.deepseekFetchRequest(url);
+                    const content = String(data.content || '');
+                    if (!content.trim()) throw new Error('DeepSeek Fetch 未返回可用正文');
+                    const filtered = focus_keyword
+                        ? this.filterContentByKeyword(content, focus_keyword)
+                        : content;
+                    return JSON.stringify({
+                        provider: 'deepseek-fetch',
+                        url,
+                        title: data.title || '',
+                        content: filtered,
+                        read_method: 'deepseek-fetch',
+                        focus_keyword: focus_keyword || null
+                    }, null, 2);
                 } catch (e) {
-                    return `请求失败: ${e.message}`;
+                    try {
+                        const response = await this.fetchWithAbort(`${this.getApiBase()}/read_webpage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url, focus_keyword, chunk_index })
+                        });
+                        const result = await response.json();
+                        return result.success ? result.data : `获取网页失败: ${result.message}`;
+                    } catch (fallbackError) {
+                        return `获取网页失败: ${e.message}；旧通道也失败: ${fallbackError.message}`;
+                    }
                 }
             }
         });
@@ -1133,6 +1349,7 @@ class ToolRegistry {
         const networkRead = new Set([
             'community_snapshot',
             'web_research',
+            'deepseek_search',
             'search_urls',
             'read_webpage',
             'get_weather',

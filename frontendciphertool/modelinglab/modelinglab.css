@@ -79,12 +79,6 @@
   box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
 }
 
-.modelinglab-hint {
-  font-size: 11px;
-  color: rgba(125, 151, 168, 0.95);
-  letter-spacing: 0.4px;
-}
-
 .modelinglab-editor {
   position: relative;
   flex: 1 1 auto;

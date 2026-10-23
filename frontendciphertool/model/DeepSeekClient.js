@@ -11,6 +11,15 @@ class DeepSeekClient {
         this.imageModel = options.imageModel || config.imageModel || 'gpt-image-1';
         this.imageSize = options.imageSize || config.imageSize || '1024x1024';
         this.abortController = null;
+        this.usageTurnId = '';
+    }
+
+    /**
+     * 将同一次用户消息内的多次模型调用归为一次用量
+     * @param {string} turnId
+     */
+    beginUsageTurn(turnId) {
+        this.usageTurnId = String(turnId || '');
     }
 
     /**
@@ -69,9 +78,7 @@ class DeepSeekClient {
             for (let attempt = 0; ; attempt++) {
                 response = await fetch(this.chatUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: buildRequestHeaders(this.usageTurnId),
                     body: JSON.stringify(payload),
                     signal: controller.signal
                 });
@@ -360,9 +367,9 @@ class DeepSeekClient {
                     });
                 }
                 if (response.content) {
-                    onContent(response.content, response.content);
+                    // 正文已在上面逐 token 流过，这里不再整篇回放一次，避免正文“重新输出”。
+                    console.log(`[Deep Research Loop] Successfully synthesized final answer at Iteration ${iteration}.`);
                 }
-                console.log(`[Deep Research Loop] Successfully synthesized final answer at Iteration ${iteration}.`);
                 break;
             }
 
@@ -464,11 +471,11 @@ class DeepSeekClient {
 
     prepareToolCallsForExecution(toolCalls) {
         const deepReadNames = new Set(['read_webpage']);
-        const deepResearchNames = new Set(['web_research', 'community_snapshot']);
+        const deepResearchNames = new Set(['web_research', 'community_snapshot', 'deepseek_search']);
         let deepReadCount = 0;
         let deepResearchCount = 0;
-        const maxDeepReadPerRound = 32;
-        const maxDeepResearchPerRound = 24;
+        const maxDeepReadPerRound = 40;
+        const maxDeepResearchPerRound = 32;
 
         return toolCalls.map(toolCall => {
             const name = toolCall?.function?.name || '';
@@ -497,9 +504,9 @@ class DeepSeekClient {
         if (names.some(name => ['run_tests', 'run_build', 'propose_patch'].includes(name))) return 1;
         // 检索/深读类工具并发上限大幅放宽，让模型一次并行摄入更多信息。
         if (names.some(name => name === 'agent_earth_run')) return Math.min(40, calls.length);
-        if (names.some(name => ['web_research', 'community_snapshot'].includes(name))) return Math.min(24, calls.length);
+        if (names.some(name => ['web_research', 'community_snapshot', 'deepseek_search'].includes(name))) return Math.min(24, calls.length);
         if (names.some(name => name === 'read_webpage')) {
-            return Math.min(32, calls.length);
+            return Math.min(40, calls.length);
         }
         return Math.min(40, calls.length);
     }
@@ -604,6 +611,25 @@ function resolveDeepSeekConfig() {
         defaultModel: normalizeDeepSeekModel(config.defaultModel || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
         reasonerModel: normalizeDeepSeekModel(config.reasonerModel || localStorage.getItem('DEEPSEEK_REASONER_MODEL') || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL'))
     };
+}
+
+function buildRequestHeaders(usageTurnId) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Agent-Surface': 'agent'
+    };
+    try {
+        const auth = window.CipherAuth;
+        if (auth && typeof auth.getAuthHeaders === 'function') {
+            Object.assign(headers, auth.getAuthHeaders());
+        }
+    } catch (error) {
+        // Ignore auth header failures and fall back to an anonymous request.
+    }
+    if (usageTurnId) {
+        headers['X-Agent-Turn'] = usageTurnId;
+    }
+    return headers;
 }
 
 function resolveBackendChatUrl() {

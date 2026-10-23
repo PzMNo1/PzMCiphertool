@@ -64,6 +64,17 @@ auth:
     max-send-per-hour: 5
   session:
     expire-hours: ${AUTH_SESSION_EXPIRE_HOURS:168}
+  developer:
+    account: ${DEV_LOGIN_ACCOUNT:}
+    password: ${DEV_LOGIN_PASSWORD:}
+    identity: ${DEV_LOGIN_IDENTITY:${FEEDBACK_AUTHOR_ACCOUNT:}}
+
+# Daily usage limits for the Agent and Agentmaster surfaces (0 disables the limit)
+usage:
+  agent:
+    daily-limit: ${USAGE_AGENT_DAILY_LIMIT:3}
+  agentmaster:
+    daily-limit: ${USAGE_AGENTMASTER_DAILY_LIMIT:10}
 
 feedback:
   author-account: ${FEEDBACK_AUTHOR_ACCOUNT:}

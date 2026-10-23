@@ -77,4 +77,22 @@ public interface WebCrawlerService {
      * 聚合检索：多查询扇出、跨搜索源去重、可选深读Top来源。
      */
     String webResearch(String query, List<String> queries, String mode, Integer maxResults, Boolean readTop, String focusKeyword);
+
+    /**
+     * DeepSeek 自研搜索引擎（Search API），Agent 的主力检索通道。
+     *
+     * @param query 搜索词，支持 site: / after: / lang: 等搜索语法
+     * @param count 返回条数 1-50
+     * @param needContent 是否返回网页正文
+     * @return 归一化后的 JSON（provider / query / results）
+     */
+    String deepseekSearch(String query, Integer count, Boolean needContent);
+
+    /**
+     * DeepSeek Fetch API：抓取单个网页并转 Markdown。
+     *
+     * @param url 目标网页 URL（http/https）
+     * @return 归一化后的 JSON（provider / url / title / content）
+     */
+    String deepseekFetch(String url);
 }

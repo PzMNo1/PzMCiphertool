@@ -9,6 +9,9 @@
             this.element = null;
             this.selector = options.selector || DEFAULT_SELECTOR;
             this.run = null;
+            this.historical = null;
+            this.currentChatId = '';
+            this.runChatId = '';
 
             this.activeLLMCalls = new Map();
             this.activeToolCalls = new Map();
@@ -34,6 +37,10 @@
         }
 
         startRun(runId = '') {
+            this.historical = null;
+            this.runChatId = this.currentChatId
+                || (typeof window !== 'undefined' && window.historyManager?.getCurrentChatId?.())
+                || '';
             this.run = {
                 runId,
                 startedAt: now(),
@@ -70,6 +77,8 @@
 
         reset() {
             this.run = null;
+            this.historical = null;
+            this.runChatId = '';
             this.activeLLMCalls.clear();
             this.activeToolCalls.clear();
             const element = this.ensureElement();
@@ -77,6 +86,33 @@
                 element.innerHTML = '';
                 element.classList.remove('visible');
             }
+        }
+
+        /**
+         * 切换会话时显示该会话最近一次 Run 的指标，而不是沿用上一个会话的实时数字。
+         */
+        showHistorical(summary, meta = {}) {
+            if (!summary || (!Number(summary.llmCalls) && !Number(summary.toolCalls))) {
+                this.historical = null;
+                this.scheduleRender();
+                return;
+            }
+            this.historical = {
+                summary: Object.assign({
+                    llmWallMs: 0, llmSumMs: 0, toolWallMs: 0, toolSumMs: 0,
+                    avgFirstTokenMs: 0, tokensPerSecond: 0, cacheHitRate: 0,
+                    inputTokens: 0, outputTokens: 0, llmCalls: 0, toolCalls: 0,
+                    toolConcurrencyPeak: 0, avgToolMs: 0
+                }, summary),
+                label: meta.label || '历史对话',
+                chatId: meta.chatId || ''
+            };
+            this.scheduleRender();
+        }
+
+        setChatContext(chatId = '') {
+            this.currentChatId = chatId;
+            this.scheduleRender();
         }
 
         closeDanglingIntervals() {
@@ -302,12 +338,23 @@
         render() {
             const element = this.ensureElement();
             if (!element) return;
-            if (!this.run) {
+            const activeChatId = this.currentChatId
+                || (typeof window !== 'undefined' && window.historyManager?.getCurrentChatId?.())
+                || '';
+            // 运行中的 Run 只在它所属的会话里刷新指标，切走后保留该会话的历史指标。
+            if (this.run && this.runChatId && activeChatId && this.runChatId !== activeChatId) {
+                return;
+            }
+            const liveVisible = Boolean(this.run)
+                && (!this.runChatId || !activeChatId || this.runChatId === activeChatId);
+            if (!liveVisible && !this.historical) {
                 element.classList.remove('visible');
+                element.innerHTML = '';
                 return;
             }
 
-            const summary = this.getSummary();
+            const historical = !liveVisible && Boolean(this.historical);
+            const summary = liveVisible ? this.getSummary() : this.historical.summary;
             const llmTotalSec = summary.llmWallMs / 1000;
             const llmMinutes = Math.floor(llmTotalSec / 60);
             const llmSeconds = (llmTotalSec - llmMinutes * 60).toFixed(1);
@@ -332,7 +379,10 @@
                 { label: '并发峰值', value: `${summary.toolConcurrencyPeak}` }
             ];
 
-            const html = ['<span class="perf-item perf-lead">性能监控：</span>']
+            const lead = historical
+                ? `<span class="perf-item perf-lead perf-history">性能监控 · ${this.escape(this.historical.label)}：</span>`
+                : '<span class="perf-item perf-lead">性能监控：</span>';
+            const html = [lead]
                 .concat(items.map(item => {
                     if (item.sep) return `<span class="perf-sep">${item.sep}</span>`;
                     const label = item.label ? `${this.escape(item.label)} ` : '';
@@ -342,6 +392,12 @@
 
             element.innerHTML = html;
             element.classList.add('visible');
+            element.classList.toggle('perf-history-mode', historical);
+            if (historical) {
+                element.title = `会话 ${this.historical.chatId || ''} 最近一次运行的历史指标`;
+            } else {
+                element.removeAttribute('title');
+            }
         }
 
         escape(value) {

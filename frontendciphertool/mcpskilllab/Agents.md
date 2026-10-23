@@ -1,15 +1,15 @@
 # mcpskilllab/ Agents.md
 
 ## 功能定位
-MCP/Skill 实验室 - 收录 DeepSeek Harness 已内置的能力、可接入的 MCP 服务、以及 Harness 的插件包清单。
-每张卡只回答三件事：它具体能做什么、要准备什么、怎么验证。
+插件实验室 - 按 Prompt、Tools、Skill、MCP、Workflow、Harness 六类整理可复用资源。
+目录当前为空，只保留分类框架与共享目录能力；收录时每张卡只回答三件事：它具体能做什么、要准备什么、怎么验证。
 
 ## 文件结构
 - mcpskilllab.js → 模块主程序（卡片、搜索、分页、怎么用指南、共享目录）
 - mcpskilllab-config.js → 分类、配置模板、文案与本地存储键
 - mcpskilllab-resources.js → 资源管理（总入口，导出结构不可修改）
-- mcpskilllab-resources-mcp.js → DSH 能力卡（dsh 分组）+ MCP 服务（mcp 分组）
-- mcpskilllab-resources-skills.js → DSH 插件包清单（plugins 分组）
+- mcpskilllab-resources-mcp.js → Tools（tools 分组）+ MCP 服务（mcp 分组）
+- mcpskilllab-resources-skills.js → Prompt / Skill / Workflow / Harness 分组
 
 ## 资源数据模型
 ```
@@ -28,8 +28,8 @@ MCP/Skill 实验室 - 收录 DeepSeek Harness 已内置的能力、可接入的 
 - 代码片段必须能直接复制执行；占位符写成 `xxx` 并说明替换成什么
 
 ## 分类
-- `dsh` DSH 能力、`mcp` MCP 服务、`plugins` DSH 插件
-- 旧的 skill / prompt / workflow 等分类保留在配置里，但没有资源时自动隐藏
+- `prompt` Prompt、`tools` Tools、`skill` Skill、`mcp` MCP、`workflow` Workflow、`harness` Harness
+- 六个分类始终显示在左侧子模块导航，空分类显示 0，不再按资源数量隐藏
 
 ## 后端对应
 - McpLabController.java → 主控制器
@@ -43,19 +43,19 @@ MCP/Skill 实验室 - 收录 DeepSeek Harness 已内置的能力、可接入的 
 - 写「适合资源发现」「适合初步风险判断」这类空泛用途
 
 ## 修改规则
-- 新增/修改 DSH 能力或 MCP 服务 → 修改 mcpskilllab-resources-mcp.js
-- 新增/修改 DSH 插件 → 修改 mcpskilllab-resources-skills.js（name/use 取包内 locale/zh.json 的 meta）
+- 新增/修改 Tools 或 MCP 服务 → 修改 mcpskilllab-resources-mcp.js
+- 新增/修改 Prompt / Skill / Workflow / Harness → 修改 mcpskilllab-resources-skills.js
 - 调整「怎么用」的结构与交互 → mcpskilllab.js 的 getGuide() / renderGuideBody()
 - 分类、文案、配置模板 → mcpskilllab-config.js
 - 样式调整 → 在 mcpskilllab.js 的 injectStyles() 中改，不新建 css 文件
 - 资源列表每页数量（翻页）→ mcpskilllab-config.js 的 pageSize（默认 24，6-120）
-- 后端种子资源 → backendcipher/src/main/resources/mcp-lab-resources.json（与 mcp 分组保持一致）
+- 后端种子资源 → backendcipher/src/main/resources/mcp-lab-resources.json（当前为空，不要恢复通用清单）
 
 ## 常见任务
 
 ### 新增一个 MCP 服务
-LOCATE: mcpskilllab-resources-mcp.js
-ACTION: 加一个 mcp- 前缀的对象，写清 use / what / steps，url 用官方文档或 npm 页面
+LOCATE: mcpskilllab-resources-mcp.js 的 mcpResources
+ACTION: 加一个 mcp- 前缀的对象，写清 use / what / steps，category 用 mcp，url 用官方文档或 npm 页面
 STRUCTURE:
   {
     id: 'mcp-xxx',
@@ -74,11 +74,10 @@ STRUCTURE:
   }
 TEST: 卡片正文具体、怎么用弹窗里的片段能复制并直接执行
 
-### 更新 DSH 插件清单
+### 新增 Prompt / Skill / Workflow / Harness
 LOCATE: mcpskilllab-resources-skills.js
-ACTION: 按 @deepseek-ai 包清单生成对象，name 取 locale/zh.json 的 meta.title，
-        use 取 meta.description，缺失时手写一句「这个包负责什么」
-TEST: 插件分类计数、搜索、分页正常，版本号显示正确
+ACTION: 按对应分组加入对象，category 与分组一致，type 用 Prompt / Skill / Workflow / Harness
+TEST: 对应分类计数、搜索、分页正常
 
 ### 接入外部资源到共享目录
 LOCATE: mcpskilllab.js
@@ -87,6 +86,7 @@ TEST: 后端不可用时自动回退到内置目录，不阻塞页面渲染
 
 ## 架构约束
 - 内置目录优先：前端资源文件是完整目录，后端共享目录只做增量覆盖
+- 当前目录为空：前端资源数组与后端 seed 文件都已清空，不再内置通用清单
 - 后端种子以 seed 文件为准：不在文件里的旧种子在启动时软删除，前端同时过滤未知 seed
 - 验证分离：后端负责校验与存储，前端负责展示
 - 本地收藏与自定义资源只存 localStorage

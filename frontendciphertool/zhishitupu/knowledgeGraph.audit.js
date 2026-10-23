@@ -35,6 +35,12 @@ vm.createContext(context);
 vm.runInContext(worldSource, context);
 const store = context.WORLD_KNOWLEDGE_GRAPH;
 check(Boolean(store), 'WORLD_KNOWLEDGE_GRAPH is missing');
+const expansionPath = path.join(directory, 'worldExpansion.js');
+if (fs.existsSync(expansionPath)) {
+    vm.runInContext(read('worldExpansion.js'), context);
+}
+const expansionStore = context.WORLD_KNOWLEDGE_EXPANSION;
+check(Boolean(expansionStore), 'WORLD_KNOWLEDGE_EXPANSION is missing');
 const corpusFile = path.join(directory, 'worldCorpus.bin');
 if (fs.existsSync(corpusFile) && store) {
     store.documents = JSON.parse(zlib.gunzipSync(fs.readFileSync(corpusFile)).toString('utf8')).documents || {};
@@ -44,14 +50,20 @@ vm.runInContext(`${graphSource}\nthis.__tree=getGraphTree({});this.__graph=build
 const tree = context.__tree || [];
 const graph = context.__graph || { nodes: [], links: [] };
 const topRoots = tree[0]?.center ? (tree[0].children || []) : tree;
-const entityNodes = graph.nodes.filter(node => node.kind !== 'category' && node.kind !== 'root');
+const expansionNodes = graph.nodes.filter(node => node.kind === 'expansion');
+const entityNodes = graph.nodes.filter(node => node.kind !== 'category' && node.kind !== 'root' && node.kind !== 'expansion');
 const categoryNodes = graph.nodes.filter(node => node.kind === 'category');
+const expansionCategories = categoryNodes.filter(node => String(node.worldId || '').startsWith('exp:'));
 
 check(topRoots.length >= 5, `expected at least 5 real top-level sections, got ${topRoots.length}`);
 check(entityNodes.length >= minNodes, `entity node count ${entityNodes.length} is below ${minNodes}`);
+check(expansionNodes.length >= 300, `expansion node count ${expansionNodes.length} is below 300`);
+check(expansionCategories.length >= 10, `expansion category count ${expansionCategories.length} is below 10`);
 check(categoryNodes.length > 0, 'no category nodes were built');
+check(graph.nodes.length >= 1400, `total graph node count ${graph.nodes.length} is below 1400`);
 check(graph.links.length >= entityNodes.length, 'hierarchy links are incomplete');
 check(graph.links.some(link => link.__hierarchy === false), 'no real cross-relations were rendered');
+check(graph.links.filter(link => link.relation === 'cross-disciplinary').length >= 40, 'cross-disciplinary links are missing');
 
 for (const node of entityNodes) {
     check(Boolean(node.qid), `${node.name}: missing QID`);
@@ -64,6 +76,22 @@ for (const node of entityNodes) {
 for (const node of categoryNodes) {
     check(Boolean(node.knowledgeBase?.[0]?.content), `${node.name}: category has no member index`);
 }
+const entityNames = new Set(entityNodes.map(node => node.name));
+const expansionNames = new Set();
+for (const node of expansionNodes) {
+    const titleOk = Boolean(node.nameZh && node.nameEn && node.name === `${node.nameZh} ${node.nameEn}`
+        && /[\u4e00-\u9fff]/.test(node.nameZh) && /[A-Za-z]/.test(node.nameEn));
+    check(titleOk, `${node.name}: expansion title is not 简体中文 English`);
+    check(!entityNames.has(node.name), `${node.name}: expansion duplicates an existing entity`);
+    check(!expansionNames.has(node.name), `${node.name}: duplicate expansion title`);
+    expansionNames.add(node.name);
+    check(String(node.sourceUrl || '').startsWith('https://dbpedia.org/'), `${node.name}: missing DBpedia source URL`);
+    check(Boolean(node.descriptionZh || node.descriptionEn), `${node.name}: expansion has no description`);
+    check((node.knowledgeBase || []).some(record =>
+        record.evidenceLevel === 'external-description' && record.citation?.url), `${node.name}: missing sourced external record`);
+}
+check(expansionNodes.some(node => node.crossDomain), 'no cross-disciplinary expansion nodes');
+
 
 for (const required of ['Quantum mechanics', 'Artificial intelligence', 'World War II', 'CRISPR', 'Lithium-ion battery']) {
     const found = entityNodes.some(node =>
@@ -83,6 +111,7 @@ if (sample) {
 }
 
 check(modulesSource.includes("./zhishitupu/worldKnowledge.js"), 'modules.js does not load worldKnowledge.js');
+check(modulesSource.includes("./zhishitupu/worldExpansion.js"), 'modules.js does not load worldExpansion.js');
 check(modulesSource.includes("./zhishitupu/worldRag.js"), 'modules.js does not load worldRag.js');
 check(!modulesSource.includes('vaultGraph.js'), 'modules.js still references the missing vaultGraph.js');
 

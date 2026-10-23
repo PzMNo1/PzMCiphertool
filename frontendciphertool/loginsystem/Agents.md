@@ -21,6 +21,12 @@
 5. 前端保存 Token 到 localStorage/sessionStorage
 6. 后续请求在 Authorization header 中携带 Token
 
+## 开发者账号登录
+- 账号框输入非纯数字账号（含字母）→ 前端调用 `/api/auth/developer-login`，不发送短信验证码
+- 后端校验 `auth.developer.account` / `auth.developer.password`（.env: DEV_LOGIN_ACCOUNT / DEV_LOGIN_PASSWORD）
+- 会话身份取 `auth.developer.identity`（默认回落到 FEEDBACK_AUTHOR_ACCOUNT），权限与作者手机号完全一致
+- 纯数字账号仍走手机号 + 短信验证码登录
+
 ## 绝对禁止
 - 修改 Token 生成逻辑（在 AuthService 中）
 - 在 auth.js 中存储明文密码

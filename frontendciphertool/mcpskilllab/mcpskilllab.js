@@ -87,11 +87,18 @@
         if (!name || !url) return null;
 
         const id = normalizeResourceId(source.id, name) || createCustomId(name);
-        const type = normalizeChoice(source.type, allowedResourceTypes, 'MCP Server');
         const tags = normalizeTags(source.tags);
         const categories = normalizeListValue(source.categories, [], categoryTabs.map(tab => tab.id), { maxItems: 6, maxLength: 24 });
-        const category = normalizeCategory(source.category) || getResourceCategory({ ...source, type, tags, categories }) || 'other';
+        const category = normalizeCategory(source.category) || getResourceCategory({ ...source, type: source.type, tags, categories }) || 'tools';
         if (!categories.includes(category)) categories.unshift(category);
+        const type = normalizeChoice(source.type, allowedResourceTypes, {
+            prompt: 'Prompt',
+            tools: 'Tool',
+            skill: 'Skill',
+            mcp: 'MCP Server',
+            workflow: 'Workflow',
+            harness: 'Harness'
+        }[category] || 'Prompt');
 
         return {
             id,
@@ -126,13 +133,13 @@
     let searchCandidates = [];
     let searchStatus = '';
     let searchQuery = '';
-    let searchCategory = 'dsh';
+    let searchCategory = 'prompt';
     let isSearchLoading = false;
     let skillBundleStatus = '';
     let isBundleImporting = false;
     let isBundleExporting = false;
     let resources;
-    let activeCategory = 'dsh';
+    let activeCategory = 'prompt';
     let guideResourceId = '';
     let currentPage = 1;
     let listFade = false;
@@ -1180,7 +1187,7 @@
   color: rgba(236, 240, 241, 0.74);
 }
 
-/* Skill/MCP 实验室：手机端筛选下拉改为两列，搜索与排序保留整行 */
+/* 插件实验室：手机端筛选下拉改为两列，搜索与排序保留整行 */
 @media (max-width: 1100px) {
   .mcpskilllab-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1672,7 +1679,7 @@
             schemaVersion: '1.0',
             kind: 'pzm-mcp-skill-resource-bundle',
             exportedAt: new Date().toISOString(),
-            source: 'PzMCipherTool Skill/MCP Lab',
+            source: 'PzMCipherTool Plugin Lab',
             submittedBy: extra.submittedBy || 'web-ui',
             compatibility: ['Codex', 'Claude Code', 'OpenClaw', 'Hermes', 'Cursor', 'Generic MCP'],
             resources: normalized
@@ -1773,7 +1780,7 @@
     async function searchServerResourcesFromForm(form) {
         const data = new FormData(form);
         searchQuery = clipText(data.get('serverSearchQuery'), 160);
-        searchCategory = normalizeCategory(data.get('serverSearchCategory')) || activeCategory || 'mcp';
+        searchCategory = normalizeCategory(data.get('serverSearchCategory')) || activeCategory || 'prompt';
         if (!searchQuery) {
             searchStatus = '请输入搜索关键词。';
             render();
@@ -1841,28 +1848,22 @@
     function normalizeCategory(value) {
         const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
         const aliases = {
-            dsh: 'dsh',
-            cap: 'dsh',
-            capability: 'dsh',
-            mcp: 'mcp',
-            mcptools: 'mcp',
-            plugins: 'plugins',
-            plugin: 'plugins',
-            skill: 'skill',
-            skills: 'skill',
             prompt: 'prompt',
             prompts: 'prompt',
+            tool: 'tools',
+            tools: 'tools',
+            skill: 'skill',
+            skills: 'skill',
+            mcp: 'mcp',
+            mcptools: 'mcp',
             workflow: 'workflow',
             workflows: 'workflow',
-            devtools: 'devTools',
-            developer: 'devTools',
-            dataapis: 'dataApis',
-            dataapi: 'dataApis',
-            data: 'dataApis',
-            apis: 'dataApis',
-            security: 'security',
-            automation: 'automation',
-            other: 'other'
+            harness: 'harness',
+            dsh: 'harness',
+            cap: 'harness',
+            capability: 'harness',
+            plugin: 'harness',
+            plugins: 'harness'
         };
         return aliases[normalized] || '';
     }
@@ -1892,11 +1893,11 @@
         const text = [item.name, item.type, item.use, item.what, tags.join(' ')].join(' ').toLowerCase();
 
         if (type.includes('mcp')) return 'mcp';
-        if (type.includes('skill') || type.includes('plugin') || tags.includes('skill')) return 'skill';
+        if (hasAnyKeyword(text, ['prompt', '提示词'])) return 'prompt';
         if (hasAnyKeyword(text, ['workflow', '工作流', '编排'])) return 'workflow';
-        if (hasAnyKeyword(text, ['security', '安全', '权限'])) return 'security';
-        if (hasAnyKeyword(text, ['数据库', 'database'])) return 'dataApis';
-        return 'other';
+        if (hasAnyKeyword(text, ['harness', 'dsh', '插件'])) return 'harness';
+        if (type.includes('skill') || tags.includes('skill')) return 'skill';
+        return 'tools';
     }
 
     function isResourceInCategory(item, category) {
@@ -1979,18 +1980,19 @@
             <div class="mcpskilllab-intro">
                 <div class="card">
                     <div class="badge">这个页面做什么</div>
-                    <div class="mcpskilllab-intro-title">Skill / MCP 实验室</div>
+                    <div class="mcpskilllab-intro-title">插件实验室</div>
                     <div class="mcpskilllab-intro-text">
-                        这里收录三类东西：DeepSeek Harness 已经内置的能力、可以接进来的 MCP 服务、以及 Harness 的插件包。
-                        每张卡都写清楚它具体能做什么、要准备什么、怎么验证，不再用「适合资源发现」这种说了等于没说的话。
+                        这里按 Prompt、Tools、Skill、MCP、Workflow、Harness 六类整理插件与能力资源。
+                        每张卡都写清楚它具体能做什么、要准备什么、怎么验证。
                     </div>
                 </div>
                 <div class="card">
                     <div class="badge">建议怎么看</div>
                     <div class="mcpskilllab-flow">
-                        <div>1. 先看「DSH 能力」：知道 Agent 能做什么，直接开口用</div>
-                        <div>2. 要外部工具就去「MCP 服务」：按三步接上再验证</div>
-                        <div>3. 想查某个插件负责什么，去「DSH 插件」搜名字</div>
+                        <div>1. Prompt：提示词模板和可复用的指令片段</div>
+                        <div>2. Tools：Agent 能直接调用的工具与执行能力</div>
+                        <div>3. Skill / MCP：技能包，以及通过 MCP 接入的外部服务</div>
+                        <div>4. Workflow / Harness：多步骤编排，以及 DSH 本体与插件</div>
                     </div>
                 </div>
             </div>
@@ -2017,8 +2019,7 @@
 
     function renderCategoryTabs() {
         const counts = getCategoryCounts();
-        const visibleTabs = categoryTabs.filter(tab => (counts[tab.id] || 0) > 0 || activeCategory === tab.id);
-        return visibleTabs.map((tab, index) => {
+        return categoryTabs.map((tab, index) => {
             const count = counts[tab.id] || 0;
             const active = activeCategory === tab.id;
             const label = escapeHtml(tab.label);
@@ -2026,7 +2027,7 @@
             <button type="button" class="submodule-btn mcpskilllab-filter${active ? ' active' : ''}"
                 data-target="${escapeHtml(tab.id)}" data-category="${escapeHtml(tab.id)}"
                 data-count="${escapeHtml(count)}" title="${label} ${escapeHtml(count)} 个条目"
-                style="${getCategoryDialStyle(index, visibleTabs.length)}">${label}</button>
+                style="${getCategoryDialStyle(index, categoryTabs.length)}">${label}</button>
         `;
         }).join('');
     }
@@ -2133,7 +2134,6 @@
 
     function renderCategoryOptions(current) {
         return categoryTabs
-            .filter(item => item.id === 'dsh' || item.id === 'mcp' || item.id === 'plugins' || item.id === current)
             .map(item => `<option value="${escapeHtml(item.id)}"${current === item.id ? ' selected' : ''}>${escapeHtml(item.label)}</option>`)
             .join('');
     }
@@ -2230,7 +2230,7 @@
                 <div class="mcpskilllab-panel" id="mcpskilllab-action-panel">
                     <div class="card mcpskilllab-hub-card">
                         <div class="badge">共享目录</div>
-                        <div class="mcpskilllab-detail-title">批量交换 Skill / MCP 资源</div>
+                        <div class="mcpskilllab-detail-title">批量交换插件与能力资源</div>
                         <div class="mcpskilllab-hub-desc">把整理好的资源包同步到团队共享目录，或从共享目录下载一份。</div>
                         <div class="mcpskilllab-inline-actions">
                             <button class="cyber-button mcpskilllab-panel-close" type="button"><span class="cyber-button__tag">收起</span></button>
@@ -2341,7 +2341,7 @@
         root.innerHTML = `
             <div class="mcpskilllab-shell">
                 <div class="apizz-console-layout cipher-lab-console-layout">
-                    <aside class="apizz-console-nav cipher-lab-console-nav mcpskilllab-console-nav" aria-label="Skill / MCP 实验室导航">
+                    <aside class="apizz-console-nav cipher-lab-console-nav mcpskilllab-console-nav" aria-label="插件实验室导航">
                         ${renderCategoryTabs()}
                     </aside>
 
@@ -2352,7 +2352,7 @@
                             ${renderInlinePanel()}
 
                             <div class="mcpskilllab-toolbar">
-                                <input id="mcpskilllab-search" type="text" value="${escapeHtml(query)}" placeholder="搜索能力、MCP 服务或插件…">
+                                <input id="mcpskilllab-search" type="text" value="${escapeHtml(query)}" placeholder="搜索 Prompt、Tools、Skill、MCP、Workflow、Harness…">
                             </div>
                             ${renderCategoryContext(filtered)}
 
@@ -2365,7 +2365,9 @@
                             <div class="mcpskilllab-grid${listFade ? ' mcpskilllab-grid-fade' : ''}" id="mcpskilllab-list">
                                 ${pageItems.length
                                     ? pageItems.map(item => renderResourceCard(item, favorites)).join('')
-                                    : '<div class="card mcpskilllab-empty">没有匹配的条目。换个关键词，或点左侧分类浏览全部内容。</div>'}
+                                    : `<div class="card mcpskilllab-empty">${searching
+                                        ? '没有匹配的条目，换个关键词试试。'
+                                        : '这个分类还没有资源，点上方「共享目录」上传技能包或联网搜索后加入。'}</div>`}
                             </div>
 
                             ${renderPagination(totalPages, filtered.length, true)}
@@ -2521,7 +2523,7 @@
 
         root.querySelectorAll('.mcpskilllab-filter').forEach(button => {
             button.addEventListener('click', () => {
-                activeCategory = normalizeCategory(button.getAttribute('data-category')) || 'dsh';
+                activeCategory = normalizeCategory(button.getAttribute('data-category')) || 'prompt';
                 query = '';
                 currentPage = 1;
                 render();

@@ -525,8 +525,7 @@ textarea {
   max-height: 50px;
 }
 
-#cardSearch,
-.author-interview-search-input {
+#cardSearch {
   width: 100%;
   box-sizing: border-box;
   padding: 0.7rem;
@@ -535,8 +534,7 @@ textarea {
   box-shadow: 0 0 10px 8px rgba(225, 225, 225, 0.13);
 }
 
-#cardSearch:focus,
-.author-interview-search-input:focus {
+#cardSearch:focus {
   outline: none;
   background-color: rgba(255, 255, 255, 0.13);
   box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
@@ -1068,9 +1066,13 @@ textarea {
   }
 }
 
-/* Skill / MCP 实验室：子模块切换沿用加密实验室的控制台导航，仅补充分类数量带来的排布差异 */
+/* 插件实验室：子模块切换沿用加密实验室的控制台导航，仅补充分类数量带来的排布差异 */
 #mcpskilllab-content .cipher-lab-console-nav .submodule-btn::after {
   content: attr(data-count);
+}
+
+#mcpskilllab-content .cipher-lab-console-nav .submodule-btn {
+  text-transform: none;
 }
 
 #mcpskilllab-content .cipher-lab-console-nav .submodule-btn.active::after {
@@ -1509,9 +1511,10 @@ body {
 #mimaqu .container,
 #xiandaiqu .container,
 #fenxiqu .container {
-  display: block;
-  column-count: 3;
-  column-gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: start;
   padding-bottom: 18rem;
 }
 
@@ -1526,7 +1529,10 @@ body {
 
   #mimaqu .container,
   #xiandaiqu .container,
-  #fenxiqu .container,
+  #fenxiqu .container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   #guanyuzuozhe .container {
     column-count: 2;
   }
@@ -1536,7 +1542,10 @@ body {
 
   #mimaqu .container,
   #xiandaiqu .container,
-  #fenxiqu .container,
+  #fenxiqu .container {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   #guanyuzuozhe .container {
     column-count: 1;
   }

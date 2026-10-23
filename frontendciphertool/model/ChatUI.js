@@ -17,6 +17,205 @@ class ChatUI {
      */
     init() {
         this.messagesContainer = document.getElementById('chat-messages');
+        this.setupInteractions();
+    }
+
+    /**
+     * 消息区的统一交互：引用上标跳转、图片/图表点击放大。
+     * #chat-messages 节点本身不会随会话切换被替换，因此只绑定一次。
+     */
+    setupInteractions() {
+        if (this._interactionsBound || !this.messagesContainer) return;
+        this._interactionsBound = true;
+        this._citationReturn = null;
+
+        this.messagesContainer.addEventListener('click', event => this.handleCitationClick(event));
+        this.messagesContainer.addEventListener('click', event => this.handleMediaClick(event));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && this._lightbox) this.closeLightbox();
+        });
+    }
+
+    handleCitationClick(event) {
+        const backLink = event.target.closest('a.citation-back-link');
+        if (backLink && this.messagesContainer.contains(backLink)) {
+            event.preventDefault();
+            const id = backLink.getAttribute('data-citation-back');
+            const previous = this._citationReturn;
+            if (previous && String(previous.id) === String(id)) {
+                this.messagesContainer.scrollTo({ top: previous.top, behavior: 'smooth' });
+            }
+            const scope = backLink.closest('.message') || this.messagesContainer;
+            const origin = scope.querySelector(`a.citation-link[data-citation="${cssEscape(id)}"]`);
+            if (origin) {
+                this.flashElement(origin);
+                if (!previous || String(previous.id) !== String(id)) {
+                    this.scrollElementIntoView(origin);
+                }
+            }
+            return;
+        }
+
+        const link = event.target.closest('a.citation-link[data-citation]');
+        if (!link || !this.messagesContainer.contains(link)) return;
+        const id = link.getAttribute('data-citation');
+        const scope = link.closest('.message') || document;
+        const target = scope.querySelector(`#agent-source-${cssEscape(id)}`);
+        if (!target) return;
+        event.preventDefault();
+        this._citationReturn = { id, top: this.messagesContainer.scrollTop };
+        this.scrollElementIntoView(target, 0.18);
+        this.flashElement(target);
+    }
+
+    scrollElementIntoView(element, ratio = 0.3) {
+        if (!element || !this.messagesContainer) return;
+        const containerRect = this.messagesContainer.getBoundingClientRect();
+        const targetRect = element.getBoundingClientRect();
+        const top = targetRect.top - containerRect.top + this.messagesContainer.scrollTop
+            - this.messagesContainer.clientHeight * ratio;
+        this.messagesContainer.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
+    flashElement(element) {
+        if (!element) return;
+        element.classList.remove('citation-flash');
+        void element.offsetWidth;
+        element.classList.add('citation-flash');
+        setTimeout(() => element.classList.remove('citation-flash'), 1200);
+    }
+
+    handleMediaClick(event) {
+        const image = event.target.closest('.generated-image-frame img, .message-text img, .generated-image-frame');
+        if (image) {
+            const img = image.tagName === 'IMG' ? image : image.querySelector('img');
+            if (img && img.src) {
+                event.preventDefault();
+                this.openLightbox(img, img.alt || '图片预览');
+                return;
+            }
+        }
+        const chart = event.target.closest('.agent-chart, .agent-diagram');
+        if (!chart) return;
+        const svg = chart.querySelector('svg');
+        if (!svg) return;
+        const title = svg.getAttribute('aria-label')
+            || chart.querySelector('.agent-chart-caption')?.textContent
+            || chart.querySelector('text')?.textContent
+            || '图表预览';
+        this.openLightbox(svg, title);
+    }
+
+    openLightbox(node, label = '') {
+        this.closeLightbox();
+        const overlay = document.createElement('div');
+        overlay.id = 'agent-media-lightbox';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'agent-lightbox-toolbar';
+        toolbar.innerHTML = `
+            <span>${this.escapeHtml(label)}</span>
+            <button type="button" class="agent-lightbox-btn" data-action="zoom-out" aria-label="缩小">−</button>
+            <button type="button" class="agent-lightbox-btn" data-action="zoom-in" aria-label="放大">+</button>
+            <button type="button" class="agent-lightbox-btn" data-action="reset" aria-label="重置">1:1</button>
+            <button type="button" class="agent-lightbox-btn" data-action="close" aria-label="关闭">关闭</button>
+        `;
+
+        const stage = document.createElement('div');
+        stage.className = 'agent-lightbox-stage';
+        const content = document.createElement('div');
+        content.className = 'agent-lightbox-content';
+
+        if (node.tagName === 'IMG') {
+            const img = document.createElement('img');
+            img.src = node.src;
+            img.alt = node.alt || label;
+            content.appendChild(img);
+        } else {
+            const clone = node.cloneNode(true);
+            clone.removeAttribute('style');
+            clone.removeAttribute('width');
+            clone.removeAttribute('height');
+            content.appendChild(clone);
+        }
+
+        stage.appendChild(content);
+        overlay.appendChild(toolbar);
+        overlay.appendChild(stage);
+        document.body.appendChild(overlay);
+        document.body.classList.add('agent-lightbox-open');
+
+        const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+        const apply = () => {
+            content.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        };
+        const reset = () => {
+            state.scale = 1;
+            state.x = 0;
+            state.y = 0;
+            apply();
+        };
+        this._lightbox = { overlay, reset };
+
+        toolbar.addEventListener('click', event => {
+            const action = event.target.closest('[data-action]')?.getAttribute('data-action');
+            if (!action) return;
+            if (action === 'close') this.closeLightbox();
+            if (action === 'reset') reset();
+            if (action === 'zoom-in') {
+                state.scale = Math.min(8, state.scale * 1.25);
+                apply();
+            }
+            if (action === 'zoom-out') {
+                state.scale = Math.max(0.2, state.scale / 1.25);
+                apply();
+            }
+        });
+
+        stage.addEventListener('wheel', event => {
+            event.preventDefault();
+            const factor = Math.exp(-event.deltaY * 0.0012);
+            state.scale = Math.min(8, Math.max(0.2, state.scale * factor));
+            apply();
+        }, { passive: false });
+
+        stage.addEventListener('dblclick', reset);
+
+        stage.addEventListener('pointerdown', event => {
+            if (event.target.closest('.agent-lightbox-btn')) return;
+            state.dragging = true;
+            state.startX = event.clientX;
+            state.startY = event.clientY;
+            state.originX = state.x;
+            state.originY = state.y;
+            stage.classList.add('dragging');
+            stage.setPointerCapture(event.pointerId);
+        });
+
+        stage.addEventListener('pointermove', event => {
+            if (!state.dragging) return;
+            state.x = state.originX + (event.clientX - state.startX);
+            state.y = state.originY + (event.clientY - state.startY);
+            apply();
+        });
+
+        const stopDrag = () => {
+            state.dragging = false;
+            stage.classList.remove('dragging');
+        };
+        stage.addEventListener('pointerup', stopDrag);
+        stage.addEventListener('pointercancel', stopDrag);
+
+        overlay.addEventListener('click', event => {
+            if (event.target === stage) this.closeLightbox();
+        });
+    }
+
+    closeLightbox() {
+        const overlay = document.getElementById('agent-media-lightbox');
+        if (overlay) overlay.remove();
+        document.body.classList.remove('agent-lightbox-open');
+        this._lightbox = null;
     }
 
     /**
@@ -146,9 +345,11 @@ class ChatUI {
 
             if (this.isSourceHeadingLine(trimmed)) {
                 inSourceSection = true;
-            } else if (inSourceSection && /^\[(\d+)\]\s*/.test(trimmed)) {
-                const srcId = trimmed.match(/^\[(\d+)\]/)[1];
-                blocks.push(`<p class="markdown-source-line" id="agent-source-${srcId}">${this.formatInline(line)}</p>`);
+            } else if (inSourceSection && /^\*{0,2}\[(\d+)\]\*{0,2}\s*/.test(trimmed)) {
+                const sourceMatch = trimmed.match(/^\*{0,2}\[(\d+)\]\*{0,2}\s*/);
+                const srcId = sourceMatch[1];
+                const rest = trimmed.slice(sourceMatch[0].length);
+                blocks.push(`<p class="markdown-source-line" id="agent-source-${srcId}"><a class="citation-back-link" href="#agent-cite-${srcId}" data-citation-back="${srcId}">[${srcId}]</a> ${this.formatInline(rest)}</p>`);
                 continue;
             } else if (inSourceSection && trimmed) {
                 inSourceSection = false;
@@ -203,19 +404,21 @@ class ChatUI {
         });
 
         text = text.replace(/\[(\d{1,3})\]/g, (_, n) => {
-            const map = this._activeSourceMap || {};
-            const url = map[String(n)];
-            if (url && /^https?:\/\//i.test(url)) {
-                return `<a class="citation-link" href="${this.escapeHtml(url)}" target="_blank" rel="noopener noreferrer">[${n}]</a>`;
-            }
-            return `<a class="citation-link" href="#agent-source-${n}">[${n}]</a>`;
+            // 上标数字只做页内跳转：点正文到文末来源，点来源回到点击前的位置。
+            return `<a class="citation-link" href="#agent-source-${n}" data-citation="${n}">[${n}]</a>`;
         });
 
         return text.replace(/\uE000(\d+)\uE000/g, (_, index) => tokens[Number(index)] || '');
     }
 
     isSourceHeadingLine(value) {
-        return /^(#{1,6}\s*)?(来源|参考|引用|Sources|References)\s*[:：]?$/i.test(String(value || '').trim());
+        const text = String(value || '')
+            .trim()
+            .replace(/^#{1,6}\s*/, '')
+            .replace(/^\*{2,}|^\*{1,2}\s*/, '')
+            .replace(/\*{1,2}$/, '')
+            .trim();
+        return /^(来源|参考|引用|Sources|References)\s*[:：]?$/i.test(text);
     }
 
     buildSourceUrlMap(agentRun) {
@@ -613,11 +816,13 @@ class ChatUI {
      * @param {Object} container
      * @param {string} fullContent - 完整的内容文本
      */
-    updateContent(container, fullContent) {
+    updateContent(container, fullContent, options = {}) {
         this._activeSourceMap = container?._sourceUrlMap || null;
         container.contentDiv.innerHTML = this.formatMessage(fullContent);
         this._activeSourceMap = null;
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        if (!options.preserveScroll) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
         this.debouncedMathJax(container.contentDiv);
     }
 
@@ -786,7 +991,7 @@ class ChatUI {
             item.dataset.stage = stage.id;
             item.innerHTML = `
                 <span class="agent-stage-dot"></span>
-                <span class="agent-stage-label">${this.escapeHtml(stage.label)}</span>
+                <span class="agent-stage-label" data-short-label="${this.escapeHtml(this.shortStageLabel(stage.label))}">${this.escapeHtml(stage.label)}</span>
                 <span class="agent-stage-note"></span>
             `;
             stages.appendChild(item);
@@ -821,11 +1026,178 @@ class ChatUI {
         container.agentEventLog = eventTimeline.log;
         container.agentEventCount = eventTimeline.count;
         container.element.insertBefore(panel, container.contentDiv);
+        this.createAgentThoughtPanel(container, panel, [], { open: true });
         if (Array.isArray(container.pendingAgentEvents) && container.pendingAgentEvents.length) {
             const pending = container.pendingAgentEvents.splice(0);
             pending.forEach(event => this.appendAgentEvent(container, event));
         }
         return panel;
+    }
+
+    /**
+     * Agent 运行时思维链：挂在 Agent Run 面板下方、正文上方。
+     * 每个阶段/每轮 Iteration 都持续刷新，流式追加。
+     */
+    createAgentThoughtPanel(container, afterElement, thoughts = [], options = {}) {
+        if (!container?.element && !afterElement) return null;
+        const panel = document.createElement('details');
+        panel.className = 'agent-thought-panel';
+        const hasThoughts = Array.isArray(thoughts) && thoughts.length > 0;
+        panel.open = options.open !== undefined ? options.open : hasThoughts;
+        panel.innerHTML = `
+            <summary class="agent-thought-summary">
+                <span class="agent-thought-live"></span>
+                <span class="agent-thought-title">THOUGHT STREAM</span>
+                <span class="agent-thought-status">${hasThoughts ? '历史思维链' : '等待思考…'}</span>
+                <span class="agent-thought-count">0</span>
+            </summary>
+            <div class="agent-thought-body" role="log" aria-live="polite"></div>
+        `;
+
+        const body = panel.querySelector('.agent-thought-body');
+        if (!hasThoughts) {
+            body.dataset.placeholder = '1';
+            const placeholder = document.createElement('div');
+            placeholder.className = 'agent-thought-placeholder';
+            placeholder.textContent = '等待模型思考…';
+            body.appendChild(placeholder);
+        }
+
+        if (afterElement && afterElement.insertAdjacentElement) {
+            afterElement.insertAdjacentElement('afterend', panel);
+        } else if (container?.element && container?.contentDiv) {
+            container.element.insertBefore(panel, container.contentDiv);
+        } else {
+            return null;
+        }
+
+        this.bindThoughtRefs(container, panel);
+        thoughts.forEach(item => {
+            this.appendThoughtToPanel(panel, item.stage, item.text, {
+                streamKey: item.key || '',
+                silent: true
+            });
+        });
+        return panel;
+    }
+
+    bindThoughtRefs(container, panel) {
+        if (!container || !panel) return;
+        container.agentThoughtPanel = panel;
+        container.agentThoughtBody = panel.querySelector('.agent-thought-body');
+        container.agentThoughtStatus = panel.querySelector('.agent-thought-status');
+        container.agentThoughtCount = panel.querySelector('.agent-thought-count');
+    }
+
+    ensureAgentThoughtPanel(container) {
+        if (!container?.element) return null;
+        if (container.agentThoughtPanel?.isConnected) return container.agentThoughtPanel;
+        const existing = container.element.querySelector('.agent-thought-panel');
+        if (existing) {
+            this.bindThoughtRefs(container, existing);
+            return existing;
+        }
+        return this.createAgentThoughtPanel(container, container.agentRunPanel, [], { open: true });
+    }
+
+    appendAgentThought(container, stage, text, options = {}) {
+        const value = String(text || '');
+        if (!value) return;
+        const panel = this.ensureAgentThoughtPanel(container);
+        if (!panel) return;
+        this.appendThoughtToPanel(panel, stage, value, options);
+    }
+
+    appendThoughtToPanel(panel, stage, text, options = {}) {
+        if (!panel) return;
+        const body = panel.querySelector('.agent-thought-body');
+        if (!body) return;
+        const value = String(text || '');
+        if (!value) return;
+        if (typeof panel._thoughtChars !== 'number') panel._thoughtChars = 0;
+        const key = options.streamKey || '';
+        if (!panel._thoughtRows) panel._thoughtRows = new Map();
+        let row = key ? panel._thoughtRows.get(key) : null;
+        if (row && !row.isConnected) row = null;
+
+        if (row) {
+            const textEl = row.querySelector('.agent-thought-text');
+            if (textEl) {
+                const before = textEl.textContent.length;
+                textEl.textContent = options.replace ? value : textEl.textContent + value;
+                panel._thoughtChars += Math.max(0, textEl.textContent.length - before);
+            }
+        } else {
+            if (body.dataset.placeholder === '1') {
+                body.innerHTML = '';
+                body.dataset.placeholder = '';
+            }
+            row = document.createElement('div');
+            row.className = 'agent-thought-row';
+            row.dataset.stage = stage || 'act';
+            if (key) row.dataset.thoughtKey = key;
+            const stageEl = document.createElement('span');
+            stageEl.className = 'agent-thought-stage';
+            stageEl.textContent = this.thoughtStageLabel(stage);
+            const textEl = document.createElement('span');
+            textEl.className = 'agent-thought-text';
+            textEl.textContent = value;
+            row.appendChild(stageEl);
+            row.appendChild(textEl);
+            body.appendChild(row);
+            panel._thoughtChars += value.length;
+            if (key) panel._thoughtRows.set(key, row);
+        }
+
+        const statusEl = panel.querySelector('.agent-thought-status');
+        if (statusEl && options.status) statusEl.textContent = options.status;
+        else if (statusEl && !options.silent) statusEl.textContent = `${this.thoughtStageLabel(stage)} · 运行中`;
+
+        panel.classList.toggle('is-live', !options.silent && options.done !== true);
+        panel.classList.toggle('is-done', options.done === true);
+        const countEl = panel.querySelector('.agent-thought-count');
+        if (countEl) countEl.textContent = String(body.children.length);
+
+        // 用户往上翻看时不要强行拽回底部
+        const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 64;
+        if (!options.silent && (nearBottom || body.scrollTop === 0)) {
+            body.scrollTop = body.scrollHeight;
+        }
+
+        // 防止长会话把 DOM 撑爆
+        let guard = 0;
+        while (body.children.length > 1 && panel._thoughtChars > 26000 && guard < 12) {
+            const removed = body.firstElementChild;
+            if (removed?.dataset?.thoughtKey && panel._thoughtRows) {
+                panel._thoughtRows.delete(removed.dataset.thoughtKey);
+            }
+            panel._thoughtChars -= removed?.textContent?.length || 0;
+            removed?.remove();
+            guard += 1;
+        }
+    }
+
+    thoughtStageLabel(stage) {
+        const key = String(stage || '').toLowerCase();
+        return {
+            plan: 'PLAN',
+            route: 'ROUTE',
+            act: 'ACT',
+            observe: 'OBSERVE',
+            synthesize: 'SYNTH',
+            error: 'ERROR'
+        }[key] || String(stage || 'RUN').toUpperCase();
+    }
+
+    setThoughtStatus(container, status, done = false) {
+        const panel = container?.agentThoughtPanel?.isConnected
+            ? container.agentThoughtPanel
+            : container?.element?.querySelector?.('.agent-thought-panel');
+        if (!panel) return;
+        const statusEl = panel.querySelector('.agent-thought-status');
+        if (statusEl) statusEl.textContent = status;
+        panel.classList.toggle('is-live', !done);
+        panel.classList.toggle('is-done', done);
     }
 
     restoreAgentRunPanel(messageElement, contentDiv, snapshot) {
@@ -859,7 +1231,7 @@ class ChatUI {
             item.dataset.stage = stage.id || '';
             item.innerHTML = `
                 <span class="agent-stage-dot"></span>
-                <span class="agent-stage-label">${this.escapeHtml(stage.label || stage.id || '')}</span>
+                <span class="agent-stage-label" data-short-label="${this.escapeHtml(this.shortStageLabel(stage.label || stage.id || ''))}">${this.escapeHtml(stage.label || stage.id || '')}</span>
                 <span class="agent-stage-note">${this.escapeHtml(stage.note || '')}</span>
             `;
             stages.appendChild(item);
@@ -900,6 +1272,9 @@ class ChatUI {
         } else {
             messageElement.appendChild(panel);
         }
+        if (Array.isArray(snapshot.thought_trace) && snapshot.thought_trace.length) {
+            this.createAgentThoughtPanel(null, panel, snapshot.thought_trace, { open: true });
+        }
         return panel;
     }
 
@@ -914,7 +1289,7 @@ class ChatUI {
         panel.className = 'agent-collaboration-panel';
 
         const strategyLabels = {
-            expert_panel: '并行专家面板',
+            expert_panel: '并行Agent',
             debate: '观点辩论',
             single_agent: '单 Agent'
         };
@@ -1027,6 +1402,14 @@ class ChatUI {
         stage.classList.add(state);
         const noteEl = stage.querySelector('.agent-stage-note');
         if (noteEl) noteEl.textContent = note;
+        if (state === 'active' || state === 'error') {
+            const isIterationNote = stageId === 'act' && /^Iteration\s+\d+$/i.test(String(note || ''));
+            if (!isIterationNote) {
+                this.appendAgentThought(container, stageId, note || (state === 'error' ? '阶段异常' : '阶段开始'), {
+                    status: state === 'error' ? '异常' : '运行中'
+                });
+            }
+        }
     }
 
     addAgentTrace(container, stage, message) {
@@ -1474,6 +1857,18 @@ class ChatUI {
         resultEl.innerHTML = `<pre>${this.escapeHtml(result)}</pre>`;
     }
 
+    shortStageLabel(label) {
+        const map = {
+            plan: 'Plan',
+            route: 'Route',
+            act: 'Act',
+            observe: 'Obs',
+            synthesize: 'Synth'
+        };
+        const key = String(label || '').toLowerCase();
+        return map[key] || label;
+    }
+
     getPlanStatus(plan) {
         if (plan.mode === 'news_brief') return '\u6b63\u5728\u6574\u7406\u65b0\u95fb\u7b80\u62a5';
         if (plan.mode === 'research') return '正在检索资料';
@@ -1521,6 +1916,7 @@ class ChatUI {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
         this.hideEmptyReasoning(container);
+        this.setThoughtStatus(container, '运行完成', true);
 
         this.debouncedMathJax(container.contentDiv, true);
     }
@@ -1537,6 +1933,7 @@ class ChatUI {
             container.cursorSpan.parentNode.removeChild(container.cursorSpan);
         }
         this.hideEmptyReasoning(container);
+        this.setThoughtStatus(container, '已中断', true);
     }
 
     /**
@@ -1551,6 +1948,7 @@ class ChatUI {
             this.setReasoningStatus(container, '运行出错');
             this.hideEmptyReasoning(container);
         }
+        this.setThoughtStatus(container, '运行出错', true);
         container.contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${errorMessage}</span>`;
     }
 
@@ -1671,7 +2069,11 @@ class ChatUI {
             agentTrace: messageElement.querySelector('.agent-trace-log'),
             agentEventTimeline: messageElement.querySelector('.agent-event-panel'),
             agentEventLog: messageElement.querySelector('.agent-event-log'),
-            agentEventCount: messageElement.querySelector('.agent-event-count')
+            agentEventCount: messageElement.querySelector('.agent-event-count'),
+            agentThoughtPanel: messageElement.querySelector('.agent-thought-panel'),
+            agentThoughtBody: messageElement.querySelector('.agent-thought-body'),
+            agentThoughtStatus: messageElement.querySelector('.agent-thought-status'),
+            agentThoughtCount: messageElement.querySelector('.agent-thought-count')
         };
         if (isRunning && rendered.reasoningSummary) {
             this.startRuntimeTimer(rendered, Number(msg.created_at) || Date.now());
@@ -1768,6 +2170,12 @@ class ChatUI {
 
         return this.mathJaxPromise;
     }
+}
+
+function cssEscape(value) {
+    const text = String(value == null ? '' : value);
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text);
+    return text.replace(/["\\]/g, '\\$&');
 }
 
 // 导出单例

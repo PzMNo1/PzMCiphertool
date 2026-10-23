@@ -70,6 +70,7 @@
 
         bindImageInput();
         bindHostCommands();
+        bindViewportKeys();
 
         const sidePanel = document.getElementById('wm-side');
         const sideToggle = document.getElementById('wm-side-toggle');
@@ -136,6 +137,55 @@
             if (data.type === 'worldmodel:refresh') {
                 boot();
             }
+
+            if (data.type === 'worldmodel:key') {
+                forwardViewportKey(data.code, data.down === true);
+            }
+        });
+    }
+
+    const VIEWPORT_KEY_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+    const viewportKeys = new Set();
+
+    function isFormTarget(target) {
+        if (!target || !target.tagName) return false;
+        return target.tagName === 'INPUT'
+            || target.tagName === 'SELECT'
+            || target.tagName === 'TEXTAREA'
+            || target.isContentEditable === true;
+    }
+
+    function forwardViewportKey(code, down) {
+        if (!VIEWPORT_KEY_CODES.has(code)) return;
+        if (down) viewportKeys.add(code);
+        else viewportKeys.delete(code);
+        const frame = $('wm-splat-frame');
+        if (!frame || !frame.contentWindow) return;
+        // 全景图模式下不再下发按下，但 keyup 仍要送达，避免切回来时按键卡住。
+        if (down && frame.hidden) return;
+        frame.contentWindow.postMessage({ type: 'worldmodel:key', code, down }, '*');
+    }
+
+    function clearViewportKeys() {
+        Array.from(viewportKeys).forEach(code => forwardViewportKey(code, false));
+    }
+
+    function bindViewportKeys() {
+        window.addEventListener('keydown', event => {
+            if (!VIEWPORT_KEY_CODES.has(event.code)) return;
+            if (event.ctrlKey || event.metaKey || event.altKey) return;
+            if (isFormTarget(event.target)) return;
+            event.preventDefault();
+            forwardViewportKey(event.code, true);
+        });
+
+        window.addEventListener('keyup', event => {
+            if (VIEWPORT_KEY_CODES.has(event.code)) forwardViewportKey(event.code, false);
+        });
+
+        window.addEventListener('blur', clearViewportKeys);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) clearViewportKeys();
         });
     }
 
@@ -566,6 +616,7 @@
             button.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         const splat = view === 'splat';
+        if (!splat) clearViewportKeys();
         $('wm-splat-frame').hidden = !splat;
         $('wm-pano-wrap').hidden = splat;
         if (!splat && state.activeWorld) showPano(state.activeWorld);
@@ -598,12 +649,9 @@
         if (world.panoUrl) {
             box.appendChild(button('全景图', () => setStageView('pano')));
         }
-        if (world.marbleUrl) {
-            box.appendChild(button('Marble 官方查看', () => window.open(world.marbleUrl, '_blank', 'noopener')));
-        }
         if (world.colliderMeshUrl) {
             box.appendChild(button('送格式转换台', () => sendMeshToConverter(world)));
-            box.appendChild(button('下载碰撞网格 GLB', () => download(world.colliderMeshUrl, safeName(world) + '_collider.glb')));
+            box.appendChild(button('下载 GLB', () => download(world.colliderMeshUrl, safeName(world) + '_collider.glb')));
         }
         if (world.hqMeshUrl) {
             box.appendChild(button('下载高质量网格 GLB', () => download(world.hqMeshUrl, safeName(world) + '_hq.glb')));
@@ -612,7 +660,6 @@
         if (splatUrl) {
             box.appendChild(button('下载 SPZ', () => download(splatUrl, safeName(world) + '.spz')));
         }
-        box.appendChild(button('进入建模编辑器', () => openEditor()));
         box.appendChild(button('删除', () => removeWorld(world)));
     }
 
@@ -684,12 +731,6 @@
     function findFrame(view) {
         const node = document.querySelector('[data-view-frame="' + view + '"]');
         return node && node.tagName === 'IFRAME' ? node : null;
-    }
-
-    function openEditor() {
-        if (window.modelingLabShowView) {
-            window.modelingLabShowView('editor');
-        }
     }
 
     async function removeWorld(world) {

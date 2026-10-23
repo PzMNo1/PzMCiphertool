@@ -263,7 +263,10 @@ iframe#circuit-frame {
 }
 
 #electroniclab-content .pcb-engine-viewport {
-    border-color: rgba(64, 224, 255, 0.32);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
 }
 
 #electroniclab-content #circuit-frame,

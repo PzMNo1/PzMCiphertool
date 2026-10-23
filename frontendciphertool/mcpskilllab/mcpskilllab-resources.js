@@ -1,32 +1,26 @@
 (function () {
     const groups = window.MCPSKILLLAB_RESOURCE_GROUPS || [];
-    const categoryIds = new Set(['dsh', 'mcp', 'plugins', 'skill', 'prompt', 'workflow', 'devTools', 'dataApis', 'security', 'automation', 'other']);
+    const categoryIds = new Set(['prompt', 'tools', 'skill', 'mcp', 'workflow', 'harness']);
 
     function normalizeCategory(value) {
         const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
         const aliases = {
-            dsh: 'dsh',
-            cap: 'dsh',
-            capability: 'dsh',
-            mcp: 'mcp',
-            plugins: 'plugins',
-            plugin: 'plugins',
-            mcptools: 'mcp',
-            skill: 'skill',
-            skills: 'skill',
             prompt: 'prompt',
             prompts: 'prompt',
+            tool: 'tools',
+            tools: 'tools',
+            skill: 'skill',
+            skills: 'skill',
+            mcp: 'mcp',
+            mcptools: 'mcp',
             workflow: 'workflow',
             workflows: 'workflow',
-            devtools: 'devTools',
-            developer: 'devTools',
-            dataapis: 'dataApis',
-            dataapi: 'dataApis',
-            data: 'dataApis',
-            apis: 'dataApis',
-            security: 'security',
-            automation: 'automation',
-            other: 'other'
+            harness: 'harness',
+            dsh: 'harness',
+            cap: 'harness',
+            capability: 'harness',
+            plugin: 'harness',
+            plugins: 'harness'
         };
         return aliases[normalized] || '';
     }
@@ -55,15 +49,11 @@
         ].join(' ').toLowerCase();
 
         if (type.includes('mcp') || (tags.includes('mcp') && !type.includes('skill') && !type.includes('plugin'))) return 'mcp';
-        if (type.includes('skill registry') || type.includes('skill standard')) return 'skill';
         if (tags.includes('prompt') || hasAnyKeyword(text, ['prompt', 'prompts', '提示词'])) return 'prompt';
         if (tags.includes('workflow') || hasAnyKeyword(text, ['workflow', 'workflows', '工作流', '编排'])) return 'workflow';
-        if (hasAnyKeyword(text, ['security', 'safety', 'risk', 'audit', '权限', '风险', '安全', '审计'])) return 'security';
-        if (hasAnyKeyword(text, ['automation', 'browser', 'office', '自动化', '浏览器'])) return 'automation';
-        if (hasAnyKeyword(text, ['database', 'api', 'connector', 'data', '数据库', '数据源', '连接器'])) return 'dataApis';
-        if (type.includes('skill') || type.includes('plugin') || tags.includes('skill')) return 'skill';
-        if (hasAnyKeyword(text, ['github', 'vscode', 'cursor', 'cli', 'debug', 'developer', '开发', '调试'])) return 'devTools';
-        return 'other';
+        if (hasAnyKeyword(text, ['harness', 'dsh', '插件'])) return 'harness';
+        if (type.includes('skill') || type.includes('skill registry') || type.includes('skill standard') || tags.includes('skill')) return 'skill';
+        return 'tools';
     }
 
     function normalizeResource(item) {
@@ -76,7 +66,7 @@
         return {
             ...item,
             category,
-            categories: Array.from(new Set(categories.length ? categories : ['other']))
+            categories: Array.from(new Set(categories.length ? categories : ['tools']))
         };
     }
 

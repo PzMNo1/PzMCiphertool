@@ -123,6 +123,58 @@
       }
     }
   </style>
+  <style>
+    /* RunFrame 内置菜单（文件 / 视图 / 导出 / 高级）：白色浮层改为实验室暗色霓虹皮肤 */
+    [role="menu"] {
+      min-width: 150px !important;
+      padding: 6px !important;
+      border: 1px solid rgba(46, 240, 195, 0.28) !important;
+      border-radius: 8px;
+      background: linear-gradient(160deg, rgba(6, 24, 48, 0.98), rgba(2, 9, 20, 0.98)) !important;
+      color: #d8f6ff !important;
+      font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.62), 0 0 22px rgba(46, 240, 195, 0.16) !important;
+    }
+
+    [role="menu"] [role="menuitem"],
+    [role="menu"] [role="menuitemcheckbox"],
+    [role="menu"] [role="menuitemradio"] {
+      padding: 6px 10px !important;
+      border-radius: 5px;
+      color: rgba(216, 246, 255, 0.92) !important;
+      font-size: 12.5px !important;
+      letter-spacing: 0.3px;
+    }
+
+    [role="menu"] [role="menuitem"]:hover,
+    [role="menu"] [role="menuitem"]:focus,
+    [role="menu"] [role="menuitemcheckbox"]:hover,
+    [role="menu"] [role="menuitemcheckbox"]:focus,
+    [role="menu"] [role="menuitemradio"]:hover,
+    [role="menu"] [role="menuitemradio"]:focus {
+      background: rgba(46, 240, 195, 0.16) !important;
+      color: #ffffff !important;
+      box-shadow: inset 0 0 0 1px rgba(46, 240, 195, 0.28);
+    }
+
+    [role="menu"] [role="menuitem"][data-disabled],
+    [role="menu"] [role="menuitemcheckbox"][data-disabled] {
+      opacity: 0.45 !important;
+      pointer-events: none;
+    }
+
+    /* viewer-i18n.js 标记的顶部菜单触发器（文件 / 视图） */
+    [data-pzma-menu-trigger] {
+      color: #8ef5e3 !important;
+      transition: color 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    [data-pzma-menu-trigger]:hover,
+    [data-pzma-menu-trigger][data-state="open"] {
+      color: #ffffff !important;
+      text-shadow: 0 0 8px rgba(46, 240, 195, 0.75);
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
@@ -133,15 +185,15 @@
     <div class="status-sub" id="engine-boot-status-text">正在解压并启动本地 PCB 设计 / 仿真引擎...</div>
   </div>
 
-  <script src="./vendor/fflate.min.js?v=20261021-3"></script>
-  <script src="./viewer-i18n.js?v=20261021-3"></script>
+  <script src="./vendor/fflate.min.js?v=20261023-16"></script>
+  <script src="./viewer-i18n.js?v=20261023-16"></script>
   <script>
     (function () {
       'use strict';
 
       var CODE_STORAGE_KEY = 'pzma-pcb-code';
       var ACTIVE_CODE_KEY = 'pzma-pcb-active-code';
-      var ASSET_VERSION = '20261021-3';
+      var ASSET_VERSION = '20261023-16';
       var codeRev = new URLSearchParams(location.search).get('codeRev') || '';
       var statusEl = document.getElementById('engine-boot-status');
       var statusTextEl = document.getElementById('engine-boot-status-text');

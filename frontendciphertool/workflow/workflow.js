@@ -205,6 +205,19 @@ function initWorkflowCoze() {
         }
     };
 
+    const nodeField = (node, key, fallback = '') => {
+        const value = node && node.params ? node.params[key] : undefined;
+        return value === undefined || value === null || value === '' ? fallback : value;
+    };
+
+    const ChineseCodeWorkflow = tab => ({
+        e: text => CCCHandler.encodeText(tab, text),
+        d: text => CCCHandler.decodeText(tab, text)
+    });
+
+    const inputFormatOptions = [['text', '输入文本'], ['hex', '输入 Hex'], ['base64', '输入 Base64']];
+    const outputFormatOptions = [['hex', '输出 Hex'], ['base64', '输出 Base64'], ['text', '输出文本']];
+
     const cipherMap = {
         'Caesar凯撒': { obj: Caesar, paramId: 'shift', def: 3, pType: 'number' },
         'Vigenere维吉尼亚': { obj: Vigenere, paramId: 'key', def: 'KEY', pType: 'text' },
@@ -253,6 +266,352 @@ function initWorkflowCoze() {
         'Enigma恩尼格玛': { obj: EnigmaWorkflow, paramId: 'settings', def: 'UKW-B|I,II,III|1,1,1|1,1,1|bq cr di ej kw mt os', pType: 'text', enigma: true, modelDef: 'M3' },
         'ColRail柱栅栏': { obj: ColumnarRailCipher, paramId: 'cols', def: 2, pType: 'number' },
         'WRail-W栅栏': { obj: WShapeRailFenceCipher, paramId: 'rails', def: 3, pType: 'number' },
+        '键盘布局': {
+            run: (t, n) => KeyboardLayout.process(t, nodeField(n, 'layout', 'dvorak')),
+            fields: [{ key: 'layout', type: 'select', def: 'dvorak', label: '布局', options: [['dvorak', 'Dvorak'], ['azerty', 'AZERTY'], ['colemak', 'Colemak']] }],
+            noMode: true
+        },
+        '符号密码': {
+            run: (t, n) => {
+                const cipher = nodeField(n, 'symbolType', 'pigpen') === 'dancingMen' ? DancingMenCipher : PigpenCipher;
+                return cipher[n.mode](t);
+            },
+            fields: [{ key: 'symbolType', type: 'select', def: 'pigpen', label: '符号类型', options: [['pigpen', 'Pigpen 共济会'], ['dancingMen', '跳舞的小人']] }],
+            html: true
+        },
+        '区位码': { obj: ChineseCodeWorkflow('quwei'), pType: 'none' },
+        'GB2312': { obj: ChineseCodeWorkflow('gb2312'), pType: 'none' },
+        'GBK': { obj: ChineseCodeWorkflow('gbk'), pType: 'none' },
+        'GB18030': { obj: ChineseCodeWorkflow('gb18030'), pType: 'none' },
+        '康熙部首': { run: t => CCCHandler.renderRadicalTable(t), pType: 'none', noMode: true },
+        'Quagmire': {
+            run: (t, n) => Quagmire.run(
+                t,
+                nodeField(n, 'variant', 'quagmire3'),
+                nodeField(n, 'keyA', 'CIPHER'),
+                nodeField(n, 'keyB', 'KEYWORD'),
+                nodeField(n, 'indicator', 'KEY'),
+                n.mode === 'd'
+            ),
+            fields: [
+                { key: 'variant', type: 'select', def: 'quagmire3', label: '变体', options: [['quagmire1', 'Quagmire I'], ['quagmire2', 'Quagmire II'], ['quagmire3', 'Quagmire III'], ['quagmire4', 'Quagmire IV']] },
+                { key: 'keyA', def: 'CIPHER', placeholder: '字母表密钥 A' },
+                { key: 'keyB', def: 'KEYWORD', placeholder: '字母表密钥 B（仅 IV）' },
+                { key: 'indicator', def: 'KEY', placeholder: '指示密钥' }
+            ]
+        },
+        'Web编码': {
+            run: (t, n) => WebEncodingCipher.process(t, nodeField(n, 'encoding', 'url')),
+            fields: [{ key: 'encoding', type: 'select', def: 'url', label: '编码', options: [['url', 'URL'], ['html', 'HTML Entity'], ['unicode', 'Unicode Escape'], ['uu', 'UUencode'], ['xx', 'XXencode'], ['qp', 'Quoted-Printable']] }],
+            noMode: true
+        },
+        '通用码表': {
+            run: (t, n) => CodeTables.process(t, nodeField(n, 'table', 'nato')),
+            fields: [{ key: 'table', type: 'select', def: 'nato', label: '码表', options: [['nato', 'NATO 音标'], ['roman', '罗马数字'], ['seven', '七段数码管'], ['element', '元素周期表'], ['music', '音乐唱名'], ['scrabble', 'Scrabble 分值']] }],
+            noMode: true
+        },
+        '书码': {
+            run: (t, n) => BookCipher.process(
+                t,
+                t,
+                nodeField(n, 'book', ''),
+                nodeField(n, 'bookMode', 'lineWordLetter'),
+                String(nodeField(n, 'base', '1')) === '0' ? 0 : 1
+            ),
+            fields: [
+                { key: 'bookMode', type: 'select', def: 'lineWordLetter', label: '索引模式', options: [['lineWordLetter', '行-词-字'], ['wordLetter', '词-字'], ['absolute', '绝对字符位置']] },
+                { key: 'base', type: 'select', def: '1', label: '计数基', options: [['1', '1 基'], ['0', '0 基']] },
+                { key: 'book', type: 'textarea', def: '', placeholder: '粘贴书文（编码/解码都从这里取索引）' }
+            ],
+            noMode: true
+        },
+        'Chaocipher': {
+            run: (t, n) => Chaocipher.process(
+                t,
+                nodeField(n, 'left', 'CHAOBDEFGIJKLMNPQRSTUVWXYZ'),
+                nodeField(n, 'right', 'CIPHERABDFGJKLMNOQSTUVWXYZ')
+            ),
+            fields: [
+                { key: 'left', def: 'CHAOBDEFGIJKLMNPQRSTUVWXYZ', placeholder: '左盘字母表（密文）' },
+                { key: 'right', def: 'CIPHERABDFGJKLMNOQSTUVWXYZ', placeholder: '右盘字母表（明文）' }
+            ],
+            noMode: true
+        },
+        'Morbit': {
+            run: (t, n) => MorbitCipher.process(t, nodeField(n, 'key', 'MORSECODE')),
+            fields: [{ key: 'key', def: 'MORSECODE', placeholder: '9 字母密钥' }],
+            noMode: true
+        },
+        'Pollux': {
+            run: (t, n) => PolluxCipher.process(
+                t,
+                nodeField(n, 'dot', '047'),
+                nodeField(n, 'dash', '158'),
+                nodeField(n, 'space', '2369')
+            ),
+            fields: [
+                { key: 'dot', def: '047', placeholder: '点替换字符' },
+                { key: 'dash', def: '158', placeholder: '划替换字符' },
+                { key: 'space', def: '2369', placeholder: '空格替换字符' }
+            ],
+            noMode: true
+        },
+        'Solitaire': {
+            run: (t, n) => Solitaire.process(t, nodeField(n, 'key', '')),
+            fields: [{ key: 'key', def: '', placeholder: '密钥（留空为初始牌序）' }],
+            noMode: true
+        },
+        'Double Transposition': {
+            run: (t, n) => DoubleTransposition.process(t, nodeField(n, 'key1', 'KEY'), nodeField(n, 'key2', 'WORD')),
+            fields: [
+                { key: 'key1', def: 'KEY', placeholder: '第一层密钥' },
+                { key: 'key2', def: 'WORD', placeholder: '第二层密钥' }
+            ],
+            noMode: true
+        },
+        'AES': {
+            run: (t, n) => AESCipher.process(
+                t,
+                nodeField(n, 'aesMode', 'CBC'),
+                nodeField(n, 'key', '000102030405060708090a0b0c0d0e0f'),
+                nodeField(n, 'iv', '000102030405060708090a0b0c0d0e0f'),
+                nodeField(n, 'inputFmt', 'text'),
+                nodeField(n, 'outputFmt', 'hex'),
+                nodeField(n, 'padding', 'pkcs7')
+            ),
+            fields: [
+                { key: 'aesMode', type: 'select', def: 'CBC', label: '模式', options: [['CBC', 'CBC'], ['ECB', 'ECB'], ['CFB', 'CFB'], ['OFB', 'OFB'], ['CTR', 'CTR'], ['GCM', 'GCM']] },
+                { key: 'padding', type: 'select', def: 'pkcs7', label: '填充', options: [['pkcs7', 'PKCS7'], ['none', '无填充']] },
+                { key: 'inputFmt', type: 'select', def: 'text', label: '输入格式', options: inputFormatOptions },
+                { key: 'outputFmt', type: 'select', def: 'hex', label: '输出格式', options: outputFormatOptions },
+                { key: 'key', def: '000102030405060708090a0b0c0d0e0f', placeholder: '密钥 hex（16/24/32 字节）' },
+                { key: 'iv', def: '000102030405060708090a0b0c0d0e0f', placeholder: 'IV/nonce hex（GCM 12 字节）' }
+            ],
+            noMode: true
+        },
+        'RSA': {
+            run: (t, n) => RSACipher.process(
+                t,
+                nodeField(n, 'rsaMode', 'decrypt'),
+                nodeField(n, 'n', ''),
+                nodeField(n, 'e', '65537'),
+                nodeField(n, 'd', ''),
+                nodeField(n, 'c', ''),
+                nodeField(n, 'e2', ''),
+                nodeField(n, 'c2', ''),
+                nodeField(n, 'radix', 'dec'),
+                nodeField(n, 'dp', ''),
+                nodeField(n, 'broadcast', '')
+            ),
+            fields: [
+                { key: 'rsaMode', type: 'select', def: 'decrypt', label: '模式', options: [['decrypt', '解密 / 求明文'], ['encrypt', '加密'], ['smallE', '小 e 开方'], ['commonMod', '共模攻击'], ['wiener', 'Wiener 小 d'], ['fermat', 'Fermat 分解'], ['pollard', 'Pollard 分解'], ['hastad', 'Hastad 广播'], ['dpLeak', 'dp 泄露']] },
+                { key: 'radix', type: 'select', def: 'dec', label: '进制', options: [['dec', '十进制'], ['hex', 'Hex']] },
+                { key: 'n', def: '', placeholder: 'n' },
+                { key: 'e', def: '65537', placeholder: 'e' },
+                { key: 'd', def: '', placeholder: 'd' },
+                { key: 'c', def: '', placeholder: 'c（解密/攻击用；留空时取主输入）' },
+                { key: 'e2', def: '', placeholder: 'e2（共模攻击）' },
+                { key: 'c2', def: '', placeholder: 'c2（共模攻击）' },
+                { key: 'dp', def: '', placeholder: 'dp（dp 泄露攻击）' },
+                { key: 'broadcast', type: 'textarea', def: '', placeholder: 'Hastad：每行 n:c（十进制或 Hex）' }
+            ],
+            noMode: true
+        },
+        'MD4': { run: t => HashToolbox.digest('MD4', t), pType: 'none', noMode: true },
+        'SHA3-256': { run: t => HashToolbox.digest('SHA3-256', t), pType: 'none', noMode: true },
+        'SHA3-512': { run: t => HashToolbox.digest('SHA3-512', t), pType: 'none', noMode: true },
+        'RIPEMD-160': { run: t => HashToolbox.digest('RIPEMD-160', t), pType: 'none', noMode: true },
+        'SM3': { run: t => HashToolbox.digest('SM3', t), pType: 'none', noMode: true },
+        'CRC32': { run: t => HashToolbox.digest('CRC32', t), pType: 'none', noMode: true },
+        'JWT': {
+            run: (t, n) => JWTTool.process(t, nodeField(n, 'secret', '')),
+            fields: [{ key: 'secret', def: '', placeholder: 'HS256/384/512 密钥' }],
+            noMode: true
+        },
+        'PRNG': {
+            run: (t, n) => PRNGTool.process(
+                t,
+                nodeField(n, 'prngMode', 'mt'),
+                nodeField(n, 'count', '5'),
+                nodeField(n, 'mod', ''),
+                nodeField(n, 'a', ''),
+                nodeField(n, 'c', '')
+            ),
+            fields: [
+                { key: 'prngMode', type: 'select', def: 'mt', label: '模式', options: [['mt', 'MT19937'], ['lcg', 'LCG']] },
+                { key: 'count', type: 'number', def: '5', label: '预测个数' },
+                { key: 'mod', def: '', placeholder: 'LCG modulus' },
+                { key: 'a', def: '', placeholder: 'LCG a' },
+                { key: 'c', def: '', placeholder: 'LCG c' }
+            ],
+            noMode: true
+        },
+        'RC4': {
+            run: (t, n) => SymmetricCipher.process(
+                t, 'RC4', 'ECB',
+                nodeField(n, 'key', 'Key'), '',
+                nodeField(n, 'inputFmt', 'text'),
+                nodeField(n, 'outputFmt', 'hex'),
+                'none'
+            ),
+            fields: [
+                { key: 'inputFmt', type: 'select', def: 'text', label: '输入格式', options: inputFormatOptions },
+                { key: 'outputFmt', type: 'select', def: 'hex', label: '输出格式', options: outputFormatOptions },
+                { key: 'key', def: 'Key', placeholder: 'key（文本或 Hex）' }
+            ],
+            noMode: true
+        },
+        'DES': {
+            run: (t, n) => SymmetricCipher.process(
+                t, 'DES',
+                nodeField(n, 'desMode', 'ECB'),
+                nodeField(n, 'key', '133457799bbcdff1'),
+                nodeField(n, 'iv', '0001020304050607'),
+                nodeField(n, 'inputFmt', 'text'),
+                nodeField(n, 'outputFmt', 'hex'),
+                nodeField(n, 'padding', 'pkcs7')
+            ),
+            fields: [
+                { key: 'desMode', type: 'select', def: 'ECB', label: '模式', options: [['ECB', 'ECB'], ['CBC', 'CBC']] },
+                { key: 'inputFmt', type: 'select', def: 'text', label: '输入格式', options: inputFormatOptions },
+                { key: 'outputFmt', type: 'select', def: 'hex', label: '输出格式', options: outputFormatOptions },
+                { key: 'padding', type: 'select', def: 'pkcs7', label: '填充', options: [['pkcs7', 'PKCS7'], ['none', '无填充']] },
+                { key: 'key', def: '133457799bbcdff1', placeholder: 'key（8 字节 Hex）' },
+                { key: 'iv', def: '0001020304050607', placeholder: 'IV（8 字节 Hex）' }
+            ],
+            noMode: true
+        },
+        '3DES': {
+            run: (t, n) => SymmetricCipher.process(
+                t, '3DES',
+                nodeField(n, 'desMode', 'ECB'),
+                nodeField(n, 'key', '0123456789abcdeffedcba9876543210'),
+                nodeField(n, 'iv', '0001020304050607'),
+                nodeField(n, 'inputFmt', 'text'),
+                nodeField(n, 'outputFmt', 'hex'),
+                nodeField(n, 'padding', 'pkcs7')
+            ),
+            fields: [
+                { key: 'desMode', type: 'select', def: 'ECB', label: '模式', options: [['ECB', 'ECB'], ['CBC', 'CBC']] },
+                { key: 'inputFmt', type: 'select', def: 'text', label: '输入格式', options: inputFormatOptions },
+                { key: 'outputFmt', type: 'select', def: 'hex', label: '输出格式', options: outputFormatOptions },
+                { key: 'padding', type: 'select', def: 'pkcs7', label: '填充', options: [['pkcs7', 'PKCS7'], ['none', '无填充']] },
+                { key: 'key', def: '0123456789abcdeffedcba9876543210', placeholder: 'key（16/24 字节 Hex）' },
+                { key: 'iv', def: '0001020304050607', placeholder: 'IV（8 字节 Hex）' }
+            ],
+            noMode: true
+        },
+        'ChaCha20': {
+            run: (t, n) => SymmetricCipher.process(
+                t, 'ChaCha20', 'ECB',
+                nodeField(n, 'key', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'),
+                nodeField(n, 'nonce', '000000090000004a00000000'),
+                nodeField(n, 'inputFmt', 'text'),
+                nodeField(n, 'outputFmt', 'hex'),
+                'none'
+            ),
+            fields: [
+                { key: 'inputFmt', type: 'select', def: 'text', label: '输入格式', options: inputFormatOptions },
+                { key: 'outputFmt', type: 'select', def: 'hex', label: '输出格式', options: outputFormatOptions },
+                { key: 'key', def: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', placeholder: 'key（32 字节 Hex）' },
+                { key: 'nonce', def: '000000090000004a00000000', placeholder: 'nonce（12 字节 Hex）' }
+            ],
+            noMode: true
+        },
+        'ECDSA': {
+            run: (t, n) => ECDSATool.process(
+                nodeField(n, 'curve', 'secp256k1'),
+                nodeField(n, 'r', ''),
+                nodeField(n, 's1', ''),
+                nodeField(n, 's2', ''),
+                nodeField(n, 'z1', ''),
+                nodeField(n, 'z2', ''),
+                nodeField(n, 'radix', 'dec')
+            ),
+            fields: [
+                { key: 'curve', type: 'select', def: 'secp256k1', label: '曲线', options: [['secp256k1', 'secp256k1'], ['p256', 'P-256']] },
+                { key: 'radix', type: 'select', def: 'dec', label: '进制', options: [['dec', '十进制'], ['hex', 'Hex']] },
+                { key: 'r', def: '', placeholder: 'r（两次签名相同）' },
+                { key: 's1', def: '', placeholder: 's1' },
+                { key: 's2', def: '', placeholder: 's2' },
+                { key: 'z1', def: '', placeholder: 'z1（消息哈希）' },
+                { key: 'z2', def: '', placeholder: 'z2（消息哈希）' }
+            ],
+            noMode: true
+        },
+        'ECC 计算器': {
+            run: (t, n) => ECCCalc.process(
+                nodeField(n, 'curve', 'secp256k1'),
+                nodeField(n, 'eccMode', 'check'),
+                nodeField(n, 'radix', 'hex'),
+                nodeField(n, 'p', ''),
+                nodeField(n, 'a', ''),
+                nodeField(n, 'b', ''),
+                nodeField(n, 'n', ''),
+                nodeField(n, 'px', '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'),
+                nodeField(n, 'py', '483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8'),
+                nodeField(n, 'qx', ''),
+                nodeField(n, 'qy', ''),
+                nodeField(n, 'k', '2')
+            ),
+            fields: [
+                { key: 'curve', type: 'select', def: 'secp256k1', label: '曲线', options: [['secp256k1', 'secp256k1'], ['p256', 'P-256'], ['custom', '自定义曲线']] },
+                { key: 'eccMode', type: 'select', def: 'check', label: '运算', options: [['check', '曲线/子群检查'], ['mul', '点乘 k·P'], ['add', '点加 P+Q'], ['double', '倍点 2P'], ['neg', '取负 -P']] },
+                { key: 'radix', type: 'select', def: 'hex', label: '进制', options: [['hex', 'Hex'], ['dec', '十进制']] },
+                { key: 'p', def: '', placeholder: 'p（自定义曲线）' },
+                { key: 'a', def: '', placeholder: 'a（自定义曲线）' },
+                { key: 'b', def: '', placeholder: 'b（自定义曲线）' },
+                { key: 'n', def: '', placeholder: 'n（子群阶，自定义曲线）' },
+                { key: 'px', def: '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798', placeholder: 'P.x' },
+                { key: 'py', def: '483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8', placeholder: 'P.y' },
+                { key: 'qx', def: '', placeholder: 'Q.x（点加用）' },
+                { key: 'qy', def: '', placeholder: 'Q.y（点加用）' },
+                { key: 'k', def: '2', placeholder: 'k（点乘用）' }
+            ],
+            noMode: true
+        },
+        'XOR 工具': {
+            run: (t, n) => AnalyzeTools.xorTool(
+                t,
+                nodeField(n, 'xorMode', 'single'),
+                nodeField(n, 'key', ''),
+                nodeField(n, 'maxLen', '32'),
+                nodeField(n, 'crib', ''),
+                nodeField(n, 'inputMode', 'text')
+            ),
+            fields: [
+                { key: 'xorMode', type: 'select', def: 'single', label: '模式', options: [['single', '单字节枚举'], ['repeat', '重复密钥解密'], ['keylen', '密钥长度（汉明距离）'], ['crib', 'crib drag'], ['many', '多密文两两异或']] },
+                { key: 'inputMode', type: 'select', def: 'text', label: '输入格式', options: [['text', '文本'], ['hex', 'Hex'], ['base64', 'Base64']] },
+                { key: 'key', def: '', placeholder: '重复密钥（hex 或文本）' },
+                { key: 'maxLen', type: 'number', def: '32', label: '最大密钥长度' },
+                { key: 'crib', def: '', placeholder: 'crib（已知明文片段）' }
+            ],
+            noMode: true
+        },
+        '频率分析': { run: t => AnalyzeTools.frequency(t), pType: 'none', noMode: true },
+        'Vigenère 分析': {
+            run: (t, n) => AnalyzeTools.vigenereAnalyze(t, nodeField(n, 'maxLen', '20'), nodeField(n, 'key', '')),
+            fields: [
+                { key: 'maxLen', type: 'number', def: '20', label: '最大密钥长度' },
+                { key: 'key', def: '', placeholder: '已知密钥（可选）' }
+            ],
+            noMode: true
+        },
+        '换位爆破': {
+            run: (t, n) => AnalyzeTools.transpositionBrute(t, nodeField(n, 'max', '10')),
+            fields: [{ key: 'max', type: 'number', def: '10', label: '最大层数/列数' }],
+            noMode: true
+        },
+        '索引提取': {
+            run: (t, n) => AnalyzeTools.indexExtract(t, nodeField(n, 'indexMode', 'first'), nodeField(n, 'indexN', '1')),
+            fields: [
+                { key: 'indexMode', type: 'select', def: 'first', label: '读取方式', options: [['first', '每行首字母'], ['last', '每行尾字母'], ['nth', '每行第 n 字'], ['diagonal', '主对角线'], ['antiDiagonal', '副对角线'], ['snake', '蛇形读取'], ['spiral', '螺旋读取'], ['wordLength', '词长'], ['sort', '按行排序'], ['dedup', '去重'], ['reverse', '整体反转']] },
+                { key: 'indexN', type: 'number', def: '1', label: 'n' }
+            ],
+            noMode: true
+        },
+        '自动解码链': { run: t => AnalyzeTools.autoDecode(t), pType: 'none', noMode: true },
+        '谜格': { run: t => AnalyzeTools.mige(t), pType: 'none', noMode: true }
     };
 
     // === 状态 ===
@@ -370,7 +729,7 @@ function initWorkflowCoze() {
     // === 渲染所有连线 ===
     function renderConnections() {
         const existing = new Map(
-            Array.from(svg.querySelectorAll('.wf-connection')).map(path => [Number(path.dataset.id), path])
+            Array.from(svg.querySelectorAll('.wf-conn-group')).map(group => [Number(group.dataset.id), group])
         );
         const active = new Set();
 
@@ -380,28 +739,33 @@ function initWorkflowCoze() {
             const dx = Math.abs(p2.x - p1.x) * 0.5;
             const d = `M${p1.x},${p1.y} C${p1.x + dx},${p1.y} ${p2.x - dx},${p2.y} ${p2.x},${p2.y}`;
 
-            let path = existing.get(c.id);
-            if (!path) {
-                path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.dataset.id = c.id;
-                path.style.pointerEvents = 'stroke';
-                path.addEventListener('click', e => {
+            let group = existing.get(c.id);
+            if (!group) {
+                group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.dataset.id = c.id;
+                group.setAttribute('class', 'wf-conn-group');
+                ['wf-conn-aura', 'wf-connection', 'wf-conn-core', 'wf-conn-flow'].forEach(className => {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('class', className);
+                    group.appendChild(path);
+                });
+                group.addEventListener('click', e => {
                     e.stopPropagation();
-                    selectedConn = Number(path.dataset.id);
+                    selectedConn = Number(group.dataset.id);
                     selectedNode = null;
                     deselectAll();
                     renderConnections();
                 });
-                svg.appendChild(path);
+                svg.appendChild(group);
             }
 
-            path.setAttribute('d', d);
-            path.setAttribute('class', 'wf-connection' + (selectedConn === c.id ? ' selected' : ''));
+            group.querySelectorAll('path').forEach(path => path.setAttribute('d', d));
+            group.classList.toggle('selected', selectedConn === c.id);
             active.add(c.id);
         });
 
-        existing.forEach((path, id) => {
-            if (!active.has(id)) path.remove();
+        existing.forEach((group, id) => {
+            if (!active.has(id)) group.remove();
         });
     }
 
@@ -466,7 +830,11 @@ function initWorkflowCoze() {
                     if (cfg.pType === 'number') p = parseInt(p) || cfg.def;
                     n.value = cfg.run ? await cfg.run(input, n) : await cfg.obj[n.mode](input, p);
                     n.outputs = { input: rawInput, result: n.value };
-                    if (resEl) { resEl.textContent = n.value; resEl.className = 'result'; }
+                    if (resEl) {
+                        if (cfg.html) resEl.innerHTML = n.value;
+                        else resEl.textContent = n.value;
+                        resEl.className = 'result';
+                    }
                 } catch (e) {
                     n.value = '';
                     n.outputs = { input, result: '' };
@@ -506,9 +874,28 @@ function initWorkflowCoze() {
                     Enigmamodels.map(model => `<option value="${escapeHTML(model.name)}"${(n.model || cfg.modelDef) === model.name ? ' selected' : ''}>${escapeHTML(model.label)}</option>`).join('')
                 }</select></div>`
                 : '';
-            const paramHTML = cfg.pType && cfg.pType !== 'none'
-                ? `<div class="wf-node-field"><input type="${cfg.pType === 'number' ? 'number' : 'text'}" value="${escapeHTML(n.param ?? cfg.def ?? '')}" class="wf-cipher-param" placeholder="${cfg.enigma ? '反射器|转子|位置|环|插板' : '参数'}"></div>`
-                : '';
+            const fieldHTML = (cfg.fields || []).map(field => {
+                const value = n.params && n.params[field.key] !== undefined ? n.params[field.key] : (field.def ?? '');
+                const title = escapeHTML(field.label || field.placeholder || '参数');
+                const key = escapeHTML(field.key);
+                if (field.type === 'select') {
+                    const options = (field.options || []).map(option => Array.isArray(option) ? option : [option, option]);
+                    return `<select class="wf-cipher-param" data-field="${key}" title="${title}">${
+                        options.map(([optionValue, optionLabel]) =>
+                            `<option value="${escapeHTML(optionValue)}"${String(value) === String(optionValue) ? ' selected' : ''}>${escapeHTML(optionLabel)}</option>`
+                        ).join('')
+                    }</select>`;
+                }
+                if (field.type === 'textarea') {
+                    return `<textarea class="wf-cipher-param" data-field="${key}" rows="3" title="${title}" placeholder="${escapeHTML(field.placeholder || '')}">${escapeHTML(value)}</textarea>`;
+                }
+                return `<input type="${field.type === 'number' ? 'number' : 'text'}" class="wf-cipher-param" data-field="${key}" value="${escapeHTML(value)}" title="${title}" placeholder="${escapeHTML(field.placeholder || '参数')}">`;
+            }).join('');
+            const paramHTML = cfg.fields
+                ? fieldHTML
+                : (cfg.pType && cfg.pType !== 'none'
+                    ? `<div class="wf-node-field"><input type="${cfg.pType === 'number' ? 'number' : 'text'}" value="${escapeHTML(n.param ?? cfg.def ?? '')}" class="wf-cipher-param" placeholder="${cfg.enigma ? '反射器|转子|位置|环|插板' : '参数'}"></div>`
+                    : '');
             const hmacHTML = cfg.hmac
                 ? `<div class="wf-hmac-panel">
                     <label class="wf-check-row"><input type="checkbox" class="wf-hmac-toggle"${n.useHmac ? ' checked' : ''}> HMAC</label>
@@ -652,8 +1039,17 @@ function initWorkflowCoze() {
         const enigmaModelSelect = el.querySelector('.wf-enigma-model');
         if (enigmaModelSelect) enigmaModelSelect.addEventListener('change', () => { n.model = enigmaModelSelect.value; propagate(); });
 
-        const paramInput = el.querySelector('.wf-cipher-param');
+        const paramInput = el.querySelector('.wf-cipher-param:not([data-field])');
         if (paramInput) paramInput.addEventListener('input', () => { n.param = paramInput.value; propagate(); });
+
+        el.querySelectorAll('.wf-cipher-param[data-field]').forEach(control => {
+            const eventName = control.tagName === 'SELECT' ? 'change' : 'input';
+            control.addEventListener(eventName, () => {
+                n.params = n.params || {};
+                n.params[control.dataset.field] = control.value;
+                propagate();
+            });
+        });
 
         const hmacToggle = el.querySelector('.wf-hmac-toggle');
         if (hmacToggle) hmacToggle.addEventListener('change', () => { n.useHmac = hmacToggle.checked; propagate(); });
@@ -671,6 +1067,10 @@ function initWorkflowCoze() {
         if (type === 'cipher' && algorithm && cipherMap[algorithm]) {
             const cfg = cipherMap[algorithm];
             n.param = cfg.def ?? '';
+            if (cfg.fields) {
+                n.params = {};
+                cfg.fields.forEach(field => { n.params[field.key] = field.def ?? ''; });
+            }
             if (cfg.enigma) n.model = cfg.modelDef || 'M3';
             if (cfg.hmac) {
                 n.useHmac = false;
@@ -874,7 +1274,7 @@ function initWorkflowCoze() {
         searchInput.addEventListener('input', () => {
             const q = searchInput.value.toLowerCase();
             document.querySelectorAll('.wf-toolbar-item').forEach(el => {
-                const name = el.dataset.algo || el.dataset.type || '';
+                const name = `${el.dataset.algo || el.dataset.type || ''} ${el.textContent}`;
                 el.classList.toggle('hidden', q && !name.toLowerCase().includes(q));
             });
         });
@@ -926,7 +1326,8 @@ function initWorkflowCoze() {
                 e.clientY >= cr.top && e.clientY <= cr.bottom) {
                 const cp = screenToCanvas(e.clientX, e.clientY);
                 if (toolbarDrag.type === 'cipher') {
-                    addNode('cipher', cp.x - 100, cp.y - 40, toolbarDrag.algo);
+                    const minNodeX = isMobileWorkflow() ? 0 : (toolbar?.offsetWidth || 0) / zoom + 12;
+                    addNode('cipher', Math.max(cp.x - 100, minNodeX), cp.y - 40, toolbarDrag.algo);
                 }
                 toolbarDropGuard = true;
                 setTimeout(() => { toolbarDropGuard = false; }, 320);
@@ -969,7 +1370,7 @@ function initWorkflowCoze() {
     document.getElementById('wf-clear-btn')?.addEventListener('click', clearCanvas);
 
     // === 初始化默认示例 ===
-    addNode('cipher', 160, 150, 'Caesar凯撒');
+    addNode('cipher', isMobileWorkflow() ? 40 : 280, 150, 'Caesar凯撒');
     drawGrid();
     applyTransform();
 }

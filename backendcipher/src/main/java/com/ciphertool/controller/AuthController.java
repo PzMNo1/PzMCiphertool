@@ -1,6 +1,7 @@
 package com.ciphertool.controller;
 
 import com.ciphertool.dto.ApiResponse;
+import com.ciphertool.dto.DeveloperLoginRequest;
 import com.ciphertool.dto.LoginRequest;
 import com.ciphertool.dto.LoginResponse;
 import com.ciphertool.dto.SendCodeRequest;
@@ -48,6 +49,22 @@ public class AuthController {
 
         if (response == null) {
             return ApiResponse.error("验证码错误或已过期");
+        }
+
+        return ApiResponse.success("登录成功", response);
+    }
+
+    /**
+     * Login with developer account
+     */
+    @PostMapping("/developer-login")
+    public ApiResponse<LoginResponse> developerLogin(@Valid @RequestBody DeveloperLoginRequest request) {
+        log.debug("Developer login request: account={}", request.getAccount());
+
+        LoginResponse response = authService.verifyDeveloperLogin(request.getAccount(), request.getPassword());
+
+        if (response == null) {
+            return ApiResponse.error("账号或密码错误");
         }
 
         return ApiResponse.success("登录成功", response);

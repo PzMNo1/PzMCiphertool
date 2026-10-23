@@ -10,20 +10,15 @@
     };
 
     const VIEWS = {
-        editor: {
-            src: './modelinglab/three-webgpu-editor/docs/index.html',
-            title: 'Three.js 建模编辑器',
-            tab: '建模编辑器'
+        world: {
+            src: './worldmodel/worldmodel.html',
+            title: '世界模型工作台',
+            tab: '世界模型'
         },
         convert: {
             src: './modelinglab/format-convert.html',
             title: '模型格式转换台',
             tab: '格式转换台'
-        },
-        world: {
-            src: './worldmodel/worldmodel.html',
-            title: '世界模型工作台',
-            tab: '世界模型'
         }
     };
 
@@ -94,7 +89,6 @@
                     <h2 class="neon-title" data-text="ORBITAL HARDWARE STUDIO">ORBITAL HARDWARE STUDIO</h2>
                     <nav class="modelinglab-tabs" role="tablist" aria-label="建模实验室子模块">
                         ${tabs}
-                        <span class="modelinglab-hint">编辑器仅支持 GLB / FBX 导入，其它格式先转 GLB</span>
                     </nav>
                 </header>
 
@@ -122,7 +116,7 @@
                 }
                 frame.style.display = on ? 'block' : 'none';
             });
-            // 让编辑器/预览页重新计算画布尺寸
+            // 让世界模型/预览页重新计算画布尺寸
             setTimeout(() => {
                 window.dispatchEvent(new Event('resize'));
                 // iframe 里的画布监听的是自己的 window，这里单独叫醒一次
@@ -141,13 +135,6 @@
             tab.addEventListener('click', () => showView(tab.getAttribute('data-view')));
         });
 
-        // 转换台里的「前往建模编辑器」按钮
-        window.addEventListener('message', event => {
-            if (event && event.data && event.data.type === 'modelinglab:open-editor') {
-                showView('editor');
-            }
-        });
-
         window.modelingLabShowView = showView;
 
         /* --------------------------------------------------------------
@@ -159,6 +146,54 @@
             const frame = Array.from(frames).find(f => f.getAttribute('data-view-frame') === 'world');
             return frame && frame.tagName === 'IFRAME' ? frame : null;
         };
+
+        /* --------------------------------------------------------------
+           世界模型：WASD 键盘转发
+           焦点可能停在宿主页的页签/标题上，按键要能一路转发到视口 iframe。
+           -------------------------------------------------------------- */
+        const WORLD_KEY_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+        const worldKeys = new Set();
+
+        const postWorldKey = (code, down) => {
+            const frame = worldFrame();
+            if (!frame || !frame.contentWindow) return;
+            try {
+                frame.contentWindow.postMessage({ type: 'worldmodel:key', code, down }, '*');
+            } catch (error) {
+                note('world: 键盘转发失败 ' + (error && error.message));
+            }
+        };
+
+        const clearWorldKeys = () => {
+            worldKeys.forEach(code => postWorldKey(code, false));
+            worldKeys.clear();
+        };
+
+        window.addEventListener('keydown', event => {
+            if (!WORLD_KEY_CODES.has(event.code)) return;
+            if (event.ctrlKey || event.metaKey || event.altKey || document.hidden) return;
+            const target = event.target;
+            const tag = target && target.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (target && target.isContentEditable)) return;
+            const host = document.getElementById('jianmoshiyanshi-container');
+            if (!host || window.getComputedStyle(host).display === 'none') return;
+            const active = document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view');
+            if (active !== 'world') return;
+            event.preventDefault();
+            worldKeys.add(event.code);
+            postWorldKey(event.code, true);
+        });
+
+        window.addEventListener('keyup', event => {
+            if (!WORLD_KEY_CODES.has(event.code) || !worldKeys.has(event.code)) return;
+            worldKeys.delete(event.code);
+            postWorldKey(event.code, false);
+        });
+
+        window.addEventListener('blur', clearWorldKeys);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) clearWorldKeys();
+        });
 
         const postToWorld = (message, retries = 12) => {
             const frame = worldFrame();

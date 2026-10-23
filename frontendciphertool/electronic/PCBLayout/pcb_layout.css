@@ -86,14 +86,6 @@ html, body {
   text-shadow: 0 0 18px rgba(46, 240, 195, 0.42);
 }
 
-.pcb-studio-brand-sub {
-  font-size: 0.68rem;
-  color: var(--pcb-muted);
-  letter-spacing: 1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .pcb-studio-actions {
   display: flex;
   align-items: center;
@@ -103,7 +95,7 @@ html, body {
 }
 
 .pcb-select {
-  height: 32px;
+  height: 34px;
   max-width: 210px;
   padding: 0 10px;
   border: 1px solid var(--pcb-line-strong);
@@ -114,7 +106,14 @@ html, body {
   font-size: 0.78rem;
   outline: none;
   cursor: pointer;
+  /* 让原生下拉弹层跟随暗色主题，避免出现白底选项 */
+  color-scheme: dark;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pcb-select option {
+  background-color: #061428;
+  color: var(--pcb-text);
 }
 
 .pcb-select:focus,
@@ -123,49 +122,71 @@ html, body {
   box-shadow: 0 0 16px rgba(46, 240, 195, 0.22);
 }
 
+/* 与 0_zhuyeyangshi.css 的 .cyber-button 保持一致：绿色霓虹描边 + 扫光 */
 .pcb-btn {
-  height: 32px;
+  --primary-clr: #2ecc71;
+  --secondary-clr: #3498db;
+  --glow-clr: rgba(46, 204, 113, 0.5);
+
+  position: relative;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 12px;
+  padding: 0 14px;
+  border: 2px solid var(--primary-clr);
   border-radius: 6px;
-  border: 1px solid var(--pcb-line-strong);
-  background: linear-gradient(180deg, rgba(8, 26, 52, 0.96), rgba(4, 14, 30, 0.96));
-  color: var(--pcb-text);
+  background: transparent;
+  color: #ecf0f1;
   font-family: var(--pcb-font);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   cursor: pointer;
   user-select: none;
-  transition: all 0.25s ease;
+  overflow: hidden;
+  z-index: 1;
+  box-shadow: 0 0 8px var(--glow-clr), inset 0 0 4px var(--glow-clr);
+  transition: all 0.3s ease;
+}
+
+.pcb-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--glow-clr), transparent);
+  transition: all 0.6s ease;
+  z-index: -1;
 }
 
 .pcb-btn:hover {
-  border-color: var(--pcb-cyan);
+  border-color: var(--secondary-clr);
   color: #fff;
-  box-shadow: 0 0 18px rgba(46, 240, 195, 0.24);
-  transform: translateY(-1px);
+  text-shadow: 0 0 4px #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
 }
+
+.pcb-btn:hover::before { left: 100%; }
 
 .pcb-btn:active { transform: translateY(0) scale(0.98); }
 
 .pcb-btn-primary {
-  border-color: rgba(46, 240, 195, 0.7);
-  background: linear-gradient(135deg, rgba(46, 240, 195, 0.22), rgba(64, 224, 255, 0.16));
+  background: rgba(46, 204, 113, 0.12);
   color: #eafffa;
-  text-shadow: 0 0 12px rgba(46, 240, 195, 0.55);
 }
 
 .pcb-btn-primary:hover {
-  background: linear-gradient(135deg, rgba(46, 240, 195, 0.34), rgba(64, 224, 255, 0.24));
-  box-shadow: 0 0 24px rgba(46, 240, 195, 0.36);
+  background: rgba(46, 204, 113, 0.2);
+  box-shadow: 0 0 16px var(--glow-clr), inset 0 0 10px var(--glow-clr);
 }
 
 .pcb-btn-ghost {
-  background: rgba(3, 12, 26, 0.72);
+  background: transparent;
 }
 
 /* ===== 主区域 ===== */
@@ -229,15 +250,6 @@ html, body {
 }
 
 .pcb-editor-status.error { color: var(--pcb-danger); }
-
-.pcb-engine-badge {
-  color: var(--pcb-cyan);
-  font-size: 0.66rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  opacity: 0.82;
-  white-space: nowrap;
-}
 
 .pcb-code-editor {
   flex: 1 1 auto;
@@ -348,7 +360,6 @@ html, body {
 /* ===== 响应式 ===== */
 @media (max-width: 1020px) {
   .pcb-editor-pane { flex-basis: 44%; }
-  .pcb-studio-brand-sub { display: none; }
 }
 
 @media (max-width: 820px) {
@@ -363,7 +374,7 @@ html, body {
   .pcb-viewer-pane { flex: 1 1 auto; }
 }
 /* =====================================================================
-   代码侧边栏：可收起 / 展开 + 透明玻璃拟态
+   代码侧边栏：可收起 / 展开 + .result 同款深蓝浮层
    交互参考 modelinglab/format-convert.html 的 .fc-side 侧栏：
    - 侧栏以浮层形式盖在预览之上；
    - 右侧贴边一个竖向切换把手；
@@ -384,18 +395,19 @@ html, body {
 
 .pcb-viewer-pane {
   position: absolute;
-  inset: 10px;
+  inset: 0;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--pcb-line);
-  border-radius: 10px;
-  background: var(--pcb-panel);
-  box-shadow: inset 0 0 32px rgba(46, 240, 195, 0.04), 0 10px 32px rgba(0, 0, 0, 0.32);
+  border: 0;
+  border-radius: 0;
+  background: #000510;
+  box-shadow: none;
   overflow: hidden;
 }
 
+/* 面板视觉对齐 0_zhuyeyangshi.css 的 .result（加密实验室卡片 / 侧边栏同款） */
 .pcb-editor-pane {
   position: absolute;
   top: 10px;
@@ -407,19 +419,13 @@ html, body {
   z-index: 6;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(64, 224, 255, 0.28);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0) 55%),
-    linear-gradient(165deg, rgba(16, 32, 52, 0.52) 0%, rgba(13, 27, 46, 0.34) 45%, rgba(6, 12, 22, 0.58) 100%),
-    rgba(10, 20, 34, 0.30);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-  box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.30),
-    inset 0 0 36px rgba(64, 224, 255, 0.08),
-    0 14px 44px rgba(0, 0, 0, 0.48),
-    5px 0 20px rgba(12, 153, 134, 0.30);
+  border: 1px solid rgba(64, 224, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.2);
+  color: #ecf0f1;
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 5px 0 15px rgba(12, 153, 134, 0.719);
   overflow: hidden;
   transition: width 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -448,10 +454,15 @@ html, body {
   pointer-events: none;
 }
 
+/* 侧栏把手同样是 .cyber-button 风格 */
 .pcb-sidebar-toggle {
+  --primary-clr: #2ecc71;
+  --secondary-clr: #3498db;
+  --glow-clr: rgba(46, 204, 113, 0.5);
+
   position: absolute;
   top: 50%;
-  left: calc(var(--pcb-editor-width) + 10px - 13px);
+  left: calc(var(--pcb-editor-width) + 10px - 3px);
   transform: translateY(-50%);
   width: 26px;
   height: 78px;
@@ -461,56 +472,62 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #e6f1f7;
+  color: #ecf0f1;
   font-size: 16px;
   line-height: 1;
-  border: 1px solid rgba(64, 224, 255, 0.38);
-  border-radius: 4px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)),
-    rgba(13, 27, 46, 0.52);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  backdrop-filter: blur(14px) saturate(160%);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.25), 0 8px 22px rgba(0, 0, 0, 0.35);
-  transition: left 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+  border: 2px solid var(--primary-clr);
+  border-radius: 6px;
+  background: transparent;
+  overflow: hidden;
+  box-shadow: 0 0 8px var(--glow-clr), inset 0 0 4px var(--glow-clr);
+  transition: left 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.pcb-sidebar-toggle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--glow-clr), transparent);
+  transition: all 0.6s ease;
+  z-index: -1;
 }
 
 .pcb-sidebar-toggle:hover {
   color: #fff;
-  border-color: rgba(64, 224, 255, 0.85);
-  box-shadow: 0 0 22px rgba(64, 224, 255, 0.35), inset 0 0 14px rgba(64, 224, 255, 0.12);
-  background: rgba(16, 42, 70, 0.70);
+  border-color: var(--secondary-clr);
+  text-shadow: 0 0 4px #fff;
+  transform: translateY(calc(-50% - 2px));
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
 }
+
+.pcb-sidebar-toggle:hover::before { left: 100%; }
 
 .pcb-sidebar-toggle:active {
   transform: translateY(-50%) scale(0.96);
 }
 
 .pcb-studio.side-collapsed .pcb-sidebar-toggle {
-  left: 6px;
+  left: 16px;
 }
 
-/* 代码侧边栏内部的玻璃拟态细节 */
+/* 代码侧边栏内部：与 .result 同源的深蓝底 + 青色细线 */
 .pcb-editor-pane .pcb-pane-toolbar {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  border-bottom-color: rgba(64, 224, 255, 0.20);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(0, 20, 40, 0.42);
+  border-bottom-color: rgba(64, 224, 255, 0.15);
 }
 
 .pcb-editor-pane .pcb-code-editor {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px) 0 0 / 100% 22px,
-    rgba(2, 7, 15, 0.58);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+    linear-gradient(rgba(64, 224, 255, 0.03) 1px, transparent 1px) 0 0 / 100% 22px,
+    rgba(2, 7, 15, 0.55);
 }
 
 .pcb-editor-pane .pcb-editor-hint {
-  background: rgba(3, 10, 24, 0.42);
-  border-top-color: rgba(64, 224, 255, 0.18);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 20, 40, 0.42);
+  border-top-color: rgba(64, 224, 255, 0.15);
 }
 
 @media (max-width: 820px) {
@@ -519,7 +536,7 @@ html, body {
   }
 
   .pcb-viewer-pane {
-    inset: 8px;
+    inset: 0;
   }
 
   .pcb-editor-pane {
@@ -529,12 +546,12 @@ html, body {
   }
 
   .pcb-sidebar-toggle {
-    left: calc(var(--pcb-editor-width) + 8px - 13px);
+    left: calc(var(--pcb-editor-width) + 8px - 3px);
     height: 64px;
   }
 
   .pcb-studio.side-collapsed .pcb-sidebar-toggle {
-    left: 4px;
+    left: 12px;
   }
 }
 

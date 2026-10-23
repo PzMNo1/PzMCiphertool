@@ -27,11 +27,11 @@
     pointer-events: none;
     z-index: 5;
     background: 
-        radial-gradient(circle at center, transparent 40%, rgba(0, 5, 10, 0.6) 90%, #000 100%),
-        linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 100% 100%, 80px 80px, 80px 80px;
-    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.8);
+        radial-gradient(circle at center, transparent 52%, rgba(0, 5, 10, 0.34) 92%, rgba(0, 0, 0, 0.82) 100%),
+        linear-gradient(rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 90px 90px, 90px 90px;
+    box-shadow: inset 0 0 130px rgba(0, 0, 0, 0.55);
 }
 
 #ui-layer {
@@ -47,42 +47,62 @@
 
 /* HUD 面板 */
 .hud-panel {
-    background: transparent;
-    border: 1px solid rgba(0, 255, 255, 0.2);
-    border-left: 3px solid #0ff;
-    padding: 20px;
-    backdrop-filter: blur(8px); 
-    clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
-    width: 260px;
-    transition: transform 0.3s ease, opacity 0.5s ease;
     position: relative;
-    pointer-events: auto; 
+    width: 300px;
+    padding: 20px 20px 18px;
+    color: #dffbff;
+    background:
+        radial-gradient(120% 90% at 18% 0%, rgba(64, 224, 255, 0.12), transparent 62%),
+        linear-gradient(150deg, rgba(64, 224, 255, 0.10) 0%, rgba(8, 22, 36, 0.30) 46%, rgba(3, 10, 20, 0.52) 100%),
+        rgba(2, 14, 26, 0.32);
+    border: 1px solid rgba(64, 224, 255, 0.24);
+    border-radius: 18px;
+    box-shadow:
+        0 22px 55px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 34px rgba(64, 224, 255, 0.05);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    overflow: hidden;
+    transition: transform 0.3s ease, opacity 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    pointer-events: auto;
 }
 
 .hud-panel:hover {
-    transform: translateX(5px);
-    background: transparent;
+    transform: translateY(-3px);
+    border-color: rgba(64, 224, 255, 0.42);
+    box-shadow:
+        0 26px 60px rgba(0, 0, 0, 0.52),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 0 38px rgba(64, 224, 255, 0.08);
+}
+
+.hud-panel h2 {
+    padding-right: 34px;
+    font-size: 20px;
+    line-height: 1.25;
+    letter-spacing: 1px;
 }
 
 .hud-close-btn {
     position: absolute;
-    top: 5px;
-    right: 10px;
-    background: transparent;
-    border: none;
-    color: rgba(0, 255, 255, 0.6);
-    font-size: 20px;
-    cursor: pointer;
-    font-family: 'Orbitron', sans-serif;
-    transition: all 0.3s ease;
+    top: 10px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1;
     z-index: 20;
-    padding: 0 5px;
 }
 
 .hud-close-btn:hover {
-    color: #0ff;
-    text-shadow: 0 0 8px #0ff;
-    transform: scale(1.1);
+    transform: translateY(-2px);
 }
 
 #zhishitupu-content h1 {
@@ -347,25 +367,45 @@
     z-index: 11;
     pointer-events: auto;
     color: #dffbff;
-    background: rgba(6, 12, 18, 0.88);
-    border: 1px solid rgba(64, 224, 255, 0.22);
-    border-left: 3px solid rgba(64, 224, 255, 0.74);
-    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(64, 224, 255, 0.08);
-    backdrop-filter: blur(14px);
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+    background:
+        radial-gradient(120% 90% at 14% 0%, rgba(64, 224, 255, 0.12), transparent 60%),
+        linear-gradient(150deg, rgba(64, 224, 255, 0.10) 0%, rgba(8, 22, 36, 0.30) 46%, rgba(3, 10, 20, 0.52) 100%),
+        rgba(2, 14, 26, 0.32);
+    border: 1px solid rgba(64, 224, 255, 0.24);
+    border-radius: 18px;
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 36px rgba(64, 224, 255, 0.05);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    overflow: hidden;
 }
 
 .zstp-preview-panel.active {
     display: flex;
+    animation: zstpPanelIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes zstpPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .zstp-preview-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
-    padding: 16px 18px 12px;
-    border-bottom: 1px solid rgba(64, 224, 255, 0.12);
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.14);
+    background: linear-gradient(180deg, rgba(64, 224, 255, 0.06), transparent);
 }
 
 .zstp-preview-kicker {
@@ -387,19 +427,14 @@
 
 .zstp-preview-close {
     flex: 0 0 auto;
-    width: 28px;
-    height: 28px;
-    border: 1px solid rgba(64, 224, 255, 0.22);
-    background: rgba(64, 224, 255, 0.05);
-    color: rgba(220, 248, 255, 0.82);
-    cursor: pointer;
-    font-size: 20px;
-    line-height: 22px;
-}
-
-.zstp-preview-close:hover {
-    color: #fff;
-    border-color: rgba(64, 224, 255, 0.65);
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    top: 0;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 6px;
 }
 
 .zstp-preview-meta {
@@ -538,7 +573,8 @@
     color: rgba(224, 255, 255, 0.86);
     font-size: 0.82rem;
     line-height: 1.55;
-    border-left: 2px solid rgba(0, 229, 255, 0.5);
+    border: 1px solid rgba(0, 229, 255, 0.14);
+    border-radius: 10px;
     background: rgba(64, 224, 255, 0.04);
 }
 
@@ -609,15 +645,15 @@
 
 .zstp-world {
     margin: 0 0 14px;
-    padding: 12px 14px;
-    border: 1px solid rgba(0, 229, 255, 0.28);
-    border-left: 3px solid #00e5ff;
+    padding: 13px 15px;
+    border: 1px solid rgba(0, 229, 255, 0.24);
+    border-radius: 14px;
     background: linear-gradient(135deg, rgba(0, 229, 255, 0.07), rgba(139, 92, 246, 0.05));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .zstp-world.is-missing {
     border-color: rgba(165, 241, 255, 0.2);
-    border-left-color: rgba(165, 241, 255, 0.4);
     background: rgba(64, 224, 255, 0.03);
 }
 
@@ -722,7 +758,8 @@
     line-height: 1.65;
     color: rgba(224, 255, 255, 0.88);
     background: rgba(0, 229, 255, 0.04);
-    border-left: 2px solid rgba(0, 229, 255, 0.35);
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    border-radius: 10px;
     white-space: pre-line;
 }
 
@@ -757,7 +794,61 @@
     text-decoration: none;
 }
 
+/* 六方向视角方向盘：透明容器，只保留按钮 */
+.zstp-compass {
+    position: absolute;
+    left: 50%;
+    top: 80%;
+    transform: translate(-50%, -50%);
+    z-index: 9;
+    pointer-events: none;
+    user-select: none;
+    touch-action: none;
+}
+
+.zstp-compass.is-dragging {
+    cursor: grabbing;
+}
+
+.zstp-compass-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 38px);
+    grid-template-rows: repeat(3, 38px);
+    gap: 6px;
+}
+
+.zstp-compass-btn {
+    --primary-clr: rgba(64, 224, 255, 0.78);
+    --secondary-clr: #9be7ff;
+    --glow-clr: rgba(64, 224, 255, 0.35);
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    top: 0;
+    border-width: 1.5px;
+    border-radius: 8px;
+    font-size: 15px;
+    letter-spacing: 0;
+    pointer-events: auto;
+}
+
+.zstp-compass-btn .cyber-button__tag {
+    line-height: 1;
+}
+
+.zstp-compass-btn[data-dir="up"] { grid-area: 1 / 2; }
+.zstp-compass-btn[data-dir="left"] { grid-area: 2 / 1; }
+.zstp-compass-btn[data-dir="center"] { grid-area: 2 / 2; color: #ffd166; }
+.zstp-compass-btn[data-dir="right"] { grid-area: 2 / 3; }
+.zstp-compass-btn[data-dir="down"] { grid-area: 3 / 2; }
+
 @media (max-width: 760px) {
+    .zstp-compass {
+        top: 76%;
+        transform: translate(-50%, -50%) scale(0.92);
+    }
+
     #zstp-import-layer {
         top: 94px;
         left: 10px;

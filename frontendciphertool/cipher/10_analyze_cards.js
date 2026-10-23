@@ -1,446 +1,381 @@
 (function () {
   'use strict';
 
-  const splitLines = text => String(text || '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-  const splitItems = text => String(text || '').split(/[\n,;\t]+/).map(s => s.trim()).filter(Boolean);
-  const hasCJK = s => /[\u4e00-\u9fff]/.test(s);
+  const printable = s => {
+    if (!s) return 0;
+    const chars = [...s];
+    const good = chars.filter(c => /[\x20-\x7e\u4e00-\u9fff]/.test(c)).length;
+    return good / chars.length;
+  };
 
-  function hanziInfo(ch) {
-    return (window.ZhongwenSearch && window.ZhongwenSearch.charInfo(ch)) || null;
-  }
-
-  function nthChar(str, n, oneBased = true) {
-    const chars = [...String(str)];
-    let idx = oneBased ? n - 1 : n;
-    if (idx < 0) idx = chars.length + idx;
-    if (!Number.isInteger(idx)) return { ch: '', ok: false, why: '索引不是整数' };
-    if (idx < 0 || idx >= chars.length) return { ch: '', ok: false, why: `越界（长度 ${chars.length}）` };
-    return { ch: chars[idx], ok: true, why: '' };
-  }
-
-  function letterSum(s) {
-    return [...String(s).toUpperCase()].reduce((acc, c) => {
-      const v = c.charCodeAt(0) - 64;
-      return acc + (v >= 1 && v <= 26 ? v : 0);
-    }, 0);
-  }
-
-  function pinyinKey(s) {
-    return [...String(s)].map(c => {
-      const info = hanziInfo(c);
-      return info ? info.plain : c.toLowerCase();
-    }).join('');
-  }
-
-  function makeComparator(key) {
-    switch (key) {
-      case 'alpha': return (a, b) => a.localeCompare(b, 'zh');
-      case 'alphaDesc': return (a, b) => b.localeCompare(a, 'zh');
-      case 'len': return (a, b) => a.length - b.length;
-      case 'lenDesc': return (a, b) => b.length - a.length;
-      case 'last': return (a, b) => ([...a].pop() || '').localeCompare([...b].pop() || '', 'zh');
-      case 'sum': return (a, b) => letterSum(a) - letterSum(b);
-      case 'pinyin': return (a, b) => pinyinKey(a).localeCompare(pinyinKey(b));
-      default: return null;
+  const toBytes = (text, mode) => {
+    if (mode === 'hex') {
+      const h = String(text || '').replace(/[^0-9a-fA-F]/g, '');
+      if (h.length % 2) return [];
+      const out = [];
+      for (let i = 0; i < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16));
+      return out;
     }
-  }
-
-  // 批量索引器
-  function computeIndexer(src, indices, base, mode, sortKey) {
-    const lines = splitLines(src);
-    if (!lines.length) return '';
-
-    const cmp = makeComparator(sortKey);
-    const sorted = cmp ? [...lines].sort(cmp) : lines;
-    const nums = indices.trim() ? indices.split(/\s+/).map(x => parseInt(x, 10)) : [];
-
-    let out = '';
-
-    if (mode === 'nth' && nums.length) {
-      sorted.forEach((line, i) => {
-        const idx = nums[i % nums.length];
-        const res = nthChar(line, idx, base === 1);
-        out += res.ok ? res.ch : '?';
-      });
-    } else if (mode === 'first') {
-      out = sorted.map(l => l[0] || '').join('');
-    } else if (mode === 'last') {
-      out = sorted.map(l => [...l].pop() || '').join('');
-    } else if (mode === 'middle') {
-      out = sorted.map(l => {
-        const chars = [...l];
-        return chars[Math.floor(chars.length / 2)] || '';
-      }).join('');
-    } else if (mode === 'diagonal') {
-      sorted.forEach((line, i) => {
-        const res = nthChar(line, i + 1, base === 1);
-        out += res.ok ? res.ch : '?';
-      });
-    } else if (mode === 'all') {
-      out = sorted.map((l, i) => `${i + 1}. ${l}`).join('\n');
+    if (mode === 'base64') {
+      try { return [...Uint8Array.from(atob(String(text || '').trim()), c => c.charCodeAt(0))]; }
+      catch { return []; }
     }
+    return [...new TextEncoder().encode(String(text || ''))];
+  };
 
-    return out;
-  }
+  const fromBytes = bytes => {
+    try { return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes)); }
+    catch { return ''; }
+  };
 
-  // 口味分析
-  function computeFlavor(src) {
-    const lines = splitLines(src);
-    if (!lines.length) return '';
+  const hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const hits = key => {
-      const patterns = {
-        qiuqian: () => lines[0].split('').reverse().join(''),
-        juanlian: () => lines.slice().reverse().join(' '),
-        lihua: () => lines.map(l => [...l].map((c, i) => i % 2 === 0 ? c : '').join('')).join(' '),
-        baitou: () => lines.map(l => l.slice(1)).join(' '),
-        fendi: () => lines.map(l => l.slice(0, -1)).join(' '),
-        sujie: () => lines.map(l => l.slice(1, -1)).join(' '),
-        xufei: () => lines.map(l => [...l].filter((_, i) => i % 2 === 1).join('')).join(' '),
-        qiuhuang: () => [...lines[0]].filter((_, i) => i % 2 === 1).join(''),
-        yaodui: () => `${[...lines[0]].pop() || ''} ${lines[lines.length - 1][0] || ''}`,
-        lizhu: () => `${lines[0]} · ${[...lines[lines.length - 1]].pop() || ''}`,
-        zhiqiu: () => lines[lines.length - 1],
-        tuoluo: () => lines[0].slice(1)
-      };
-      return patterns[key] ? patterns[key]() : '';
-    };
+  const xorWith = (bytes, key) => bytes.map((b, i) => b ^ key[i % key.length]);
 
-    const formats = [
-      { id: 'qiuqian', name: '秋千格' },
-      { id: 'juanlian', name: '卷帘格' },
-      { id: 'lihua', name: '梨花格' },
-      { id: 'baitou', name: '白头格' },
-      { id: 'fendi', name: '粉底格' },
-      { id: 'sujie', name: '素心格' },
-      { id: 'xufei', name: '徐妃格' },
-      { id: 'qiuhuang', name: '求凰格' },
-      { id: 'yaodui', name: '遥对格' },
-      { id: 'lizhu', name: '骊珠格' },
-      { id: 'zhiqiu', name: '只履格' },
-      { id: 'tuoluo', name: '脱帽格' }
-    ];
+  function xorTool(text, mode, key, maxLen, crib, inputMode) {
+    const bytes = toBytes(text, inputMode);
+    if (!bytes.length) return '请输入 hex / base64 / 文本';
 
-    return formats.map(f => `${f.name}: ${hits(f.id)}`).join('\n');
-  }
-
-  function parseEnumeration(text) {
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    return lines.map(line => {
-      const m = line.match(/^([^=:：]+)[=:：]\s*(.+)$/);
-      return m ? { key: m[1].trim(), val: m[2].trim() } : null;
-    }).filter(Boolean);
-  }
-
-  function normalize(s) {
-    return s.toLowerCase().replace(/\s+/g, '');
-  }
-
-  // 枚举查验
-  function computeEnum(src, targetText) {
-    const pairs = parseEnumeration(src);
-    if (!pairs.length || !targetText.trim()) return '';
-
-    const target = normalize(targetText);
-    const results = pairs.filter(p => normalize(p.val) === target);
-
-    if (!results.length) return `未找到匹配项（目标：${targetText}）`;
-    return results.map(r => `${r.key} = ${r.val}`).join('\n');
-  }
-
-  // 字母审计
-  function computeAudit(src) {
-    const lines = splitLines(src);
-    if (!lines.length) return '';
-
-    const rows = lines.map(l => l.split(/\s+/));
-    const colCount = Math.max(...rows.map(r => r.length));
-
-    const stats = {
-      rows: rows.length,
-      cols: colCount,
-      cells: rows.reduce((sum, r) => sum + r.length, 0)
-    };
-
-    const vals = rows.flat();
-    const numeric = vals.filter(v => !isNaN(v) && v.trim() !== '');
-    const sum = numeric.reduce((acc, v) => acc + parseFloat(v), 0);
-    const avg = numeric.length ? sum / numeric.length : 0;
-
-    const unused = [];
-    for (let i = 1; i <= 26; i++) {
-      const letter = String.fromCharCode(64 + i);
-      if (!vals.some(v => v.toUpperCase().includes(letter))) unused.push(letter);
-    }
-
-    return `行数: ${stats.rows}\n列数: ${stats.cols}\n单元格数: ${stats.cells}\n数值个数: ${numeric.length}\n数值总和: ${sum.toFixed(2)}\n数值平均: ${avg.toFixed(2)}\n未使用字母: ${unused.join(' ')}`;
-  }
-
-  const isCJK = ch => /[\u4e00-\u9fff]/.test(ch);
-
-  function toneOf(pinyin) {
-    const map = {
-      'ā': 1, 'á': 2, 'ǎ': 3, 'à': 4,
-      'ē': 1, 'é': 2, 'ě': 3, 'è': 4,
-      'ī': 1, 'í': 2, 'ǐ': 3, 'ì': 4,
-      'ō': 1, 'ó': 2, 'ǒ': 3, 'ò': 4,
-      'ū': 1, 'ú': 2, 'ǔ': 3, 'ù': 4,
-      'ǖ': 1, 'ǘ': 2, 'ǚ': 3, 'ǜ': 4
-    };
-    for (const [k, v] of Object.entries(map)) {
-      if (pinyin.includes(k)) return v;
-    }
-    return 0;
-  }
-
-  const stripTone = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  function computePuzzleMige(src) {
-    const lines = splitLines(src);
-    const formats = [
-      { id: 'qiuqian', name: '秋千格', fn: l => l[0].split('').reverse().join('') },
-      { id: 'juanlian', name: '卷帘格', fn: l => l.slice().reverse().join(' ') },
-      { id: 'lihua', name: '梨花格', fn: l => l.map(x => [...x].map((c, i) => i % 2 === 0 ? c : '').join('')).join(' ') }
-    ];
-    return formats.map(f => `${f.name}: ${f.fn(lines)}`).join('\n');
-  }
-
-  function computePuzzlePinyin(src) {
-    const chars = [...src].filter(isCJK);
-    return chars.map(ch => {
-      const info = hanziInfo(ch);
-      if (!info) return `${ch}: ?`;
-      const tone = toneOf(info.raw);
-      const plain = stripTone(info.raw);
-      return `${ch}: ${info.raw} (${plain}, 声调${tone})`;
-    }).join('\n');
-  }
-
-  function computePuzzleHanziAttr(src) {
-    const chars = [...src].filter(isCJK);
-    return chars.map(ch => {
-      const info = hanziInfo(ch);
-      if (!info) return `${ch}: 无数据`;
-      return `${ch}: 拼音=${info.raw}, 笔画=${info.stroke || '?'}, 部首=${info.radical || '?'}`;
-    }).join('\n');
-  }
-
-  function xorBruteforce(cipher, keyLen) {
-    const bytes = cipher.split('').map(c => c.charCodeAt(0));
-    const results = [];
-
-    for (let k = 0; k < 256; k++) {
-      const plain = bytes.map(b => String.fromCharCode(b ^ k)).join('');
-      if (/^[\x20-\x7e]+$/.test(plain)) {
-        results.push({ key: k.toString(16).padStart(2, '0'), text: plain });
+    if (mode === 'single') {
+      const out = [];
+      for (let k = 0; k < 256; k++) {
+        const plain = fromBytes(bytes.map(b => b ^ k));
+        if (printable(plain) >= 0.9) out.push(`Key=${k.toString(16).padStart(2, '0')}: ${plain}`);
+        if (out.length >= 64) break;
       }
+      return out.length ? out.join('\n') : '没有可打印结果';
     }
 
-    return results.length ? results.map(r => `Key=${r.key}: ${r.text}`).join('\n') : '无可读结果';
+    if (mode === 'repeat') {
+      const kb = toBytes(key || '', /^[0-9a-fA-F\s]+$/.test(key || '') ? 'hex' : 'text');
+      if (!kb.length) return '请输入重复密钥（hex 或文本）';
+      const plain = fromBytes(xorWith(bytes, kb));
+      return `Key=${hex(kb)}\n明文: ${plain}\nHex: ${hex(xorWith(bytes, kb))}`;
+    }
+
+    if (mode === 'keylen') {
+      const limit = Math.max(1, Math.min(64, parseInt(maxLen, 10) || 32));
+      const rows = [];
+      for (let len = 1; len <= limit && len + 1 < bytes.length; len += 1) {
+        let dist = 0, count = 0;
+        for (let i = 0; i + 2 * len <= bytes.length; i += len) {
+          for (let j = 0; j < len; j++) {
+            const x = bytes[i + j] ^ bytes[i + len + j];
+            let bits = 0;
+            for (let b = 0; b < 8; b++) bits += (x >> b) & 1;
+            dist += bits;
+          }
+          count += len;
+        }
+        rows.push({ len, avg: count ? dist / count : 999 });
+      }
+      rows.sort((a, b) => a.avg - b.avg);
+      return rows.slice(0, 8).map(r => `长度 ${r.len}: 平均汉明距离 ${r.avg.toFixed(3)}`).join('\n');
+    }
+
+    if (mode === 'crib') {
+      const c = String(crib || '');
+      if (!c) return '请输入 crib';
+      const cb = [...new TextEncoder().encode(c)];
+      const out = [];
+      for (let i = 0; i + cb.length <= bytes.length; i++) {
+        const k = cb.map((b, j) => bytes[i + j] ^ b);
+        const kt = fromBytes(k);
+        if (printable(kt) >= 0.9) out.push(`位置 ${i}: key=${hex(k)} (${kt})`);
+        if (out.length >= 40) break;
+      }
+      return out.length ? out.join('\n') : '没有可打印的 crib 位置';
+    }
+
+    if (mode === 'many') {
+      const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return '请每行输入一段密文';
+      const out = [];
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = i + 1; j < lines.length; j++) {
+          const a = toBytes(lines[i], inputMode), b = toBytes(lines[j], inputMode);
+          if (!a.length || !b.length) continue;
+          const n = Math.min(a.length, b.length);
+          const x = a.slice(0, n).map((v, k) => v ^ b[k]);
+          out.push(`${i + 1}^${j + 1}: ${fromBytes(x)}`);
+        }
+      }
+      return out.join('\n');
+    }
+
+    return '未知模式';
   }
 
-  function frequencyAnalysis(text) {
-    const freq = {};
-    [...text.toUpperCase()].forEach(c => {
-      if (/[A-Z]/.test(c)) freq[c] = (freq[c] || 0) + 1;
-    });
-
-    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-    return sorted.map(([ch, count]) => `${ch}: ${count}`).join(', ');
+  function frequency(text) {
+    const letters = (String(text || '').toUpperCase().match(/[A-Z]/g) || []).join('');
+    const n = letters.length;
+    if (!n) return '没有字母';
+    const count = {};
+    for (const c of letters) count[c] = (count[c] || 0) + 1;
+    const rows = Object.entries(count).sort((a, b) => b[1] - a[1]);
+    const ic = n > 1 ? rows.reduce((s, [, v]) => s + v * (v - 1), 0) / (n * (n - 1)) : 0;
+    const bigrams = {}, trigrams = {};
+    for (let i = 0; i < letters.length - 1; i++) bigrams[letters.slice(i, i + 2)] = (bigrams[letters.slice(i, i + 2)] || 0) + 1;
+    for (let i = 0; i < letters.length - 2; i++) trigrams[letters.slice(i, i + 3)] = (trigrams[letters.slice(i, i + 3)] || 0) + 1;
+    const top = (obj, k) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, k).map(([s, v]) => `${s}:${v}`).join(' ');
+    return [
+      `字母数: ${n}`,
+      `频率: ${rows.map(([c, v]) => `${c}:${v}(${(v * 100 / n).toFixed(1)}%)`).join(' ')}`,
+      `IC: ${ic.toFixed(4)}`,
+      `Friedman 估计密钥长度: ${ic > 0.038 ? ((0.027 * n) / ((n - 1) * ic - 0.038 * n + 0.065)).toFixed(2) : '-'}`,
+      `常见双字母: ${top(bigrams, 10)}`,
+      `常见三字母: ${top(trigrams, 10)}`
+    ].join('\n');
   }
 
-  function vigenereBruteforce(cipher, keyLen) {
-    return `维吉尼亚破解（密钥长度=${keyLen}）：需实现 Kasiski 或 IC 分析`;
-  }
+  function vigenereAnalyze(text, maxLen, key) {
+    const letters = (String(text || '').toUpperCase().match(/[A-Z]/g) || []).join('');
+    if (!letters) return '没有字母';
+    const limit = Math.max(1, Math.min(30, parseInt(maxLen, 10) || 20));
+    const rows = [];
+    for (let len = 1; len <= limit; len++) {
+      let sum = 0, cols = 0;
+      for (let i = 0; i < len; i++) {
+        const col = [...letters].filter((_, j) => j % len === i).join('');
+        const n = col.length;
+        if (n < 2) continue;
+        const count = {};
+        for (const c of col) count[c] = (count[c] || 0) + 1;
+        sum += Object.values(count).reduce((s, v) => s + v * (v - 1), 0) / (n * (n - 1));
+        cols++;
+      }
+      if (cols) rows.push({ len, ic: sum / cols });
+    }
+    rows.sort((a, b) => b.ic - a.ic);
 
-  function kasiskiExamination(text) {
     const repeats = new Map();
-    for (let len = 3; len <= 6; len++) {
-      for (let i = 0; i <= text.length - len; i++) {
-        const substr = text.slice(i, i + len);
-        const positions = [];
-        let pos = text.indexOf(substr);
-        while (pos !== -1) {
-          positions.push(pos);
-          pos = text.indexOf(substr, pos + 1);
-        }
-        if (positions.length > 1) {
-          repeats.set(substr, positions);
-        }
+    for (let len = 3; len <= 5; len++) {
+      for (let i = 0; i + len <= letters.length; i++) {
+        const s = letters.slice(i, i + len);
+        if (!repeats.has(s)) repeats.set(s, []);
+        repeats.get(s).push(i);
       }
     }
+    const dists = [];
+    for (const pos of repeats.values()) {
+      for (let i = 1; i < pos.length; i++) dists.push(pos[i] - pos[i - 1]);
+    }
+    const kasiski = [];
+    for (let len = 2; len <= limit; len++) {
+      const hits = dists.filter(d => d % len === 0).length;
+      if (hits) kasiski.push({ len, hits });
+    }
+    kasiski.sort((a, b) => b.hits - a.hits || a.len - b.len);
 
-    if (repeats.size === 0) return '未发现重复片段';
-
-    const distances = [];
-    repeats.forEach((positions, substr) => {
-      for (let i = 1; i < positions.length; i++) {
-        distances.push(positions[i] - positions[i - 1]);
-      }
-    });
-
-    const gcdAll = distances.reduce((a, b) => {
-      const gcd = (x, y) => y === 0 ? x : gcd(y, x % y);
-      return gcd(a, b);
-    });
-
-    return `重复片段数: ${repeats.size}\n可能密钥长度: ${gcdAll}\n距离: ${distances.slice(0, 10).join(', ')}`;
+    const out = [
+      `IC 候选长度: ${rows.slice(0, 8).map(r => `${r.len}(${r.ic.toFixed(4)})`).join(' ')}`,
+      `Kasiski 候选长度: ${kasiski.slice(0, 8).map(r => `${r.len}(${r.hits})`).join(' ')}`
+    ];
+    if (key) out.push(`按密钥解密: ${Vigenere.d(text, key)}`);
+    return out.join('\n');
   }
 
-  function autoDecode(cipher) {
-    const tests = [
-      { name: 'Base64', fn: () => atob(cipher) },
-      { name: 'URL解码', fn: () => decodeURIComponent(cipher) },
-      { name: 'ROT13', fn: () => cipher.replace(/[a-z]/gi, c => String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)) }
-    ];
+  function transpositionBrute(text, max) {
+    const limit = Math.max(2, Math.min(20, parseInt(max, 10) || 10));
+    const clean = String(text || '').replace(/\s+/g, '');
+    if (!clean) return '';
+    const out = [];
+    for (let r = 2; r <= limit; r++) {
+      out.push(`Rail ${r}: ${RailFence.d(clean, r)}`);
+      out.push(`W-Rail ${r}: ${WShapeRailFenceCipher.d(clean, r)}`);
+      out.push(`Columnar ${r}: ${ColumnarRailCipher.d(clean, r)}`);
+    }
+    return out.join('\n');
+  }
 
-    return tests.map(t => {
-      try {
-        const result = t.fn();
-        return `${t.name}: ${result}`;
-      } catch {
-        return `${t.name}: 失败`;
+  function indexExtract(text, mode, n) {
+    const lines = String(text || '').split(/\r?\n/).filter(l => l.length);
+    if (!lines.length) return '';
+    const nth = Math.max(1, parseInt(n, 10) || 1);
+    if (mode === 'first') return lines.map(l => [...l][0] || '').join('');
+    if (mode === 'last') return lines.map(l => [...l].pop() || '').join('');
+    if (mode === 'nth') return lines.map(l => [...l][nth - 1] || '').join('');
+    if (mode === 'diagonal') return lines.map((l, i) => [...l][i] || '').join('');
+    if (mode === 'antiDiagonal') return lines.map((l, i) => [...l][[...l].length - 1 - i] || '').join('');
+    if (mode === 'snake') return lines.map((l, i) => i % 2 ? [...l].reverse().join('') : l).join('');
+    if (mode === 'spiral') {
+      const grid = lines.map(l => [...l]);
+      const out = [];
+      let top = 0, bottom = grid.length - 1, left = 0, right = Math.max(...grid.map(l => l.length)) - 1;
+      while (top <= bottom && left <= right) {
+        for (let i = left; i <= right; i++) if (grid[top][i] != null) out.push(grid[top][i]);
+        top++;
+        for (let i = top; i <= bottom; i++) if (grid[i][right] != null) out.push(grid[i][right]);
+        right--;
+        if (top <= bottom) {
+          for (let i = right; i >= left; i--) if (grid[bottom][i] != null) out.push(grid[bottom][i]);
+          bottom--;
+        }
+        if (left <= right) {
+          for (let i = bottom; i >= top; i--) if (grid[i][left] != null) out.push(grid[i][left]);
+          left++;
+        }
       }
-    }).join('\n');
+      return out.join('');
+    }
+    if (mode === 'wordLength') return lines.map(l => l.split(/\s+/).filter(Boolean).map(w => [...w].length).join('-')).join(' ');
+    if (mode === 'sort') return lines.slice().sort((a, b) => a.localeCompare(b)).join('\n');
+    if (mode === 'dedup') return [...new Set([...String(text || '')])].join('');
+    if (mode === 'reverse') return [...String(text || '')].reverse().join('');
+    return '';
+  }
+
+  function autoDecode(text) {
+    const s = String(text || '').trim();
+    if (!s) return '';
+    const out = [];
+    const add = (name, value) => {
+      if (value == null || value === '') return;
+      const v = String(value);
+      if (v === s) return;
+      if (/无效|不支持|错误|请输入|没有/.test(v)) return;
+      if (printable(v) >= 0.8) out.push(`${name}: ${v.length > 300 ? v.slice(0, 300) + '…' : v}`);
+    };
+    const tryB64 = (name, fn) => { try { add(name, fn()); } catch { } };
+    tryB64('Base64', () => decodeURIComponent(escape(atob(s))));
+    tryB64('Base32', () => baseCipher.d(s, 'base32'));
+    tryB64('Base58', () => baseCipher.d(s, 'base58'));
+    tryB64('Base16', () => baseCipher.d(s.replace(/\s/g, ''), 'base16'));
+    tryB64('URL', () => decodeURIComponent(s));
+    tryB64('HTML', () => WebEncodingCipher.htmlD(s));
+    tryB64('Unicode', () => WebEncodingCipher.unicodeD(s));
+    tryB64('ROT13', () => s.replace(/[a-z]/gi, c => String.fromCharCode((c <= 'Z' ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)));
+    tryB64('ROT47', () => [...s].map(c => {
+      const cp = c.charCodeAt(0);
+      return cp >= 33 && cp <= 126 ? String.fromCharCode(33 + ((cp - 33 + 47) % 94)) : c;
+    }).join(''));
+    if (/^[.\-xX\s/]+$/.test(s)) tryB64('Morse', () => MorseCode.d(s));
+    if (/^[abAB\s]+$/.test(s)) tryB64('Bacon', () => BaconCipher.d(s));
+    if (/^[01\s]+$/.test(s)) tryB64('Binary', () => {
+      const bits = s.replace(/\s/g, '');
+      let r = '';
+      for (let i = 0; i + 8 <= bits.length; i += 8) r += String.fromCharCode(parseInt(bits.slice(i, i + 8), 2));
+      return r;
+    });
+    if (/^[\d\s,]+$/.test(s)) tryB64('Decimal', () => s.split(/[\s,]+/).filter(Boolean).map(x => String.fromCharCode(parseInt(x, 10))).join(''));
+    if (/^[0-9a-fA-F\s]+$/.test(s) && s.replace(/\s/g, '').length % 2 === 0) tryB64('Hex', () => baseCipher.d(s.replace(/\s/g, ''), 'base16'));
+    tryB64('Reverse', () => [...s].reverse().join(''));
+    return out.length ? out.join('\n') : '没有识别出可解码的结果';
+  }
+
+  function mige(text) {
+    const lines = String(text || '').split(/\r?\n/);
+    const s = String(text || '');
+    if (!s.trim()) return '';
+    const items = [
+      ['秋千格', [...s].reverse().join('')],
+      ['卷帘格', lines.slice().reverse().join(' ')],
+      ['梨花格', [...s].filter((_, i) => i % 2 === 0).join('')],
+      ['白头格', lines.map(l => l.slice(1)).join(' ')],
+      ['粉底格', lines.map(l => l.slice(0, -1)).join(' ')],
+      ['素心格', lines.map(l => {
+        const a = [...l];
+        if (a.length < 3) return l;
+        a.splice(Math.floor(a.length / 2), 1);
+        return a.join('');
+      }).join(' ')],
+      ['徐妃格', [...s].filter((_, i) => i % 2 === 1).join('')],
+      ['求凰格', lines.map((l, i) => i % 2 ? [...l].reverse().join('') : l).join(' ')],
+      ['遥对格', `${[...(lines[0] || '')].pop() || ''} ${[...(lines[lines.length - 1] || '')][0] || ''}`],
+      ['骊珠格', `${lines[0] || ''}${[...(lines[lines.length - 1] || '')].pop() || ''}`],
+      ['只履格', lines[lines.length - 1] || ''],
+      ['脱帽格', (lines[0] || '').slice(1)]
+    ];
+    return items.map(([name, value]) => `${name}: ${value}`).join('\n');
   }
 
   function rotate(canvas, deg) {
     const { width, height } = canvas;
     const out = document.createElement('canvas');
     const ctx = out.getContext('2d');
-
-    if (deg === 90 || deg === 270) {
-      out.width = height;
-      out.height = width;
-    } else {
-      out.width = width;
-      out.height = height;
-    }
-
+    if (deg === 90 || deg === 270) { out.width = height; out.height = width; }
+    else { out.width = width; out.height = height; }
     ctx.save();
     ctx.translate(out.width / 2, out.height / 2);
     ctx.rotate((deg * Math.PI) / 180);
     ctx.drawImage(canvas, -width / 2, -height / 2);
     ctx.restore();
-
     return out;
   }
 
   function flip(canvas, dir) {
     const { width, height } = canvas;
     const out = document.createElement('canvas');
-    out.width = width;
-    out.height = height;
+    out.width = width; out.height = height;
     const ctx = out.getContext('2d');
-
     ctx.save();
-    if (dir === 'h') {
-      ctx.scale(-1, 1);
-      ctx.drawImage(canvas, -width, 0);
-    } else {
-      ctx.scale(1, -1);
-      ctx.drawImage(canvas, 0, -height);
-    }
+    if (dir === 'h') { ctx.scale(-1, 1); ctx.drawImage(canvas, -width, 0); }
+    else { ctx.scale(1, -1); ctx.drawImage(canvas, 0, -height); }
     ctx.restore();
-
     return out;
   }
 
   function mapPixels(canvas, fn) {
     const { width, height } = canvas;
     const out = document.createElement('canvas');
-    out.width = width;
-    out.height = height;
+    out.width = width; out.height = height;
     const ctx = out.getContext('2d');
     const imageData = canvas.getContext('2d').getImageData(0, 0, width, height);
     const data = imageData.data;
-
     for (let i = 0; i < data.length; i += 4) {
       const [r, g, b, a] = fn(data[i], data[i + 1], data[i + 2], data[i + 3]);
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
-      data[i + 3] = a;
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = a;
     }
-
     ctx.putImageData(imageData, 0, 0);
     return out;
   }
 
-  function clamp255(v) {
-    return Math.max(0, Math.min(255, Math.round(v)));
-  }
+  const clamp255 = v => Math.max(0, Math.min(255, Math.round(v)));
 
   function channelImage(canvas, ch) {
     const idx = { r: 0, g: 1, b: 2, a: 3 }[ch];
     return mapPixels(canvas, (r, g, b, a) => {
       const arr = [r, g, b, a];
       const v = arr[idx];
-      return idx === 3 ? [v, v, v, 255] : [0, 0, 0, 0].map((_, i) => i === idx ? v : 0).concat(a);
+      if (idx === 3) return [v, v, v, 255];
+      const out = [0, 0, 0, a];
+      out[idx] = v;
+      return out;
     });
   }
 
   function channelDiff(canvas, ch1, ch2, gain) {
-    const idx1 = { r: 0, g: 1, b: 2 }[ch1];
-    const idx2 = { r: 0, g: 1, b: 2 }[ch2];
+    const i1 = { r: 0, g: 1, b: 2 }[ch1], i2 = { r: 0, g: 1, b: 2 }[ch2];
     return mapPixels(canvas, (r, g, b, a) => {
       const arr = [r, g, b];
-      const diff = clamp255((arr[idx1] - arr[idx2]) * gain + 128);
-      return [diff, diff, diff, a];
+      const d = clamp255((arr[i1] - arr[i2]) * gain + 128);
+      return [d, d, d, a];
     });
   }
 
-  function bitPlane(canvas, bit, mode) {
+  function bitPlane(canvas, bit) {
     return mapPixels(canvas, (r, g, b, a) => {
-      const extract = v => ((v >> bit) & 1) * 255;
-      if (mode === 'all') {
-        return [extract(r), extract(g), extract(b), a];
-      }
-      return [extract(r), extract(r), extract(r), a];
+      const f = v => ((v >> bit) & 1) * 255;
+      return [f(r), f(g), f(b), a];
     });
   }
 
   function extractLsbText(canvas, channel, bit) {
     const { width, height } = canvas;
-    const ctx = canvas.getContext('2d');
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-
+    const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
     let bits = '';
-    for (let i = 0; i < data.length; i += 4) {
-      const val = data[i + channel];
-      bits += ((val >> bit) & 1).toString();
-    }
-
-    let text = '';
+    for (let i = 0; i < data.length; i += 4) bits += ((data[i + channel] >> bit) & 1).toString();
+    const bytes = [];
     for (let i = 0; i + 8 <= bits.length; i += 8) {
-      const byte = parseInt(bits.slice(i, i + 8), 2);
-      if (byte === 0) break;
-      if (byte >= 32 && byte <= 126) text += String.fromCharCode(byte);
+      const b = parseInt(bits.slice(i, i + 8), 2);
+      if (b === 0) break;
+      bytes.push(b);
     }
-
-    return text;
+    return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
   }
 
   window.AnalyzeTools = {
-    computeIndexer,
-    computeFlavor,
-    computeEnum,
-    computeAudit,
-    computePuzzleMige,
-    computePuzzlePinyin,
-    computePuzzleHanziAttr,
-    xorBruteforce,
-    frequencyAnalysis,
-    vigenereBruteforce,
-    kasiskiExamination,
-    autoDecode,
-    rotate,
-    flip,
-    mapPixels,
-    channelImage,
-    channelDiff,
-    bitPlane,
-    extractLsbText
+    xorTool, frequency, vigenereAnalyze, transpositionBrute, indexExtract,
+    autoDecode, mige, rotate, flip, mapPixels, channelImage, channelDiff, bitPlane, extractLsbText
   };
 })();

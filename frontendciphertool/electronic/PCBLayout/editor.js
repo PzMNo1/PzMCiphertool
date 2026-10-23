@@ -12,13 +12,12 @@
   var CODE_STORAGE_KEY = 'pzma-pcb-code';
   var TEMPLATE_STORAGE_KEY = 'pzma-pcb-template';
   var BOARD_VERSION_KEY = 'pzma-pcb-board-version';
-  var BOARD_VERSION = '2026-industrial-v1';
-  var LEGACY_MIGRATED_KEY = 'pzma-pcb-legacy-migrated';
+  var BOARD_VERSION = '2026-dfx-v1';
   var ACTIVE_CODE_KEY = 'pzma-pcb-active-code';
-  var ASSET_VERSION = '20261021-3';
+  var ASSET_VERSION = '20261023-18';
 
   var TEMPLATES = {
-    'main': { label: '工业级控制板 (STM32)', url: './circuits/main.tsx' },
+    'main': { label: 'DFX 参考板 (双 LED)', url: './circuits/main.tsx' },
     'routed-board': { label: '已自动布线 LED 板', url: './circuits/routed-board.tsx' },
     'rc-filter': { label: 'RC 低通滤波仿真', url: './circuits/rc-filter.tsx' }
   };
@@ -183,18 +182,19 @@
     // 1. 读取上次保存的代码；没有则载入默认模板。
     var storedCode = null;
     var storedTemplate = 'main';
-    var legacyMigrated = false;
+    var storedBoardVersion = '';
     try {
       storedCode = localStorage.getItem(CODE_STORAGE_KEY);
       storedTemplate = localStorage.getItem(TEMPLATE_STORAGE_KEY) || 'main';
-      legacyMigrated = localStorage.getItem(LEGACY_MIGRATED_KEY) === '1';
+      storedBoardVersion = localStorage.getItem(BOARD_VERSION_KEY) || '';
     } catch (e) { /* ignore */ }
 
-    // 旧版示例是 V1 / J1 + R1 + D1 的小板；首次打开时换成工业级控制板，
-    // 之后保留用户自己导入 / 修改过的内容，不再无条件覆盖。
-    var hasIndustrialCore = /name="U1"/.test(storedCode || '') && /qfp48/.test(storedCode || '');
-    var looksLikeTinyDemo = /name="R1"/.test(storedCode || '') && /name="D1"/.test(storedCode || '') && !hasIndustrialCore;
-    if (!legacyMigrated && storedTemplate === 'main' && looksLikeTinyDemo) {
+    // 模板下拉只保留 DFX 参考板，旧版本保存的其他模板统一回落到 main。
+    if (!TEMPLATES[storedTemplate]) storedTemplate = 'main';
+
+    // 旧版工业板示例（PZM-ECU-01）布线/原理图过于杂乱，升级后一次性换成 DFX 参考板；
+    // 迁移完成后记录新版本号，之后不再覆盖用户自己修改过的内容。
+    if (storedBoardVersion !== BOARD_VERSION && /PZM-ECU-01/.test(storedCode || '')) {
       storedCode = null;
       storedTemplate = 'main';
     }
@@ -213,9 +213,6 @@
 
     try {
       localStorage.setItem(BOARD_VERSION_KEY, BOARD_VERSION);
-      if (storedTemplate !== 'main' || /name="U1"/.test(editor.value)) {
-        localStorage.setItem(LEGACY_MIGRATED_KEY, '1');
-      }
     } catch (e) { /* ignore */ }
 
     // 代码侧边栏：恢复上次的收起状态，并绑定切换把手。
@@ -316,6 +313,32 @@
     // 4. 首屏启动引擎。先把编辑器中的代码写入 localStorage，保证 viewer 与编辑器一致。
     saveCode(editor.value);
     startViewer();
+
+    // Agentmaster / 电子实验室宿主页调用：控制左侧 main.tsx 面板。
+    window.PzmaPcbEditor = {
+      getCode: function () {
+        return editor.value;
+      },
+      setCode: function (code, options) {
+        options = options || {};
+        var next = String(code == null ? '' : code);
+        if (!next.trim()) return { ok: false, message: 'TSX 代码为空' };
+        setEditorCode(next);
+        setSidebarCollapsed(false, true);
+        if (options.run !== false) runCode();
+        setEditorStatus(options.reason || 'Agentmaster 已写入 main.tsx');
+        try { editor.focus(); } catch (e) { /* ignore */ }
+        return { ok: true, message: '已写入 main.tsx（' + next.length + ' 字符）' };
+      },
+      run: function () {
+        runCode();
+        return { ok: true, message: '已重新运行 main.tsx' };
+      },
+      openSidebar: function () {
+        setSidebarCollapsed(false, true);
+        return { ok: true, message: '已展开代码侧栏' };
+      }
+    };
   }
 
   if (document.readyState === 'loading') {

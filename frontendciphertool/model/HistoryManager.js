@@ -501,14 +501,28 @@ class HistoryManager {
             context_pack_summary: this.compactJsonValue(run.context_pack_summary || null, 2, 240, 12),
             tool_contracts: this.compactToolContracts(run.tool_contracts),
             events: this.compactAgentEvents(run.events, eventLimit, level),
+            thought_trace: this.compactThoughtTrace(run.thought_trace, level),
             metrics: run.metrics || null,
             warnings: Array.isArray(run.warnings) ? run.warnings.slice(0, 12).map(warning => this.truncateText(warning, 240)) : [],
             tool_results: this.compactAgentToolResults(run.tool_results, toolResultLimit, level),
             evidence_ledger: this.compactEvidenceLedger(run.evidence_ledger, evidenceLimit, level),
             citation_verification: this.compactCitationVerification(run.citation_verification, level),
             collaboration: this.compactCollaboration(run.collaboration, level),
+            performance: run.performance || null,
+            context_usage: run.context_usage || null,
             artifacts: []
         };
+    }
+
+    compactThoughtTrace(trace, level = 'normal') {
+        const limit = level === 'normal' ? 60 : level === 'tight' ? 40 : 20;
+        const maxText = level === 'normal' ? 900 : 500;
+        return (Array.isArray(trace) ? trace : []).slice(-limit).map(item => ({
+            stage: this.truncateText(item?.stage || 'act', 24),
+            key: this.truncateText(item?.key || '', 80),
+            text: this.truncateText(item?.text || '', maxText),
+            at: Number(item?.at) || 0
+        }));
     }
 
     compactCollaboration(collaboration, level = 'normal') {

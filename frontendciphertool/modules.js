@@ -86,7 +86,7 @@ const MODULES = {
                     <iframe
                         id="pcb-frame"
                         src=""
-                        data-src="./electronic/PCBLayout/index.html?v=20261021-3"
+                        data-src="./electronic/PCBLayout/index.html?v=20261023-18"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -151,26 +151,68 @@ const MODULES = {
                         <div class="wf-toolbar-item" data-algo="Affine仿射">🔐 Affine 仿射</div>
                         <div class="wf-toolbar-item" data-algo="TapCode敲击码">🔐 敲击码</div>
                         <div class="wf-toolbar-item" data-algo="SemaphoreBraille旗语盲文">🔐 旗语/盲文</div>
+                        <div class="wf-toolbar-item" data-algo="键盘布局">🔐 Keyboard Layout 键盘布局</div>
+                        <div class="wf-toolbar-item" data-algo="符号密码">🔐 Pigpen / 跳舞的小人</div>
+                        <div class="wf-toolbar-item" data-algo="Quagmire">🔐 Quagmire I–IV</div>
+                        <div class="wf-toolbar-item" data-algo="Chaocipher">🔐 Chaocipher</div>
+                        <div class="wf-toolbar-item" data-algo="Morbit">🔐 Morbit</div>
+                        <div class="wf-toolbar-item" data-algo="Pollux">🔐 Pollux</div>
+                        <div class="wf-toolbar-item" data-algo="Solitaire">🔐 Solitaire</div>
+                        <div class="wf-toolbar-item" data-algo="Double Transposition">🔐 Double Transposition</div>
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">编码 & 哈希</div>
                         <div class="wf-toolbar-item" data-algo="A1Z26">🔐 A1Z26</div>
                         <div class="wf-toolbar-item" data-algo="ASCII">🔐 ASCII</div>
                         <div class="wf-toolbar-item" data-algo="Base编码">🔐 Base 编码</div>
+                        <div class="wf-toolbar-item" data-algo="Web编码">🔐 Web 文本编码</div>
+                        <div class="wf-toolbar-item" data-algo="通用码表">🔐 通用码表</div>
+                        <div class="wf-toolbar-item" data-algo="书码">🔐 书码</div>
                         <div class="wf-toolbar-item" data-algo="ROT旋转">🔐 ROT 旋转</div>
                         <div class="wf-toolbar-item" data-algo="CCC中文电码">🔐 中文电码</div>
+                        <div class="wf-toolbar-item" data-algo="区位码">🔐 区位码</div>
+                        <div class="wf-toolbar-item" data-algo="GB2312">🔐 GB2312</div>
+                        <div class="wf-toolbar-item" data-algo="GBK">🔐 GBK</div>
+                        <div class="wf-toolbar-item" data-algo="GB18030">🔐 GB18030</div>
+                        <div class="wf-toolbar-item" data-algo="康熙部首">🔐 康熙部首</div>
                         <div class="wf-toolbar-item" data-algo="FourCCC四角号码">🔐 四角号码</div>
                         <div class="wf-toolbar-item" data-algo="MD5">🔐 MD5</div>
                         <div class="wf-toolbar-item" data-algo="SHA-1">🔐 SHA-1</div>
                         <div class="wf-toolbar-item" data-algo="SHA-256">🔐 SHA-256</div>
                         <div class="wf-toolbar-item" data-algo="SHA-384">🔐 SHA-384</div>
                         <div class="wf-toolbar-item" data-algo="SHA-512">🔐 SHA-512</div>
+                        <div class="wf-toolbar-item" data-algo="MD4">🔐 MD4</div>
+                        <div class="wf-toolbar-item" data-algo="SHA3-256">🔐 SHA3-256</div>
+                        <div class="wf-toolbar-item" data-algo="SHA3-512">🔐 SHA3-512</div>
+                        <div class="wf-toolbar-item" data-algo="RIPEMD-160">🔐 RIPEMD-160</div>
+                        <div class="wf-toolbar-item" data-algo="SM3">🔐 SM3</div>
+                        <div class="wf-toolbar-item" data-algo="CRC32">🔐 CRC32</div>
+                        <div class="wf-toolbar-item" data-algo="JWT">🔐 JWT</div>
                     </div>
                     <div class="wf-toolbar-category">
                         <div class="wf-toolbar-category-title">现代密码</div>
                         <div class="wf-toolbar-item" data-algo="Substitution Analysis">🔐 Substitution Analysis</div>
                         <div class="wf-toolbar-item" data-algo="Hill Cipher">🔐 Hill Cipher</div>
                         <div class="wf-toolbar-item" data-algo="Enigma恩尼格玛">🔐 Enigma 恩尼格玛</div>
+                        <div class="wf-toolbar-item" data-algo="AES">🔐 AES</div>
+                        <div class="wf-toolbar-item" data-algo="RSA">🔐 RSA</div>
+                        <div class="wf-toolbar-item" data-algo="RC4">🔐 RC4</div>
+                        <div class="wf-toolbar-item" data-algo="DES">🔐 DES</div>
+                        <div class="wf-toolbar-item" data-algo="3DES">🔐 3DES</div>
+                        <div class="wf-toolbar-item" data-algo="ChaCha20">🔐 ChaCha20</div>
+                        <div class="wf-toolbar-item" data-algo="ECDSA">🔐 ECDSA nonce reuse</div>
+                        <div class="wf-toolbar-item" data-algo="ECC 计算器">🔐 ECC 计算器</div>
+                        <div class="wf-toolbar-item" data-algo="PRNG">🔐 PRNG</div>
+                    </div>
+                    <div class="wf-toolbar-category">
+                        <div class="wf-toolbar-category-title">分析</div>
+                        <div class="wf-toolbar-item" data-algo="XOR 工具">🔐 XOR 工具</div>
+                        <div class="wf-toolbar-item" data-algo="频率分析">🔐 频率分析</div>
+                        <div class="wf-toolbar-item" data-algo="Vigenère 分析">🔐 Vigenère 分析</div>
+                        <div class="wf-toolbar-item" data-algo="换位爆破">🔐 换位爆破</div>
+                        <div class="wf-toolbar-item" data-algo="索引提取">🔐 索引提取</div>
+                        <div class="wf-toolbar-item" data-algo="自动解码链">🔐 自动解码链</div>
+                        <div class="wf-toolbar-item" data-algo="谜格">🔐 谜格</div>
                     </div>
                 </div>
                 <div class="wf-toolbar-actions">
@@ -189,8 +231,9 @@ const MODULES = {
                 <svg class="wf-svg" id="wf-svg">
                     <defs>
                         <linearGradient id="wf-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#2ecc71" stop-opacity="0.8"/>
-                            <stop offset="100%" stop-color="#3498db" stop-opacity="0.8"/>
+                            <stop offset="0%" stop-color="#2ecc71"/>
+                            <stop offset="50%" stop-color="#63ebff"/>
+                            <stop offset="100%" stop-color="#3498db"/>
                         </linearGradient>
                     </defs>
                     <path id="wf-temp-line" class="wf-temp-line" d=""/>
@@ -209,7 +252,7 @@ const MODULES = {
 
         <div id="zstp-import-layer">
             <div class="zstp-action-stack">
-                <button id="zstp-layer-toggle" class="zstp-import-btn">显示全部实体</button>
+                <button id="zstp-layer-toggle" class="zstp-import-btn">显示全部节点</button>
                 <button id="zstp-import-btn" class="zstp-import-btn">项目导入</button>
                 <button id="zstp-guide-btn" class="zstp-import-btn" data-guide-id="zhishitupu">使用说明</button>
                 <button id="zstp-restore-btn" class="zstp-import-btn">恢复默认</button>
@@ -219,7 +262,7 @@ const MODULES = {
 
         <div id="ui-layer">
             <div class="hud-panel" id="hud-panel">
-                <button id="hud-close-btn" class="hud-close-btn">×</button>
+                <button id="hud-close-btn" class="hud-close-btn cyber-button" type="button" aria-label="关闭"><span class="cyber-button__tag">×</span></button>
                 <h2> Knowledge Graph </h2>
                 <div class="subtitle">知识图谱</div>
                 <div style="height: 1px; background: linear-gradient(90deg, rgba(0, 255, 255, 0.99), transparent); margin-bottom: 1px;"></div>
@@ -229,8 +272,18 @@ const MODULES = {
                     <div><span class="key">SCROLL</span> ZOOM 缩放</div>
                     <div><span class="key">CLICK</span> FOCUS 聚焦</div>
                 </div>
-                <div style="margin-top: 10px; font-size: 10px; line-height: 1.6; color: rgba(124, 247, 255, 0.62); letter-spacing: 0.5px;">由内向外：知识大陆 → 分类 → 条目<br>默认只看结构，右上角可显示全部实体<br>点击 PzM知识图谱 重置聚焦</div>
+                <div style="margin-top: 10px; font-size: 10px; line-height: 1.6; color: rgba(124, 247, 255, 0.62); letter-spacing: 0.5px;">由内向外：知识大陆 → 分类 → 条目 / DBpedia 概念<br>默认只看结构，右上角可显示全部节点<br>粉色节点为跨学科概念，方向键切换六个正交视角</div>
                 <div style="margin-top: 15px; font-size: 10px; color: #4a6; letter-spacing: 1px;">● SYSTEM ONLINE</div>
+            </div>
+        </div>
+
+        <div id="zstp-compass" class="zstp-compass" role="group" aria-label="六方向视角">
+            <div class="zstp-compass-grid">
+                <button type="button" class="cyber-button zstp-compass-btn" data-dir="up" title="向上旋转视角"><span class="cyber-button__tag">↑</span></button>
+                <button type="button" class="cyber-button zstp-compass-btn" data-dir="left" title="向左旋转视角"><span class="cyber-button__tag">←</span></button>
+                <button type="button" class="cyber-button zstp-compass-btn zstp-compass-reset" data-dir="center" title="回到总览"><span class="cyber-button__tag">◎</span></button>
+                <button type="button" class="cyber-button zstp-compass-btn" data-dir="right" title="向右旋转视角"><span class="cyber-button__tag">→</span></button>
+                <button type="button" class="cyber-button zstp-compass-btn" data-dir="down" title="向下旋转视角"><span class="cyber-button__tag">↓</span></button>
             </div>
         </div>
 
@@ -251,7 +304,7 @@ const MODULES = {
     mcpskilllab: `
     <div id="mcpskilllab-content" class="content-section">
         <div class="module-header">
-            <h2 class="neon-title" data-text="SKILL MCP LAB">SKILL / MCP LAB</h2>
+            <h2 class="neon-title" data-text="PLUGIN LAB">PLUGIN LAB</h2>
         </div>
         <div id="mcpskilllab-root"></div>
     </div>`,
@@ -343,7 +396,7 @@ const MODULES = {
                     <input type="text" id="history-search" placeholder="搜索对话...">
                 </div>
 
-                <div class="agent-usage-line">本账号使用次数：<span id="agent-usage-count">登录后启用</span></div>
+                <div class="agent-usage-line">本账号剩余使用次数：<span id="agent-usage-count">登录后启用</span></div>
 
                 <div id="chat-history-list">
                     <!-- 历史对话会动态添加到这里 -->
@@ -556,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         zhishitupu: [
             './zhishitupu/obsidianVault.js',
             './zhishitupu/worldKnowledge.js',
+            './zhishitupu/worldExpansion.js',
             './zhishitupu/worldCorpusLoader.js',
             './zhishitupu/worldRag.js',
             './zhishitupu/graphData.js',
@@ -578,6 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentStyleContract.js',
             './model/agent/AgentExpertPanel.js',
             './model/agent/AgentDiagramRenderer.js',
+            './model/agent/AgentChartRenderer.js',
             './model/AgentRuntime.js',
             './model/main.js',
         ],
@@ -607,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         jianmoshiyanshi: () => {
             if (typeof initModelingLab === 'function') initModelingLab();
             if (typeof window.modelingLabShowView === 'function') {
-                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
+                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'world');
             }
         },
         zhishitupu: () => {
@@ -625,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021-3';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261023-18';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -743,7 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (id === 'jianmoshiyanshi' && typeof window.modelingLabShowView === 'function') {
             // 唤醒：恢复上次所在视图，并让 iframe 内部画布重新计算尺寸
-            window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'editor');
+            window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'world');
         }
 
         document.querySelectorAll('.menu-item').forEach(item =>

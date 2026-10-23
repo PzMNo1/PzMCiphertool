@@ -36,6 +36,13 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     @Value("${tavily.api-key:}")
     private String tavilyApiKey;
+
+    // DeepSeek Search / Fetch：与模型共用同一把服务端 Key，前端不接触密钥。
+    @Value("${llm.api-key:}")
+    private String llmApiKey;
+
+    @Value("${llm.base-url:https://api.deepseek.com/v1}")
+    private String llmBaseUrl;
     
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private static final int DEEP_READ_LIMIT = 48;
@@ -104,6 +111,143 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             log.error("Fetch webpage failed: {}", e.getMessage());
             return "获取网页失败: " + e.getMessage();
         }
+    }
+
+    /* ---------------- DeepSeek Search / Fetch ---------------- */
+
+    @Override
+    public String deepseekSearch(String query, Integer count, Boolean needContent) {
+        String trimmedQuery = query == null ? "" : query.trim();
+        if (trimmedQuery.isEmpty()) {
+            return deepseekError("deepseek-search", 400, "query 不能为空");
+        }
+        if (llmApiKey == null || llmApiKey.isBlank()) {
+            return deepseekError("deepseek-search", 401, "服务端未配置 LLM API Key");
+        }
+
+        int requested = count == null ? 10 : Math.max(1, Math.min(50, count));
+        JSONObject payload = new JSONObject();
+        payload.put("query", trimmedQuery);
+        payload.put("count", requested);
+        payload.put("need_content", Boolean.TRUE.equals(needContent));
+
+        try {
+            JSONObject data = callDeepSeekTool("search", payload, 25);
+            JSONArray rawResults = data.getJSONArray("results");
+            JSONArray results = new JSONArray();
+            if (rawResults != null) {
+                for (int i = 0; i < rawResults.size(); i++) {
+                    JSONObject item = rawResults.getJSONObject(i);
+                    if (item == null) continue;
+                    JSONObject normalized = new JSONObject();
+                    normalized.put("title", item.getString("title"));
+                    normalized.put("url", item.getString("url"));
+                    normalized.put("snippet", item.getString("snippet"));
+                    normalized.put("summary", item.getString("summary"));
+                    normalized.put("site_name", item.getString("site_name"));
+                    normalized.put("date", item.getString("date"));
+                    normalized.put("authority", item.getIntValue("authority"));
+                    normalized.put("rerank_score", item.getDoubleValue("rerank_score"));
+                    if (Boolean.TRUE.equals(needContent)) {
+                        normalized.put("content", clipText(item.getString("content"), 8000));
+                    }
+                    results.add(normalized);
+                }
+            }
+
+            JSONObject normalized = new JSONObject();
+            normalized.put("provider", "deepseek-search");
+            normalized.put("query", trimmedQuery);
+            normalized.put("count", results.size());
+            normalized.put("results", results);
+            return normalized.toJSONString();
+        } catch (Exception e) {
+            log.warn("DeepSeek search failed: {}", rootMessage(e));
+            return deepseekError("deepseek-search", 502, "DeepSeek Search 请求失败: " + rootMessage(e));
+        }
+    }
+
+    @Override
+    public String deepseekFetch(String url) {
+        String target = url == null ? "" : url.trim();
+        if (target.isEmpty()) {
+            return deepseekError("deepseek-fetch", 400, "url 不能为空");
+        }
+        if (!target.startsWith("http://") && !target.startsWith("https://")) {
+            target = "https://" + target;
+        }
+        if (llmApiKey == null || llmApiKey.isBlank()) {
+            return deepseekError("deepseek-fetch", 401, "服务端未配置 LLM API Key");
+        }
+
+        JSONObject payload = new JSONObject();
+        payload.put("url", target);
+        try {
+            JSONObject data = callDeepSeekTool("fetch", payload, 35);
+            JSONObject normalized = new JSONObject();
+            normalized.put("provider", "deepseek-fetch");
+            normalized.put("url", target);
+            normalized.put("title", data.getString("title"));
+            normalized.put("content", clipText(data.getString("content"), 48000));
+            return normalized.toJSONString();
+        } catch (Exception e) {
+            log.warn("DeepSeek fetch failed: {}", rootMessage(e));
+            return deepseekError("deepseek-fetch", 502, "DeepSeek Fetch 请求失败: " + rootMessage(e));
+        }
+    }
+
+    private JSONObject callDeepSeekTool(String tool, JSONObject payload, int timeoutSeconds) throws Exception {
+        String endpoint = deepseekToolsEndpoint(tool);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Authorization", "Bearer " + llmApiKey)
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .POST(HttpRequest.BodyPublishers.ofString(payload.toJSONString(), StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        int status = response.statusCode();
+        String body = response.body() == null ? "" : response.body();
+        if (status != 200) {
+            String detail = body.isEmpty() ? "" : clipText(body.replaceAll("\\s+", " "), 400);
+            throw new IllegalStateException("HTTP " + status + (detail.isEmpty() ? "" : " - " + detail));
+        }
+        JSONObject parsed = JSON.parseObject(body);
+        if (parsed == null) {
+            throw new IllegalStateException("返回内容不是 JSON 对象");
+        }
+        if (parsed.containsKey("error")) {
+            throw new IllegalStateException(String.valueOf(parsed.get("error")));
+        }
+        return parsed;
+    }
+
+    private String deepseekToolsEndpoint(String tool) {
+        String base = llmBaseUrl == null ? "" : llmBaseUrl.trim();
+        if (base.isEmpty()) {
+            base = "https://api.deepseek.com/v1";
+        }
+        base = base.replaceAll("/+$", "");
+        if (base.endsWith("/v1")) {
+            return base + "/tools/" + tool;
+        }
+        return base + "/v1/tools/" + tool;
+    }
+
+    private String deepseekError(String provider, int status, String message) {
+        JSONObject error = new JSONObject();
+        error.put("provider", provider);
+        error.put("status", status);
+        error.put("error", message);
+        return error.toJSONString();
+    }
+
+    private String clipText(String text, int max) {
+        if (text == null) return "";
+        String value = text.trim();
+        if (value.length() <= max) return value;
+        return value.substring(0, max) + "\n…[内容已截断]";
     }
 
     

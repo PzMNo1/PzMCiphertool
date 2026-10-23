@@ -35,6 +35,8 @@
 
             this.currentTokens = 0;
             this.visible = false;
+            this.historical = false;
+            this.chatId = '';
         }
 
         /* ---------- 圆环绑定与渲染 ---------- */
@@ -45,12 +47,11 @@
             } else {
                 this.ringElement = document.querySelector(target || this.ringSelector);
             }
-            if (this.ringElement) {
-                this.ringValue = this.ringElement.querySelector('.context-ring-value');
-                this.ringLabel = this.ringElement.querySelector('.context-ring-label');
-                if (this.ringValue) {
-                    this.ringValue.setAttribute('stroke-dasharray', String(RING_CIRCUMFERENCE));
-                }
+            if (!this.ringElement) return null;
+            this.ringValue = this.ringElement.querySelector('.context-ring-value');
+            this.ringLabel = this.ringElement.querySelector('.context-ring-label');
+            if (this.ringValue) {
+                this.ringValue.setAttribute('stroke-dasharray', String(RING_CIRCUMFERENCE));
             }
             this.renderRing();
             return this.ringElement;
@@ -61,6 +62,11 @@
             return this.attach(this.ringSelector);
         }
 
+        setChatContext(chatId = '') {
+            this.chatId = chatId || '';
+            this.renderRing();
+        }
+
         getUsageRatio() {
             if (this.maxTokens <= 0) return 0;
             return Math.min(1, this.currentTokens / this.maxTokens);
@@ -69,6 +75,13 @@
         renderRing() {
             const ring = this.ensureRing();
             if (!ring) return;
+            const activeChatId = this.chatId
+                || (typeof window !== 'undefined' && window.historyManager?.getCurrentChatId?.())
+                || '';
+            if (activeChatId && this.chatId && activeChatId !== this.chatId) {
+                // 后台会话的 usage 更新不应覆盖当前正在查看的会话圆环。
+                return;
+            }
 
             const ratio = this.getUsageRatio();
             const hasData = this.visible || ratio > 0;
@@ -86,7 +99,7 @@
             }
             ring.setAttribute(
                 'title',
-                `上下文窗口使用率 ${Math.round(ratio * 100)}%（约 ${this.currentTokens.toLocaleString()} / ${this.maxTokens.toLocaleString()} tok）`
+                `${this.historical ? '本对话上下文' : '上下文窗口'}使用率 ${Math.round(ratio * 100)}%（约 ${this.currentTokens.toLocaleString()} / ${this.maxTokens.toLocaleString()} tok）`
             );
         }
 
@@ -143,6 +156,7 @@
                 this.currentTokens = this.estimateMessagesTokens(messages);
             }
             this.visible = true;
+            this.historical = false;
             this.renderRing();
             return this.getUsageRatio();
         }
@@ -152,8 +166,23 @@
          */
         updateFromMessages(messages = []) {
             this.currentTokens = this.estimateMessagesTokens(messages);
+            this.historical = false;
             this.renderRing();
             return this.getUsageRatio();
+        }
+
+        /**
+         * 切换会话时恢复该会话自己的上下文占用，而不是沿用上一个会话的圆环。
+         */
+        showHistorical(stats = {}, messages = null) {
+            let tokens = Number(stats.currentTokens ?? stats.current_tokens ?? 0);
+            if ((!Number.isFinite(tokens) || tokens <= 0) && Array.isArray(messages)) {
+                tokens = this.estimateMessagesTokens(messages);
+            }
+            this.currentTokens = Math.max(0, Number(tokens) || 0);
+            this.visible = true;
+            this.historical = true;
+            this.renderRing();
         }
 
         setMaxTokens(maxTokens) {
@@ -167,6 +196,7 @@
         reset() {
             this.currentTokens = 0;
             this.visible = false;
+            this.historical = false;
             this.renderRing();
         }
 

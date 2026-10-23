@@ -5,6 +5,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const AGENT_MODEL = agentConfig.model;
     const AGENT_USE_NATIVE_TOOLS = agentConfig.useNativeTools;
 
+    function buildUsageHeaders() {
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Agent-Surface': 'agentmaster'
+        };
+        try {
+            const auth = window.CipherAuth;
+            if (auth && typeof auth.getAuthHeaders === 'function') {
+                Object.assign(headers, auth.getAuthHeaders());
+            }
+        } catch (error) {
+            // Anonymous fallback.
+        }
+        return headers;
+    }
+
     const chatWindow = document.getElementById('agent-chat-window');
     const collapseBtn = document.getElementById('agent-collapse-btn');
     const history = document.getElementById('agent-chat-history');
@@ -43,22 +59,26 @@ document.addEventListener('DOMContentLoaded', () => {
             content: [
                 'You are PzM assistant, a page-control agent embedded in this toolkit UI.',
                 'You can answer questions normally, and when the user asks you to operate the page, call the ui_action tool.',
-                'Only use tools when the latest user message explicitly asks for a UI operation such as open, switch, click, fill, search, scroll, focus, highlight, close, reload, or navigate.',
-                'Do not use page-operation tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, Skill/MCP, or 联系我们.',
+                'Only use tools when the latest user message explicitly asks for a UI operation such as open, switch, click, fill, search, scroll, focus, highlight, close, reload, navigate, read PCB code, or write PCB TSX code.',
+                'Do not use page-operation tools for explanation, knowledge, definition, debugging, or general Q&A requests, even when they mention module names such as 知识图谱, Agent, 插件实验室, or 联系我们.',
                 'Exception: for knowledge, definition and explanation questions, the runtime automatically retrieves the local Wikipedia/Wikidata corpus before answering; cite the retrieved records instead of answering from memory. When a selected knowledge-graph node explanation is active, retrieve that node knowledge base first.',
-                'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, and highlighting.',
+                'Use tools for visible UI operations such as opening sections, switching cipher tabs, filling inputs, clicking controls, scrolling, searching, highlighting, and writing or reading the PCB TSX editor.',
                 'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
                 'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
                 'If native tool calls are not available, emit exact operation blocks such as <ui_action>{"action":"navigate_section","target":"jiamishiyanshi"}</ui_action> or <browser_action>{"action":"list_windows"}</browser_action>.',
                 'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
-                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world.',
+                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
                 'Use generate_world when the user asks to create or generate a 3D world / scene / environment with the world model (世界模型, Marble, 世界生成, 生成场景, 文生世界). Put the scene description in the "prompt" argument. Set "confirm" to true to only fill the description and wait for the user to press 生成世界; omit it and the generation starts immediately.',
+                'Use edit_pcb_code to write or replace the TSX code in 电子实验室 → 电路板布局 left panel. Put the complete main.tsx in "value" and keep run=true (default) so the engine re-renders. The action opens the section and expands the code sidebar automatically.',
+                'Use read_pcb_code before reviewing or modifying the board currently shown in the left panel; edit_pcb_code replaces the whole file, so preserve the user changes you still need.',
+                'When generating PCB TSX, follow DFX/DFM: declare the board size, place connectors at the board edge, add mounting holes/fiducials/test points, put decoupling caps next to power pins, label silkscreen, use explicit pcbX/pcbY for placement and schX/schY for a clean schematic, keep signal traces about 0.25mm and power traces 0.5mm or wider, and keep every component inside the board outline.',
+                'If native tool calls are not available for PCB coding, emit the full TSX inside a raw <pcb_code>...</pcb_code> block (no JSON escaping and no Markdown fences inside the block). Prefer the native edit_pcb_code tool when it is available.',
                 'World generation is a long-running job (about 5 minutes) and consumes paid API credits, so for vague or very short requests prefer filling the prompt first instead of starting generation immediately.',
                 'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
-                'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. Skill/MCP实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
+                'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. 插件实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
                 'Available cipher submodule targets: mimaqu, xiandaiqu, luojimiti, cihuiqu, yuliu. Use yuliu for 空间类 / space puzzle.',
                 'Available contact submodule targets: guanyuzuozhe, zuozhecaifang, yijianfankui, kaifarizhi.',
                 'Available logic puzzle targets include sudoku, akari, nonogram, kakuro, hashi, hitori, nurikabe, slitherlink.',
@@ -94,7 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             'press_key',
                             'snapshot',
                             'batch',
-                            'generate_world'
+                            'generate_world',
+                            'edit_pcb_code',
+                            'read_pcb_code'
                         ],
                         description: 'The UI operation to execute.'
                     },
@@ -104,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     value: {
                         type: 'string',
-                        description: 'Text/value for set_value or search.'
+                        description: 'Text/value for set_value or search, or the full TSX source for edit_pcb_code.'
                     },
                     prompt: {
                         type: 'string',
@@ -125,6 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     append: {
                         type: 'boolean',
                         description: 'Append value instead of replacing it when action is set_value.'
+                    },
+                    run: {
+                        type: 'boolean',
+                        description: 'For edit_pcb_code: rerun the PCB engine after writing the TSX (default true).'
                     },
                     key: {
                         type: 'string',
@@ -668,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (allowKnowledgeGraphRetrieval) {
             const handled = await runKnowledgeGraphRag(text, { requireEvidence: true });
             if (handled) return;
-            addMsg('ai', '本地 Wikipedia/Wikidata 语料中没有检索到与该节点相关的原文段落。请先在知识图谱中重新编译世界知识数据，或换一个更具体的问法。');
+            addMsg('ai', '本地世界知识语料中没有检索到与该节点相关的原文段落。请先在知识图谱中重新编译世界知识数据，或换一个更具体的问法。');
             return;
         }
 
@@ -695,9 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const res = await fetch(AGENT_API_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: buildUsageHeaders(),
                 body: JSON.stringify(payload)
             });
 
@@ -888,9 +912,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function extractInlineActions(text) {
         const actions = [];
-        const cleaned = String(text || '').replace(/<(ui_action|browser_action)>([\s\S]*?)<\/\1>/g, (match, name, raw) => {
+        let hasPcbCode = false;
+        let cleaned = String(text || '').replace(/<pcb_code>([\s\S]*?)<\/pcb_code>/g, (match, raw) => {
+            const code = String(raw || '')
+                .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+                .replace(/\n?```\s*$/, '')
+                .trim();
+            if (!code) return '';
+            hasPcbCode = true;
+            actions.push({ name: 'ui_action', arguments: { action: 'edit_pcb_code', value: code, run: true } });
+            return '';
+        });
+
+        cleaned = cleaned.replace(/<(ui_action|browser_action)>([\s\S]*?)<\/\1>/g, (match, name, raw) => {
             try {
                 const parsed = JSON.parse(raw.trim());
+                // 原生工具和 <pcb_code> 同时出现时，以代码块为准，避免写入两次。
+                if (name === 'ui_action' && hasPcbCode && normalizeUiActionName(parsed.action) === 'edit_pcb_code') {
+                    return '';
+                }
                 actions.push({ name, arguments: parsed });
             } catch {
                 // Leave malformed action blocks visible for debugging.
@@ -1002,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (AGENT_MODEL) payload.model = AGENT_MODEL;
             const res = await fetch(AGENT_API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: buildUsageHeaders(),
                 body: JSON.stringify(payload)
             });
             loader.remove();
@@ -1059,6 +1099,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return executeUiBatch(args.steps, args.reason);
             case 'generate_world':
                 return generateWorld(args);
+            case 'edit_pcb_code':
+                return editPcbCode(args);
+            case 'read_pcb_code':
+                return readPcbCode(args);
             default:
                 throw new Error(`unknown action "${action}"`);
         }
@@ -1090,10 +1134,61 @@ document.addEventListener('DOMContentLoaded', () => {
         return ok(result && result.message ? result.message : '已打开世界模型页。', args.reason);
     }
 
+    function waitForWindowFunction(name, timeoutMs) {
+        return new Promise(resolve => {
+            const started = Date.now();
+            (function check() {
+                if (typeof window[name] === 'function') {
+                    resolve(window[name]);
+                    return;
+                }
+                if (Date.now() - started > timeoutMs) {
+                    resolve(null);
+                    return;
+                }
+                setTimeout(check, 150);
+            })();
+        });
+    }
+
+    async function preparePcbLab(reason) {
+        navigateSection('electroniclab', reason);
+        if (typeof window.ensureCipherModule === 'function') {
+            try {
+                await window.ensureCipherModule('electroniclab');
+            } catch (error) {
+                // 模块已加载但初始化失败时继续尝试使用已存在的桥接。
+            }
+        }
+    }
+
+    async function editPcbCode(args = {}) {
+        const code = String(args.value ?? args.code ?? args.content ?? args.tsx ?? args.text ?? '')
+            .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+            .replace(/\n?```\s*$/, '');
+        if (!code.trim()) throw new Error('edit_pcb_code requires the full TSX code in value');
+        await preparePcbLab(args.reason);
+        const writePcbCode = await waitForWindowFunction('electronicLabWritePcbCode', 15000);
+        if (!writePcbCode) throw new Error('电子实验室模块未就绪，无法写入 PCB 代码');
+        const result = await writePcbCode(code, { run: args.run !== false, reason: args.reason || '' });
+        if (!result || result.ok === false) throw new Error(result?.message || 'PCB TSX 写入失败');
+        return ok(result.message || `已写入 PCB TSX（${code.length} 字符）`, args.reason);
+    }
+
+    async function readPcbCode(args = {}) {
+        await preparePcbLab(args.reason);
+        const readPcb = await waitForWindowFunction('electronicLabReadPcbCode', 15000);
+        if (!readPcb) throw new Error('电子实验室模块未就绪，无法读取 PCB 代码');
+        const result = await readPcb();
+        if (!result || result.ok === false) throw new Error(result?.message || 'PCB TSX 读取失败');
+        const code = String(result.code || '');
+        return ok(`当前 main.tsx（${code.length} 字符）：\n\`\`\`tsx\n${code}\n\`\`\``, args.reason);
+    }
+
     function resolveActionTarget(args, action) {
         if (!args || typeof args !== 'object') return '';
-        // 世界生成没有元素目标，别让 prompt 被当成 CSS 选择器去 normalize
-        if (action === 'generate_world') return '';
+        // 世界生成 / PCB 编码没有元素目标，别让 prompt 或代码被当成 CSS 选择器去 normalize
+        if (action === 'generate_world' || action === 'edit_pcb_code' || action === 'read_pcb_code') return '';
         const direct = args.target ?? args.selector ?? args.element ?? args.id ?? args.name;
         if (action === 'open_logic_puzzle') return args.puzzle ?? args.logic_puzzle ?? args.logicPuzzle ?? args.puzzle_target ?? args.puzzleTarget ?? direct ?? '';
         if (action === 'open_space_puzzle') {
@@ -1150,7 +1245,21 @@ document.addEventListener('DOMContentLoaded', () => {
             generate_scene: 'generate_world',
             create_scene: 'generate_world',
             text_to_world: 'generate_world',
-            image_to_world: 'generate_world'
+            image_to_world: 'generate_world',
+            edit_pcb_code: 'edit_pcb_code',
+            write_pcb_code: 'edit_pcb_code',
+            set_pcb_code: 'edit_pcb_code',
+            update_pcb_code: 'edit_pcb_code',
+            generate_pcb_code: 'edit_pcb_code',
+            write_pcb_tsx: 'edit_pcb_code',
+            edit_pcb_tsx: 'edit_pcb_code',
+            write_tsx: 'edit_pcb_code',
+            edit_tsx: 'edit_pcb_code',
+            read_pcb_code: 'read_pcb_code',
+            get_pcb_code: 'read_pcb_code',
+            show_pcb_code: 'read_pcb_code',
+            read_pcb_tsx: 'read_pcb_code',
+            get_pcb_tsx: 'read_pcb_code'
         };
         return aliases[raw] || aliases[raw.toLowerCase()] || raw;
     }
@@ -1171,6 +1280,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'MCP实验室': 'mcpskilllab',
             'Skill实验室': 'mcpskilllab',
             '技能实验室': 'mcpskilllab',
+            '插件实验室': 'mcpskilllab',
+            '插件': 'mcpskilllab',
             '联系我们': 'yijianfankui',
             '反馈': 'yijianfankui',
             '经典区': 'mimaqu',
@@ -1207,6 +1318,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'MCP实验室': 'mcpskilllab',
             'Skill实验室': 'mcpskilllab',
             '技能实验室': 'mcpskilllab',
+            '插件实验室': 'mcpskilllab',
+            '插件': 'mcpskilllab',
             '反馈': 'yijianfankui',
             '联系我们': 'yijianfankui',
             '经典区': 'mimaqu',
@@ -1646,11 +1759,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return ok(message, reason);
     }
 
-    function executeUiBatch(steps, reason) {
+    async function executeUiBatch(steps, reason) {
         if (!Array.isArray(steps) || steps.length === 0) throw new Error('batch requires non-empty steps');
         const results = [];
         for (const step of steps.slice(0, 12)) {
-            results.push(executeUiAction(step).message);
+            const result = await executeUiAction(step);
+            results.push(result.message);
         }
         return ok(`Batch completed:\n${results.join('\n')}`, reason);
     }
@@ -2022,7 +2136,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return hasAnswerTerm && !hasExplicitOperationIntent(raw, normalized);
     }
 
+    function isPcbCodingIntent(raw, normalized) {
+        const target = /(电子实验室|电路板|pcb|tsx|main\.tsx|左侧|代码面板|布线|原理图|焊盘|封装)/i.test(raw);
+        const action = /(写|编写|生成|画|改|修改|重写|替换|更新|读取|看看|查看|编辑|排版|优化|检查|重建)/.test(raw);
+        return target && action;
+    }
+
     function hasExplicitOperationIntent(raw, normalized) {
+        if (isPcbCodingIntent(raw, normalized)) return true;
         const operationStarts = [
             '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航到', '去', '点击', '点开', '选择',
             '输入', '填入', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',
@@ -2300,8 +2421,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const local = [];
             const remote = [];
             for (const win of windows) {
-                if (win.id === selfId) local.push(executeUiAction(uiAction).message);
-                else remote.push(requestRemote(win.id, { command: 'ui_action', args: uiAction }).catch(err => ({ message: err.message })));
+                if (win.id === selfId) {
+                    const localResult = await executeUiAction(uiAction);
+                    local.push(localResult.message);
+                } else {
+                    remote.push(requestRemote(win.id, { command: 'ui_action', args: uiAction }).catch(err => ({ message: err.message })));
+                }
             }
             const remoteResults = await Promise.all(remote);
             return ok(`Broadcast completed:\n${[...local, ...remoteResults.map(item => item.message)].join('\n')}`, reason);
@@ -2371,7 +2496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 let result;
                 if (message.payload?.command === 'ui_action') {
-                    result = executeUiAction(message.payload.args || {});
+                    result = await executeUiAction(message.payload.args || {});
                 } else {
                     throw new Error(`unknown remote command: ${message.payload?.command}`);
                 }

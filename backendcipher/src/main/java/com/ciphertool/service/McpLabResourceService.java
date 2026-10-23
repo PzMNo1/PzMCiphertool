@@ -41,9 +41,12 @@ public class McpLabResourceService {
     private static final int MAX_IMPORT_RESOURCES = 200;
 
     private static final Set<String> RESOURCE_TYPES = Set.of(
-            "DSH Capability",
+            "Prompt",
+            "Tool",
+            "Skill",
             "MCP Server",
-            "DSH Plugin",
+            "Workflow",
+            "Harness",
             "MCP Registry",
             "MCP Directory",
             "MCP Documentation",
@@ -53,7 +56,7 @@ public class McpLabResourceService {
             "Plugin Marketplace"
     );
     private static final Set<String> CATEGORIES = Set.of(
-            "dsh", "mcp", "plugins", "skill", "prompt", "workflow", "devTools", "dataApis", "security", "automation", "other"
+            "prompt", "tools", "skill", "mcp", "workflow", "harness"
     );
     private static final Set<String> SOURCES = Set.of("Official", "Community");
     private static final Set<String> RISKS = Set.of("Low", "Medium");
@@ -432,7 +435,7 @@ public class McpLabResourceService {
         McpLabResource item = new McpLabResource();
         item.setId(normalizeId(request.getId(), name));
         item.setName(name);
-        item.setType(choice(request.getType(), RESOURCE_TYPES, category.equals("skill") ? "Skill Directory" : "MCP Directory"));
+        item.setType(choice(request.getType(), RESOURCE_TYPES, defaultType(category)));
         item.setCategory(category);
         item.setCategories(categories);
         item.setSource(source);
@@ -463,7 +466,7 @@ public class McpLabResourceService {
         McpLabResource item = new McpLabResource();
         item.setId(uniqueId(slug(title)));
         item.setName(trim(cleanTitle(title), 120));
-        item.setType(category.equals("skill") ? "Skill Directory" : category.equals("mcp") ? "MCP Directory" : "Skill Directory");
+        item.setType(defaultType(category));
         item.setCategory(category);
         item.setCategories(List.of(category));
         item.setSource(source);
@@ -548,20 +551,29 @@ public class McpLabResourceService {
         if ("skill".equals(category)) {
             return base + " agent skill SKILL.md repository";
         }
-        if ("security".equals(category)) {
-            return base + " MCP skill security audit agent tool";
+        if ("prompt".equals(category)) {
+            return base + " prompt template library agent";
         }
-        return base + " MCP server agent skill tool";
+        if ("tools".equals(category)) {
+            return base + " agent tool CLI API";
+        }
+        if ("workflow".equals(category)) {
+            return base + " workflow automation template";
+        }
+        if ("harness".equals(category)) {
+            return base + " DeepSeek Harness plugin";
+        }
+        return base + " agent tool prompt skill MCP workflow harness";
     }
 
     private String searchCandidateScenario(String category, String snippet) {
         String summary = trim(snippet, 220);
         String use = switch (category) {
+            case "prompt" -> "用途：作为 Prompt 候选资源，用来沉淀可复用的提示词模板和指令片段。";
+            case "tools" -> "用途：作为 Tools 候选资源，用来补充 Agent 可调用的工具与执行能力。";
             case "skill" -> "用途：作为 Skill 候选资源，用来沉淀可复用的 Agent 工作流或技能目录。";
-            case "security" -> "用途：作为安全审查候选资源，用来辅助权限评估、漏洞扫描或风险判断。";
-            case "automation" -> "用途：作为自动化候选资源，用来连接浏览器、网页、办公或跨应用流程。";
-            case "dataApis" -> "用途：作为 API / 数据候选资源，用来连接数据库、云服务或第三方接口。";
-            case "workflow" -> "用途：作为工作流候选资源，用来拆解、复用或编排多步骤任务。";
+            case "workflow" -> "用途：作为 Workflow 候选资源，用来拆解、复用或编排多步骤任务。";
+            case "harness" -> "用途：作为 Harness 候选资源，用来登记 DSH 本体能力、插件或运行环境。";
             default -> "用途：作为 MCP 候选资源，用来扩展 Agent 可调用的外部工具、数据源或服务。";
         };
         String benefit = "益处：先进入候选列表再人工确认，可以提升资源发现效率，同时避免未经审查的来源直接入库。";
@@ -578,14 +590,22 @@ public class McpLabResourceService {
                 String.join(" ", tags == null ? List.of() : tags)
         ).toLowerCase(Locale.ROOT);
         if (containsAny(text, "mcp", "modelcontextprotocol")) return "mcp";
-        if (containsAny(text, "skill", "skill.md", "codex", "claude")) return "skill";
         if (containsAny(text, "prompt", "提示词")) return "prompt";
-        if (containsAny(text, "workflow", "automation template", "n8n", "zapier")) return "workflow";
-        if (containsAny(text, "security", "audit", "codeql", "semgrep", "secrets", "risk")) return "security";
-        if (containsAny(text, "browser", "scrape", "crawl", "automation")) return "automation";
-        if (containsAny(text, "api", "database", "postgres", "connector", "data")) return "dataApis";
-        if (containsAny(text, "github", "vscode", "cursor", "cli", "dev", "code")) return "devTools";
-        return "other";
+        if (containsAny(text, "workflow", "工作流", "automation template", "n8n", "zapier")) return "workflow";
+        if (containsAny(text, "harness", "dsh", "plugin", "插件")) return "harness";
+        if (containsAny(text, "skill", "skill.md", "codex", "claude")) return "skill";
+        return "tools";
+    }
+
+    private String defaultType(String category) {
+        return switch (category) {
+            case "prompt" -> "Prompt";
+            case "tools" -> "Tool";
+            case "skill" -> "Skill Directory";
+            case "workflow" -> "Workflow";
+            case "harness" -> "Harness";
+            default -> "MCP Directory";
+        };
     }
 
     private List<String> normalizeCategoryList(List<String> values, String primary) {
@@ -674,23 +694,22 @@ public class McpLabResourceService {
     private String normalizeCategory(String value) {
         String normalized = blank(value).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "");
         Map<String, String> aliases = Map.ofEntries(
-                Map.entry("mcp", "mcp"),
-                Map.entry("mcptools", "mcp"),
-                Map.entry("skill", "skill"),
-                Map.entry("skills", "skill"),
                 Map.entry("prompt", "prompt"),
                 Map.entry("prompts", "prompt"),
+                Map.entry("tool", "tools"),
+                Map.entry("tools", "tools"),
+                Map.entry("skill", "skill"),
+                Map.entry("skills", "skill"),
+                Map.entry("mcp", "mcp"),
+                Map.entry("mcptools", "mcp"),
                 Map.entry("workflow", "workflow"),
                 Map.entry("workflows", "workflow"),
-                Map.entry("devtools", "devTools"),
-                Map.entry("developer", "devTools"),
-                Map.entry("dataapis", "dataApis"),
-                Map.entry("dataapi", "dataApis"),
-                Map.entry("data", "dataApis"),
-                Map.entry("apis", "dataApis"),
-                Map.entry("security", "security"),
-                Map.entry("automation", "automation"),
-                Map.entry("other", "other")
+                Map.entry("harness", "harness"),
+                Map.entry("dsh", "harness"),
+                Map.entry("cap", "harness"),
+                Map.entry("capability", "harness"),
+                Map.entry("plugin", "harness"),
+                Map.entry("plugins", "harness")
         );
         String category = aliases.getOrDefault(normalized, "");
         return CATEGORIES.contains(category) ? category : "";

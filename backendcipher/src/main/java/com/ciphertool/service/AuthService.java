@@ -50,6 +50,15 @@ public class AuthService {
     @Value("${auth.session.expire-hours:168}")
     private long sessionExpireHours;
 
+    @Value("${auth.developer.account:}")
+    private String developerAccount;
+
+    @Value("${auth.developer.password:}")
+    private String developerPassword;
+
+    @Value("${auth.developer.identity:}")
+    private String developerIdentity;
+
     /**
      * Send verification code
      *
@@ -135,19 +144,44 @@ public class AuthService {
 
         log.info("Login successful: phone={}", maskPhone(normalizedPhone));
 
+        return createSession(normalizedPhone, normalizedPhone);
+    }
+
+    /**
+     * Verify developer login
+     *
+     * @param account  developer account
+     * @param password developer password
+     * @return LoginResponse or null if failed
+     */
+    public LoginResponse verifyDeveloperLogin(String account, String password) {
+        if (!matchesDeveloper(account, password)) {
+            return null;
+        }
+
+        String identity = normalizeAccount(developerIdentity);
+        if (identity.isBlank()) {
+            identity = normalizeAccount(account);
+        }
+
+        log.info("Developer login successful: account={}", account);
+        return createSession(identity, account.trim());
+    }
+
+    private LoginResponse createSession(String sessionAccount, String displayAccount) {
         String token = generateSessionToken();
         LocalDateTime loginTime = LocalDateTime.now();
         LocalDateTime expiresAt = loginTime.plusHours(Math.max(1, sessionExpireHours));
         redisTemplate.opsForValue().set(
                 SESSION_KEY_PREFIX + hashToken(token),
-                normalizedPhone,
+                sessionAccount,
                 Math.max(1, sessionExpireHours),
                 TimeUnit.HOURS
         );
 
         return new LoginResponse(
-                normalizedPhone,
-                maskPhone(normalizedPhone),
+                displayAccount,
+                maskPhone(displayAccount),
                 token,
                 loginTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 expiresAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
@@ -224,6 +258,16 @@ public class AuthService {
 
     private String normalizeAccount(String account) {
         return account == null ? "" : account.trim().toLowerCase();
+    }
+
+    private boolean matchesDeveloper(String account, String password) {
+        String configuredAccount = normalizeAccount(developerAccount);
+        String configuredPassword = developerPassword == null ? "" : developerPassword.trim();
+        if (configuredAccount.isBlank() || configuredPassword.isBlank()) {
+            return false;
+        }
+        String inputPassword = password == null ? "" : password.trim();
+        return configuredAccount.equals(normalizeAccount(account)) && configuredPassword.equals(inputPassword);
     }
 
     private String maskPhone(String phone) {
