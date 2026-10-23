@@ -2860,16 +2860,16 @@ body.agent-lightbox-open {
   overflow-wrap: anywhere;
 }
 
-/* 图表语法有误时保留源码，并给出说明 */
-pre.language-mermaid[data-mermaid-state="error"]::after {
-  content: "（图表语法有误，以上为源码）";
+/* 图表语法有误或引擎未加载时保留源码，并给出说明 */
+pre.markdown-code-block[data-mermaid-state="error"]::after {
+  content: "（图表渲染失败：可能是语法错误或图表引擎未加载，以上为源码）";
   display: block;
   margin-top: 6px;
   color: rgba(255, 150, 165, 0.85);
   font-size: 0.7rem;
 }
 
-pre.language-mermaid[data-mermaid-state="error"] {
+pre.markdown-code-block[data-mermaid-state="error"] {
   border-color: rgba(255, 92, 112, 0.32);
 }
 

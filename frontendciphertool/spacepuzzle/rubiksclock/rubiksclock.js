@@ -676,15 +676,21 @@
                 pointerId: event.pointerId,
                 side,
                 pin,
+                startX: event.clientX,
                 startY: event.clientY,
-                applied: 0
+                applied: 0,
+                captured: false
             };
             board.classList.add('gear-dragging');
-            if (board.setPointerCapture) board.setPointerCapture(event.pointerId);
         });
 
         board.addEventListener('pointermove', event => {
             if (!drag || event.pointerId !== drag.pointerId) return;
+            if (!drag.captured && Math.abs(event.clientX - drag.startX) + Math.abs(event.clientY - drag.startY) > 6) {
+                drag.captured = true;
+                suppressClickUntil = performance.now() + 250;
+                if (board.setPointerCapture) board.setPointerCapture(event.pointerId);
+            }
             const steps = Math.trunc((drag.startY - event.clientY) / 22);
             const delta = steps - drag.applied;
             if (!delta) return;
@@ -703,7 +709,7 @@
 
         const stopDrag = event => {
             if (!drag || event.pointerId !== drag.pointerId) return;
-            if (board.releasePointerCapture) board.releasePointerCapture(event.pointerId);
+            if (drag.captured && board.releasePointerCapture) board.releasePointerCapture(event.pointerId);
             drag = null;
             board.classList.remove('gear-dragging');
         };
@@ -814,7 +820,7 @@
                 <div class="space-cube-hud">
                     <span id="clock-status">Rubik's Clock 处于还原态</span>
                 </div>
-                <div class="cube-drag-hint">拖动棋盘转动四角齿轮（上拖 + / 下拖 −），点击针位切换上下</div>
+                <div class="cube-drag-hint">拖动棋盘转动四角齿轮，点击针位切换上下</div>
                 <div id="rubiks-clock-board" class="rubiks-clock-board"></div>
             </div>
         </div>`;

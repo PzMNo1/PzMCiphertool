@@ -613,7 +613,7 @@
             <div class="grid-container card space-control-panel skewb-control-panel">
                 <button class="cyber-button space-back-btn" onclick="window.backSpacePuzzle()"><span class="cyber-button__tag">← 返回空间类</span></button>
                 <h2 class="space-title">Skewb 魔方</h2>
-                <div class="space-subtitle">斜转魔方 / R L U B 记号 / 历史规约求解</div>
+                <div class="space-subtitle">斜转魔方 / R L U B 记号 / 历史求解</div>
 
                 <textarea id="skewb-formula-input" class="space-formula-input" placeholder="输入扰乱公式，例如：R U R' B L' U"></textarea>
 

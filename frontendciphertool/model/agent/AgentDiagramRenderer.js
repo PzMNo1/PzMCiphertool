@@ -16,7 +16,7 @@
 (function () {
     const VENDOR_SRC = './vendor/mermaid/mermaid.min.js';
     const CONTAINER_SELECTORS = ['#chat-messages'];
-    const BLOCK_SELECTOR = 'pre.language-mermaid, pre.markdown-code-block.language-mermaid, code.language-mermaid';
+    const BLOCK_SELECTOR = 'pre.markdown-code-block, pre.language-mermaid, code.language-mermaid';
     const DEBOUNCE_MS = 650;
 
     class AgentDiagramRenderer {
@@ -189,10 +189,32 @@
             return String(text || '').trim();
         }
 
+        /**
+         * 除了 language-mermaid，也识别语言标签写错/缺失的 Mermaid 围栏：
+         * 模型有时会把 ```mermaid 写成 ```timeline / ```flowchart，甚至只写 ```。
+         */
+        looksLikeMermaid(code) {
+            const lines = String(code || '').split('\n').map(line => line.trim()).filter(Boolean);
+            let first = lines[0] || '';
+            if (first.startsWith('%%{')) {
+                first = lines.find(line => !line.startsWith('%%')) || '';
+            }
+            return /^(timeline|flowchart|graph|gantt|pie|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|mindmap|quadrantChart|sankey(?:-beta)?|xychart(?:-beta)?|block(?:-beta)?|packet(?:-beta)?|architecture(?:-beta)?|gitGraph|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment)\b/i.test(first);
+        }
+
+        hasMermaidLanguage(block, host) {
+            return Boolean(
+                block?.classList?.contains('language-mermaid')
+                || host?.classList?.contains('language-mermaid')
+                || block?.querySelector?.('code.language-mermaid')
+            );
+        }
+
         async renderBlock(block) {
             const host = this.resolveHost(block);
             const code = this.extractCode(block);
             if (!host || !code) return false;
+            if (!this.hasMermaidLanguage(block, host) && !this.looksLikeMermaid(code)) return false;
 
             const hash = this.hash(code);
 
@@ -221,6 +243,11 @@
             try {
                 mermaid = await this.initMermaid();
             } catch (error) {
+                if (host.dataset) {
+                    host.dataset.mermaidState = 'error';
+                    host.dataset.mermaidHash = hash;
+                    host.title = `图表引擎加载失败：${error && error.message ? error.message : error}`;
+                }
                 return false;
             }
 

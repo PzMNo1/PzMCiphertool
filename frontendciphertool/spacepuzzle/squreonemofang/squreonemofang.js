@@ -66,33 +66,7 @@
   transform: translateZ(-122px) rotateY(180deg);
 }
 
-.squareone-side-panel {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 244px;
-  height: 81.333px;
-  margin-top: -40.667px;
-  display: flex;
-  overflow: hidden;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-  border-top: 1px solid rgba(2, 12, 18, 0.72);
-  border-bottom: 1px solid rgba(2, 12, 18, 0.72);
-  box-shadow: inset 0 0 9px rgba(0, 0, 0, 0.32);
-}
-
-.squareone-side-panel span {
-  display: block;
-  height: 100%;
-  border-right: 1px solid rgba(2, 12, 18, 0.55);
-}
-
-.squareone-side-panel span:last-child {
-  border-right: 0;
-}
-
-.squareone-slice-core {
+.squareone-shell {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -103,11 +77,38 @@
   pointer-events: none;
 }
 
-.squareone-core-panel {
+.squareone-side-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 244px;
+  height: 244px;
+  display: grid;
+  grid-template-columns: 21.13% 28.87% 28.87% 21.13%;
+  grid-template-rows: repeat(3, 81.333px);
+  overflow: hidden;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  border-top: 1px solid rgba(2, 12, 18, 0.72);
+  border-bottom: 1px solid rgba(2, 12, 18, 0.72);
+  box-shadow: inset 0 0 9px rgba(0, 0, 0, 0.32);
+}
+
+.squareone-side-panel span {
+  display: block;
+  min-height: 0;
+  border-right: 1px solid rgba(2, 12, 18, 0.55);
+  border-bottom: 1px solid rgba(2, 12, 18, 0.55);
+}
+
+.squareone-side-panel span:nth-child(4n) {
+  border-right: 0;
+}
+
+.squareone-side-middle {
   background:
     linear-gradient(180deg, rgba(17, 45, 55, 0.98), rgba(3, 14, 20, 0.98));
-  border-top-color: rgba(64, 224, 255, 0.24);
-  border-bottom-color: rgba(0, 0, 0, 0.62);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .squareone-layer-svg {
@@ -251,18 +252,29 @@
     const BOTTOM_COLOR = '#ffd84a';
     const EDGE_COLORS = ['#19d27f', '#ff4d5e', '#2688ff', '#ff9f2e', '#48d6c8', '#9f7cff', '#ff6b8a', '#40e0ff'];
     const TURN_OPTIONS = [-3, -2, -1, 1, 2, 3];
-    const SIDE_WIDTHS = [21.13, 28.87, 28.87, 21.13];
     const SIDE_BANDS = [
         { key: 'north', units: [10, 11, 0, 1] },
         { key: 'east', units: [1, 2, 3, 4] },
-        { key: 'south', units: [4, 5, 6, 7] },
-        { key: 'west', units: [7, 8, 9, 10] }
+        { key: 'south', units: [7, 6, 5, 4] },
+        { key: 'west', units: [10, 9, 8, 7] }
     ];
-    const SIDE_TRANSFORMS = {
-        north: z => `translate3d(0, -122px, ${z}px) rotateX(90deg)`,
-        east: z => `translate3d(122px, 0, ${z}px) rotateY(90deg) rotateZ(90deg)`,
-        south: z => `translate3d(0, 122px, ${z}px) rotateX(-90deg)`,
-        west: z => `translate3d(-122px, 0, ${z}px) rotateY(-90deg) rotateZ(90deg)`
+    const SHELL_ROWS = {
+        north: ['bottom', 'middle', 'top'],
+        east: ['bottom', 'middle', 'top'],
+        south: ['top', 'middle', 'bottom'],
+        west: ['top', 'middle', 'bottom']
+    };
+    const BOTTOM_UNITS = {
+        north: [7, 6, 5, 4],
+        east: [4, 3, 2, 1],
+        south: [10, 11, 0, 1],
+        west: [7, 8, 9, 10]
+    };
+    const SHELL_TRANSFORMS = {
+        north: 'translate3d(0, -122px, 0) rotateX(90deg)',
+        east: 'translate3d(122px, 0, 0) rotateY(90deg) rotateZ(90deg)',
+        south: 'translate3d(0, 122px, 0) rotateX(-90deg)',
+        west: 'translate3d(-122px, 0, 0) rotateY(-90deg) rotateZ(90deg)'
     };
 
     let topLayer = createSolvedLayer('U', TOP_COLOR, 0);
@@ -532,18 +544,21 @@
         return start === 0 || start === 6 || end === 6 || end === UNIT_COUNT;
     }
 
-    function renderLayerSidePanels(layer) {
-        return SIDE_BANDS.map(band => {
-            const segments = band.units.map((unitIndex, index) => {
-                const unit = layer[unitIndex];
-                return `<span style="width:${SIDE_WIDTHS[index]}%;background:${unit.sideColor}"></span>`;
-            }).join('');
-            return `<div class="squareone-side-panel" style="transform:${SIDE_TRANSFORMS[band.key](-40.667)}">${segments}</div>`;
-        }).join('');
+    function renderSideSegments(layer, units) {
+        return units.map(unitIndex => `<span style="background:${layer[unitIndex].sideColor}"></span>`).join('');
     }
 
-    function renderCoreBand() {
-        return SIDE_BANDS.map(band => `<div class="squareone-side-panel squareone-core-panel" style="transform:${SIDE_TRANSFORMS[band.key](0)}"></div>`).join('');
+    function renderShellSide(band) {
+        const cells = SHELL_ROWS[band.key].map(layerKey => {
+            if (layerKey === 'middle') return '<span class="squareone-side-middle"></span>'.repeat(4);
+            if (layerKey === 'top') return renderSideSegments(topLayer, band.units);
+            return renderSideSegments(bottomLayer, BOTTOM_UNITS[band.key]);
+        }).join('');
+        return `<div class="squareone-side-panel" style="transform:${SHELL_TRANSFORMS[band.key]}">${cells}</div>`;
+    }
+
+    function renderShell() {
+        return SIDE_BANDS.map(renderShellSide).join('');
     }
 
     function renderLayerFacePieces(layer) {
@@ -551,7 +566,7 @@
             const start = piece.start * 30;
             const end = (piece.start + piece.span) * 30;
             const cutClass = isSliceBoundaryPiece(piece.start, piece.span) ? 'cut' : '';
-            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${squareWedgePath(start, end, 18, 118)}" style="--piece-color:${piece.unit.faceColor};--side-color:${piece.unit.sideColor}" />`;
+            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${squareWedgePath(start, end, 18, 118)}" style="--piece-color:${piece.unit.faceColor}" />`;
         }).join('');
     }
 
@@ -657,9 +672,9 @@
         const mount = document.getElementById('squareone-3d');
         if (mount) {
             mount.innerHTML = `
-                <div class="squareone-layer squareone-layer-top">${renderLayerSvg(topLayer, 'TOP', 'top')}${renderLayerSidePanels(topLayer)}</div>
-                <div class="squareone-slice-core">${renderCoreBand()}</div>
-                <div class="squareone-layer squareone-layer-bottom">${renderLayerSvg(bottomLayer, 'BOTTOM', 'bottom')}${renderLayerSidePanels(bottomLayer)}</div>
+                <div class="squareone-layer squareone-layer-top">${renderLayerSvg(topLayer, 'TOP', 'top')}</div>
+                <div class="squareone-shell">${renderShell()}</div>
+                <div class="squareone-layer squareone-layer-bottom">${renderLayerSvg(bottomLayer, 'BOTTOM', 'bottom')}</div>
             `;
             applySquareOneRotation();
             bindSquareOneDrag();
