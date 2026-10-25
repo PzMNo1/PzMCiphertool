@@ -59,24 +59,6 @@
                             </div>
                         </div>
 
-                        <div class="apizz-status-summary apizz-billing-rule-grid">
-                            <div class="apizz-status-tile">
-                                <div class="apizz-label">返利规则</div>
-                                <div class="apizz-status-value">后台配置</div>
-                                <div class="apizz-muted">前端不写死金额或比例</div>
-                            </div>
-                            <div class="apizz-status-tile">
-                                <div class="apizz-label">到账方式</div>
-                                <div class="apizz-status-value">自动入账</div>
-                                <div class="apizz-muted">后端结算后写入钱包流水</div>
-                            </div>
-                            <div class="apizz-status-tile">
-                                <div class="apizz-label">代理身份</div>
-                                <div class="apizz-status-value">普通邀请用户</div>
-                                <div class="apizz-muted">${invite.referredBy ? `由 ${h.escapeHtml(invite.referredBy)} 邀请` : '未绑定上级邀请人'}</div>
-                            </div>
-                        </div>
-
                         <div class="apizz-billing-apply-box">
                             <div>
                                 <div class="apizz-label">绑定上级邀请码</div>

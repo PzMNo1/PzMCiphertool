@@ -13,6 +13,12 @@
     class AgentDurableStore {
         constructor() {
             this.maxRecords = MAX_RECORDS;
+            // 旧版未按账号分区的存档已不再读取，清掉以免占满 localStorage。
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (error) {
+                // Ignore storage cleanup failures.
+            }
         }
 
         get storageKey() {

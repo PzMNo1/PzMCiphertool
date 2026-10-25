@@ -3,10 +3,12 @@ package com.ciphertool.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 
 @Slf4j
@@ -15,41 +17,56 @@ import java.util.Collections;
 public class ChatHistoryService {
 
     private final ObjectMapper objectMapper;
-    private static final String HISTORY_DIR = "modelchathistory";
+    private final JdbcTemplate jdbcTemplate;
 
-    public void saveHistory(String email, Object history) {
+    public void saveHistory(String account, Object history) {
+        String key = normalizeAccount(account);
         try {
-            File dir = new File(HISTORY_DIR);
-            if (!dir.exists()) {
-                dir.mkdirs();
+            String json = objectMapper.writeValueAsString(history == null ? Collections.emptyMap() : history);
+            String now = now();
+            int updated = jdbcTemplate.update(
+                    "UPDATE chat_history SET history_json = ?, updated_at = ? WHERE account = ?",
+                    json, now, key);
+            if (updated == 0) {
+                try {
+                    jdbcTemplate.update(
+                            "INSERT INTO chat_history (account, history_json, updated_at) VALUES (?, ?, ?)",
+                            key, json, now);
+                } catch (DuplicateKeyException e) {
+                    jdbcTemplate.update(
+                            "UPDATE chat_history SET history_json = ?, updated_at = ? WHERE account = ?",
+                            json, now, key);
+                }
             }
-            File file = new File(dir, email + ".json");
-            objectMapper.writeValue(file, history);
-            log.info("Chat history saved for {}", email);
-        } catch (IOException e) {
-            log.error("Failed to save chat history for {}", email, e);
+            log.info("Chat history saved for {}", key);
+        } catch (Exception e) {
+            log.error("Failed to save chat history for {}", key, e);
             throw new RuntimeException("Save history failed");
         }
     }
 
-    public Object getHistory(String email) {
+    public Object getHistory(String account) {
+        String key = normalizeAccount(account);
         try {
-            File file = new File(HISTORY_DIR, email + ".json");
-            if (!file.exists()) {
+            String json = jdbcTemplate.query(
+                    "SELECT history_json FROM chat_history WHERE account = ?",
+                    rs -> rs.next() ? rs.getString(1) : null,
+                    key);
+            if (json == null || json.isBlank()) {
                 return Collections.emptyMap();
             }
-            return objectMapper.readValue(file, Object.class);
-        } catch (IOException e) {
-            log.error("Failed to read chat history for {}", email, e);
+            return objectMapper.readValue(json, Object.class);
+        } catch (Exception e) {
+            log.error("Failed to read chat history for {}", key, e);
             return Collections.emptyMap();
         }
     }
+
+    private String normalizeAccount(String account) {
+        return account == null ? "" : account.trim().toLowerCase();
+    }
+
+    private String now() {
+        return LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
 }
-
-
-
-
-
-
-
-

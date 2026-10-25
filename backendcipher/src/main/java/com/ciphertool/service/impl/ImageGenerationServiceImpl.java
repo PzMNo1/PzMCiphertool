@@ -37,7 +37,7 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
     public ImageGenerationServiceImpl(
             @Value("${image.api-key:${llm.api-key:}}") String apiKey,
             @Value("${image.base-url:${llm.base-url:https://api.openai.com/v1}}") String baseUrl,
-            @Value("${image.model:gpt-image-2}") String defaultModel,
+            @Value("${image.model:gpt-image-2.5-sunburst}") String defaultModel,
             @Value("${image.size:1024x1024}") String defaultSize,
             @Value("${image.timeout-seconds:180}") long timeoutSeconds) {
         this.httpClient = HttpClient.newBuilder()
@@ -45,7 +45,7 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
                 .build();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.generationsUrl = resolveGenerationsUrl(baseUrl);
-        this.defaultModel = normalizeDefault(defaultModel, "gpt-image-2");
+        this.defaultModel = normalizeDefault(defaultModel, "gpt-image-2.5-sunburst");
         this.defaultSize = normalizeDefault(defaultSize, "1024x1024");
         this.timeoutSeconds = Math.max(30, Math.min(timeoutSeconds, 300));
     }

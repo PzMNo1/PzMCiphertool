@@ -323,6 +323,12 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 CREATE INDEX IF NOT EXISTS idx_agent_runs_email_updated ON agent_runs(email, updated_at);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_email_chat ON agent_runs(email, chat_id, updated_at);
 
+CREATE TABLE IF NOT EXISTS chat_history (
+    account VARCHAR(320) PRIMARY KEY,
+    history_json CLOB NOT NULL,
+    updated_at VARCHAR(40) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS agent_run_events (
     email VARCHAR(320) NOT NULL,
     run_id VARCHAR(96) NOT NULL,

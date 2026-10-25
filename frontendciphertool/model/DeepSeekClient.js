@@ -8,7 +8,7 @@ class DeepSeekClient {
         this.chatUrl = options.chatUrl || config.chatUrl || resolveBackendChatUrl();
         this.defaultModel = normalizeDeepSeekModel(options.defaultModel || config.defaultModel || config.model);
         this.reasonerModel = normalizeDeepSeekModel(options.reasonerModel || config.reasonerModel || config.model);
-        this.imageModel = options.imageModel || config.imageModel || 'gpt-image-1';
+        this.imageModel = options.imageModel || config.imageModel || 'gpt-image-2.5-sunburst';
         this.imageSize = options.imageSize || config.imageSize || '1024x1024';
         this.abortController = null;
         this.usageTurnId = '';
@@ -605,7 +605,7 @@ function resolveDeepSeekConfig() {
     const config = window.DEEPSEEK_CONFIG || window.AGENTMASTER_CONFIG || {};
     return {
         chatUrl: config.chatUrl || localStorage.getItem('CIPHERTOOL_CHAT_API_URL') || '',
-        imageModel: config.imageModel || localStorage.getItem('DEEPSEEK_IMAGE_MODEL') || localStorage.getItem('AGENTMASTER_IMAGE_MODEL') || 'gpt-image-1',
+        imageModel: config.imageModel || localStorage.getItem('DEEPSEEK_IMAGE_MODEL') || localStorage.getItem('AGENTMASTER_IMAGE_MODEL') || 'gpt-image-2.5-sunburst',
         imageSize: config.imageSize || localStorage.getItem('DEEPSEEK_IMAGE_SIZE') || localStorage.getItem('AGENTMASTER_IMAGE_SIZE') || '1024x1024',
         model: normalizeDeepSeekModel(config.model || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),
         defaultModel: normalizeDeepSeekModel(config.defaultModel || localStorage.getItem('DEEPSEEK_MODEL') || localStorage.getItem('AGENTMASTER_MODEL')),

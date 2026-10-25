@@ -221,10 +221,14 @@
             // 在 DOM 上留一个可观测的状态标记，便于自检和排查（控制台看 data-wm-status 即可）
             if (host) host.dataset.wmStatus = status && status.configured ? 'configured' : 'unconfigured';
         } catch (error) {
+            const apiBase = (window.WorldModelClient && typeof window.WorldModelClient.apiBase === 'function')
+                ? window.WorldModelClient.apiBase()
+                : 'unknown';
             showNotice({
                 configured: false,
                 hint: '连不上后端世界模型接口：' + error.message
-                    + '（请确认 backendcipher 已用最新代码启动，端口 8080）'
+                    + '（当前请求：' + apiBase + '/api/world/status；'
+                    + '请确认 backendcipher 已启动，且线上 /api 已反代到 8080）'
             });
             if (host) host.dataset.wmStatus = 'backend-unreachable';
         }

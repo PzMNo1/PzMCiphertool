@@ -91,10 +91,10 @@ llm:
 # OpenAI-compatible image generation config
 image:
   api-key: ${IMAGE_API_KEY:${OPENAI_API_KEY:}}
-  base-url: ${IMAGE_BASE_URL:https://api.openai.com/v1}
-  model: ${IMAGE_MODEL:gpt-image-2}
+  base-url: ${IMAGE_BASE_URL:https://api.aisenyu.com/v1}
+  model: ${IMAGE_MODEL:gpt-image-2.5-sunburst}
   size: ${IMAGE_SIZE:1024x1024}
-  timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:180}
+  timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:240}
 
 # World Labs / Marble 世界模型（李飞飞团队 World API）
 # Key 只在后端读取，前端一律通过 /api/world/** 代理，避免密钥泄漏。
@@ -128,6 +128,13 @@ api-router:
     tpm: ${API_ROUTER_TPM_LIMIT:120000}
   quota:
     default-tokens: ${API_ROUTER_DEFAULT_TOKEN_QUOTA:1000000}
+    preauthorize-output-tokens: ${API_ROUTER_PREAUTHORIZE_OUTPUT_TOKENS:8192}
+  upstream:
+    name: ${API_ROUTER_UPSTREAM_NAME:}
+    base-url: ${API_ROUTER_UPSTREAM_BASE_URL:}
+    api-key: ${API_ROUTER_UPSTREAM_API_KEY:}
+    models: ${API_ROUTER_UPSTREAM_MODELS:}
+    priority: ${API_ROUTER_UPSTREAM_PRIORITY:10}
   price:
     input-per-million: ${API_ROUTER_INPUT_PRICE_PER_MILLION:0}
     output-per-million: ${API_ROUTER_OUTPUT_PRICE_PER_MILLION:0}

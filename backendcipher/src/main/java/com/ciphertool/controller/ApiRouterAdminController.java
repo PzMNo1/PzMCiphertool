@@ -1,11 +1,16 @@
 package com.ciphertool.controller;
 
 import com.ciphertool.dto.ApiResponse;
+import com.ciphertool.dto.ApiRouterAdminOverview;
 import com.ciphertool.dto.ApiRouterChannelRequest;
 import com.ciphertool.dto.ApiRouterChannelStatusRequest;
 import com.ciphertool.dto.ApiRouterDashboard;
 import com.ciphertool.dto.ApiRouterModelPriceRequest;
 import com.ciphertool.dto.ApiRouterModelPriceStatusRequest;
+import com.ciphertool.dto.ApiRouterSubscriptionPlanInfo;
+import com.ciphertool.dto.ApiRouterSubscriptionPlanRequest;
+import com.ciphertool.dto.ApiRouterSubscriptionPlanStatusRequest;
+import com.ciphertool.dto.ApiRouterWalletCreditRequest;
 import com.ciphertool.service.ApiRouterService;
 import com.ciphertool.service.AuthService;
 import jakarta.validation.Valid;
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -143,5 +149,94 @@ public class ApiRouterAdminController {
         List<ApiRouterDashboard.ModelPriceInfo> prices = apiRouterService.deleteModelPrice(request.getId());
         support.audit(operatorEmail, "price.delete", "model_price", request.getId(), "", "");
         return ApiResponse.success("Model price deleted", prices);
+    }
+
+    @GetMapping("/admin/overview")
+    public ApiResponse<ApiRouterAdminOverview> adminOverview(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestParam(defaultValue = "200") int userLimit,
+            @RequestParam(defaultValue = "50") int auditLimit,
+            @RequestParam(defaultValue = "") String query) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        return ApiResponse.success("Admin overview loaded", apiRouterService.getAdminOverview(
+                support.safeAdminLimit(userLimit),
+                support.safeAdminLimit(auditLimit),
+                query
+        ));
+    }
+
+    @PostMapping("/admin/wallet")
+    public ApiResponse<ApiRouterAdminOverview> adjustWallet(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody ApiRouterWalletCreditRequest request) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        apiRouterService.adjustWalletBalance(
+                operatorEmail,
+                request.getTargetEmail(),
+                request.getAmount(),
+                request.getDescription()
+        );
+        support.audit(operatorEmail, "wallet.adjust", "wallet", request.getTargetEmail(), request.getTargetEmail(),
+                support.detail("amount", request.getAmount(), "description", request.getDescription()));
+        return ApiResponse.success("Wallet adjusted", apiRouterService.getAdminOverview(200, 50, ""));
+    }
+
+    @GetMapping("/subscription-plans/admin")
+    public ApiResponse<List<ApiRouterSubscriptionPlanInfo>> listAllSubscriptionPlans(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        return ApiResponse.success("Subscription plans loaded", apiRouterService.listAllSubscriptionPlans());
+    }
+
+    @PostMapping("/subscription-plans")
+    public ApiResponse<List<ApiRouterSubscriptionPlanInfo>> saveSubscriptionPlan(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody ApiRouterSubscriptionPlanRequest request) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        List<ApiRouterSubscriptionPlanInfo> plans = apiRouterService.saveSubscriptionPlan(
+                request.getId(),
+                request.getName(),
+                request.getPrice(),
+                request.getCredit(),
+                request.getQuota(),
+                request.getBadge(),
+                request.getPriority(),
+                request.getEnabled(),
+                request.getNote()
+        );
+        support.audit(operatorEmail, "plan.save", "subscription_plan", support.blank(request.getId()), "",
+                support.detail("name", request.getName(), "price", request.getPrice(), "credit", request.getCredit(),
+                        "enabled", request.getEnabled()));
+        return ApiResponse.success("Subscription plan saved", plans);
+    }
+
+    @PostMapping("/subscription-plans/status")
+    public ApiResponse<List<ApiRouterSubscriptionPlanInfo>> updateSubscriptionPlanStatus(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody ApiRouterSubscriptionPlanStatusRequest request) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        List<ApiRouterSubscriptionPlanInfo> plans = apiRouterService.updateSubscriptionPlanStatus(
+                request.getId(),
+                request.getEnabled()
+        );
+        support.audit(operatorEmail, "plan.status", "subscription_plan", request.getId(), "",
+                support.detail("enabled", request.getEnabled()));
+        return ApiResponse.success("Subscription plan status updated", plans);
+    }
+
+    @PostMapping("/subscription-plans/delete")
+    public ApiResponse<List<ApiRouterSubscriptionPlanInfo>> deleteSubscriptionPlan(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody ApiRouterSubscriptionPlanStatusRequest request) {
+        String operatorEmail = authService.requireSessionAccount(authorization);
+        support.requireAdmin(operatorEmail);
+        List<ApiRouterSubscriptionPlanInfo> plans = apiRouterService.deleteSubscriptionPlan(request.getId());
+        support.audit(operatorEmail, "plan.delete", "subscription_plan", request.getId(), "", "");
+        return ApiResponse.success("Subscription plan deleted", plans);
     }
 }

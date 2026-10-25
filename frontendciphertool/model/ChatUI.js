@@ -879,7 +879,7 @@ class ChatUI {
         container.contentDiv.innerHTML = this.formatMessage(fullContent);
         this._activeSourceMap = null;
         container.contentDiv.classList.toggle('is-streaming', Boolean(options.streaming));
-        if (!options.preserveScroll && nearBottom && this.messagesContainer) {
+        if (!options.preserveScroll && this.messagesContainer && (nearBottom || options.streaming || options.forceScroll)) {
             this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
         }
         if (!options.streaming) {
@@ -894,6 +894,113 @@ class ChatUI {
         const el = this.messagesContainer;
         if (!el) return true;
         return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    }
+
+    startImageGenerationProgress(container, options = {}) {
+        if (!container?.contentDiv) {
+            return { update: () => {}, stop: () => {} };
+        }
+        this.stopImageGenerationProgress(container);
+        const state = {
+            startedAt: Number(options.startedAt) || Date.now(),
+            model: String(options.model || '').trim(),
+            phase: options.phase || 'connecting',
+            continuation: Boolean(options.continuation),
+            timerId: null
+        };
+        container.imageGenerationProgress = state;
+        container.contentDiv.innerHTML = `
+            <div class="image-generation-progress" role="status" aria-live="polite">
+                <div class="image-generation-progress__top">
+                    <span class="image-generation-progress__label">IMAGE GENERATION</span>
+                    <span class="image-generation-progress__elapsed">0 秒</span>
+                </div>
+                <div class="image-generation-progress__title"></div>
+                <div class="image-generation-progress__track" role="progressbar" aria-label="图片生成进度" aria-valuetext="正在生成图片">
+                    <span></span>
+                </div>
+                <div class="image-generation-progress__meta">
+                    <span class="image-generation-progress__model"></span>
+                    <span class="image-generation-progress__hint"></span>
+                </div>
+            </div>
+        `;
+        const render = () => this.renderImageGenerationProgress(container);
+        state.timerId = window.setInterval(render, 1000);
+        render();
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        return {
+            update: update => this.updateImageGenerationProgress(container, update),
+            stop: () => this.stopImageGenerationProgress(container)
+        };
+    }
+
+    updateImageGenerationProgress(container, update = {}) {
+        const state = container?.imageGenerationProgress;
+        if (!state) return;
+        if (update.phase) state.phase = update.phase;
+        this.renderImageGenerationProgress(container);
+    }
+
+    stopImageGenerationProgress(container) {
+        const state = container?.imageGenerationProgress;
+        if (!state) return;
+        if (state.timerId) {
+            window.clearInterval(state.timerId);
+            state.timerId = null;
+        }
+        container.imageGenerationProgress = null;
+    }
+
+    renderImageGenerationProgress(container) {
+        const state = container?.imageGenerationProgress;
+        if (!state || !container?.contentDiv) return;
+        const elapsedMs = Math.max(0, Date.now() - state.startedAt);
+        const title = this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation);
+        const duration = this.formatImageGenerationDuration(elapsedMs);
+        const elapsed = container.contentDiv.querySelector('.image-generation-progress__elapsed');
+        const titleElement = container.contentDiv.querySelector('.image-generation-progress__title');
+        const model = container.contentDiv.querySelector('.image-generation-progress__model');
+        const hint = container.contentDiv.querySelector('.image-generation-progress__hint');
+        const track = container.contentDiv.querySelector('.image-generation-progress__track');
+        if (elapsed) elapsed.textContent = duration;
+        if (titleElement) titleElement.textContent = title;
+        if (model) model.textContent = state.model ? `模型 · ${state.model}` : '图片生成模型';
+        if (hint) hint.textContent = elapsedMs < 45000
+            ? '图片生成通常需要 20–60 秒'
+            : '可继续等待，或停止后重试';
+        if (track) track.setAttribute('aria-valuetext', `${title}，已等待${duration}`);
+        this.setReasoningStatus(container, title);
+    }
+
+    getImageGenerationProgressTitle(phase, elapsedMs, continuation = false) {
+        if (phase === 'receiving') return '图片已返回，正在接收数据';
+        if (phase === 'processing') return '正在解析图片并准备预览';
+        if (phase === 'completed') return '图片生成完成';
+        if (continuation) {
+            if (elapsedMs < 3500) return '正在接续上一轮图片，提交精调请求';
+            if (elapsedMs < 15000) return '正在基于上一轮图片精调画面';
+            if (elapsedMs < 45000) return '正在保留上一轮构图并精调细节';
+            return '精调仍在进行，复杂修改可能需要更久';
+        }
+        if (elapsedMs < 3500) return '请求已提交，正在连接图片生成服务';
+        if (elapsedMs < 15000) return '图片模型已接收请求，正在生成画面';
+        if (elapsedMs < 45000) return '模型正在绘制画面，请稍候';
+        if (elapsedMs < 90000) return '画面仍在生成，复杂描述可能需要更久';
+        return '生成耗时较长，仍在等待模型返回';
+    }
+
+    formatImageGenerationDuration(ms = 0) {
+        const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return minutes > 0 ? `${minutes} 分 ${String(seconds).padStart(2, '0')} 秒` : `${seconds} 秒`;
+    }
+
+    scrollToBottom() {
+        if (this.messagesContainer) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
     }
 
     displayGeneratedImages(container, images = [], caption = '') {

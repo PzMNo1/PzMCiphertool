@@ -549,13 +549,79 @@
         return text.length <= max ? text : `${text.slice(0, max)}...`;
     }
 
-    function buildImageGenerationPrompt(userText, preparedAttachments) {
+    function buildImageBrief(userText, preparedAttachments) {
         return [
             String(userText || '').trim(),
-            preparedAttachments.contextText
-                ? `\n参考用户导入的附件内容生成图片。附件上下文如下：\n${preparedAttachments.contextText}`
+            preparedAttachments?.contextText
+                ? `参考用户导入的附件内容生成图片。附件上下文如下：\n${preparedAttachments.contextText}`
                 : ''
         ].filter(Boolean).join('\n\n');
+    }
+
+    function getUserMessageText(message) {
+        const content = message?.content;
+        if (Array.isArray(content)) {
+            return content
+                .filter(part => part?.type === 'text')
+                .map(part => String(part.text || ''))
+                .join('\n')
+                .trim();
+        }
+        return String(content || '').trim();
+    }
+
+    function collectPriorImageTurns(messages = []) {
+        const list = Array.isArray(messages) ? messages : [];
+        const turns = [];
+        list.forEach((message, index) => {
+            if (message?.role !== 'assistant' || !Array.isArray(message.images) || !message.images.length) return;
+            let userIndex = index - 1;
+            while (userIndex >= 0 && list[userIndex]?.role !== 'user') userIndex -= 1;
+            const userText = userIndex >= 0 ? getUserMessageText(list[userIndex]) : '';
+            const revisedPrompt = message.images
+                .map(image => String(image?.revisedPrompt || '').trim())
+                .find(Boolean) || '';
+            turns.push({
+                userText: truncateContextText(userText, 600),
+                imagePrompt: truncateContextText(message.image_prompt || '', 900),
+                revisedPrompt: truncateContextText(revisedPrompt, 500)
+            });
+        });
+        return turns.slice(-3);
+    }
+
+    function isImageResetRequest(text) {
+        const value = String(text || '');
+        return /(?:不要|别)(?:参考|基于|沿用)|换(?:个|一个)?(?:主题|主体|内容)|从头(?:画|来|生成)|完全重新|另起一张|另一张完全不同/i.test(value);
+    }
+
+    function buildImageGenerationPrompt(userText, preparedAttachments, options = {}) {
+        const brief = options.brief || buildImageBrief(userText, preparedAttachments);
+        const priorTurns = Array.isArray(options.priorImageTurns)
+            ? options.priorImageTurns.filter(Boolean).slice(-3)
+            : [];
+        if (!priorTurns.length) return brief;
+
+        const lines = [
+            '这是同一会话中的连续图片精调，不是重新创作。',
+            '【前序图片记录】'
+        ];
+        priorTurns.forEach((turn, index) => {
+            const label = `第${index + 1}轮`;
+            const pieces = [];
+            if (turn.userText) pieces.push(`${label}用户要求：${turn.userText}`);
+            if (turn.imagePrompt && turn.imagePrompt !== turn.userText) {
+                pieces.push(`${label}实际图片提示词：${turn.imagePrompt}`);
+            }
+            if (turn.revisedPrompt && turn.revisedPrompt !== turn.imagePrompt && turn.revisedPrompt !== turn.userText) {
+                pieces.push(`${label}图片服务修订提示：${turn.revisedPrompt}`);
+            }
+            if (!pieces.length) pieces.push(`${label}：已生成一张图片。`);
+            lines.push(...pieces);
+        });
+        lines.push('', '【本轮精调要求】', brief, '', '【连续性规则】');
+        lines.push('若模型支持会话内参考图，请以会话中的上一张图为视觉基准；否则以上一轮的提示词、修订提示和已确认细节为基准。保留主体、构图、视角、人物/物体特征、风格与配色，只修改本轮明确要求的部分。若本轮只提出局部修改，未提及的内容保持不变，不要重新设计成无关的新图。');
+        return lines.join('\n');
     }
 
     function getPersistableImages(images = []) {
@@ -564,7 +630,11 @@
             .map(image => {
                 if (!image?.url) return null;
                 if (image.url.startsWith('data:') && image.url.length > MAX_STORED_IMAGE_CHARS) {
-                    return null;
+                    return {
+                        url: `[data image omitted, ${image.url.length} chars]`,
+                        mimeType: image.mimeType || 'image',
+                        revisedPrompt: image.revisedPrompt || ''
+                    };
                 }
                 return {
                     url: image.url,
@@ -778,6 +848,7 @@
             latestAgentRun: initial.agent_run || null,
             latestToolCalls: initial.tool_calls || null,
             latestImages: initial.images || null,
+            latestImagePrompt: initial.image_prompt || '',
             durableRunId: initial.durableRunId || null,
             latestResumePrompt: initial.resume_prompt || '',
             latestErrorMessage: initial.error_message || null,
@@ -810,6 +881,7 @@
             tool_calls: patch.tool_calls ?? entry.latestToolCalls ?? null,
             agent_run: patch.agent_run ?? entry.latestAgentRun ?? null,
             images: patch.images ?? entry.latestImages ?? null,
+            image_prompt: patch.image_prompt ?? entry.latestImagePrompt ?? null,
             durable_run_id: patch.durable_run_id ?? entry.durableRunId ?? null,
             resume_prompt: patch.resume_prompt ?? entry.latestResumePrompt ?? null,
             error_message: patch.error_message ?? entry.latestErrorMessage ?? null,
@@ -826,6 +898,7 @@
             tool_calls: entry.latestToolCalls || null,
             agent_run: entry.latestAgentRun || null,
             images: entry.latestImages || null,
+            image_prompt: entry.latestImagePrompt || null,
             durable_run_id: entry.durableRunId || null,
             resume_prompt: entry.latestResumePrompt || null,
             error_message: entry.latestErrorMessage || null,
@@ -841,6 +914,7 @@
         if (patch.agent_run !== undefined) entry.latestAgentRun = patch.agent_run || null;
         if (patch.tool_calls !== undefined) entry.latestToolCalls = patch.tool_calls || null;
         if (patch.images !== undefined) entry.latestImages = patch.images || null;
+        if (patch.image_prompt !== undefined) entry.latestImagePrompt = patch.image_prompt || '';
         if (patch.durable_run_id !== undefined) entry.durableRunId = patch.durable_run_id || null;
         if (patch.resume_prompt !== undefined) entry.latestResumePrompt = patch.resume_prompt || '';
         if (patch.error_message !== undefined) entry.latestErrorMessage = patch.error_message || null;
@@ -1184,7 +1258,9 @@
      */
     async function sendMessage() {
         // 检查登录状态
-        if (!checkLogin()) {
+        const authUser = checkLogin();
+        updateAgentUsageBadge();
+        if (!authUser) {
             showLoginOverlay(true);
             return;
         }
@@ -1323,21 +1399,45 @@
             refreshSendButtonState();
 
             if (isImageModeEnabled) {
-                window.chatUI.setReasoningStatus(container, '正在生成图片');
-                window.chatUI.appendReasoningEvent(container, '已进入作图模式，正在请求图片生成模型。');
-
-                const imagePrompt = buildImageGenerationPrompt(message, preparedAttachments);
-                const imageResponse = await runClient.generateImage({
-                    prompt: imagePrompt,
-                    signal: abortController.signal
+                const priorImageTurns = collectPriorImageTurns(priorStoredMessages);
+                const isImageContinuation = priorImageTurns.length > 0 && !isImageResetRequest(message);
+                const imageBrief = buildImageBrief(message, preparedAttachments);
+                const imageStartedAt = Date.now();
+                const imageConfig = window.ImageGenerationClient?.resolveConfig?.() || {};
+                const imageModel = imageConfig.model || runClient.imageModel || 'gpt-image-2.5-sunburst';
+                const imageProgress = window.chatUI.startImageGenerationProgress(container, {
+                    startedAt: imageStartedAt,
+                    model: imageModel,
+                    continuation: isImageContinuation
                 });
-                finalContent = imageResponse.content || '已生成图片。';
+                const imagePrompt = buildImageGenerationPrompt(message, preparedAttachments, {
+                    brief: imageBrief,
+                    priorImageTurns: isImageContinuation ? priorImageTurns : []
+                });
+                let imageResponse;
+                try {
+                    imageResponse = await runClient.generateImage({
+                        prompt: imagePrompt,
+                        signal: abortController.signal,
+                        startedAt: imageStartedAt,
+                        onProgress: event => imageProgress.update?.(event)
+                    });
+                } catch (error) {
+                    imageProgress.stop?.();
+                    throw error;
+                }
+                imageProgress.stop?.();
+                finalContent = isImageContinuation
+                    ? '已基于上一轮图片完成精调。'
+                    : (imageResponse.content || '已生成图片。');
                 window.chatUI.displayGeneratedImages(container, imageResponse.images, finalContent);
                 window.chatUI.finalizeMessage(container);
+                window.chatUI.scrollToBottom?.();
 
                 completeActiveRun(activeRun, {
                     content: finalContent,
-                    images: getPersistableImages(imageResponse.images)
+                    images: getPersistableImages(imageResponse.images),
+                    image_prompt: imageBrief
                 });
                 return;
             } else if (runRuntime) {
@@ -1413,6 +1513,7 @@
 
             // 完成消息
             window.chatUI.finalizeMessage(container);
+            window.chatUI.scrollToBottom?.();
 
             // 保存助手消息到历史（包含工具调用信息）
             completeActiveRun(activeRun, {
@@ -2539,7 +2640,7 @@
         eventsInitialized = true;
     }
 
-    function refreshAgentForCurrentAccount() {
+    async function refreshAgentForCurrentAccount() {
         if (!checkLogin()) {
             showLoginOverlay(true);
             window.chatUI.clearMessages();
@@ -2551,6 +2652,12 @@
         }
 
         showLoginOverlay(false);
+        try {
+            await window.historyManager.syncFromBackend();
+        } catch (error) {
+            console.warn('Failed to sync chat history from backend.', error);
+        }
+        updateAgentUsageBadge();
         window.historyManager.getChatHistory();
         recoverDurableRunsIntoHistory();
         selectedChatIds.clear();
@@ -2574,9 +2681,6 @@
         // 绑定事件
         bindEvents();
 
-        // 登录后才能加载该账号的历史与 Agent
-        refreshAgentForCurrentAccount();
-
         if (!window.__agentAuthEventsBound) {
             window.__agentAuthEventsBound = true;
             window.addEventListener('cipher-login-success', () => {
@@ -2587,7 +2691,16 @@
                 durableRecoveryInitialized = false;
                 refreshAgentForCurrentAccount();
             });
+            window.addEventListener('focus', () => {
+                if (checkLogin()) updateAgentUsageBadge();
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && checkLogin()) updateAgentUsageBadge();
+            });
         }
+
+        // 登录后才能加载该账号的历史与 Agent
+        refreshAgentForCurrentAccount();
     }
 
     // 导出全局函数

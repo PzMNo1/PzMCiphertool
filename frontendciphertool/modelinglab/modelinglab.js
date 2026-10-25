@@ -11,7 +11,7 @@
 
     const VIEWS = {
         world: {
-            src: './worldmodel/worldmodel.html',
+            src: './worldmodel/worldmodel.html?v=20261023-19',
             title: '世界模型工作台',
             tab: '世界模型'
         },

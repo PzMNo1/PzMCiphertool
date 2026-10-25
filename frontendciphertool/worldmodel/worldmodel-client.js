@@ -6,13 +6,24 @@
  */
 (function () {
     function resolveApiBase() {
+        const hostname = (typeof window !== 'undefined' && window.location && window.location.hostname) || '';
+        const isLocal = hostname === 'localhost'
+            || hostname === '127.0.0.1'
+            || hostname === ''
+            || /^192\.168\./.test(hostname)
+            || /^10\./.test(hostname);
         try {
             const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
-            if (/^https?:\/\//i.test(override)) {
+            const loopback = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/i.test(override);
+            if (/^https?:\/\//i.test(override) && (!loopback || isLocal)) {
                 return override.replace(/\/+$/, '');
             }
         } catch (error) {
-            // 忽略：localStorage 不可用时回退到本地后端
+            // 忽略：localStorage 不可用时继续走下面的同源/本地回退
+        }
+        // 线上与前端同源（Nginx 反代 /api/world），不能再回退到访问者电脑上的 127.0.0.1。
+        if (!isLocal && typeof window !== 'undefined' && window.location && window.location.origin) {
+            return window.location.origin.replace(/\/+$/, '');
         }
         return 'http://127.0.0.1:8080';
     }

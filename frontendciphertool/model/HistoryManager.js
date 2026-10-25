@@ -1,6 +1,6 @@
 /**
  * HistoryManager - 聊天历史管理模块
- * 负责聊天历史的增删改查和 localStorage 持久化
+ * 负责聊天历史的增删改查、localStorage 缓存和后端账号同步
  */
 
 class HistoryManager {
@@ -16,6 +16,9 @@ class HistoryManager {
         this.MAX_AGENT_TOOL_RESULTS = 36;
         this.MAX_STORED_CONTENT_CHARS = 260000;
         this.MAX_STORED_IMAGE_URL_CHARS = 4200000;
+        this.backendSyncTimer = null;
+        this.backendSyncPromise = null;
+        this.syncedAccount = '';
     }
 
     getAccountScope() {
@@ -38,17 +41,17 @@ class HistoryManager {
 
     getChatHistory() {
         let history = localStorage.getItem(this.STORAGE_KEY);
+        if (history) {
+            try {
+                localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+            } catch (error) {
+                // Ignore stale legacy cleanup failures.
+            }
+        }
         if (!history && this.getAccountScope() !== 'guest') {
             const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
             if (legacy) {
-                history = legacy;
-                localStorage.setItem(this.STORAGE_KEY, legacy);
-                localStorage.removeItem(this.LEGACY_STORAGE_KEY);
-                const legacyCurrent = localStorage.getItem(this.LEGACY_CURRENT_CHAT_KEY);
-                if (legacyCurrent && !localStorage.getItem(this.CURRENT_CHAT_KEY)) {
-                    localStorage.setItem(this.CURRENT_CHAT_KEY, legacyCurrent);
-                }
-                localStorage.removeItem(this.LEGACY_CURRENT_CHAT_KEY);
+                history = this.migrateLegacyHistory(legacy) || legacy;
             }
         }
         if (!history) return {};
@@ -58,6 +61,130 @@ class HistoryManager {
             console.warn('Failed to parse chat history; starting with an empty history.', error);
             return {};
         }
+    }
+
+    migrateLegacyHistory(legacy) {
+        try {
+            // 旧版共享历史的键只迁移一次，先删旧键再写新键，避免双份数据撑爆 localStorage。
+            localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+            localStorage.setItem(this.STORAGE_KEY, legacy);
+        } catch (error) {
+            try {
+                if (!localStorage.getItem(this.LEGACY_STORAGE_KEY)) {
+                    localStorage.setItem(this.LEGACY_STORAGE_KEY, legacy);
+                }
+            } catch (restoreError) {
+                // Ignore restore failures; the legacy history is still available in memory.
+            }
+            console.warn('Failed to migrate legacy chat history.', error);
+            return null;
+        }
+
+        try {
+            const legacyCurrent = localStorage.getItem(this.LEGACY_CURRENT_CHAT_KEY);
+            if (legacyCurrent && !localStorage.getItem(this.CURRENT_CHAT_KEY)) {
+                localStorage.setItem(this.CURRENT_CHAT_KEY, legacyCurrent);
+            }
+            localStorage.removeItem(this.LEGACY_CURRENT_CHAT_KEY);
+        } catch (error) {
+            console.warn('Failed to migrate legacy chat pointer.', error);
+        }
+        return localStorage.getItem(this.STORAGE_KEY);
+    }
+
+    resolveBackendHistoryUrl() {
+        const base = (() => {
+            try {
+                const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+                if (/^https?:\/\//i.test(override)) {
+                    return override.replace(/\/+$/, '');
+                }
+            } catch (error) {
+                // Fall through to local backend.
+            }
+            return 'http://127.0.0.1:8080';
+        })();
+        return `${base}/api/chat/history/me`;
+    }
+
+    getBackendAuthHeaders() {
+        try {
+            return window.CipherAuth?.getAuthHeaders?.() || {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    async syncFromBackend() {
+        const user = window.CipherAuth?.getUser?.() || null;
+        if (!user?.token) return false;
+        const account = String(user.phone || user.username || user.email || '').trim();
+        if (account && this.syncedAccount === account) return false;
+        if (this.backendSyncPromise) return this.backendSyncPromise;
+        this.backendSyncPromise = (async () => {
+            try {
+                const response = await fetch(this.resolveBackendHistoryUrl(), {
+                    headers: this.getBackendAuthHeaders()
+                });
+                if (!response.ok) return false;
+                const result = await response.json();
+                if (!result?.success) return false;
+                if (account) this.syncedAccount = account;
+                const remote = result.data;
+                if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(remote));
+                    localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+                    return true;
+                }
+                let local = localStorage.getItem(this.STORAGE_KEY);
+                if (!local) {
+                    const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
+                    if (legacy) local = this.migrateLegacyHistory(legacy);
+                }
+                if (local) {
+                    try {
+                        await this.pushHistoryToBackend(JSON.parse(local));
+                    } catch (error) {
+                        // Keep local history when the initial upload fails.
+                    }
+                }
+                return false;
+            } catch (error) {
+                return false;
+            } finally {
+                this.backendSyncPromise = null;
+            }
+        })();
+        return this.backendSyncPromise;
+    }
+
+    async pushHistoryToBackend(history) {
+        if (!window.CipherAuth?.getUser?.()?.token) return false;
+        if (!history || typeof history !== 'object') return false;
+        try {
+            const response = await fetch(this.resolveBackendHistoryUrl(), {
+                method: 'POST',
+                headers: {
+                    ...this.getBackendAuthHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ history })
+            });
+            return response.ok;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    scheduleBackendSync(history) {
+        if (!window.CipherAuth?.getUser?.()?.token) return;
+        if (this.backendSyncTimer) {
+            clearTimeout(this.backendSyncTimer);
+        }
+        this.backendSyncTimer = setTimeout(() => {
+            this.backendSyncTimer = null;
+            this.pushHistoryToBackend(history);
+        }, 1200);
     }
 
     saveChatHistory(chatId, title, messages = []) {
@@ -280,76 +407,16 @@ class HistoryManager {
     }
 
     persistHistory(history) {
-        const attempts = [
-            this.compactHistoryForStorage(history, 'normal'),
-            this.compactHistoryForStorage(history, 'tight'),
-            this.pruneHistoryToBudget(this.compactHistoryForStorage(history, 'minimal'), 3600000)
-        ];
-
-        let lastError = null;
-        for (const payload of attempts) {
-            try {
-                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
-                return true;
-            } catch (error) {
-                lastError = error;
-                if (!this.isStorageQuotaError(error)) break;
-            }
+        const payload = history && typeof history === 'object' ? history : {};
+        let saved = false;
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+            saved = true;
+        } catch (error) {
+            console.warn('Chat history was not persisted to local storage.', error);
         }
-
-        console.warn('Chat history was not persisted because browser storage is full or unavailable.', lastError);
-        return false;
-    }
-
-    isStorageQuotaError(error) {
-        const name = String(error?.name || '');
-        const message = String(error?.message || '');
-        return name === 'QuotaExceededError'
-            || name === 'NS_ERROR_DOM_QUOTA_REACHED'
-            || error?.code === 22
-            || error?.code === 1014
-            || /quota|exceeded|storage/i.test(message);
-    }
-
-    compactHistoryForStorage(history, level = 'normal') {
-        const compacted = {};
-        Object.entries(history || {}).forEach(([chatId, chat]) => {
-            if (!chat || typeof chat !== 'object') return;
-            const messages = Array.isArray(chat.messages) ? chat.messages : [];
-            compacted[chatId] = {
-                id: chat.id || chatId,
-                title: this.truncateText(chat.title || '', 140),
-                messages: messages.map(message => this.prepareMessageForStorage(message, level)),
-                timestamp: Number(chat.timestamp) || Date.now()
-            };
-            if (chat.imported_at) compacted[chatId].imported_at = chat.imported_at;
-            if (chat.imported_from) compacted[chatId].imported_from = chat.imported_from;
-        });
-        return compacted;
-    }
-
-    pruneHistoryToBudget(history, maxChars) {
-        const currentChatId = this.getCurrentChatId();
-        const entries = Object.entries(history || {}).sort((a, b) => {
-            if (a[0] === currentChatId) return -1;
-            if (b[0] === currentChatId) return 1;
-            return (Number(b[1]?.timestamp) || 0) - (Number(a[1]?.timestamp) || 0);
-        });
-        const kept = {};
-        for (const [chatId, chat] of entries) {
-            kept[chatId] = chat;
-            if (JSON.stringify(kept).length > maxChars) {
-                delete kept[chatId];
-                if (chatId === currentChatId) {
-                    kept[chatId] = {
-                        ...chat,
-                        messages: (chat.messages || []).slice(-12)
-                    };
-                }
-                break;
-            }
-        }
-        return kept;
+        this.scheduleBackendSync(payload);
+        return saved;
     }
 
     prepareMessageForStorage(message, level = 'normal') {
@@ -386,6 +453,9 @@ class HistoryManager {
         }
         if (Array.isArray(source.images) && source.images.length) {
             stored.images = source.images.map(image => this.compactStoredImage(image, level)).filter(Boolean);
+        }
+        if (source.image_prompt) {
+            stored.image_prompt = this.truncateText(source.image_prompt, 6000);
         }
         if (source.agent_run) {
             stored.agent_run = this.compactAgentRunForStorage(source.agent_run, level);

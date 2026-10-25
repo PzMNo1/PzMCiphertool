@@ -2387,6 +2387,15 @@
   grid-template-columns: repeat(4, minmax(160px, 1fr));
 }
 
+.apizz-admin-actions {
+  grid-template-columns: minmax(180px, 240px);
+  min-width: 0;
+}
+
+.apizz-admin-query {
+  width: min(260px, 100%);
+}
+
 .apizz-ops-panel {
   min-height: auto !important;
   margin-bottom: 1rem;

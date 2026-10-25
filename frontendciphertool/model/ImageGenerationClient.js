@@ -3,8 +3,9 @@
  * It patches DeepSeekClient without adding more weight to model/main.js.
  */
 (function () {
-    const DEFAULT_MODEL = 'gpt-image-2';
+    const DEFAULT_MODEL = 'gpt-image-2.5-sunburst';
     const DEFAULT_SIZE = '1024x1024';
+    const DEFAULT_TIMEOUT_MS = 270000;
 
     function resolveApiBase() {
         try {
@@ -32,7 +33,8 @@
             url: options.url || imageConfig.url || `${resolveApiBase()}/api/images/generations`,
             model: options.model || imageConfig.model || legacyConfig.imageModel || readLocal('CIPHERTOOL_IMAGE_MODEL') || DEFAULT_MODEL,
             size: options.size || imageConfig.size || legacyConfig.imageSize || readLocal('CIPHERTOOL_IMAGE_SIZE') || DEFAULT_SIZE,
-            n: normalizeCount(options.n || imageConfig.imageCount || imageConfig.n || readLocal('CIPHERTOOL_IMAGE_COUNT') || 1)
+            n: normalizeCount(options.n || imageConfig.imageCount || imageConfig.n || readLocal('CIPHERTOOL_IMAGE_COUNT') || 1),
+            timeoutMs: normalizeTimeout(options.timeoutMs || imageConfig.timeoutMs || DEFAULT_TIMEOUT_MS)
         };
     }
 
@@ -40,6 +42,12 @@
         const count = Number(value);
         if (!Number.isFinite(count)) return 1;
         return Math.max(1, Math.min(4, Math.round(count)));
+    }
+
+    function normalizeTimeout(value) {
+        const timeout = Number(value);
+        if (!Number.isFinite(timeout) || timeout < 10000) return DEFAULT_TIMEOUT_MS;
+        return Math.min(600000, Math.round(timeout));
     }
 
     function normalizeImageItem(item) {
@@ -67,14 +75,40 @@
         };
     }
 
+    function emitProgress(options, phase) {
+        try {
+            options.onProgress?.({
+                phase,
+                elapsedMs: Math.max(0, Date.now() - (Number(options.startedAt) || Date.now()))
+            });
+        } catch (error) {
+            console.warn('Image generation progress handler failed.', error);
+        }
+    }
+
     async function generateImageThroughBackend(options = {}) {
         const prompt = String(options.prompt || '').trim() || 'Create an image for this empty image-mode message.';
+        if (!String(options.prompt || '').trim()) {
+            throw new Error('图片生成提示不能为空');
+        }
 
         const config = resolveImageConfig(options);
-        const controller = options.signal ? null : new AbortController();
-        this.abortController = options.signal ? { signal: options.signal } : controller;
+        const externalSignal = options.signal || null;
+        const controller = new AbortController();
+        this.abortController = controller;
+        let timedOut = false;
+        const abortFromExternal = () => controller.abort();
+        if (externalSignal) {
+            if (externalSignal.aborted) controller.abort();
+            else externalSignal.addEventListener('abort', abortFromExternal, { once: true });
+        }
+        const timeoutId = window.setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, config.timeoutMs);
 
         try {
+            emitProgress(options, 'connecting');
             const response = await fetch(config.url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -84,9 +118,10 @@
                     size: config.size,
                     n: config.n
                 }),
-                signal: options.signal || controller.signal
+                signal: controller.signal
             });
 
+            emitProgress(options, 'receiving');
             const rawText = await response.text();
             let payload = null;
             try {
@@ -100,22 +135,31 @@
                 throw new Error(`图片生成失败: ${String(message).slice(0, 500)}`);
             }
 
+            emitProgress(options, 'processing');
             const result = normalizeBackendPayload(payload);
             if (!result.images.length) {
                 throw new Error('图片生成接口没有返回图片');
             }
+            emitProgress(options, 'completed');
             return result;
         } catch (error) {
+            if (timedOut) {
+                throw new Error(`图片生成超时（${Math.round(config.timeoutMs / 1000)} 秒），请重试或简化画面描述。`);
+            }
             if (error?.name === 'AbortError') {
                 throw error;
             }
             console.warn('Image generation failed.', error);
             throw new Error(error?.message || '图片生成失败，请检查后端图片模型配置后重试');
+        } finally {
+            window.clearTimeout(timeoutId);
+            if (externalSignal) externalSignal.removeEventListener('abort', abortFromExternal);
+            if (this.abortController === controller) this.abortController = null;
         }
     }
 
     function installImageGenerationPatch() {
-        if (!window.DeepSeekClient || window.DeepSeekClient.__imageGenerationPatched) return false;
+        if (!window.DeepSeekClient || window.DeepSeekClient.__imageGenerationPatched) return Boolean(window.DeepSeekClient);
 
         window.DeepSeekClient.prototype.resolveImagesUrl = function () {
             return resolveImageConfig().url;
@@ -126,7 +170,15 @@
     }
 
     if (!installImageGenerationPatch()) {
-        document.addEventListener('DOMContentLoaded', installImageGenerationPatch);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', installImageGenerationPatch, { once: true });
+        } else {
+            let attempts = 0;
+            const retryId = window.setInterval(() => {
+                attempts += 1;
+                if (installImageGenerationPatch() || attempts >= 30) window.clearInterval(retryId);
+            }, 100);
+        }
     }
 
     window.ImageGenerationClient = {

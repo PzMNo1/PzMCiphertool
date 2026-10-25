@@ -225,9 +225,9 @@
                 `- 正文篇幅：不少于 ${contract.minChars} 个中文字（不含来源列表与 URL）。宁可写长，不可写短。`,
                 `- 必须包含至少 ${contract.minTables} 个 Markdown 表格（用 | 分隔，含表头与分隔行），用于承载可比较的数据、指标、参与者、时间线。`,
                 `- 必须包含至少 ${contract.minDiagrams} 个数据图表，用 \`\`\`mermaid（流程/因果/时间线）或 \`\`\`chart（Nature 风格统计图 JSON）围栏包裹。`,
-                '- 统计图优先用 ```chart：type 可选 bar / line / trend / scatter / control / pie / donut / box / histogram / pareto / area；柱/折线/散点/控制图要给出 categories 或 x、series（或 values），控制图另给 center/ucl/lcl。示例：```chart {"type":"bar","title":"…","unit":"%","categories":["A","B"],"series":[{"name":"份额","values":[31,24]}]}```。',
-                '- 需要展示相关性时用 scatter（x/y 或 points，自动带回归趋势线与 R²）；展示过程稳定性时用 control（values + center/ucl/lcl）；展示时间趋势时用 line。',
-                '- Mermaid 只用于流程、归因、时间线与路线图：flowchart / timeline / gantt。量级对比、趋势、相关性、过程控制不要用 Mermaid，改用上面的 chart。',
+                '- 统计图优先用 ```chart：type 可选 bar / line / trend / scatter / control / donut / pie / box / histogram / pareto / area；占比结构默认用 donut（环形图，pie 也会按环形图渲染）；柱/折线/散点/控制图要给出 categories 或 x、series（或 values），控制图另给 center/ucl/lcl。示例：```chart {"type":"bar","title":"…","unit":"%","categories":["A","B"],"series":[{"name":"份额","values":[31,24]}]}```。',
+                '- 需要展示相关性时用 scatter（x/y 或 points，自动带回归趋势线与 R²）；展示过程稳定性时用 control（values + center/ucl/lcl）；展示时间趋势时用 line。图表配色由渲染器统一控制，不要在 JSON 里指定 color。',
+                '- Mermaid 只用于流程、归因、时间线与路线图：flowchart / timeline / gantt。时间线每个节点文案控制在 18 个汉字以内，避免卡片溢出。量级对比、趋势、相关性、过程控制不要用 Mermaid，改用上面的 chart。',
                 `- 引用：全文至少 ${contract.minCitations} 个 [n] 编号引用，编号必须与文末来源列表一一对应，不得跳号或编造。`,
                 '- 结构与篇幅分配建议（可按实际情况增删章节，但不得缺失这些主题）：'
             ];

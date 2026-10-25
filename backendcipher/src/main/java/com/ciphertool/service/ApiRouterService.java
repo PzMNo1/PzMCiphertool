@@ -38,6 +38,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
@@ -119,10 +120,30 @@ public class ApiRouterService {
     @Value("${api-router.health.circuit-open-minutes:5}")
     private long circuitOpenMinutes;
 
+    @Value("${api-router.admin-emails:}")
+    private String adminAccounts;
+
+    @Value("${api-router.upstream.name:}")
+    private String configuredUpstreamName;
+
+    @Value("${api-router.upstream.base-url:}")
+    private String configuredUpstreamBaseUrl;
+
+    @Value("${api-router.upstream.api-key:}")
+    private String configuredUpstreamApiKey;
+
+    @Value("${api-router.upstream.models:}")
+    private String configuredUpstreamModels;
+
+    @Value("${api-router.upstream.priority:10}")
+    private int configuredUpstreamPriority;
+
     @PostConstruct
     public void initializeCommercialStorage() {
         seedDefaultChannel();
+        seedConfiguredUpstreamChannel();
         seedDefaultSubscriptionPlans();
+        seedDefaultModelPrices();
         migrateLegacyFilesAtStartup();
     }
 
@@ -132,6 +153,7 @@ public class ApiRouterService {
         attachKeyViews(email, dashboard);
         applyUsageAggregation(email, dashboard);
         dashboard.setLedger(listLedger(email, 20));
+        dashboard.setAdmin(isAdminAccount(email));
         return dashboard;
     }
 
@@ -141,6 +163,7 @@ public class ApiRouterService {
         attachKeyViews(email, dashboard);
         applyUsageAggregation(email, dashboard);
         dashboard.setLedger(listLedger(email, 20));
+        dashboard.setAdmin(isAdminAccount(email));
         save(email, dashboard);
         return dashboard;
     }
@@ -254,6 +277,55 @@ public class ApiRouterService {
                 now
         );
         return getDashboard(owner, range, granularity);
+    }
+
+    public synchronized void adjustWalletBalance(
+            String operatorEmail,
+            String targetEmail,
+            double amount,
+            String description) {
+        String owner = normalizeEmail(targetEmail);
+        if (owner.isBlank()) {
+            throw new IllegalArgumentException("目标账号不能为空");
+        }
+        if (Math.abs(amount) < 0.0001) {
+            throw new IllegalArgumentException("调整金额不能为 0");
+        }
+        ensureWallet(owner);
+        double nextBalance = round4(currentWalletBalance(owner) + amount);
+        if (nextBalance < 0) {
+            throw new IllegalArgumentException("调整后余额不能为负");
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        jdbcTemplate.update(
+                "update api_router_wallets set balance = ?, updated_at = ? where email = ?",
+                BigDecimal.valueOf(nextBalance),
+                now,
+                owner
+        );
+        jdbcTemplate.update(
+                "insert into api_router_ledger(id, email, key_id, usage_id, entry_type, amount, balance_after, description, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID().toString(),
+                owner,
+                "",
+                "",
+                "MANUAL_ADJUST",
+                BigDecimal.valueOf(round4(amount)),
+                BigDecimal.valueOf(nextBalance),
+                blankToDefault(description, "Manual balance adjustment by " + normalizeEmail(operatorEmail)),
+                now
+        );
+    }
+
+    public boolean isAdminAccount(String account) {
+        String normalized = normalizeEmail(account);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(blankToDefault(adminAccounts, "").split(","))
+                .map(this::normalizeEmail)
+                .filter(value -> !value.isBlank())
+                .anyMatch(value -> "*".equals(value) || value.equals(normalized));
     }
 
     public synchronized ApiRouterDashboard redeemCode(String email, String code, String range, String granularity) {
@@ -626,10 +698,18 @@ public class ApiRouterService {
     }
 
     public synchronized WalletReservation reserveWalletForRequest(ApiKeyValidation validation, String model, long estimatedInputTokens) {
+        return reserveWalletForRequest(validation, model, estimatedInputTokens, 0);
+    }
+
+    public synchronized WalletReservation reserveWalletForRequest(
+            ApiKeyValidation validation,
+            String model,
+            long estimatedInputTokens,
+            long estimatedOutputTokens) {
         if (validation == null || validation.getEmail() == null) {
             return WalletReservation.none();
         }
-        double estimatedCost = estimatePreauthCost(model, estimatedInputTokens);
+        double estimatedCost = estimatePreauthCost(model, estimatedInputTokens, estimatedOutputTokens);
         if (estimatedCost <= 0) {
             return WalletReservation.none();
         }
@@ -656,7 +736,7 @@ public class ApiRouterService {
                 "USAGE_PREAUTH",
                 BigDecimal.valueOf(-round4(estimatedCost)),
                 BigDecimal.valueOf(nextBalance),
-                "Pre-authorized " + blankToDefault(model, "unknown") + " input cost",
+                "Pre-authorized " + blankToDefault(model, "unknown") + " request cost",
                 now
         );
         return new WalletReservation(reservationId, estimatedCost);
@@ -686,6 +766,87 @@ public class ApiRouterService {
                 "select * from api_router_subscription_plans where enabled = true order by priority asc, price asc",
                 subscriptionPlanRowMapper()
         );
+    }
+
+    public synchronized List<ApiRouterSubscriptionPlanInfo> listAllSubscriptionPlans() {
+        return jdbcTemplate.query(
+                "select * from api_router_subscription_plans order by priority asc, price asc",
+                subscriptionPlanRowMapper()
+        );
+    }
+
+    public synchronized List<ApiRouterSubscriptionPlanInfo> saveSubscriptionPlan(
+            String id,
+            String name,
+            double price,
+            double credit,
+            String quota,
+            String badge,
+            Integer priority,
+            Boolean enabled,
+            String note) {
+        String planName = blankToDefault(name, "").trim();
+        if (planName.isBlank()) {
+            throw new IllegalArgumentException("套餐名称不能为空");
+        }
+        boolean nextEnabled = enabled == null || enabled;
+        if (nextEnabled && credit <= 0) {
+            throw new IllegalArgumentException("到账余额必须大于 0");
+        }
+        String planId = id == null || id.isBlank() ? UUID.randomUUID().toString() : id.trim();
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        int nextPriority = priority == null ? 100 : Math.max(0, priority);
+        int updated = jdbcTemplate.update(
+                "update api_router_subscription_plans set name = ?, price = ?, credit = ?, quota = ?, badge = ?, enabled = ?, priority = ?, note = ?, updated_at = ? where id = ?",
+                planName,
+                BigDecimal.valueOf(round6(Math.max(0.0, price))),
+                BigDecimal.valueOf(round6(Math.max(0.0, credit))),
+                blankToDefault(quota, ""),
+                blankToDefault(badge, ""),
+                nextEnabled,
+                nextPriority,
+                blankToDefault(note, ""),
+                now,
+                planId
+        );
+        if (updated == 0) {
+            jdbcTemplate.update(
+                    "insert into api_router_subscription_plans(id, name, price, credit, quota, badge, enabled, priority, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    planId,
+                    planName,
+                    BigDecimal.valueOf(round6(Math.max(0.0, price))),
+                    BigDecimal.valueOf(round6(Math.max(0.0, credit))),
+                    blankToDefault(quota, ""),
+                    blankToDefault(badge, ""),
+                    nextEnabled,
+                    nextPriority,
+                    blankToDefault(note, ""),
+                    now,
+                    now
+            );
+        }
+        return listAllSubscriptionPlans();
+    }
+
+    public synchronized List<ApiRouterSubscriptionPlanInfo> updateSubscriptionPlanStatus(String id, Boolean enabled) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("套餐 ID 不能为空");
+        }
+        jdbcTemplate.update(
+                "update api_router_subscription_plans set enabled = ?, updated_at = ? where id = ?",
+                enabled == null || enabled,
+                LocalDateTime.now().format(STORAGE_TIME),
+                id.trim()
+        );
+        return listAllSubscriptionPlans();
+    }
+
+    public synchronized List<ApiRouterSubscriptionPlanInfo> deleteSubscriptionPlan(String id) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("套餐 ID 不能为空");
+        }
+        jdbcTemplate.update("delete from api_router_subscription_plans where id = ?", id.trim());
+        return listAllSubscriptionPlans();
     }
 
     public synchronized ApiRouterDashboard.OrderInfo createSubscriptionOrder(
@@ -1789,6 +1950,89 @@ public class ApiRouterService {
         }
     }
 
+    private void seedConfiguredUpstreamChannel() {
+        String baseUrl = blankToDefault(configuredUpstreamBaseUrl, "").trim();
+        String apiKey = blankToDefault(configuredUpstreamApiKey, "").trim();
+        if (baseUrl.isBlank() || apiKey.isBlank()) {
+            return;
+        }
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        String id = "env-upstream";
+        String name = blankToDefault(configuredUpstreamName, "Configured upstream");
+        String models = blankToDefault(configuredUpstreamModels, "*");
+        int priority = Math.max(0, configuredUpstreamPriority);
+        int updated = jdbcTemplate.update(
+                "update api_router_channels set name = ?, provider = ?, base_url = ?, api_key = ?, models = ?, priority = ?, weight = ?, enabled = ?, retry_enabled = ?, updated_at = ? where id = ?",
+                name,
+                inferProvider(baseUrl),
+                baseUrl,
+                apiKey,
+                models,
+                priority,
+                1,
+                true,
+                true,
+                now,
+                id
+        );
+        if (updated == 0) {
+            jdbcTemplate.update(
+                    "insert into api_router_channels(id, name, provider, base_url, api_key, models, priority, weight, enabled, retry_enabled, failure_count, last_status, last_error, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    id,
+                    name,
+                    inferProvider(baseUrl),
+                    baseUrl,
+                    apiKey,
+                    models,
+                    priority,
+                    1,
+                    true,
+                    true,
+                    0,
+                    0,
+                    "",
+                    now,
+                    now
+            );
+        }
+    }
+
+    private void seedDefaultModelPrices() {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from api_router_model_prices",
+                Integer.class
+        );
+        if (count != null && count > 0) {
+            return;
+        }
+        seedModelPrice("claude-opus-5-5", "claude-opus-5-5", 4, 20, 10, "Claude Opus 5.5");
+        seedModelPrice("claude-opus-5", "claude-opus-5", 4, 20, 10, "Claude Opus 5");
+        seedModelPrice("claude-opus-4", "claude-opus-4-*", 5, 25, 20, "Claude Opus 4.x");
+        seedModelPrice("claude-sonnet", "claude-sonnet-*", 3, 15, 20, "Claude Sonnet");
+        seedModelPrice("claude-fable", "claude-fable-*", 10, 50, 20, "Claude Fable");
+        seedModelPrice("claude", "claude-*", 4, 20, 100, "Claude fallback");
+        seedModelPrice("deepseek", "deepseek-*", 0.28, 0.42, 20, "DeepSeek");
+        seedModelPrice("default", "*", 4, 20, 900, "Default fallback price");
+    }
+
+    private void seedModelPrice(String id, String pattern, double input, double output, int priority, String note) {
+        String now = LocalDateTime.now().format(STORAGE_TIME);
+        jdbcTemplate.update(
+                "insert into api_router_model_prices(id, model_pattern, provider, channel_id, input_price_per_million, output_price_per_million, priority, enabled, note, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                id,
+                pattern,
+                "*",
+                "*",
+                BigDecimal.valueOf(round6(input)),
+                BigDecimal.valueOf(round6(output)),
+                priority,
+                true,
+                note,
+                now,
+                now
+        );
+    }
+
     private void seedDefaultSubscriptionPlans() {
         Integer count = jdbcTemplate.queryForObject(
                 "select count(*) from api_router_subscription_plans",
@@ -1823,6 +2067,7 @@ public class ApiRouterService {
                 rs.getString("quota"),
                 rs.getString("badge"),
                 rs.getBoolean("enabled"),
+                rs.getInt("priority"),
                 rs.getString("note")
         );
     }
@@ -3507,9 +3752,9 @@ public class ApiRouterService {
         }
     }
 
-    private double estimatePreauthCost(String model, long inputTokens) {
-        BillingRate rate = resolvePreauthBillingRate(model, Math.max(0, inputTokens));
-        return calculateCost(rate, inputTokens, 0);
+    private double estimatePreauthCost(String model, long inputTokens, long outputTokens) {
+        BillingRate rate = resolvePreauthBillingRate(model);
+        return calculateCost(rate, inputTokens, outputTokens);
     }
 
     private double estimateCost(String model, long inputTokens, long outputTokens, String provider, String channelId) {
@@ -3548,7 +3793,7 @@ public class ApiRouterService {
                 .anyMatch(rule -> priceScopeMatches(rule.channelId(), normalizedChannelId));
     }
 
-    private BillingRate resolvePreauthBillingRate(String model, long inputTokens) {
+    private BillingRate resolvePreauthBillingRate(String model) {
         List<ModelPriceRule> matchingRules = loadEnabledModelPriceRules().stream()
                 .filter(rule -> modelPatternMatches(rule.modelPattern(), model))
                 .toList();
@@ -3556,8 +3801,11 @@ public class ApiRouterService {
             return defaultBillingRate();
         }
         return matchingRules.stream()
+                .sorted(Comparator
+                        .comparingInt(ModelPriceRule::priority)
+                        .thenComparing((ModelPriceRule rule) -> priceSpecificity(rule, model, "*", "*"), Comparator.reverseOrder()))
                 .map(rule -> new BillingRate(rule.inputPricePerMillion(), rule.outputPricePerMillion()))
-                .max(Comparator.comparingDouble(rate -> calculateCost(rate, inputTokens, 0)))
+                .findFirst()
                 .orElse(defaultBillingRate());
     }
 

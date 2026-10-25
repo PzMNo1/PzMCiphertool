@@ -17,7 +17,12 @@
             const enabledChannels = channels.filter(item => item.enabled).length;
             const enabledPrices = prices.filter(item => item.enabled).length;
             const enabledPlans = plans.filter(item => item.enabled).length;
-            const servedModelNames = status && Array.isArray(status.servedModelNames) ? status.servedModelNames : [];
+            const servedModelNames = Array.from(new Set(
+                channels
+                    .filter(item => item.enabled)
+                    .flatMap(item => String(item.models || '').split(',').map(model => model.trim()))
+                    .filter(model => model && model !== '*')
+            ));
             const servedModelMeta = servedModelNames.length
                 ? servedModelNames.slice(0, 3).join(', ')
                 : '需启用渠道和价格';
@@ -82,7 +87,7 @@
                         ${h.metricCard('启用渠道', enabledChannels, `${channels.length} total`, 'CHN', 'blue')}
                         ${h.metricCard('价格规则', enabledPrices, `${prices.length} total`, 'PRC', 'orange')}
                         ${h.metricCard('余额套餐', enabledPlans, `${plans.length} total`, 'PLN', 'green')}
-                        ${h.metricCard('可服务模型', status ? h.numberValue(status.servedModels || 0) : '-', servedModelMeta, 'MDL', 'purple')}
+                        ${h.metricCard('可服务模型', servedModelNames.length, servedModelMeta, 'MDL', 'purple')}
                         ${h.metricCard('网关状态', status ? healthText(status.status || status.health) : '未检查', '渠道检测', 'STS', statusClass(status))}
                     </div>
 
@@ -349,13 +354,14 @@
     }
 
     function healthRow(item, h) {
-        const healthy = String(item.health || item.status || '').toUpperCase();
+        const current = item.state || item.health || item.status || '';
+        const healthy = String(current).toUpperCase();
         const cls = healthy.includes('HEALTH') || healthy.includes('OK') ? 'healthy' : healthy.includes('DISABLED') ? 'disabled' : 'degraded';
         return `
             <tr>
                 <td>${h.escapeHtml(item.name || item.id || '-')}</td>
                 <td>${h.escapeHtml(item.provider || '-')}</td>
-                <td><span class="apizz-status-pill ${cls}">${h.escapeHtml(healthText(item.health || item.status || '-'))}</span></td>
+                <td><span class="apizz-status-pill ${cls}">${h.escapeHtml(healthText(current))}</span></td>
                 <td>${h.escapeHtml(item.lastStatus || item.statusCode || '-')}</td>
                 <td class="apizz-muted">${h.escapeHtml(item.lastError || item.message || '')}</td>
             </tr>
@@ -609,6 +615,7 @@
         if (raw.includes('HEALTH') || raw === 'OK') return '正常';
         if (raw.includes('DISABLED')) return '停用';
         if (raw.includes('DEGRADED')) return '降级';
+        if (raw.includes('UNKNOWN')) return '未检测';
         return raw;
     }
 

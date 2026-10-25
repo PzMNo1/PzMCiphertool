@@ -122,15 +122,27 @@
                     lineColor: 'rgba(142,231,255,0.75)',
                     secondaryColor: 'rgba(24,60,72,0.7)',
                     tertiaryColor: 'rgba(12,25,34,0.7)',
-                    fontSize: '12px',
-                    pie1: '#0072B2',
-                    pie2: '#D55E00',
-                    pie3: '#009E73',
-                    pie4: '#CC79A7',
-                    pie5: '#E69F00',
-                    pie6: '#56B4E9',
-                    pie7: '#4D4D4D',
-                    pie8: '#F0E442'
+                    fontSize: '13px',
+                    cScale0: '#E9F0F8', cScale1: '#EDF0F6', cScale2: '#E8EFF4',
+                    cScale3: '#EBF1F7', cScale4: '#E6EDF5', cScale5: '#EAF0F6',
+                    cScale6: '#E9F0F8', cScale7: '#EDF0F6', cScale8: '#E8EFF4',
+                    cScale9: '#EBF1F7', cScale10: '#E6EDF5', cScale11: '#EAF0F6',
+                    cScaleLabel0: '#1F2D3A', cScaleLabel1: '#1F2D3A', cScaleLabel2: '#1F2D3A',
+                    cScaleLabel3: '#1F2D3A', cScaleLabel4: '#1F2D3A', cScaleLabel5: '#1F2D3A',
+                    cScaleLabel6: '#1F2D3A', cScaleLabel7: '#1F2D3A', cScaleLabel8: '#1F2D3A',
+                    cScaleLabel9: '#1F2D3A', cScaleLabel10: '#1F2D3A', cScaleLabel11: '#1F2D3A',
+                    cScaleInv0: '#7E9DBD', cScaleInv1: '#6E90B2', cScaleInv2: '#5F82A7',
+                    cScaleInv3: '#52769C', cScaleInv4: '#456B91', cScaleInv5: '#3A6087',
+                    cScaleInv6: '#7E9DBD', cScaleInv7: '#6E90B2', cScaleInv8: '#5F82A7',
+                    cScaleInv9: '#52769C', cScaleInv10: '#456B91', cScaleInv11: '#3A6087',
+                    pie1: '#3F78D8',
+                    pie2: '#D9534F',
+                    pie3: '#4C8F5E',
+                    pie4: '#DE8A3B',
+                    pie5: '#8A63C9',
+                    pie6: '#B53F78',
+                    pie7: '#2E8FAF',
+                    pie8: '#B08A1E'
                 },
                 flowchart: { htmlLabels: false, curve: 'basis', useMaxWidth: true },
                 sequence: { useMaxWidth: true },
@@ -138,10 +150,10 @@
                 xyChart: {
                     width: 470,
                     height: 290,
-                    plotColorPalette: '#0072B2,#D55E00,#009E73,#CC79A7,#E69F00,#56B4E9'
+                    plotColorPalette: '#3F78D8,#D9534F,#4C8F5E,#DE8A3B,#8A63C9,#B53F78'
                 },
                 gantt: { useMaxWidth: false },
-                timeline: { useMaxWidth: false }
+                timeline: { useMaxWidth: true, leftMargin: 20, padding: 26 }
             });
 
             this.initialized = true;
@@ -219,7 +231,7 @@
             const hash = this.hash(code);
 
             // 历史消息里的 Mermaid pie / xychart 交给 Nature 风格渲染器，保持一致。
-            if (/^(pie|xychart)\b/i.test(code.trim())
+            if (/^(pie|xychart)\b/i.test(diagramHead(code))
                 && window.agentChartRenderer?.renderMermaidChart?.(host, code)) {
                 this.stats.rendered += 1;
                 return true;
@@ -294,8 +306,13 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'agent-diagram';
             const lowerCode = String(code || '').toLowerCase();
+            const head = diagramHead(code);
+            const isTimeline = /^timeline\b/i.test(head);
             if (/\b(gantt|timeline|journey|gitgraph)\b/.test(lowerCode)) {
                 wrapper.classList.add('agent-diagram--wide');
+            }
+            if (isTimeline) {
+                wrapper.classList.add('agent-diagram--timeline');
             }
             wrapper.dataset.mermaidState = 'done';
             wrapper.dataset.mermaidHash = hash;
@@ -304,6 +321,110 @@
             if (host.parentNode) {
                 host.parentNode.replaceChild(wrapper, host);
             }
+
+            if (isTimeline) this.decorateTimeline(wrapper, head);
+        }
+
+        /**
+         * Mermaid 的 timeline 默认色板偏暗，且深色主题的节点文字会取黑色填充。
+         * 这里统一改成白纸卡片：浅蓝区块 + 白色事件卡 + 深色文字，并回收底部多余的连接线。
+         */
+        decorateTimeline(wrapper, head = '') {
+            const svg = wrapper.querySelector('svg');
+            if (!svg) return;
+            svg.classList.add('pzm-timeline');
+            svg.dataset.diagram = 'timeline';
+            this.wrapTimelineLabels(svg);
+            if (!/^timeline\s+TD\b/i.test(head)) this.trimTimelineConnectors(svg);
+        }
+
+        wrapTimelineLabels(svg) {
+            svg.querySelectorAll('.timeline-node text').forEach(textEl => {
+                const full = (textEl.textContent || '').replace(/\s+/g, ' ').trim();
+                if (full.length <= 4 || full.includes(' ')) return;
+                const visibleLines = Array.from(textEl.querySelectorAll('tspan'))
+                    .filter(tspan => tspan.textContent.trim());
+                if (visibleLines.length > 1) return;
+
+                const node = textEl.closest('.timeline-node');
+                const box = node ? node.querySelector('.node-bkg') : null;
+                let available = 162;
+                try {
+                    available = (box ? box.getBBox().width : 190) - 28;
+                } catch (error) {
+                    available = 162;
+                }
+                let width = 0;
+                try {
+                    width = textEl.getComputedTextLength();
+                } catch (error) {
+                    width = 0;
+                }
+                if (!width) {
+                    width = Array.from(full).reduce((sum, char) => {
+                        const wide = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(char);
+                        return sum + (wide ? 13 : 7.2);
+                    }, 0);
+                }
+                if (width <= available) return;
+
+                let split = Math.ceil(full.length / 2);
+                if (/\d/.test(full[split - 1] || '') && !/\d/.test(full[split] || '')) {
+                    split += 1;
+                }
+                const softBreak = new Set([
+                    '地方', '目标', '进入', '兑现', '保护', '立法', '可能', '扩展',
+                    '签约', '实施', '渗透', '首次', '可见', '未成', '成年', '雷霆',
+                    '竟界', '重点', '新游', '上线', '窗口', '电竞', '赛事', '云电'
+                ]);
+                if (softBreak.has(full.slice(split - 1, split + 1))) split -= 1;
+                split = Math.max(1, Math.min(full.length - 1, split));
+
+                const lines = [full.slice(0, split), full.slice(split)];
+                textEl.textContent = '';
+                lines.forEach((line, index) => {
+                    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+                    tspan.setAttribute('x', '0');
+                    tspan.setAttribute('dy', index === 0 ? '1em' : '1.15em');
+                    tspan.textContent = line;
+                    textEl.appendChild(tspan);
+                });
+            });
+        }
+
+        trimTimelineConnectors(svg) {
+            const lines = Array.from(svg.querySelectorAll('.lineWrapper line'));
+            const horizontal = lines
+                .map(line => ({
+                    line,
+                    x1: Number(line.getAttribute('x1')),
+                    x2: Number(line.getAttribute('x2'))
+                }))
+                .filter(item => Number.isFinite(item.x1) && Number.isFinite(item.x2) && Math.abs(item.x1 - item.x2) > 1)
+                .sort((a, b) => Math.abs(b.x2 - b.x1) - Math.abs(a.x2 - a.x1));
+            if (!horizontal.length) return;
+            const axis = horizontal[0].line;
+            const axisY = Number(axis.getAttribute('y1'));
+            if (!Number.isFinite(axisY)) return;
+
+            lines.forEach(line => {
+                if (line === axis) return;
+                const x1 = Number(line.getAttribute('x1'));
+                const x2 = Number(line.getAttribute('x2'));
+                const y2 = Number(line.getAttribute('y2'));
+                if (Math.abs(x1 - x2) < 0.1 && y2 > axisY) {
+                    line.setAttribute('y2', String(axisY));
+                    line.removeAttribute('marker-end');
+                }
+            });
+
+            const box = String(svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+            if (box.length !== 4 || !box.every(Number.isFinite)) return;
+            const top = Math.max(box[1], 0);
+            const height = axisY + 46 - top;
+            if (height <= 0) return;
+            svg.setAttribute('viewBox', `${box[0]} ${top} ${box[2]} ${height}`);
+            svg.setAttribute('height', String(height));
         }
 
         hash(text) {
@@ -319,6 +440,22 @@
         getStats() {
             return { ...this.stats, cachedSvg: this.svgCache.size };
         }
+    }
+
+    function diagramHead(code) {
+        let text = String(code || '').trim();
+        while (text.startsWith('%%')) {
+            if (text.startsWith('%%{')) {
+                const end = text.indexOf('}%%');
+                if (end < 0) break;
+                text = text.slice(end + 3).trim();
+            } else {
+                const lineEnd = text.indexOf('\n');
+                if (lineEnd < 0) break;
+                text = text.slice(lineEnd + 1).trim();
+            }
+        }
+        return text;
     }
 
     window.AgentDiagramRenderer = AgentDiagramRenderer;

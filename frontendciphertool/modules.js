@@ -86,7 +86,7 @@ const MODULES = {
                     <iframe
                         id="pcb-frame"
                         src=""
-                        data-src="./electronic/PCBLayout/index.html?v=20261023-18"
+                        data-src="./electronic/PCBLayout/index.html?v=20261023-19"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -362,7 +362,7 @@ const MODULES = {
                         <button id="modeling-mode-toggle" class="cyber-button image-mode-toggle" title="建模模式" type="button">
                             <span class="cyber-button__tag">建模模式</span>
                         </button>
-                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式" type="button">
+                        <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式：自动接续本会话中的上一张图，可用「换个主题」重新开始" type="button">
                             <span class="cyber-button__tag">作图模式</span>
                         </button>
                         <button id="tool-toggle" class="cyber-button active" title="启用工具">
@@ -598,6 +598,8 @@ document.addEventListener('DOMContentLoaded', () => {
             './apizhongzhuanzhan/apizz-keys.js',
             './apizhongzhuanzhan/apizz-usage.js',
             './apizhongzhuanzhan/apizz-billing.js',
+            './apizhongzhuanzhan/apizz-admin.js',
+            './apizhongzhuanzhan/apizz-ops.js',
         ],
         mcpskilllab: [
             './mcpskilllab/mcpskilllab-config.js',
@@ -680,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261023-19';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261025-07';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -730,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 加密实验室的数据驱动卡片必须等本文件把 MODULES 注入 DOM 之后再挂载，
             // 否则拿不到 #mimaqu / #xiandaiqu 这些子模块容器
             if (window.CipherCards) window.CipherCards.mount();
+            if (typeof initCipherCardWaterfall === 'function') initCipherCardWaterfall();
             // 各区自带的「搜索卡片」框：从这里统一初始化，保证 DOM 已经注入
             document.querySelectorAll('[data-quick-nav]').forEach(el => {
                 if (typeof initQuickNav === 'function') initQuickNav(el.dataset.quickNav);

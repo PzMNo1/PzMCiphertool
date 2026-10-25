@@ -10,6 +10,7 @@ API 中转站 - API 密钥管理、用量统计、计费管理、支付系统
 - apizz-keys.js → API 密钥管理
 - apizz-usage.js → 用量统计
 - apizz-billing.js → 计费和账单
+- apizz-admin.js → 管理员后台（用户余额、操作记录）
 - apizz-ops.js → 运营管理
 
 ## 数据流

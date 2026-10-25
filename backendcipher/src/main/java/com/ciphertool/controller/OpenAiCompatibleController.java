@@ -63,6 +63,9 @@ public class OpenAiCompatibleController {
     @Value("${api-router.risk.invalid-key-per-minute:30}")
     private int invalidKeyPerMinute;
 
+    @Value("${api-router.quota.preauthorize-output-tokens:8192}")
+    private long preauthorizeOutputTokens;
+
     @GetMapping("/models")
     public ResponseEntity<Map<String, Object>> models(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
@@ -117,6 +120,7 @@ public class OpenAiCompatibleController {
         boolean stream = Boolean.TRUE.equals(requestBody.get("stream"));
         long started = System.currentTimeMillis();
         long estimatedInputTokens = estimateInputTokens(requestBody);
+        long estimatedOutputTokens = estimateOutputTokens(requestBody);
         try {
             apiRouterService.requirePriceConfigured(model);
             enforceRealtimeRateLimit(validation, estimatedInputTokens);
@@ -130,7 +134,7 @@ public class OpenAiCompatibleController {
         }
         ApiRouterService.WalletReservation reservation;
         try {
-            reservation = apiRouterService.reserveWalletForRequest(validation, model, estimatedInputTokens);
+            reservation = apiRouterService.reserveWalletForRequest(validation, model, estimatedInputTokens, estimatedOutputTokens);
         } catch (ApiRouterService.ApiRouterAccessException e) {
             return jsonError(HttpStatus.valueOf(e.getStatusCode()), e.getMessage(), e.getType());
         }
@@ -329,6 +333,31 @@ public class OpenAiCompatibleController {
             }
         }
         return Math.max(1, chars / 4);
+    }
+
+    private long estimateOutputTokens(Map<String, Object> requestBody) {
+        long requested = Math.max(
+                positiveLong(requestBody.get("max_tokens")),
+                Math.max(
+                        positiveLong(requestBody.get("max_completion_tokens")),
+                        positiveLong(requestBody.get("max_output_tokens"))
+                )
+        );
+        long fallback = Math.max(1L, preauthorizeOutputTokens);
+        long tokens = requested > 0 ? requested : fallback;
+        return Math.max(1L, Math.min(1_000_000L, tokens));
+    }
+
+    private long positiveLong(Object value) {
+        if (value == null) {
+            return 0;
+        }
+        try {
+            long parsed = Long.parseLong(String.valueOf(value).trim());
+            return Math.max(0, parsed);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private TokenUsage extractUsage(byte[] responseBytes, long fallbackInputTokens) {

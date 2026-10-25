@@ -23,5 +23,7 @@ public class ApiRouterSubscriptionPlanInfo {
 
     private boolean enabled;
 
+    private int priority;
+
     private String note;
 }

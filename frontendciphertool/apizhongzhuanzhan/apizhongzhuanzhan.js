@@ -47,6 +47,7 @@
         { id: 'keys', label: 'API Keys' },
         { id: 'usage', label: '充值/套餐' },
         { id: 'billing', label: '邀请返利' },
+        { id: 'admin', label: '管理员后台', adminOnly: true },
         { id: 'ops', label: '运营配置', adminOnly: true }
     ];
     const pageRegistry = new Map();
@@ -248,7 +249,6 @@
                     </div>
                     <div class="apizz-header-actions">
                         <span class="apizz-pill">${escapeHtml(maskAccount(state.email))}</span>
-                        <span class="apizz-pill">后端通道已连接</span>
                         <span class="apizz-pill">余额 $${balance}</span>
                     </div>
                 </div>

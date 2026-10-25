@@ -323,6 +323,96 @@ function initCipherStickyInputMask() {
 }
 
 
+// 加密实验室卡片瀑布流：按当前最短列分流，卡片高度变化后不再整列重排
+function initCipherCardWaterfall() {
+    if (window.cipherCardWaterfallReady) return;
+    const containers = ['mimaqu', 'xiandaiqu', 'fenxiqu']
+        .map(id => document.querySelector(`#jiamishiyanshi-content #${id} .container`))
+        .filter(Boolean);
+    if (!containers.length) return;
+    window.cipherCardWaterfallReady = true;
+
+    const columnCount = () => window.innerWidth <= 700 ? 1 : window.innerWidth <= 1100 ? 2 : 3;
+
+    const waterfalls = containers.map(container => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cipher-card-waterfall';
+        const mainInput = container.querySelector(':scope > .card.main-input');
+        if (mainInput) mainInput.after(wrapper);
+        else container.prepend(wrapper);
+        return {
+            container,
+            wrapper,
+            cards: Array.from(container.querySelectorAll('.card:not(.main-input)')),
+            columns: [],
+            count: 0,
+            ready: false
+        };
+    });
+
+    const buildColumns = (state, count) => {
+        state.columns = Array.from({ length: count }, () => {
+            const column = document.createElement('div');
+            column.className = 'cipher-card-waterfall__column';
+            return column;
+        });
+        state.wrapper.replaceChildren(...state.columns);
+        state.wrapper.style.setProperty('--cipher-waterfall-columns', count);
+        state.count = count;
+    };
+
+    const place = (state, card) => {
+        let target = state.columns[0];
+        for (const column of state.columns) {
+            if (column.offsetHeight < target.offsetHeight) target = column;
+        }
+        target.appendChild(card);
+    };
+
+    const render = state => {
+        if (!state.container.clientWidth) return;
+        const count = columnCount();
+        if (state.ready && state.count === count) return;
+        state.container.classList.add('cipher-waterfall-ready');
+        const placeholders = Array.from(state.wrapper.querySelectorAll('.card-placeholder'));
+        buildColumns(state, count);
+        state.cards.forEach(card => {
+            if (!card.classList.contains('pinned')) place(state, card);
+        });
+        placeholders.forEach(placeholder => state.columns[0].appendChild(placeholder));
+        state.ready = true;
+    };
+
+    const renderVisible = () => waterfalls.forEach(state => {
+        if (state.container.clientWidth) render(state);
+    });
+
+    if (window.ResizeObserver) {
+        const observer = new ResizeObserver(entries => {
+            entries.forEach(entry => {
+                const state = waterfalls.find(item => item.container === entry.target);
+                if (state) render(state);
+            });
+        });
+        waterfalls.forEach(state => {
+            state.observer = observer;
+            observer.observe(state.container);
+        });
+    }
+
+    let frame = 0;
+    window.addEventListener('resize', () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            renderVisible();
+        });
+    });
+
+    renderVisible();
+}
+
+
 // 侧边栏搜索框与知识图谱联动：在知识图谱页面回车后定位节点
 function isKnowledgeGraphVisible() {
     const container = document.getElementById('zhishitupu-container');

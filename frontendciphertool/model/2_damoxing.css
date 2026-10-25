@@ -811,6 +811,101 @@
   white-space: nowrap;
 }
 
+.image-generation-progress {
+  position: relative;
+  margin: 4px 0 12px;
+  padding: 15px 17px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(64, 224, 255, 0.22);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(64, 224, 255, 0.13), transparent 46%),
+    rgba(8, 18, 27, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.image-generation-progress__top,
+.image-generation-progress__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.image-generation-progress__label {
+  color: rgba(142, 231, 255, 0.78);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.image-generation-progress__elapsed {
+  color: rgba(224, 247, 255, 0.72);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.image-generation-progress__title {
+  margin-top: 9px;
+  color: rgba(239, 252, 255, 0.94);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.image-generation-progress__track {
+  position: relative;
+  height: 7px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(116, 157, 180, 0.17);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.image-generation-progress__track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(64, 224, 255, 0.2), #40e0ff 58%, rgba(142, 231, 255, 0.82));
+  box-shadow: 0 0 14px rgba(64, 224, 255, 0.48);
+  animation: imageGenerationProgressSweep 1.8s ease-in-out infinite;
+}
+
+.image-generation-progress__meta {
+  margin-top: 9px;
+  color: rgba(190, 222, 235, 0.68);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.image-generation-progress__model {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-generation-progress__hint {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+@keyframes imageGenerationProgressSweep {
+  0% {
+    left: -46%;
+  }
+  55% {
+    left: 58%;
+  }
+  100% {
+    left: 104%;
+  }
+}
+
 .generated-image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -2686,15 +2781,74 @@
   min-width: 760px;
 }
 
-/* Nature 风格统计图：白纸黑字、克制配色、窄幅排版 */
-.agent-chart {
+/* 时间线改成白纸图版：浅色分区、深色墨字，避免 Mermaid 默认暗色块吃字 */
+.agent-diagram--timeline {
+  width: 100%;
+  max-width: 1120px;
   margin: 14px auto;
-  max-width: 480px;
-  padding: 10px 12px 6px;
-  border: 1px solid rgba(20, 35, 45, 0.18);
+  padding: 18px 20px 14px;
+  border: 1px solid #DCE4EC;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
+}
+
+.agent-diagram--timeline svg {
+  min-width: 760px;
+}
+
+.pzm-timeline > text {
+  fill: #1B2A38;
+  font-weight: 700;
+}
+
+.pzm-timeline .timeline-node .node-bkg {
+  fill: #E9F0F8 !important;
+  stroke: #CBD8E5;
+  stroke-width: 1;
+}
+
+.pzm-timeline .taskWrapper .timeline-node .node-bkg {
+  fill: #ffffff !important;
+}
+
+.pzm-timeline .timeline-node text {
+  fill: #1F2D3A !important;
+  font-weight: 600;
+}
+
+.pzm-timeline .taskWrapper .timeline-node text {
+  font-weight: 400;
+}
+
+.pzm-timeline .timeline-node line {
+  stroke: #7E9DBD;
+  stroke-width: 2.5;
+}
+
+.pzm-timeline .taskWrapper .timeline-node line {
+  stroke: #D7E0EA !important;
+  stroke-width: 2;
+}
+
+.pzm-timeline .lineWrapper line {
+  stroke: #8296A8 !important;
+}
+
+.pzm-timeline marker path {
+  fill: #8296A8;
+}
+
+/* Nature 风格统计图：白纸黑字、克制配色、单栏排版 */
+.agent-chart {
+  width: 100%;
+  margin: 14px auto;
+  max-width: 560px;
+  padding: 12px 14px 8px;
+  border: 1px solid #E1E6EB;
   border-radius: 4px;
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
   cursor: zoom-in;
 }
 
@@ -2705,10 +2859,10 @@
 }
 
 .agent-chart-caption {
-  margin-top: 6px;
-  color: #46505a;
+  margin-top: 8px;
+  color: #4B5563;
   font-family: "Arial", "Helvetica Neue", "Microsoft YaHei UI", sans-serif;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   line-height: 1.5;
   text-align: left;
 }

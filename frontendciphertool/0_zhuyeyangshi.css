@@ -1520,6 +1520,25 @@ body {
   padding-bottom: 18rem;
 }
 
+#mimaqu .container.cipher-waterfall-ready,
+#xiandaiqu .container.cipher-waterfall-ready,
+#fenxiqu .container.cipher-waterfall-ready {
+  display: block;
+}
+
+.cipher-card-waterfall {
+  display: grid;
+  grid-template-columns: repeat(var(--cipher-waterfall-columns, 3), minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.cipher-card-waterfall__column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 #guanyuzuozhe .container {
   display: block;
   column-count: 3;

@@ -21,6 +21,8 @@ public class ApiRouterDashboard {
 
     private String granularity;
 
+    private boolean admin;
+
     private Metrics metrics;
 
     private List<ModelStat> models = new ArrayList<>();

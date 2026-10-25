@@ -5,23 +5,24 @@
  * bar / line / trend / scatter / control / pie / donut / box / histogram / pareto / area。
  *
  * 设计约束：
- * 1. 白底、窄幅（约 520px）、无多余装饰，接近期刊单栏图；
- * 2. 不引入第三方图表库，离线可用；
- * 3. 围栏 JSON 非法时保留源码，不影响正文阅读；
- * 4. 与 AgentDiagramRenderer 一样用 MutationObserver 外部挂载，不改 ChatUI 解析逻辑。
+ * 1. 白底、单栏幅面、无多余装饰，接近期刊正文插图；
+ * 2. 配色取 color.amfe.space「Nature 2023-06」并用白底可读性校色；
+ * 3. 占比统一按环形图渲染，中心留白承载合计值；
+ * 4. 不引入第三方图表库，离线可用；围栏 JSON 非法时保留源码。
  */
 (function () {
     const CONTAINER_SELECTORS = ['#chat-messages'];
     const BLOCK_SELECTOR = 'pre.language-chart, pre.language-nature-chart, pre.markdown-code-block.language-chart, pre.markdown-code-block.language-nature-chart';
     const DEBOUNCE_MS = 520;
-    const WIDTH = 520;
-    const HEIGHT = 310;
+    const WIDTH = 600;
+    const HEIGHT = 370;
 
-    // Okabe-Ito 色盲友好配色，接近 Nature 图版的克制用色
-    const PALETTE = ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#4D4D4D', '#F0E442'];
-    const INK = '#1a1a1a';
-    const MUTED = '#5b6570';
-    const GRID = '#e4e7ea';
+    // Nature 2023-06（color.amfe.space）取色，按白底可读性微调明度
+    const PALETTE = ['#3F78D8', '#D9534F', '#4C8F5E', '#DE8A3B', '#8A63C9', '#B53F78', '#2E8FAF', '#B08A1E'];
+    const INK = '#1B2A38';
+    const MUTED = '#66727F';
+    const GRID = '#E7EBEF';
+    const AXIS = '#46525F';
     const SERIF = 'Arial, "Helvetica Neue", "Microsoft YaHei UI", sans-serif';
 
     class AgentChartRenderer {
@@ -198,36 +199,51 @@
             }
         }
 
-        frame(spec, extra = '') {
-            const title = esc(clip(spec.title || '', 42));
-            const subtitle = esc(clip(spec.subtitle || spec.unit || '', 64));
-            const legend = Array.isArray(spec.series) && spec.series.length > 1
-                ? this.renderLegend(spec.series.map((item, index) => ({
+        plotRect(hasLegend = false) {
+            return {
+                left: 64,
+                right: 24,
+                top: hasLegend ? 88 : 66,
+                bottom: 58,
+                hasLegend
+            };
+        }
+
+        frame(spec, extra = '', options = {}) {
+            const title = esc(fitText(spec.title || '', WIDTH - 36, 13.5));
+            const subtitle = esc(fitText(spec.subtitle || '', WIDTH - 36, 9.6));
+            const showLegend = options.legend === true;
+            const legend = showLegend
+                ? this.renderLegend((spec.series || []).map((item, index) => ({
                     label: item.name || `系列 ${index + 1}`,
-                    color: item.color || PALETTE[index % PALETTE.length]
-                })))
+                    color: PALETTE[index % PALETTE.length]
+                })), options.legendKind)
                 : '';
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${title}">`
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${title}" text-rendering="geometricPrecision">`
                 + `<rect width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`
-                + (title ? `<text x="16" y="21" font-family='${SERIF}' font-size="12.5" font-weight="700" fill="${INK}">${title}</text>` : '')
-                + (subtitle ? `<text x="16" y="37" font-family='${SERIF}' font-size="9.5" fill="${MUTED}">${subtitle}</text>` : '')
+                + (title ? `<text x="18" y="26" font-family='${SERIF}' font-size="13.5" font-weight="700" fill="${INK}">${title}</text>` : '')
+                + (subtitle ? `<text x="18" y="43" font-family='${SERIF}' font-size="9.6" fill="${MUTED}">${subtitle}</text>` : '')
                 + legend
                 + extra
                 + '</svg>';
         }
 
-        renderLegend(items) {
-            let x = WIDTH - 16;
-            const rows = items.slice(0, 6).map(item => {
-                const label = esc(clip(item.label, 12));
-                const width = 14 + measure(label) * 5.3;
-                x -= width;
-                return { x, label, color: item.color };
-            }).reverse();
-            return rows.map(item => `<g>`
-                + `<rect x="${item.x}" y="14" width="7" height="7" rx="1" fill="${item.color}"/>`
-                + `<text x="${item.x + 10}" y="21" font-family='${SERIF}' font-size="8.6" fill="${MUTED}">${item.label}</text>`
-                + `</g>`).join('');
+        renderLegend(items, kind = 'square') {
+            const visible = items.slice(0, 6);
+            const maxLabel = visible.length >= 5 ? 6 : (visible.length > 3 ? 8 : 12);
+            let x = 18;
+            const y = 62;
+            return visible.map(item => {
+                const label = esc(clip(item.label, maxLabel));
+                const width = 22 + textWidth(label, 9) + 14;
+                const mark = kind === 'line'
+                    ? `<line x1="${fmt(x)}" y1="${y - 3}" x2="${fmt(x + 13)}" y2="${y - 3}" stroke="${item.color}" stroke-width="1.8"/>`
+                        + `<circle cx="${fmt(x + 6.5)}" cy="${y - 3}" r="2.3" fill="#ffffff" stroke="${item.color}" stroke-width="1.2"/>`
+                    : `<rect x="${fmt(x)}" y="${y - 7}" width="8" height="8" rx="1" fill="${item.color}"/>`;
+                const g = `<g>${mark}<text x="${fmt(x + 17)}" y="${y}" font-family='${SERIF}' font-size="9" fill="${MUTED}">${label}</text></g>`;
+                x += width;
+                return g;
+            }).join('');
         }
 
         /* ---------------- 柱状图 ---------------- */
@@ -239,39 +255,41 @@
 
             const values = series.flatMap(item => item.values.map(toNumber)).filter(Number.isFinite);
             const domain = expandDomain(includeZero(values), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const hasLegend = series.length > 1;
+            const plot = this.plotRect(hasLegend);
             const axes = this.buildAxes(domain, plot, spec.unit, spec.y_label);
             const innerW = WIDTH - plot.left - plot.right;
-            const innerH = HEIGHT - plot.top - plot.bottom;
             const band = innerW / Math.max(1, categories.length);
-            const groupPad = band * 0.2;
-            const barW = Math.max(3, Math.min(26, (band - groupPad) / Math.max(1, series.length) * 0.86));
+            const groupPad = band * 0.24;
+            const barW = Math.max(6, Math.min(34, (band - groupPad) / Math.max(1, series.length) * 0.82));
             const baseY = axes.scaleY(Math.max(domain.min, Math.min(0, domain.max)));
+            const colorByCategory = series.length === 1 && categories.length <= 8;
 
             const parts = [axes.svg];
             series.forEach((item, sIndex) => {
-                const color = item.color || PALETTE[sIndex % PALETTE.length];
                 item.values.forEach((value, index) => {
                     const yValue = toNumber(value);
                     if (!Number.isFinite(yValue)) return;
+                    const color = colorByCategory ? PALETTE[index % PALETTE.length] : PALETTE[sIndex % PALETTE.length];
                     const groupCenter = plot.left + band * index + band / 2;
-                    const offset = (sIndex - (series.length - 1) / 2) * (barW + 2);
+                    const offset = (sIndex - (series.length - 1) / 2) * (barW + 3);
                     const x = groupCenter + offset - barW / 2;
                     const y = axes.scaleY(yValue);
                     const top = Math.min(y, baseY);
                     const height = Math.max(1, Math.abs(baseY - y));
-                    parts.push(`<rect x="${fmt(x)}" y="${fmt(top)}" width="${fmt(barW)}" height="${fmt(height)}" fill="${color}" opacity="0.92"/>`);
-                    if (series.length * categories.length <= 12) {
-                        const labelY = yValue >= 0 ? y - 4 : y + 10;
-                        parts.push(`<text x="${fmt(groupCenter + offset)}" y="${fmt(labelY)}" text-anchor="middle" font-family='${SERIF}' font-size="8" fill="${INK}">${esc(compactNumber(yValue))}</text>`);
+                    parts.push(`<rect x="${fmt(x)}" y="${fmt(top)}" width="${fmt(barW)}" height="${fmt(height)}" rx="1.4" fill="${color}" opacity="0.95"/>`);
+                    if (series.length * categories.length <= 10) {
+                        const labelY = yValue >= 0 ? y - 5 : y + 11;
+                        parts.push(`<text x="${fmt(groupCenter + offset)}" y="${fmt(labelY)}" text-anchor="middle" font-family='${SERIF}' font-size="9" fill="${INK}">${esc(compactNumber(yValue))}</text>`);
                     }
                 });
             });
             categories.forEach((label, index) => {
                 const x = plot.left + band * index + band / 2;
-                parts.push(this.xLabel(x, HEIGHT - plot.bottom + 14, label, categories.length));
+                parts.push(`<line x1="${fmt(x)}" y1="${HEIGHT - plot.bottom}" x2="${fmt(x)}" y2="${HEIGHT - plot.bottom + 4}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                parts.push(this.xLabel(x, HEIGHT - plot.bottom + 16, label, categories.length));
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: hasLegend, legendKind: 'square' });
         }
 
         /* ---------------- 折线 / 面积图 ---------------- */
@@ -283,7 +301,8 @@
 
             const values = series.flatMap(item => item.values.map(toNumber)).filter(Number.isFinite);
             const domain = expandDomain(includeZero(values), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const hasLegend = series.length > 1;
+            const plot = this.plotRect(hasLegend);
             const axes = this.buildAxes(domain, plot, spec.unit, spec.y_label);
             const innerW = WIDTH - plot.left - plot.right;
             const stepX = categories.length > 1 ? innerW / (categories.length - 1) : 0;
@@ -293,24 +312,26 @@
 
             const parts = [axes.svg];
             series.forEach((item, sIndex) => {
-                const color = item.color || PALETTE[sIndex % PALETTE.length];
+                const color = PALETTE[sIndex % PALETTE.length];
                 const pts = item.values.map((value, index) => [pointX(index), axes.scaleY(toNumber(value))])
                     .filter(point => Number.isFinite(point[1]));
                 if (!pts.length) return;
                 if (spec.type === 'area') {
                     const baseY = axes.scaleY(Math.max(domain.min, Math.min(0, domain.max)));
                     const area = `M ${fmt(pts[0][0])} ${fmt(baseY)} L ${pts.map(p => `${fmt(p[0])} ${fmt(p[1])}`).join(' L ')} L ${fmt(pts[pts.length - 1][0])} ${fmt(baseY)} Z`;
-                    parts.push(`<path d="${area}" fill="${color}" opacity="0.12"/>`);
+                    parts.push(`<path d="${area}" fill="${color}" opacity="0.1"/>`);
                 }
                 parts.push(`<path d="M ${pts.map(p => `${fmt(p[0])} ${fmt(p[1])}`).join(' L ')}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`);
                 pts.forEach(point => {
-                    parts.push(`<circle cx="${fmt(point[0])}" cy="${fmt(point[1])}" r="2.7" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>`);
+                    parts.push(`<circle cx="${fmt(point[0])}" cy="${fmt(point[1])}" r="2.8" fill="#ffffff" stroke="${color}" stroke-width="1.25"/>`);
                 });
             });
             categories.forEach((label, index) => {
-                parts.push(this.xLabel(pointX(index), HEIGHT - plot.bottom + 14, label, categories.length));
+                const x = pointX(index);
+                parts.push(`<line x1="${fmt(x)}" y1="${HEIGHT - plot.bottom}" x2="${fmt(x)}" y2="${HEIGHT - plot.bottom + 4}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                parts.push(this.xLabel(x, HEIGHT - plot.bottom + 16, label, categories.length));
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: hasLegend, legendKind: 'line' });
         }
 
         /* ---------------- 散点 + 趋势线 ---------------- */
@@ -322,27 +343,29 @@
             const all = series.flatMap(item => item.points);
             const xDomain = expandDomain(paddedDomain(all.map(p => p[0])), 4);
             const yDomain = expandDomain(paddedDomain(all.map(p => p[1])), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const hasLegend = series.length > 1;
+            const plot = this.plotRect(hasLegend);
             const sx = value => plot.left + (value - xDomain.min) / (xDomain.max - xDomain.min) * (WIDTH - plot.left - plot.right);
             const sy = value => HEIGHT - plot.bottom - (value - yDomain.min) / (yDomain.max - yDomain.min) * (HEIGHT - plot.top - plot.bottom);
             const parts = [this.gridAndAxes(xDomain, yDomain, plot, sx, sy, spec.x_label || 'x', spec.y_label || 'y', spec.unit)];
 
             series.forEach((item, sIndex) => {
-                const color = item.color || PALETTE[sIndex % PALETTE.length];
+                const color = PALETTE[sIndex % PALETTE.length];
                 item.points.forEach(point => {
-                    parts.push(`<circle cx="${fmt(sx(point[0]))}" cy="${fmt(sy(point[1]))}" r="3.1" fill="${color}" opacity="0.78"/>`);
+                    parts.push(`<circle cx="${fmt(sx(point[0]))}" cy="${fmt(sy(point[1]))}" r="3.2" fill="${color}" opacity="0.8"/>`);
                 });
                 if (spec.trend !== false && item.points.length >= 3) {
                     const fit = linearRegression(item.points);
                     if (fit) {
                         const x0 = xDomain.min;
                         const x1 = xDomain.max;
-                        parts.push(`<line x1="${fmt(sx(x0))}" y1="${fmt(sy(fit.slope * x0 + fit.intercept))}" x2="${fmt(sx(x1))}" y2="${fmt(sy(fit.slope * x1 + fit.intercept))}" stroke="${color}" stroke-width="1.1" stroke-dasharray="5 4" opacity="0.85"/>`);
-                        parts.push(`<text x="${fmt(sx(x1) - 4)}" y="${fmt(sy(fit.slope * x1 + fit.intercept) - 7)}" text-anchor="end" font-family='${SERIF}' font-size="8" fill="${MUTED}">R² = ${fit.r2.toFixed(2)}</text>`);
+                        const y1 = sy(fit.slope * x1 + fit.intercept);
+                        parts.push(`<line x1="${fmt(sx(x0))}" y1="${fmt(sy(fit.slope * x0 + fit.intercept))}" x2="${fmt(sx(x1))}" y2="${fmt(y1)}" stroke="${color}" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.9"/>`);
+                        parts.push(`<text x="${fmt(sx(x1) - 4)}" y="${fmt(y1 - 8)}" text-anchor="end" font-family='${SERIF}' font-size="8.8" fill="${MUTED}" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">R² = ${fit.r2.toFixed(2)}</text>`);
                     }
                 }
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: hasLegend, legendKind: 'square' });
         }
 
         /* ---------------- 控制图 ---------------- */
@@ -359,25 +382,25 @@
             const lcl = Number.isFinite(Number(spec.lcl)) ? Number(spec.lcl) : center - 3 * sigma;
             const yValues = values.concat([ucl, lcl, center]);
             const domain = expandDomain(paddedDomain(yValues), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const plot = this.plotRect(false);
             const sx = index => plot.left + (index + 0.5) / values.length * (WIDTH - plot.left - plot.right);
             const sy = value => HEIGHT - plot.bottom - (value - domain.min) / (domain.max - domain.min) * (HEIGHT - plot.top - plot.bottom);
-            const parts = [this.gridAndAxes(null, domain, plot, sx, sy, '样本序号', spec.y_label || spec.unit || '观测值')];
+            const parts = [this.gridAndAxes(null, domain, plot, sx, sy, '样本序号', spec.y_label || '观测值', spec.unit)];
 
-            parts.push(`<rect x="${plot.left}" y="${fmt(sy(ucl))}" width="${WIDTH - plot.left - plot.right}" height="${fmt(sy(lcl) - sy(ucl))}" fill="${PALETTE[0]}" opacity="0.05"/>`);
-            [ [ucl, '#D55E00', 'UCL'], [center, '#0072B2', 'CL'], [lcl, '#D55E00', 'LCL'] ].forEach(([value, color, label]) => {
+            parts.push(`<rect x="${plot.left}" y="${fmt(sy(ucl))}" width="${WIDTH - plot.left - plot.right}" height="${fmt(sy(lcl) - sy(ucl))}" fill="${PALETTE[0]}" opacity="0.06"/>`);
+            [ [ucl, PALETTE[1], 'UCL'], [center, PALETTE[0], 'CL'], [lcl, PALETTE[1], 'LCL'] ].forEach(([value, color, label]) => {
                 parts.push(`<line x1="${plot.left}" y1="${fmt(sy(value))}" x2="${WIDTH - plot.right}" y2="${fmt(sy(value))}" stroke="${color}" stroke-width="1" stroke-dasharray="${label === 'CL' ? '6 4' : '3 3'}"/>`);
-                parts.push(`<text x="${WIDTH - plot.right - 3}" y="${fmt(sy(value) - 3)}" text-anchor="end" font-family='${SERIF}' font-size="8" fill="${color}">${label} ${esc(compactNumber(value))}</text>`);
+                parts.push(`<text x="${WIDTH - plot.right - 3}" y="${fmt(sy(value) - 4)}" text-anchor="end" font-family='${SERIF}' font-size="8.8" fill="${color}" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">${label} ${esc(compactNumber(value))}</text>`);
             });
-            parts.push(`<path d="M ${values.map((value, index) => `${fmt(sx(index))} ${fmt(sy(value))}`).join(' L ')}" fill="none" stroke="${INK}" stroke-width="1.2" opacity="0.7"/>`);
+            parts.push(`<path d="M ${values.map((value, index) => `${fmt(sx(index))} ${fmt(sy(value))}`).join(' L ')}" fill="none" stroke="${INK}" stroke-width="1.3" opacity="0.72"/>`);
             values.forEach((value, index) => {
                 const out = value > ucl || value < lcl;
-                parts.push(`<circle cx="${fmt(sx(index))}" cy="${fmt(sy(value))}" r="${out ? 3.4 : 2.5}" fill="${out ? '#D55E00' : '#ffffff'}" stroke="${out ? '#D55E00' : INK}" stroke-width="1.1"/>`);
+                parts.push(`<circle cx="${fmt(sx(index))}" cy="${fmt(sy(value))}" r="${out ? 3.5 : 2.6}" fill="${out ? PALETTE[1] : '#ffffff'}" stroke="${out ? PALETTE[1] : INK}" stroke-width="1.1"/>`);
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: false });
         }
 
-        /* ---------------- 饼图 / 环图 ---------------- */
+        /* ---------------- 环形图（pie 与 donut 统一按环形图渲染） ---------------- */
 
         renderPie(spec) {
             const labels = normalizeCategories(spec);
@@ -386,40 +409,50 @@
                 : (spec.series && spec.series[0] && spec.series[0].values || []).map(toNumber);
             if (!labels.length || !values.length) throw new Error('饼图缺少 labels/values');
             const count = Math.min(labels.length, values.length);
-            const total = values.slice(0, count).reduce((sum, value) => sum + Math.max(0, value), 0) || 1;
-            const cx = 148;
-            const cy = 164;
-            const radius = 88;
-            const inner = spec.type === 'donut' ? radius * 0.56 : 0;
+            const cleanValues = values.slice(0, count).map(value => Number.isFinite(value) ? Math.max(0, value) : 0);
+            const total = cleanValues.reduce((sum, value) => sum + value, 0) || 1;
+            const cx = 174;
+            const cy = 202;
+            const radius = 104;
+            const inner = Math.round(radius * 0.58 * 100) / 100;
             let angle = -Math.PI / 2;
             const parts = [];
             for (let index = 0; index < count; index += 1) {
-                const value = Math.max(0, values[index]);
+                const value = cleanValues[index];
                 const sweep = (value / total) * Math.PI * 2;
-                const color = (spec.series && spec.series[0] && spec.series[0].colors && spec.series[0].colors[index]) || PALETTE[index % PALETTE.length];
-                parts.push(`<path d="${arcPath(cx, cy, radius, angle, angle + sweep, inner)}" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>`);
+                const color = PALETTE[index % PALETTE.length];
+                parts.push(`<path d="${arcPath(cx, cy, radius, angle, angle + sweep, inner)}" fill="${color}" stroke="#ffffff" stroke-width="2"/>`);
                 if (sweep / (Math.PI * 2) >= 0.05) {
                     const mid = angle + sweep / 2;
-                    const labelRadius = inner ? (radius + inner) / 2 : radius * 0.64;
-                    parts.push(`<text x="${fmt(cx + Math.cos(mid) * labelRadius)}" y="${fmt(cy + Math.sin(mid) * labelRadius + 3)}" text-anchor="middle" font-family='${SERIF}' font-size="9" fill="#ffffff" font-weight="700">${Math.round(value / total * 100)}%</text>`);
+                    const labelRadius = (radius + inner) / 2;
+                    parts.push(`<text x="${fmt(cx + Math.cos(mid) * labelRadius)}" y="${fmt(cy + Math.sin(mid) * labelRadius + 3)}" text-anchor="middle" font-family='${SERIF}' font-size="8.6" font-weight="700" fill="${contrastInk(color)}">${Math.round(value / total * 100)}%</text>`);
                 }
                 angle += sweep;
             }
-            if (inner) parts.push(`<circle cx="${cx}" cy="${cy}" r="${fmt(inner)}" fill="#ffffff"/>`);
-            const legendX = 262;
+            parts.push(`<circle cx="${cx}" cy="${cy}" r="${fmt(inner)}" fill="#ffffff"/>`);
+            const centerRaw = spec.center_value == null || spec.center_value === '' ? total : spec.center_value;
+            const centerText = Number.isFinite(Number(centerRaw)) ? compactNumber(Number(centerRaw)) : String(centerRaw);
+            parts.push(`<text x="${cx}" y="${cy}" text-anchor="middle" font-family='${SERIF}' font-size="24" font-weight="700" fill="${INK}">${esc(centerText)}</text>`);
+            parts.push(`<text x="${cx}" y="${cy + 18}" text-anchor="middle" font-family='${SERIF}' font-size="9" fill="${MUTED}">${esc(spec.center_label || '合计')}</text>`);
+            const legendX = 322;
             let legendY = 112;
             const visible = Math.min(count, 8);
+            const showValue = Math.abs(total - 100) > 0.5;
             for (let index = 0; index < visible; index += 1) {
-                const color = (spec.series && spec.series[0] && spec.series[0].colors && spec.series[0].colors[index]) || PALETTE[index % PALETTE.length];
+                const color = PALETTE[index % PALETTE.length];
+                const pct = Math.round(cleanValues[index] / total * 100);
                 parts.push(`<rect x="${legendX}" y="${legendY - 7}" width="8" height="8" rx="1" fill="${color}"/>`);
-                parts.push(`<text x="${legendX + 13}" y="${legendY}" font-family='${SERIF}' font-size="8.8" fill="${INK}">${esc(clip(labels[index], 11))}</text>`);
-                parts.push(`<text x="${legendX + 146}" y="${legendY}" text-anchor="end" font-family='${SERIF}' font-size="8.4" fill="${MUTED}">${esc(compactNumber(values[index]))}</text>`);
-                legendY += 19;
+                parts.push(`<text x="${legendX + 13}" y="${legendY}" font-family='${SERIF}' font-size="9" fill="${INK}">${esc(clip(labels[index], 12))}</text>`);
+                if (showValue) {
+                    parts.push(`<text x="${legendX + 170}" y="${legendY}" text-anchor="end" font-family='${SERIF}' font-size="8.8" fill="${MUTED}">${esc(compactNumber(cleanValues[index]))}</text>`);
+                }
+                parts.push(`<text x="${legendX + (showValue ? 220 : 170)}" y="${legendY}" text-anchor="end" font-family='${SERIF}' font-size="8.8" fill="${MUTED}">${pct}%</text>`);
+                legendY += 23;
             }
             if (count > visible) {
-                parts.push(`<text x="${legendX}" y="${legendY}" font-family='${SERIF}' font-size="8" fill="${MUTED}">其余 ${count - visible} 项…</text>`);
+                parts.push(`<text x="${legendX}" y="${legendY}" font-family='${SERIF}' font-size="8.4" fill="${MUTED}">其余 ${count - visible} 项…</text>`);
             }
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: false });
         }
 
         /* ---------------- 直方图 ---------------- */
@@ -441,21 +474,21 @@
                 bins[index].count += 1;
             });
             const domain = expandDomain(includeZero(bins.map(bin => bin.count)), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const plot = this.plotRect(false);
             const axes = this.buildAxes(domain, plot, spec.unit, spec.y_label || '频数');
             const innerW = WIDTH - plot.left - plot.right;
             const band = innerW / binCount;
             const parts = [axes.svg];
             bins.forEach((bin, index) => {
-                const x = plot.left + band * index + 1.2;
+                const x = plot.left + band * index + 1.5;
                 const y = axes.scaleY(bin.count);
                 const baseY = axes.scaleY(0);
-                parts.push(`<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(band - 2.4)}" height="${fmt(Math.max(1, baseY - y))}" fill="${PALETTE[0]}" opacity="0.8"/>`);
+                parts.push(`<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(band - 3)}" height="${fmt(Math.max(1, baseY - y))}" rx="1.2" fill="${PALETTE[0]}" opacity="0.9"/>`);
                 if (index % 2 === 0) {
-                    parts.push(`<text x="${fmt(plot.left + band * index + band / 2)}" y="${HEIGHT - plot.bottom + 14}" text-anchor="middle" font-family='${SERIF}' font-size="8" fill="${MUTED}">${esc(compactNumber(bin.from))}</text>`);
+                    parts.push(`<text x="${fmt(plot.left + band * index + band / 2)}" y="${HEIGHT - plot.bottom + 16}" text-anchor="middle" font-family='${SERIF}' font-size="8.8" fill="${MUTED}">${esc(compactNumber(bin.from))}</text>`);
                 }
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: false });
         }
 
         /* ---------------- 箱线图 ---------------- */
@@ -463,27 +496,28 @@
         renderBox(spec) {
             const series = normalizeSeries(spec, normalizeCategories(spec).length);
             if (!series.length) throw new Error('箱线图缺少 series');
-            const stats = series.map((item, index) => ({ ...boxStats(item.values), name: item.name || `组 ${index + 1}`, color: item.color || PALETTE[index % PALETTE.length] }));
+            const stats = series.map((item, index) => ({ ...boxStats(item.values), name: item.name || `组 ${index + 1}`, color: PALETTE[index % PALETTE.length] }));
             const domain = expandDomain(paddedDomain(stats.flatMap(item => [item.min, item.max])), 5);
-            const plot = { left: 58, right: 18, top: 54, bottom: 52 };
+            const plot = this.plotRect(false);
             const axes = this.buildAxes(domain, plot, spec.unit, spec.y_label);
             const innerW = WIDTH - plot.left - plot.right;
             const band = innerW / stats.length;
-            const boxW = Math.min(34, band * 0.5);
+            const boxW = Math.min(38, band * 0.48);
             const parts = [axes.svg];
             stats.forEach((item, index) => {
                 const cx = plot.left + band * index + band / 2;
                 parts.push(`<line x1="${fmt(cx)}" y1="${fmt(axes.scaleY(item.min))}" x2="${fmt(cx)}" y2="${fmt(axes.scaleY(item.max))}" stroke="${INK}" stroke-width="1"/>`);
                 parts.push(`<line x1="${fmt(cx - boxW / 3)}" y1="${fmt(axes.scaleY(item.min))}" x2="${fmt(cx + boxW / 3)}" y2="${fmt(axes.scaleY(item.min))}" stroke="${INK}" stroke-width="1"/>`);
                 parts.push(`<line x1="${fmt(cx - boxW / 3)}" y1="${fmt(axes.scaleY(item.max))}" x2="${fmt(cx + boxW / 3)}" y2="${fmt(axes.scaleY(item.max))}" stroke="${INK}" stroke-width="1"/>`);
-                parts.push(`<rect x="${fmt(cx - boxW / 2)}" y="${fmt(axes.scaleY(item.q3))}" width="${fmt(boxW)}" height="${fmt(Math.max(1, axes.scaleY(item.q1) - axes.scaleY(item.q3)))}" fill="${item.color}" opacity="0.2" stroke="${item.color}" stroke-width="1.2"/>`);
+                parts.push(`<rect x="${fmt(cx - boxW / 2)}" y="${fmt(axes.scaleY(item.q3))}" width="${fmt(boxW)}" height="${fmt(Math.max(1, axes.scaleY(item.q1) - axes.scaleY(item.q3)))}" fill="${item.color}" opacity="0.18" stroke="${item.color}" stroke-width="1.2"/>`);
                 parts.push(`<line x1="${fmt(cx - boxW / 2)}" y1="${fmt(axes.scaleY(item.median))}" x2="${fmt(cx + boxW / 2)}" y2="${fmt(axes.scaleY(item.median))}" stroke="${item.color}" stroke-width="2"/>`);
                 item.outliers.forEach(value => {
-                    parts.push(`<circle cx="${fmt(cx)}" cy="${fmt(axes.scaleY(value))}" r="2" fill="none" stroke="${item.color}" stroke-width="1"/>`);
+                    parts.push(`<circle cx="${fmt(cx)}" cy="${fmt(axes.scaleY(value))}" r="2.2" fill="none" stroke="${item.color}" stroke-width="1"/>`);
                 });
-                parts.push(`<text x="${fmt(cx)}" y="${HEIGHT - plot.bottom + 14}" text-anchor="middle" font-family='${SERIF}' font-size="8.4" fill="${MUTED}">${esc(clip(item.name, 10))}</text>`);
+                parts.push(`<line x1="${fmt(cx)}" y1="${HEIGHT - plot.bottom}" x2="${fmt(cx)}" y2="${HEIGHT - plot.bottom + 4}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                parts.push(`<text x="${fmt(cx)}" y="${HEIGHT - plot.bottom + 16}" text-anchor="middle" font-family='${SERIF}' font-size="9" fill="${MUTED}">${esc(clip(item.name, 10))}</text>`);
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: false });
         }
 
         /* ---------------- 帕累托图 ---------------- */
@@ -500,7 +534,8 @@
             }
             const total = pairs.reduce((sum, item) => sum + item.value, 0) || 1;
             const domain = expandDomain(includeZero(pairs.map(item => item.value)), 5);
-            const plot = { left: 58, right: 46, top: 54, bottom: 52 };
+            const plot = this.plotRect(false);
+            plot.right = 52;
             const axes = this.buildAxes(domain, plot, spec.unit, spec.y_label);
             const innerW = WIDTH - plot.left - plot.right;
             const band = innerW / pairs.length;
@@ -512,41 +547,39 @@
                 const x = plot.left + band * index + band * 0.16;
                 const width = band * 0.68;
                 const y = axes.scaleY(item.value);
-                parts.push(`<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(width)}" height="${fmt(Math.max(1, baseY - y))}" fill="${PALETTE[0]}" opacity="0.9"/>`);
+                parts.push(`<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(width)}" height="${fmt(Math.max(1, baseY - y))}" rx="1.2" fill="${PALETTE[0]}" opacity="0.92"/>`);
                 cumulative += item.value;
                 const pct = cumulative / total * 100;
                 linePoints.push([plot.left + band * index + band / 2, HEIGHT - plot.bottom - pct / 100 * (HEIGHT - plot.top - plot.bottom)]);
-                parts.push(`<text x="${fmt(x + width / 2)}" y="${HEIGHT - plot.bottom + 13}" text-anchor="end" transform="rotate(-32 ${fmt(x + width / 2)} ${HEIGHT - plot.bottom + 13})" font-family='${SERIF}' font-size="7.4" fill="${MUTED}">${esc(clip(item.label, 9))}</text>`);
+                parts.push(`<text x="${fmt(x + width / 2)}" y="${HEIGHT - plot.bottom + 16}" text-anchor="end" transform="rotate(-32 ${fmt(x + width / 2)} ${HEIGHT - plot.bottom + 16})" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(clip(item.label, 9))}</text>`);
             });
-            parts.push(`<path d="M ${linePoints.map(p => `${fmt(p[0])} ${fmt(p[1])}`).join(' L ')}" fill="none" stroke="${PALETTE[1]}" stroke-width="1.3"/>`);
-            linePoints.forEach(point => parts.push(`<circle cx="${fmt(point[0])}" cy="${fmt(point[1])}" r="2.3" fill="${PALETTE[1]}"/>`));
+            parts.push(`<path d="M ${linePoints.map(p => `${fmt(p[0])} ${fmt(p[1])}`).join(' L ')}" fill="none" stroke="${PALETTE[1]}" stroke-width="1.4"/>`);
+            linePoints.forEach(point => parts.push(`<circle cx="${fmt(point[0])}" cy="${fmt(point[1])}" r="2.4" fill="${PALETTE[1]}"/>`));
             [0, 25, 50, 75, 100].forEach(pct => {
                 const y = HEIGHT - plot.bottom - pct / 100 * (HEIGHT - plot.top - plot.bottom);
-                parts.push(`<text x="${WIDTH - plot.right + 5}" y="${fmt(y + 3)}" font-family='${SERIF}' font-size="7.6" fill="${MUTED}">${pct}%</text>`);
+                parts.push(`<text x="${WIDTH - plot.right + 7}" y="${fmt(y + 3)}" font-family='${SERIF}' font-size="8.6" fill="${MUTED}">${pct}%</text>`);
             });
-            return this.frame(spec, parts.join(''));
+            return this.frame(spec, parts.join(''), { legend: false });
         }
 
         /* ---------------- 坐标轴 ---------------- */
 
         buildAxes(domain, plot, unit = '', yLabel = '') {
             const innerH = HEIGHT - plot.top - plot.bottom;
-            const innerW = WIDTH - plot.left - plot.right;
             const scaleY = value => HEIGHT - plot.bottom - (value - domain.min) / (domain.max - domain.min) * innerH;
             const ticks = niceTicks(domain.min, domain.max, 5);
             const svg = [];
             ticks.forEach(value => {
                 const y = scaleY(value);
-                svg.push(`<line x1="${plot.left}" y1="${fmt(y)}" x2="${WIDTH - plot.right}" y2="${fmt(y)}" stroke="${GRID}" stroke-width="0.7" stroke-dasharray="2 3"/>`);
-                svg.push(`<text x="${plot.left - 7}" y="${fmt(y + 3)}" text-anchor="end" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
+                svg.push(`<line x1="${plot.left}" y1="${fmt(y)}" x2="${WIDTH - plot.right}" y2="${fmt(y)}" stroke="${GRID}" stroke-width="0.6" stroke-dasharray="2 3"/>`);
+                svg.push(`<line x1="${plot.left - 4}" y1="${fmt(y)}" x2="${plot.left}" y2="${fmt(y)}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                svg.push(`<text x="${plot.left - 8}" y="${fmt(y + 3)}" text-anchor="end" font-family='${SERIF}' font-size="9" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
             });
-            svg.push(`<line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${HEIGHT - plot.bottom}" stroke="${INK}" stroke-width="0.9"/>`);
-            svg.push(`<line x1="${plot.left}" y1="${HEIGHT - plot.bottom}" x2="${WIDTH - plot.right}" y2="${HEIGHT - plot.bottom}" stroke="${INK}" stroke-width="0.9"/>`);
-            if (unit) {
-                svg.push(`<text x="${plot.left - 42}" y="${plot.top - 8}" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(unit)}</text>`);
-            }
-            if (yLabel) {
-                svg.push(`<text transform="translate(13 ${fmt(plot.top + innerH / 2)}) rotate(-90)" text-anchor="middle" font-family='${SERIF}' font-size="8.4" fill="${MUTED}">${esc(yLabel)}</text>`);
+            svg.push(`<line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${HEIGHT - plot.bottom}" stroke="${AXIS}" stroke-width="0.9"/>`);
+            svg.push(`<line x1="${plot.left}" y1="${HEIGHT - plot.bottom}" x2="${WIDTH - plot.right}" y2="${HEIGHT - plot.bottom}" stroke="${AXIS}" stroke-width="0.9"/>`);
+            const axisName = [yLabel, unit ? `单位：${unit}` : ''].filter(Boolean).join('　');
+            if (axisName) {
+                svg.push(`<text transform="translate(18 ${fmt(plot.top + innerH / 2)}) rotate(-90)" text-anchor="middle" font-family='${SERIF}' font-size="9.2" fill="${MUTED}">${esc(axisName)}</text>`);
             }
             return { svg: svg.join(''), scaleY, ticks };
         }
@@ -556,30 +589,33 @@
             const yTicks = niceTicks(yDomain.min, yDomain.max, 5);
             yTicks.forEach(value => {
                 const y = sy(value);
-                svg.push(`<line x1="${plot.left}" y1="${fmt(y)}" x2="${WIDTH - plot.right}" y2="${fmt(y)}" stroke="${GRID}" stroke-width="0.7" stroke-dasharray="2 3"/>`);
-                svg.push(`<text x="${plot.left - 7}" y="${fmt(y + 3)}" text-anchor="end" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
+                svg.push(`<line x1="${plot.left}" y1="${fmt(y)}" x2="${WIDTH - plot.right}" y2="${fmt(y)}" stroke="${GRID}" stroke-width="0.6" stroke-dasharray="2 3"/>`);
+                svg.push(`<line x1="${plot.left - 4}" y1="${fmt(y)}" x2="${plot.left}" y2="${fmt(y)}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                svg.push(`<text x="${plot.left - 8}" y="${fmt(y + 3)}" text-anchor="end" font-family='${SERIF}' font-size="9" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
             });
             if (xDomain) {
-                const xTicks = niceTicks(xDomain.min, xDomain.max, 4);
+                const xTicks = niceTicks(xDomain.min, xDomain.max, 4)
+                    .filter(value => value >= xDomain.min - 1e-9 && value <= xDomain.max + 1e-9);
                 xTicks.forEach(value => {
                     const x = sx(value);
-                    svg.push(`<text x="${fmt(x)}" y="${HEIGHT - plot.bottom + 14}" text-anchor="middle" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
+                    svg.push(`<line x1="${fmt(x)}" y1="${HEIGHT - plot.bottom}" x2="${fmt(x)}" y2="${HEIGHT - plot.bottom + 4}" stroke="${AXIS}" stroke-width="0.8"/>`);
+                    svg.push(`<text x="${fmt(x)}" y="${HEIGHT - plot.bottom + 16}" text-anchor="middle" font-family='${SERIF}' font-size="9" fill="${MUTED}">${esc(compactNumber(value))}</text>`);
                 });
             }
-            svg.push(`<line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${HEIGHT - plot.bottom}" stroke="${INK}" stroke-width="0.9"/>`);
-            svg.push(`<line x1="${plot.left}" y1="${HEIGHT - plot.bottom}" x2="${WIDTH - plot.right}" y2="${HEIGHT - plot.bottom}" stroke="${INK}" stroke-width="0.9"/>`);
-            if (xLabel) svg.push(`<text x="${fmt((plot.left + WIDTH - plot.right) / 2)}" y="${HEIGHT - 8}" text-anchor="middle" font-family='${SERIF}' font-size="8.6" fill="${MUTED}">${esc(xLabel)}</text>`);
-            if (yLabel) svg.push(`<text transform="translate(13 ${fmt(plot.top + (HEIGHT - plot.top - plot.bottom) / 2)}) rotate(-90)" text-anchor="middle" font-family='${SERIF}' font-size="8.6" fill="${MUTED}">${esc(yLabel)}</text>`);
-            if (unit) svg.push(`<text x="${plot.left - 42}" y="${plot.top - 8}" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(unit)}</text>`);
+            svg.push(`<line x1="${plot.left}" y1="${plot.top}" x2="${plot.left}" y2="${HEIGHT - plot.bottom}" stroke="${AXIS}" stroke-width="0.9"/>`);
+            svg.push(`<line x1="${plot.left}" y1="${HEIGHT - plot.bottom}" x2="${WIDTH - plot.right}" y2="${HEIGHT - plot.bottom}" stroke="${AXIS}" stroke-width="0.9"/>`);
+            if (xLabel) svg.push(`<text x="${fmt((plot.left + WIDTH - plot.right) / 2)}" y="${HEIGHT - 10}" text-anchor="middle" font-family='${SERIF}' font-size="9.4" fill="${MUTED}">${esc(xLabel)}</text>`);
+            const axisName = [yLabel, unit ? `单位：${unit}` : ''].filter(Boolean).join('　');
+            if (axisName) svg.push(`<text transform="translate(18 ${fmt(plot.top + (HEIGHT - plot.top - plot.bottom) / 2)}) rotate(-90)" text-anchor="middle" font-family='${SERIF}' font-size="9.4" fill="${MUTED}">${esc(axisName)}</text>`);
             return svg.join('');
         }
 
         xLabel(x, y, label, count) {
             const text = String(label == null ? '' : label);
-            if (count > 6 || text.length > 7) {
-                return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="end" transform="rotate(-32 ${fmt(x)} ${fmt(y)})" font-family='${SERIF}' font-size="7.8" fill="${MUTED}">${esc(clip(text, 12))}</text>`;
+            if (count > 6 || text.length > 6) {
+                return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="end" transform="rotate(-30 ${fmt(x)} ${fmt(y)})" font-family='${SERIF}' font-size="8.8" fill="${MUTED}">${esc(clip(text, 14))}</text>`;
             }
-            return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="middle" font-family='${SERIF}' font-size="8.2" fill="${MUTED}">${esc(text)}</text>`;
+            return `<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="middle" font-family='${SERIF}' font-size="9.2" fill="${MUTED}">${esc(text)}</text>`;
         }
     }
 
@@ -599,7 +635,9 @@
     function parseMermaidChart(code) {
         const lines = String(code || '').split('\n').map(line => line.trim()).filter(Boolean);
         if (!lines.length) return null;
-        const head = lines[0].toLowerCase();
+        let start = 0;
+        while (start < lines.length && lines[start].startsWith('%%')) start += 1;
+        const head = (lines[start] || '').toLowerCase();
 
         if (head.startsWith('pie')) {
             const titleLine = lines.find(line => /^pie\s+(?:showData\s+)?title\s+/i.test(line))
@@ -609,7 +647,7 @@
                 : '';
             const categories = [];
             const values = [];
-            lines.slice(1).forEach(line => {
+            lines.slice(start + 1).forEach(line => {
                 const match = line.match(/^"([^"]+)"\s*:\s*([\d.]+)/);
                 if (!match) return;
                 categories.push(match[1]);
@@ -829,6 +867,15 @@
         return `M ${fmt(x0)} ${fmt(y0)} A ${r} ${r} 0 ${large} 1 ${fmt(x1)} ${fmt(y1)} L ${fmt(ix1)} ${fmt(iy1)} A ${inner} ${inner} 0 ${large} 0 ${fmt(ix0)} ${fmt(iy0)} Z`;
     }
 
+    function contrastInk(color) {
+        const hex = String(color || '').replace('#', '');
+        if (hex.length !== 6) return '#FFFFFF';
+        const channels = [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+        const linear = channels.map(value => value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+        const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+        return luminance > 0.42 ? INK : '#FFFFFF';
+    }
+
     function compactNumber(value) {
         const number = Number(value);
         if (!Number.isFinite(number)) return '';
@@ -855,8 +902,30 @@
         return str.length <= max ? str : str.slice(0, max - 1) + '…';
     }
 
+    function fitText(text, maxWidth, size) {
+        const str = String(text || '');
+        if (textWidth(str, size) <= maxWidth) return str;
+        const ellipsis = textWidth('…', size);
+        let out = '';
+        let width = 0;
+        for (const char of Array.from(str)) {
+            const charWidth = textWidth(char, size);
+            if (width + charWidth + ellipsis > maxWidth) break;
+            out += char;
+            width += charWidth;
+        }
+        return out + '…';
+    }
+
     function measure(text) {
         return Array.from(String(text || '')).length;
+    }
+
+    function textWidth(text, size) {
+        return Array.from(String(text || '')).reduce((sum, char) => {
+            const wide = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(char);
+            return sum + (wide ? size : size * 0.56);
+        }, 0);
     }
 
     function esc(value) {
