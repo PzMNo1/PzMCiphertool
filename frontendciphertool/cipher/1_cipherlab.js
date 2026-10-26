@@ -1577,10 +1577,10 @@ const PlayfairCipher = {
 // 第一个 X 形格 S-V(上∨ 右> 左< 下∧); 第二个带点 X 形格 W-Z
 const PigpenCipher = {
   letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-  // 旧版文本符号，仅用于兼容文本解码
+  // 文本符号（标准朝向），用于文本解码
   symbols: [
-    '⌜','⊓','⌝','⊏','□','⊐','⌞','⊔','⌟',
-    '⌜·','⊓·','⌝·','⊏·','□·','⊐·','⌞·','⊔·','⌟·',
+    '⌟','⊔','⌞','⊐','□','⊏','⌝','⊓','⌜',
+    '⌟·','⊔·','⌞·','⊐·','□·','⊏·','⌝·','⊓·','⌜·',
     '∨','>','<','∧',
     '∨·','>·','<·','∧·'
   ],
@@ -1594,10 +1594,10 @@ const PigpenCipher = {
     const parts = [];
     if (i < 18) {
       const cell = i % 9, row = Math.floor(cell / 3), col = cell % 3;
-      if (row < 2) parts.push(`<path d="M${near} ${near}H${far}"/>`);
-      if (row > 0) parts.push(`<path d="M${near} ${far}H${far}"/>`);
-      if (col < 2) parts.push(`<path d="M${near} ${near}V${far}"/>`);
-      if (col > 0) parts.push(`<path d="M${far} ${near}V${far}"/>`);
+      if (row > 0) parts.push(`<path d="M${near} ${near}H${far}"/>`);
+      if (row < 2) parts.push(`<path d="M${near} ${far}H${far}"/>`);
+      if (col > 0) parts.push(`<path d="M${near} ${near}V${far}"/>`);
+      if (col < 2) parts.push(`<path d="M${far} ${near}V${far}"/>`);
       if (i >= 9) parts.push('<circle cx="50" cy="50" r="7" fill="currentColor" stroke="none"/>');
     } else {
       const quad = (i - 18) % 4;
