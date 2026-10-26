@@ -110,21 +110,19 @@ class ChatUI {
         this.closeLightbox();
         const overlay = document.createElement('div');
         overlay.id = 'agent-media-lightbox';
-
-        const toolbar = document.createElement('div');
-        toolbar.className = 'agent-lightbox-toolbar';
-        toolbar.innerHTML = `
-            <span>${this.escapeHtml(label)}</span>
-            <button type="button" class="agent-lightbox-btn" data-action="zoom-out" aria-label="缩小">−</button>
-            <button type="button" class="agent-lightbox-btn" data-action="zoom-in" aria-label="放大">+</button>
-            <button type="button" class="agent-lightbox-btn" data-action="reset" aria-label="重置">1:1</button>
-            <button type="button" class="agent-lightbox-btn" data-action="close" aria-label="关闭">关闭</button>
-        `;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', label || '图片预览');
 
         const stage = document.createElement('div');
         stage.className = 'agent-lightbox-stage';
         const content = document.createElement('div');
         content.className = 'agent-lightbox-content';
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'agent-lightbox-close';
+        closeButton.setAttribute('aria-label', '关闭');
+        closeButton.textContent = '×';
 
         if (node.tagName === 'IMG') {
             const img = document.createElement('img');
@@ -140,8 +138,8 @@ class ChatUI {
         }
 
         stage.appendChild(content);
-        overlay.appendChild(toolbar);
         overlay.appendChild(stage);
+        overlay.appendChild(closeButton);
         document.body.appendChild(overlay);
         document.body.classList.add('agent-lightbox-open');
 
@@ -157,20 +155,7 @@ class ChatUI {
         };
         this._lightbox = { overlay, reset };
 
-        toolbar.addEventListener('click', event => {
-            const action = event.target.closest('[data-action]')?.getAttribute('data-action');
-            if (!action) return;
-            if (action === 'close') this.closeLightbox();
-            if (action === 'reset') reset();
-            if (action === 'zoom-in') {
-                state.scale = Math.min(8, state.scale * 1.25);
-                apply();
-            }
-            if (action === 'zoom-out') {
-                state.scale = Math.max(0.2, state.scale / 1.25);
-                apply();
-            }
-        });
+        closeButton.addEventListener('click', () => this.closeLightbox());
 
         stage.addEventListener('wheel', event => {
             event.preventDefault();
@@ -906,6 +891,7 @@ class ChatUI {
             model: String(options.model || '').trim(),
             phase: options.phase || 'connecting',
             continuation: Boolean(options.continuation),
+            reference: Boolean(options.reference),
             timerId: null
         };
         container.imageGenerationProgress = state;
@@ -956,7 +942,7 @@ class ChatUI {
         const state = container?.imageGenerationProgress;
         if (!state || !container?.contentDiv) return;
         const elapsedMs = Math.max(0, Date.now() - state.startedAt);
-        const title = this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation);
+        const title = this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation, state.reference);
         const duration = this.formatImageGenerationDuration(elapsedMs);
         const elapsed = container.contentDiv.querySelector('.image-generation-progress__elapsed');
         const titleElement = container.contentDiv.querySelector('.image-generation-progress__title');
@@ -973,10 +959,16 @@ class ChatUI {
         this.setReasoningStatus(container, title);
     }
 
-    getImageGenerationProgressTitle(phase, elapsedMs, continuation = false) {
+    getImageGenerationProgressTitle(phase, elapsedMs, continuation = false, reference = false) {
         if (phase === 'receiving') return '图片已返回，正在接收数据';
         if (phase === 'processing') return '正在解析图片并准备预览';
         if (phase === 'completed') return '图片生成完成';
+        if (reference) {
+            if (elapsedMs < 3500) return '正在上传参考图';
+            if (elapsedMs < 15000) return '正在参考图片精调画面';
+            if (elapsedMs < 45000) return '正在保留参考图构图并精调细节';
+            return '参考图精调仍在进行，复杂修改可能需要更久';
+        }
         if (continuation) {
             if (elapsedMs < 3500) return '正在接续上一轮图片，提交精调请求';
             if (elapsedMs < 15000) return '正在基于上一轮图片精调画面';

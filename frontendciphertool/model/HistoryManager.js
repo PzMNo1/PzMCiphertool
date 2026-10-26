@@ -132,7 +132,12 @@ class HistoryManager {
                 if (account) this.syncedAccount = account;
                 const remote = result.data;
                 if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
-                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(remote));
+                    const local = this.getChatHistory();
+                    const merged = this.mergeHistory(local, remote);
+                    if (!this.storeHistoryLocally(merged)) return false;
+                    if (this.summarizeHistory(merged) !== this.summarizeHistory(remote)) {
+                        this.scheduleBackendSync(merged);
+                    }
                     localStorage.removeItem(this.LEGACY_STORAGE_KEY);
                     return true;
                 }
@@ -408,15 +413,146 @@ class HistoryManager {
 
     persistHistory(history) {
         const payload = history && typeof history === 'object' ? history : {};
-        let saved = false;
+        let synced = payload;
+        let saved = this.tryPersistHistory(payload);
+        if (!saved) {
+            const compacted = this.buildQuotaSafeHistory(payload, true);
+            if (compacted) {
+                saved = this.tryPersistHistory(compacted);
+                if (saved) synced = compacted;
+            }
+        }
+        if (!saved) {
+            const stripped = this.buildQuotaSafeHistory(payload, false);
+            if (stripped) {
+                saved = this.tryPersistHistory(stripped);
+                if (saved) synced = stripped;
+            }
+        }
+        if (!saved) {
+            console.warn('Chat history was not persisted to local storage: quota exceeded.');
+        }
+        this.scheduleBackendSync(synced);
+        return saved;
+    }
+
+    storeHistoryLocally(history) {
+        if (this.tryPersistHistory(history)) return true;
+        const compacted = this.buildQuotaSafeHistory(history, true);
+        if (compacted && this.tryPersistHistory(compacted)) return true;
+        const stripped = this.buildQuotaSafeHistory(history, false);
+        if (stripped && this.tryPersistHistory(stripped)) return true;
+        return false;
+    }
+
+    mergeHistory(local, remote) {
+        const left = local && typeof local === 'object' ? local : {};
+        const right = remote && typeof remote === 'object' ? remote : {};
+        const merged = {};
+        new Set([...Object.keys(left), ...Object.keys(right)]).forEach(chatId => {
+            const a = left[chatId];
+            const b = right[chatId];
+            if (!a && !b) return;
+            if (!a) {
+                merged[chatId] = b;
+                return;
+            }
+            if (!b) {
+                merged[chatId] = a;
+                return;
+            }
+            const base = (Number(a.timestamp) || 0) >= (Number(b.timestamp) || 0) ? a : b;
+            const byKey = new Map();
+            [...(a.messages || []), ...(b.messages || [])].forEach(message => {
+                const key = message?.message_id || message?.id
+                    || `${message?.role || 'message'}:${message?.created_at || ''}:${message?.content || ''}`;
+                const existing = byKey.get(key);
+                if (!existing) {
+                    byKey.set(key, message);
+                    return;
+                }
+                byKey.set(key, this.pickMoreCompleteMessage(existing, message));
+            });
+            merged[chatId] = {
+                ...base,
+                messages: Array.from(byKey.values()).sort((x, y) =>
+                    (Number(x.created_at) || 0) - (Number(y.created_at) || 0)),
+                timestamp: Math.max(Number(a.timestamp) || 0, Number(b.timestamp) || 0)
+            };
+        });
+        return merged;
+    }
+
+    pickMoreCompleteMessage(a, b) {
+        const aCompleted = a?.status !== 'running' && a?.status !== 'aborting';
+        const bCompleted = b?.status !== 'running' && b?.status !== 'aborting';
+        if (aCompleted !== bCompleted) return bCompleted ? b : a;
+        const aTs = Number(a?.updated_at || a?.created_at) || 0;
+        const bTs = Number(b?.updated_at || b?.created_at) || 0;
+        if (bTs !== aTs) return bTs > aTs ? b : a;
+        const aImages = Array.isArray(a?.images) ? a.images.length : 0;
+        const bImages = Array.isArray(b?.images) ? b.images.length : 0;
+        if (bImages !== aImages) return bImages > aImages ? b : a;
+        const aChars = String(a?.content || '').length;
+        const bChars = String(b?.content || '').length;
+        return bChars > aChars ? b : a;
+    }
+
+    summarizeHistory(history) {
+        let messages = 0;
+        let latest = 0;
+        Object.values(history || {}).forEach(chat => {
+            latest = Math.max(latest, Number(chat?.timestamp) || 0);
+            (chat?.messages || []).forEach(message => {
+                messages += 1;
+                latest = Math.max(latest, Number(message?.updated_at || message?.created_at) || 0);
+            });
+        });
+        return `${messages}:${latest}`;
+    }
+
+    tryPersistHistory(payload) {
         try {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
-            saved = true;
+            return true;
         } catch (error) {
-            console.warn('Chat history was not persisted to local storage.', error);
+            return false;
         }
-        this.scheduleBackendSync(payload);
-        return saved;
+    }
+
+    buildQuotaSafeHistory(history, keepLatest = true) {
+        let copy;
+        try {
+            copy = JSON.parse(JSON.stringify(history || {}));
+        } catch (error) {
+            return null;
+        }
+        const currentChatId = this.getCurrentChatId();
+        const refs = [];
+        Object.entries(copy).forEach(([chatId, chat]) => {
+            const chatTs = Number(chat?.timestamp) || 0;
+            (chat?.messages || []).forEach(message => {
+                const ts = Number(message?.updated_at || message?.created_at) || chatTs;
+                (message?.images || []).forEach(image => {
+                    const url = String(image?.url || '');
+                    if (url.startsWith('data:')) {
+                        refs.push({ image, url, ts, chatId });
+                    }
+                });
+            });
+        });
+        if (!refs.length) return null;
+        refs.sort((a, b) => {
+            const aCurrent = a.chatId === currentChatId ? 1 : 0;
+            const bCurrent = b.chatId === currentChatId ? 1 : 0;
+            if (aCurrent !== bCurrent) return bCurrent - aCurrent;
+            return b.ts - a.ts;
+        });
+        refs.forEach((entry, index) => {
+            if (keepLatest && index === 0) return;
+            entry.image.url = `[data image omitted, ${entry.url.length} chars]`;
+        });
+        return copy;
     }
 
     prepareMessageForStorage(message, level = 'normal') {

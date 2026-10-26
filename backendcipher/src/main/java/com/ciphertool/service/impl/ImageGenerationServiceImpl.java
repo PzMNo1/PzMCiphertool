@@ -26,10 +26,12 @@ import java.util.List;
 public class ImageGenerationServiceImpl implements ImageGenerationService {
 
     private static final int MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
+    private static final int MAX_REFERENCE_DATA_URL_CHARS = 20_971_520;
 
     private final HttpClient httpClient;
     private final String apiKey;
     private final String generationsUrl;
+    private final String editsUrl;
     private final String defaultModel;
     private final String defaultSize;
     private final long timeoutSeconds;
@@ -45,6 +47,7 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
                 .build();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.generationsUrl = resolveGenerationsUrl(baseUrl);
+        this.editsUrl = resolveEditsUrl(baseUrl);
         this.defaultModel = normalizeDefault(defaultModel, "gpt-image-2.5-sunburst");
         this.defaultSize = normalizeDefault(defaultSize, "1024x1024");
         this.timeoutSeconds = Math.max(30, Math.min(timeoutSeconds, 300));
@@ -61,17 +64,28 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
             throw new IllegalArgumentException("图片生成提示不能为空");
         }
 
+        String referenceImage = normalizeReferenceImage(request.getReferenceImage());
+        boolean edit = referenceImage != null;
+
         JSONObject payload = new JSONObject();
         payload.put("model", normalizeDefault(request.getModel(), defaultModel));
         payload.put("prompt", prompt);
         payload.put("size", normalizeDefault(request.getSize(), defaultSize));
         payload.put("n", normalizeImageCount(request.getN()));
-        if (supportsResponseFormat(payload.getString("model"))) {
+        if (edit) {
+            // 上游编辑接口使用 JSON images[].image_url；有参考图时改走 /images/edits。
+            JSONArray images = new JSONArray();
+            JSONObject image = new JSONObject();
+            image.put("image_url", referenceImage);
+            images.add(image);
+            payload.put("images", images);
+        } else if (supportsResponseFormat(payload.getString("model"))) {
             payload.put("response_format", "b64_json");
         }
 
+        String endpoint = edit ? editsUrl : generationsUrl;
         HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(generationsUrl))
+                .uri(URI.create(endpoint))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
@@ -82,7 +96,8 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Image API error {}: {}", response.statusCode(), preview(response.body(), 800));
-                throw new ImageGenerationException("图片生成接口返回错误: " + response.statusCode() + imageApiErrorMessage(response.body()));
+                String action = edit ? "图片编辑接口" : "图片生成接口";
+                throw new ImageGenerationException(action + "返回错误: " + response.statusCode() + imageApiErrorMessage(response.body()));
             }
 
             JSONObject body = JSON.parseObject(response.body());
@@ -114,6 +129,52 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
             return normalized;
         }
         return normalized + "/images/generations";
+    }
+
+    private String resolveEditsUrl(String baseUrl) {
+        String normalized = baseUrl == null || baseUrl.isBlank()
+                ? "https://api.openai.com/v1"
+                : baseUrl.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.endsWith("/images/edits")) {
+            return normalized;
+        }
+        if (normalized.endsWith("/images/generations")) {
+            return normalized.substring(0, normalized.length() - "generations".length()) + "edits";
+        }
+        return normalized + "/images/edits";
+    }
+
+    private String normalizeReferenceImage(String value) {
+        String reference = value == null ? "" : value.trim();
+        if (reference.isBlank()) {
+            return null;
+        }
+        if (reference.startsWith("[data image omitted") || reference.startsWith("[base64 image omitted")) {
+            throw new ImageGenerationException("上一轮图片数据未保存，无法作为参考图，请重新生成上一轮图片或改用文字描述。");
+        }
+        if (reference.startsWith("data:image/")) {
+            if (!reference.contains(";base64,")) {
+                throw new ImageGenerationException("参考图 data URL 缺少 base64 数据");
+            }
+            if (reference.length() > MAX_REFERENCE_DATA_URL_CHARS) {
+                throw new ImageGenerationException("参考图超过上游 20MB data URL 限制");
+            }
+            return reference;
+        }
+        if (isRemoteHttpUrl(reference)) {
+            return reference;
+        }
+        String compact = reference.replaceAll("\\s+", "");
+        if (!compact.isBlank() && compact.matches("^[A-Za-z0-9+/=]+$")) {
+            if (compact.length() > MAX_REFERENCE_DATA_URL_CHARS) {
+                throw new ImageGenerationException("参考图超过上游 20MB data URL 限制");
+            }
+            return "data:image/png;base64," + compact;
+        }
+        throw new ImageGenerationException("参考图格式不支持，请传 data URL、http(s) URL 或 Base64");
     }
 
     private String normalizeDefault(String value, String fallback) {

@@ -109,15 +109,19 @@
 
         try {
             emitProgress(options, 'connecting');
+            const body = {
+                prompt,
+                model: config.model,
+                size: config.size,
+                n: config.n
+            };
+            if (options.referenceImage) {
+                body.referenceImage = options.referenceImage;
+            }
             const response = await fetch(config.url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt,
-                    model: config.model,
-                    size: config.size,
-                    n: config.n
-                }),
+                body: JSON.stringify(body),
                 signal: controller.signal
             });
 

@@ -2896,14 +2896,30 @@ body.agent-lightbox-open {
   display: none;
 }
 
-.agent-lightbox-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(142, 231, 255, 0.16);
-  background: rgba(8, 18, 28, 0.72);
+.agent-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(142, 231, 255, 0.32);
+  border-radius: 50%;
+  background: rgba(3, 9, 14, 0.52);
+  color: #e8fbff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.72;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.agent-lightbox-close:hover {
+  opacity: 1;
+  border-color: rgba(142, 231, 255, 0.8);
 }
 
 .agent-lightbox-toolbar span {
@@ -2958,9 +2974,9 @@ body.agent-lightbox-open {
 
 .agent-lightbox-content svg {
   display: block;
-  width: min(92vw, 1100px);
+  width: min(94vw, 1200px);
   height: auto;
-  max-height: calc(100vh - 110px);
+  max-height: calc(100vh - 40px);
   background: #ffffff;
   border-radius: 2px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
@@ -2968,8 +2984,8 @@ body.agent-lightbox-open {
 
 .agent-lightbox-content img {
   display: block;
-  max-width: 92vw;
-  max-height: calc(100vh - 110px);
+  max-width: 94vw;
+  max-height: calc(100vh - 40px);
   width: auto;
   height: auto;
   background: transparent;

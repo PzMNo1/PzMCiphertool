@@ -17,4 +17,10 @@ public class ImageGenerationRequest {
     @Min(value = 1, message = "图片数量至少为 1")
     @Max(value = 4, message = "图片数量最多为 4")
     private Integer n;
+
+    /**
+     * 可选参考图：data URL、http(s) URL 或纯 Base64。
+     * 有值时走上游 /images/edits 做图生图，否则走 /images/generations。
+     */
+    private String referenceImage;
 }

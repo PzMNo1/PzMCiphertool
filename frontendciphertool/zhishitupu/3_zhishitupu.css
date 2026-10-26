@@ -189,16 +189,25 @@
     outline: none;
 }
 
-/* 项目导入按钮层 */
+/* 项目导入按钮层：透明容器不拦截指针，空白处继续交给画布拖动旋转 */
 #zstp-import-layer {
     position: absolute;
     top: 20px;
     right: 20px;
     z-index: 10;
-    pointer-events: auto;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
     display: flex;
     align-items: flex-start;
     gap: 12px;
+}
+
+/* 只有按钮本身接收指针，且不参与选中/原生拖拽 */
+#zstp-import-layer .zstp-mode-btn,
+#zstp-import-layer .zstp-import-btn {
+    pointer-events: auto;
+    -webkit-user-drag: none;
 }
 
 .zstp-action-stack {

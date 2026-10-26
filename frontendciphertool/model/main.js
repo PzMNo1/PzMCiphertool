@@ -17,6 +17,7 @@
     const selectedChatIds = new Set();
     const activeRunRegistry = new Map();
     const runningRunOrderByChat = new Map();
+    const lastGeneratedImageByChat = new Map();
 
     const MAX_ATTACHMENTS = 80;
     // 本地 checkpoint 恢复提示语：所有写入/比较都必须走这个常量，避免再有第二份字面量口径不一致。
@@ -570,6 +571,13 @@
         return String(content || '').trim();
     }
 
+    function isUsableReferenceImageUrl(value) {
+        const url = String(value || '').trim();
+        if (!url) return false;
+        if (/^\[(data|base64) image omitted,/i.test(url)) return false;
+        return /^data:image\/[a-z0-9.+-]+;base64,/i.test(url) || /^https?:\/\//i.test(url);
+    }
+
     function collectPriorImageTurns(messages = []) {
         const list = Array.isArray(messages) ? messages : [];
         const turns = [];
@@ -578,16 +586,46 @@
             let userIndex = index - 1;
             while (userIndex >= 0 && list[userIndex]?.role !== 'user') userIndex -= 1;
             const userText = userIndex >= 0 ? getUserMessageText(list[userIndex]) : '';
+            const image = message.images.find(item => isUsableReferenceImageUrl(item?.url));
             const revisedPrompt = message.images
-                .map(image => String(image?.revisedPrompt || '').trim())
+                .map(item => String(item?.revisedPrompt || '').trim())
                 .find(Boolean) || '';
             turns.push({
                 userText: truncateContextText(userText, 600),
                 imagePrompt: truncateContextText(message.image_prompt || '', 900),
-                revisedPrompt: truncateContextText(revisedPrompt, 500)
+                revisedPrompt: truncateContextText(revisedPrompt, 500),
+                imageUrl: image?.url || '',
+                mimeType: image?.mimeType || 'image/png'
             });
         });
         return turns.slice(-3);
+    }
+
+    function findReferenceImage(turns = []) {
+        for (let index = turns.length - 1; index >= 0; index -= 1) {
+            const url = turns[index]?.imageUrl;
+            if (isUsableReferenceImageUrl(url)) return url;
+        }
+        return '';
+    }
+
+    function findLastRenderedImageUrl() {
+        if (typeof document === 'undefined') return '';
+        const images = document.querySelectorAll('#chat-messages .generated-image-frame img');
+        for (let index = images.length - 1; index >= 0; index -= 1) {
+            const url = images[index].currentSrc || images[index].src;
+            if (isUsableReferenceImageUrl(url)) return url;
+        }
+        return '';
+    }
+
+    function findAttachmentReferenceImage(preparedAttachments) {
+        const parts = Array.isArray(preparedAttachments?.imageParts) ? preparedAttachments.imageParts : [];
+        for (const part of parts) {
+            const url = part?.image_url?.url || part?.url || '';
+            if (isUsableReferenceImageUrl(url)) return url;
+        }
+        return '';
     }
 
     function isImageResetRequest(text) {
@@ -600,6 +638,18 @@
         const priorTurns = Array.isArray(options.priorImageTurns)
             ? options.priorImageTurns.filter(Boolean).slice(-3)
             : [];
+
+        if (options.hasReferenceImage) {
+            const latest = priorTurns[priorTurns.length - 1] || {};
+            return [
+                '这是对随请求附上的参考图做局部精调，不是重新创作。',
+                latest.userText ? `参考图来自上一轮用户要求：${latest.userText}` : '',
+                '【本轮修改】',
+                brief,
+                '【规则】以随请求附上的参考图为唯一视觉基准。只修改本轮明确点名的对象或区域；未提到的构图、视角、背景、光线、风格、配色和其他细节保持不变。不要重新设计成无关的新图。'
+            ].filter(Boolean).join('\n\n');
+        }
+
         if (!priorTurns.length) return brief;
 
         const lines = [
@@ -620,24 +670,66 @@
             lines.push(...pieces);
         });
         lines.push('', '【本轮精调要求】', brief, '', '【连续性规则】');
-        lines.push('若模型支持会话内参考图，请以会话中的上一张图为视觉基准；否则以上一轮的提示词、修订提示和已确认细节为基准。保留主体、构图、视角、人物/物体特征、风格与配色，只修改本轮明确要求的部分。若本轮只提出局部修改，未提及的内容保持不变，不要重新设计成无关的新图。');
+        lines.push('以上一轮的提示词、修订提示和已确认细节为基准。只修改本轮明确点名的对象或区域；未提到的构图、视角、背景、光线、风格、配色和其他细节保持不变，不要重新设计成无关的新图。');
         return lines.join('\n');
     }
 
-    function getPersistableImages(images = []) {
+    function loadImageForStorage(src) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('image decode failed'));
+            image.src = src;
+        });
+    }
+
+    async function compressImageForStorage(image) {
+        const url = String(image?.url || '');
+        if (!url.startsWith('data:image/') || url.length < 350000) return image;
+        try {
+            const decoded = await loadImageForStorage(url);
+            const maxSide = 1024;
+            const scale = Math.min(1, maxSide / Math.max(decoded.width || maxSide, decoded.height || maxSide));
+            const width = Math.max(1, Math.round((decoded.width || maxSide) * scale));
+            const height = Math.max(1, Math.round((decoded.height || maxSide) * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            if (!context) return image;
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, width, height);
+            context.drawImage(decoded, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.88);
+            if (!compressed || compressed.length >= url.length) return image;
+            return {
+                ...image,
+                url: compressed,
+                mimeType: 'image/jpeg'
+            };
+        } catch (error) {
+            return image;
+        }
+    }
+
+    async function getPersistableImages(images = []) {
         const MAX_STORED_IMAGE_CHARS = 4200000;
-        return images
+        const compressed = await Promise.all((Array.isArray(images) ? images : [])
+            .filter(image => image?.url)
+            .map(image => compressImageForStorage(image)));
+        return compressed
             .map(image => {
-                if (!image?.url) return null;
-                if (image.url.startsWith('data:') && image.url.length > MAX_STORED_IMAGE_CHARS) {
+                const url = String(image?.url || '');
+                if (!url) return null;
+                if (url.startsWith('data:') && url.length > MAX_STORED_IMAGE_CHARS) {
                     return {
-                        url: `[data image omitted, ${image.url.length} chars]`,
+                        url: `[data image omitted, ${url.length} chars]`,
                         mimeType: image.mimeType || 'image',
                         revisedPrompt: image.revisedPrompt || ''
                     };
                 }
                 return {
-                    url: image.url,
+                    url,
                     mimeType: image.mimeType || 'image',
                     revisedPrompt: image.revisedPrompt || ''
                 };
@@ -1400,7 +1492,15 @@
 
             if (isImageModeEnabled) {
                 const priorImageTurns = collectPriorImageTurns(priorStoredMessages);
-                const isImageContinuation = priorImageTurns.length > 0 && !isImageResetRequest(message);
+                const imageReset = isImageResetRequest(message);
+                const memoryReference = imageReset ? '' : lastGeneratedImageByChat.get(chatId) || '';
+                const renderedReference = imageReset ? '' : findLastRenderedImageUrl();
+                const attachmentReference = findAttachmentReferenceImage(preparedAttachments);
+                const isImageContinuation = !imageReset
+                    && (priorImageTurns.length > 0 || Boolean(memoryReference) || Boolean(renderedReference));
+                const historyReference = isImageContinuation ? findReferenceImage(priorImageTurns) : '';
+                const referenceImage = memoryReference || historyReference || renderedReference || attachmentReference;
+                const hasReferenceImage = Boolean(referenceImage);
                 const imageBrief = buildImageBrief(message, preparedAttachments);
                 const imageStartedAt = Date.now();
                 const imageConfig = window.ImageGenerationClient?.resolveConfig?.() || {};
@@ -1408,16 +1508,19 @@
                 const imageProgress = window.chatUI.startImageGenerationProgress(container, {
                     startedAt: imageStartedAt,
                     model: imageModel,
-                    continuation: isImageContinuation
+                    continuation: isImageContinuation,
+                    reference: hasReferenceImage
                 });
                 const imagePrompt = buildImageGenerationPrompt(message, preparedAttachments, {
                     brief: imageBrief,
-                    priorImageTurns: isImageContinuation ? priorImageTurns : []
+                    priorImageTurns: isImageContinuation ? priorImageTurns : [],
+                    hasReferenceImage
                 });
                 let imageResponse;
                 try {
                     imageResponse = await runClient.generateImage({
                         prompt: imagePrompt,
+                        referenceImage,
                         signal: abortController.signal,
                         startedAt: imageStartedAt,
                         onProgress: event => imageProgress.update?.(event)
@@ -1428,15 +1531,24 @@
                 }
                 imageProgress.stop?.();
                 finalContent = isImageContinuation
-                    ? '已基于上一轮图片完成精调。'
-                    : (imageResponse.content || '已生成图片。');
+                    ? (hasReferenceImage ? '已基于上一轮图片完成精调。' : '已结合上一轮上下文完成重绘。')
+                    : (hasReferenceImage ? '已基于参考图完成编辑。' : (imageResponse.content || '已生成图片。'));
                 window.chatUI.displayGeneratedImages(container, imageResponse.images, finalContent);
                 window.chatUI.finalizeMessage(container);
                 window.chatUI.scrollToBottom?.();
 
+                const persistableImages = await getPersistableImages(imageResponse.images);
+                const generatedReference = persistableImages
+                    .map(image => String(image?.url || ''))
+                    .find(isUsableReferenceImageUrl)
+                    || imageResponse.images.map(image => String(image?.url || '')).find(isUsableReferenceImageUrl);
+                if (generatedReference) {
+                    lastGeneratedImageByChat.set(chatId, generatedReference);
+                }
+
                 completeActiveRun(activeRun, {
                     content: finalContent,
-                    images: getPersistableImages(imageResponse.images),
+                    images: persistableImages,
                     image_prompt: imageBrief
                 });
                 return;
