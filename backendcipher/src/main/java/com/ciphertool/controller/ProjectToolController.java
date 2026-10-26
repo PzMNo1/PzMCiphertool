@@ -160,10 +160,15 @@ public class ProjectToolController {
         return ok(result);
     }
 
+    private static final Set<String> ALLOWED_RUN_COMMANDS = Set.of("backend_test", "backend_build");
+
     @PostMapping("/run_command")
     public Map<String, Object> runCommand(@RequestBody Map<String, Object> request) {
         try {
             String command = stringArg(request, "command", "");
+            if (!ALLOWED_RUN_COMMANDS.contains(command)) {
+                return error("Unsupported command. Allowed: backend_test, backend_build");
+            }
             List<String> args = switch (command) {
                 case "backend_test" -> List.of("mvn.cmd", "test");
                 case "backend_build" -> List.of("mvn.cmd", "package", "-DskipTests");
