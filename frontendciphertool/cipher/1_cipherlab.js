@@ -1577,21 +1577,64 @@ const PlayfairCipher = {
 // 第一个 X 形格 S-V(上∨ 右> 左< 下∧); 第二个带点 X 形格 W-Z
 const PigpenCipher = {
   letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  // 旧版文本符号，仅用于兼容文本解码
   symbols: [
     '⌜','⊓','⌝','⊏','□','⊐','⌞','⊔','⌟',
     '⌜·','⊓·','⌝·','⊏·','□·','⊐·','⌞·','⊔·','⌟·',
     '∨','>','<','∧',
     '∨·','>·','<·','∧·'
   ],
+  html: true,
+  escapeHtml: s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+  svg: letter => {
+    const up = String(letter || '').toUpperCase();
+    const i = PigpenCipher.letters.indexOf(up);
+    if (i < 0) return null;
+    const near = 16, far = 84;
+    const parts = [];
+    if (i < 18) {
+      const cell = i % 9, row = Math.floor(cell / 3), col = cell % 3;
+      if (row < 2) parts.push(`<path d="M${near} ${near}H${far}"/>`);
+      if (row > 0) parts.push(`<path d="M${near} ${far}H${far}"/>`);
+      if (col < 2) parts.push(`<path d="M${near} ${near}V${far}"/>`);
+      if (col > 0) parts.push(`<path d="M${far} ${near}V${far}"/>`);
+      if (i >= 9) parts.push('<circle cx="50" cy="50" r="7" fill="currentColor" stroke="none"/>');
+    } else {
+      const quad = (i - 18) % 4;
+      parts.push([
+        `<path d="M${near} ${near}L50 50M${far} ${near}L50 50"/>`,
+        `<path d="M${near} ${near}L50 50M${near} ${far}L50 50"/>`,
+        `<path d="M${far} ${near}L50 50M${far} ${far}L50 50"/>`,
+        `<path d="M${near} ${far}L50 50M${far} ${far}L50 50"/>`
+      ][quad]);
+      if (i >= 22) {
+        const [cx, cy] = [[50, 35], [35, 50], [65, 50], [50, 65]][quad];
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="6" fill="currentColor" stroke="none"/>`);
+      }
+    }
+    return `<svg class="pg-fig" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" data-letter="${up}" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">${parts.join('')}</svg>`;
+  },
   e: t => [...(t || '').toUpperCase()].map(c => {
-    const i = PigpenCipher.letters.indexOf(c);
-    if (i >= 0) return PigpenCipher.symbols[i];
-    if (/\s/.test(c)) return '/';
-    return c;
-  }).join(' '),
+    if (PigpenCipher.letters.includes(c)) return PigpenCipher.svg(c);
+    if (/\s/.test(c)) return '<span class="pg-gap" data-space="1"></span>';
+    return PigpenCipher.escapeHtml(c);
+  }).join(''),
   d: t => {
+    const s = String(t || '');
+    if (/<svg[^>]*data-letter=|<span[^>]*data-space=/i.test(s)) {
+      let out = '', last = 0, m;
+      const re = /<svg[^>]*data-letter="([A-Z])"[^>]*>[\s\S]*?<\/svg>|<span[^>]*data-space="1"[^>]*><\/span>/gi;
+      while ((m = re.exec(s))) {
+        out += s.slice(last, m.index).replace(/<[^>]*>/g, '');
+        out += m[1] ? m[1].toUpperCase() : ' ';
+        last = re.lastIndex;
+      }
+      return out + s.slice(last).replace(/<[^>]*>/g, '');
+    }
     const reverse = Object.fromEntries(PigpenCipher.symbols.map((s, i) => [s, PigpenCipher.letters[i]]));
-    return (t || '').split(/\s+/).map(token => token === '/' ? ' ' : (reverse[token] || token)).join('');
+    const tokens = s.split(/\s+/).filter(Boolean);
+    if (!tokens.some(token => token === '/' || reverse[token])) return s;
+    return tokens.map(token => token === '/' ? ' ' : (reverse[token] || token)).join('');
   }
 }
 

@@ -379,15 +379,15 @@ function getSymbolCipherConfig() {
 	const type = document.getElementById('symbolCipherType')?.value || 'pigpen';
 	if (type === 'dancingMen') {
 		return {
+			type,
 			cipher: typeof DancingMenCipher !== 'undefined' ? DancingMenCipher : null,
-			symbolSize: '1.05rem',
 			html: true
 		};
 	}
 	return {
+		type: 'pigpen',
 		cipher: typeof PigpenCipher !== 'undefined' ? PigpenCipher : null,
-		symbolSize: '1.45rem',
-		html: false
+		html: true
 	};
 }
 
@@ -398,10 +398,43 @@ function renderSymbolCipherResult() {
 	if (!input || !result || !config.cipher) return;
 	const text = input.value || '';
 	if (!text) { result.textContent = ''; return; }
-	const out = `编码: ${config.cipher.e(text)}\n解码: ${config.cipher.d(text)}`;
-	// 跳舞的小人输出内联 SVG, 需按 HTML 渲染; Pigpen 符号含 < > 等字符, 必须按纯文本渲染
-	if (config.html) result.innerHTML = out;
-	else result.textContent = out;
+	const encoded = config.cipher.e(text);
+	const decoded = config.cipher.d(text);
+	if (config.html) {
+		const safeDecoded = config.cipher.escapeHtml ? config.cipher.escapeHtml(decoded) : decoded;
+		result.innerHTML = `编码: ${encoded}\n解码: ${safeDecoded}`;
+	} else {
+		result.textContent = `编码: ${encoded}\n解码: ${decoded}`;
+	}
+}
+
+function createSymbolTile(letter, config, onPick) {
+	const tile = document.createElement('button');
+	tile.type = 'button';
+	tile.className = 'cyber-button symbol-tile';
+	tile.title = letter;
+
+	const glitch = document.createElement('span');
+	glitch.className = 'cyber-button__glitch';
+	const body = document.createElement('span');
+	body.className = 'cyber-button__tag symbol-tile__body';
+	const glyph = document.createElement('span');
+	glyph.className = 'symbol-tile__glyph';
+	if (config.html && typeof config.cipher.svg === 'function') {
+		glyph.innerHTML = config.cipher.svg(letter) || '';
+	} else {
+		glyph.textContent = config.cipher.symbols?.[config.cipher.letters.indexOf(letter)] || letter;
+	}
+	const label = document.createElement('span');
+	label.className = 'symbol-tile__label';
+	label.textContent = letter;
+
+	body.appendChild(glyph);
+	body.appendChild(label);
+	tile.appendChild(glitch);
+	tile.appendChild(body);
+	tile.addEventListener('click', () => onPick(letter));
+	return tile;
 }
 
 function buildSymbolCipherPanel() {
@@ -416,40 +449,42 @@ function buildSymbolCipherPanel() {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 	};
 
+	const letters = [...config.cipher.letters];
 	panel.innerHTML = '';
 	panel.style.display = 'flex';
-	panel.style.flexWrap = 'wrap';
-	panel.style.gap = '8px';
-	panel.style.justifyContent = 'center';
 
-	[...config.cipher.letters].forEach((letter, index) => {
-		const tile = document.createElement('button');
-		tile.type = 'button';
-		tile.title = letter;
-		tile.style.cssText = 'width:68px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid rgba(64,224,255,.45);border-radius:8px;background:rgba(15,27,51,.72);color:#fff;box-shadow:0 0 8px rgba(64,224,255,.16);cursor:pointer;transition:transform .15s ease,border-color .15s ease;';
-		const symbol = document.createElement('span');
-		symbol.style.cssText = `font-size:${config.symbolSize};line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center;`;
-		if (config.html && typeof config.cipher.svg === 'function') {
-			// 跳舞的小人: 直接渲染 SVG 小人
-			symbol.innerHTML = config.cipher.svg(letter, false);
-		} else {
-			symbol.textContent = config.cipher.symbols[index];
-		}
-		const label = document.createElement('span');
-		label.textContent = letter;
-		label.style.cssText = 'font-size:.72rem;line-height:1;color:#40e0ff;';
-		tile.appendChild(symbol);
-		tile.appendChild(label);
-		tile.addEventListener('mouseenter', () => { tile.style.transform = 'translateY(-2px)'; tile.style.borderColor = '#2ecc71'; });
-		tile.addEventListener('mouseleave', () => { tile.style.transform = 'translateY(0)'; tile.style.borderColor = 'rgba(64,224,255,.45)'; });
-		tile.addEventListener('click', () => appendChar(letter));
-		panel.appendChild(tile);
-	});
+	if (config.type === 'pigpen') {
+		const charts = document.createElement('div');
+		charts.className = 'symbol-charts';
+		[
+			['grid', 0, 9],
+			['grid', 9, 18],
+			['x', 18, 22],
+			['x', 22, 26]
+		].forEach(([kind, from, to]) => {
+			const chart = document.createElement('div');
+			chart.className = `symbol-chart symbol-chart--${kind}`;
+			for (let i = from; i < to; i++) {
+				chart.appendChild(createSymbolTile(letters[i], config, appendChar));
+			}
+			charts.appendChild(chart);
+		});
+		panel.appendChild(charts);
+	} else {
+		const figures = document.createElement('div');
+		figures.className = 'symbol-figures';
+		letters.forEach(letter => {
+			const tile = createSymbolTile(letter, config, appendChar);
+			tile.classList.add('symbol-tile--figure');
+			figures.appendChild(tile);
+		});
+		panel.appendChild(figures);
+	}
 
 	const spaceTile = document.createElement('button');
 	spaceTile.type = 'button';
-	spaceTile.textContent = '空格 /';
-	spaceTile.style.cssText = 'width:68px;height:64px;border:1px solid rgba(46,204,113,.55);border-radius:8px;background:rgba(15,27,51,.72);color:#fff;box-shadow:0 0 8px rgba(46,204,113,.16);cursor:pointer;';
+	spaceTile.className = 'cyber-button symbol-space';
+	spaceTile.innerHTML = '<span class="cyber-button__glitch"></span><span class="cyber-button__tag">空格</span>';
 	spaceTile.addEventListener('click', () => appendChar(' '));
 	panel.appendChild(spaceTile);
 }
@@ -482,8 +517,10 @@ function initClickSymbolCiphers() {
 	});
 	input.addEventListener('input', renderSymbolCipherResult);
 	type.addEventListener('change', () => {
+		const wasOpen = panel.style.display !== 'none' && panel.childElementCount > 0;
 		panel.innerHTML = '';
 		panel.style.display = 'none';
+		if (wasOpen) buildSymbolCipherPanel();
 		renderSymbolCipherResult();
 	});
 	renderSymbolCipherResult();

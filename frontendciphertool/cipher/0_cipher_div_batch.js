@@ -165,8 +165,12 @@
         </div>
 
         <!-- Pigpen / 跳舞的小人密码 -->
-        <div class="card">
+        <div class="card symbol-cipher-card">
             <div class="badge">Pigpen / 跳舞的小人 符号密码</div>
+            <button class="cyber-button pin-toggle-btn">
+                <span class="cyber-button__glitch"></span>
+                <span class="cyber-button__tag">置顶</span>
+            </button>
             <div class="grid-2">
                 <select id="symbolCipherType">
                     <option value="pigpen">Pigpen 共济会密码</option>

@@ -1600,7 +1600,7 @@
   padding: 1rem;
   border-radius: 8px;
   min-height: 80px;
-  white-space: pre-wrap;
+  white-space: normal;
   position: relative;
   overflow-wrap: break-word;
   z-index: 1;

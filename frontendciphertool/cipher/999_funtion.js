@@ -57,13 +57,18 @@ function setCipherText(id, text) {
     if (el) el.textContent = text;
 }
 
-//跳舞的小人
+// 符号密码
 function setSymbolCipherResult(cipher, text) {
     const el = document.getElementById('symbolCipherResult');
     if (!el) return;
-    const out = `编码: ${cipher.e(text)}\n解码: ${cipher.d(text)}`;
-    if (cipher.html) el.innerHTML = out;
-    else el.textContent = out;
+    const encoded = cipher.e(text);
+    const decoded = cipher.d(text);
+    if (cipher.html) {
+        const safeDecoded = cipher.escapeHtml ? cipher.escapeHtml(decoded) : decoded;
+        el.innerHTML = `编码: ${encoded}\n解码: ${safeDecoded}`;
+    } else {
+        el.textContent = `编码: ${encoded}\n解码: ${decoded}`;
+    }
 }
 
 

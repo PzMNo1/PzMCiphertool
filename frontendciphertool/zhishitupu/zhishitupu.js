@@ -712,6 +712,7 @@ function renderGraph(container) {
     const GRAPH_DRAG_THRESHOLD = 8;
     const GRAPH_CLICK_SUPPRESS_MS = 320;
     let suppressGraphClickUntil = 0;
+    let graphGestureConsumed = false;
 
     const Graph = ForceGraph3D()(container)
         .graphData(gData)
@@ -1382,6 +1383,11 @@ function renderGraph(container) {
     function runGraphNodeAction(node, event) {
         if (!node) return false;
         const now = performance.now();
+        // 一次指针手势只消费一次：pointerup 之后延迟到达的 click 不能再触发节点动作
+        if (event) {
+            if (graphGestureConsumed) return true;
+            graphGestureConsumed = true;
+        }
         if (lastGraphNodeAction.node === node && now - lastGraphNodeAction.time < 250) return true;
         lastGraphNodeAction = { node, time: now };
         applyGraphFocus(node);
@@ -1417,6 +1423,7 @@ function renderGraph(container) {
 
         canvas.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
+            graphGestureConsumed = false;
             pointerDown = {
                 x: event.clientX,
                 y: event.clientY
@@ -1445,6 +1452,7 @@ function renderGraph(container) {
             const moved = Math.max(pointerTravel, Math.hypot(event.clientX - start.x, event.clientY - start.y));
             if (moved > GRAPH_DRAG_THRESHOLD) {
                 suppressGraphClickUntil = performance.now() + GRAPH_CLICK_SUPPRESS_MS;
+                graphGestureConsumed = true;
                 return;
             }
             const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);

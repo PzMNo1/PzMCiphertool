@@ -1209,6 +1209,143 @@ body {
   margin: 0;
 }
 
+/* Pigpen 符号面板: 井字格 + X 形格 */
+#symbolCipherPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 430px;
+  margin-inline: auto;
+  gap: .7rem;
+  padding: .8rem .55rem;
+  border: 1px solid rgba(64, 224, 255, .16);
+  border-radius: 12px;
+  background: rgba(0, 20, 40, .22);
+}
+
+#symbolCipherPanel .symbol-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+  width: 100%;
+}
+
+#symbolCipherPanel .symbol-chart {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+#symbolCipherPanel .symbol-chart--grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#symbolCipherPanel .symbol-chart--x {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - .5px), rgba(64, 224, 255, .28) calc(50% - .5px), rgba(64, 224, 255, .28) calc(50% + .5px), transparent calc(50% + .5px)),
+    linear-gradient(to top right, transparent calc(50% - .5px), rgba(64, 224, 255, .28) calc(50% - .5px), rgba(64, 224, 255, .28) calc(50% + .5px), transparent calc(50% + .5px));
+}
+
+#symbolCipherPanel .symbol-chart--x .symbol-tile:nth-child(1) {
+  grid-area: 1 / 2;
+}
+
+#symbolCipherPanel .symbol-chart--x .symbol-tile:nth-child(2) {
+  grid-area: 2 / 1;
+}
+
+#symbolCipherPanel .symbol-chart--x .symbol-tile:nth-child(3) {
+  grid-area: 2 / 3;
+}
+
+#symbolCipherPanel .symbol-chart--x .symbol-tile:nth-child(4) {
+  grid-area: 3 / 2;
+}
+
+#symbolCipherPanel .symbol-tile {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 2px;
+  top: 0;
+  flex-direction: column;
+  gap: 2px;
+  font-size: .66rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#symbolCipherPanel .symbol-tile__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+#symbolCipherPanel .symbol-tile__glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: #7cecff;
+}
+
+#symbolCipherPanel .symbol-tile__glyph .pg-fig {
+  display: block;
+  width: 62%;
+  height: auto;
+  margin: 0;
+}
+
+#symbolCipherPanel .symbol-tile__label {
+  font-size: .6rem;
+  line-height: 1;
+  letter-spacing: .5px;
+  color: #40e0ff;
+}
+
+#symbolCipherPanel .symbol-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+#symbolCipherPanel .symbol-tile--figure {
+  aspect-ratio: auto;
+  min-height: 84px;
+}
+
+#symbolCipherPanel .symbol-space {
+  top: 0;
+  min-width: 120px;
+  padding: .35rem 1rem;
+  font-size: .72rem;
+}
+
+.pg-fig {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  margin: 0 3px;
+  vertical-align: middle;
+}
+
+.pg-gap {
+  display: inline-block;
+  width: 14px;
+}
+
+.card.symbol-cipher-card.pinned {
+  max-width: 520px;
+}
+
 .cyber-button:before {
   content: "";
   position: absolute;
