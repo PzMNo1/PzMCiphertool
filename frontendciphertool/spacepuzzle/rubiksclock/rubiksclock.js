@@ -29,6 +29,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
   align-items: start;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .rubiks-clock-side {
@@ -94,6 +96,8 @@
     rgba(0, 0, 0, 0.22);
   cursor: grab;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .rubiks-clock-board.gear-dragging .rubiks-clock-grid {
@@ -676,10 +680,12 @@
                 pointerId: event.pointerId,
                 side,
                 pin,
+                grid,
                 startX: event.clientX,
                 startY: event.clientY,
                 applied: 0,
-                captured: false
+                captured: false,
+                fromPin: Boolean(pinElement)
             };
             board.classList.add('gear-dragging');
         });
@@ -710,12 +716,27 @@
         const stopDrag = event => {
             if (!drag || event.pointerId !== drag.pointerId) return;
             if (drag.captured && board.releasePointerCapture) board.releasePointerCapture(event.pointerId);
+            const rect = drag.grid.getBoundingClientRect();
+            const inside = event.clientX >= rect.left && event.clientX <= rect.right
+                && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            const stepDrag = !drag.captured && !drag.fromPin && inside ? drag : null;
             drag = null;
             board.classList.remove('gear-dragging');
+            if (stepDrag) {
+                const direction = event.shiftKey ? -1 : 1;
+                applyClockTurn(stepDrag.pin, direction, {
+                    side: stepDrag.side,
+                    record: true,
+                    label: formatManualMove(stepDrag.pin, direction, getVisiblePins(stepDrag.side), stepDrag.side)
+                });
+                renderRubiksClock();
+            }
         };
 
         board.addEventListener('pointerup', stopDrag);
         board.addEventListener('pointercancel', stopDrag);
+        window.addEventListener('pointerup', stopDrag);
+        window.addEventListener('pointercancel', stopDrag);
     }
 
     function updateSolutionPanel() {
@@ -811,7 +832,7 @@
                 <div class="instructions space-instructions">
                     <h3>系统规则:</h3>
                     <p>支持 WCA 风格记号：UR、DR、DL、UL、U、R、D、L、ALL，加 0-11 和 +/-，可用 y2 翻面。</p>
-                    <p>手动模式先点击针位，再在棋盘上拖动对应角落转动齿轮；正反面会按针位联动。</p>
+                    <p>手动模式先点击针位，再在棋盘上拖动对应角落转动齿轮，或点击棋盘单步旋转（Shift+点击反向）；正反面会按针位联动。</p>
                     <p>求解会反向执行本模块记录的扰乱历史，适合随机扰乱、公式输入和手动操作后的复原。</p>
                 </div>
             </div>
@@ -820,7 +841,7 @@
                 <div class="space-cube-hud">
                     <span id="clock-status">Rubik's Clock 处于还原态</span>
                 </div>
-                <div class="cube-drag-hint">拖动棋盘转动四角齿轮，点击针位切换上下</div>
+                <div class="cube-drag-hint">拖动或点击棋盘转动四角齿轮，点击针位切换上下</div>
                 <div id="rubiks-clock-board" class="rubiks-clock-board"></div>
             </div>
         </div>`;

@@ -52,12 +52,16 @@
 
 .pyraminx-projection-label {
   color: rgba(255, 255, 255, 0.72);
-  fill: rgba(255, 255, 255, 0.72);
+  fill: rgba(255, 255, 255, 0.9);
   font-family: 'Orbitron', 'Segoe UI', sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 1px;
   pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(4, 12, 18, 0.88);
+  stroke-width: 3px;
+  stroke-linejoin: round;
   text-shadow: 0 0 8px var(--face-tint);
   text-anchor: middle;
   dominant-baseline: middle;
@@ -178,10 +182,16 @@
     };
     const FACE_NAMES = ['U', 'L', 'R', 'B'];
     const FACE_LABELS = {
-        U: '顶面',
-        L: '左面',
-        R: '右面',
-        B: '后面'
+        U: '顶角',
+        L: '左角',
+        R: '右角',
+        B: '后角'
+    };
+    const CORNER_VERTEX = {
+        U: 'top',
+        L: 'front',
+        R: 'left',
+        B: 'right'
     };
     const TRIANGLE_HEIGHT = 155.884;
     const FACE_WIDTH = 220;
@@ -203,8 +213,6 @@
     };
     const PYRAMINX_VIEWBOX = { width: 360, height: 310, perspective: 660 };
     const PYRAMINX_ZOOM = 1.35;
-    const ROTATE_STEP = (Math.PI * 2) / 3;
-    const CENTER = { x: 90, y: TRIANGLE_HEIGHT * 2 / 3 };
     const TRIANGLE_POINTS = [
         [[90, 0], [60, TRIANGLE_HEIGHT / 3], [120, TRIANGLE_HEIGHT / 3]],
         [[60, TRIANGLE_HEIGHT / 3], [30, TRIANGLE_HEIGHT * 2 / 3], [90, TRIANGLE_HEIGHT * 2 / 3]],
@@ -216,31 +224,29 @@
         [[90, TRIANGLE_HEIGHT * 2 / 3], [150, TRIANGLE_HEIGHT * 2 / 3], [120, TRIANGLE_HEIGHT]],
         [[150, TRIANGLE_HEIGHT * 2 / 3], [120, TRIANGLE_HEIGHT], [180, TRIANGLE_HEIGHT]]
     ];
-    const EDGE_CYCLES = {
+    const MOVE_CYCLES = {
         U: [
-            [['L', 0], ['L', 3], ['L', 8]],
-            [['R', 4], ['R', 1], ['R', 0]],
-            [['B', 8], ['B', 6], ['B', 4]]
+            [['U', 1], ['L', 1], ['R', 1]],
+            [['U', 3], ['L', 3], ['R', 3]],
+            [['U', 2], ['L', 2], ['R', 2]]
         ],
         L: [
-            [['U', 0], ['U', 1], ['U', 4]],
-            [['B', 8], ['B', 3], ['B', 0]],
-            [['R', 8], ['R', 3], ['R', 0]]
+            [['B', 3], ['R', 6], ['L', 1]],
+            [['R', 7], ['L', 5], ['B', 2]],
+            [['L', 6], ['B', 1], ['R', 3]]
         ],
         R: [
-            [['U', 0], ['U', 3], ['U', 8]],
-            [['L', 4], ['L', 1], ['L', 0]],
-            [['B', 4], ['B', 1], ['B', 0]]
+            [['B', 7], ['L', 7], ['U', 5]],
+            [['B', 3], ['L', 3], ['U', 6]],
+            [['B', 6], ['L', 6], ['U', 1]]
         ],
         B: [
-            [['U', 4], ['U', 6], ['U', 8]],
-            [['R', 4], ['R', 6], ['R', 8]],
-            [['L', 4], ['L', 6], ['L', 8]]
+            [['U', 7], ['R', 5], ['B', 5]],
+            [['U', 3], ['R', 6], ['B', 6]],
+            [['R', 1], ['B', 1], ['U', 6]]
         ]
     };
 
-    const ROTATE_CW_MAP = [8, 3, 7, 6, 0, 2, 1, 5, 4];
-    const ROTATE_CCW_MAP = [4, 6, 5, 1, 8, 7, 3, 2, 0];
     let faces = createSolvedPyraminx();
     let history = [];
     let rawHistoryLength = 0;
@@ -249,41 +255,6 @@
     let solutionElapsed = 0;
     let pyraminxRotX = -35;
     let pyraminxRotY = -125;
-
-    function centroid(points) {
-        return points.reduce((acc, point) => {
-            acc.x += point[0] / points.length;
-            acc.y += point[1] / points.length;
-            return acc;
-        }, { x: 0, y: 0 });
-    }
-
-    function rotatePoint(point, dir) {
-        const angle = ROTATE_STEP * dir;
-        const dx = point.x - CENTER.x;
-        const dy = point.y - CENTER.y;
-        return {
-            x: CENTER.x + dx * Math.cos(angle) - dy * Math.sin(angle),
-            y: CENTER.y + dx * Math.sin(angle) + dy * Math.cos(angle)
-        };
-    }
-
-    function buildRotationMap(dir) {
-        const centers = TRIANGLE_POINTS.map(centroid);
-        return centers.map(center => {
-            const rotated = rotatePoint(center, dir);
-            let bestIndex = 0;
-            let bestDistance = Infinity;
-            centers.forEach((candidate, index) => {
-                const distance = Math.hypot(candidate.x - rotated.x, candidate.y - rotated.y);
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    bestIndex = index;
-                }
-            });
-            return bestIndex;
-        });
-    }
 
     function createSolvedPyraminx() {
         return Object.fromEntries(FACE_NAMES.map(face => [face, Array(9).fill(FACE_COLORS[face])]));
@@ -351,33 +322,18 @@
         return FACE_NAMES.every(face => state[face].every(color => color === state[face][0]));
     }
 
-    function rotateFace(state, face, dir) {
-        const source = state[face].slice();
-        const map = dir === 1 ? ROTATE_CW_MAP : ROTATE_CCW_MAP;
-        map.forEach((targetIndex, sourceIndex) => {
-            state[face][targetIndex] = source[sourceIndex];
-        });
-    }
-
-    function cycleEdges(state, face, dir) {
-        const cycle = EDGE_CYCLES[face];
-        const values = cycle.map(triple => triple.map(([targetFace, index]) => state[targetFace][index]));
-        cycle.forEach((triple, tripleIndex) => {
-            const source = values[dir === 1 ? (tripleIndex + 2) % 3 : (tripleIndex + 1) % 3];
-            triple.forEach(([targetFace, index], stickerIndex) => {
-                state[targetFace][index] = source[stickerIndex];
-            });
-        });
-    }
-
     function turnState(state, move) {
         const face = move.charAt(0);
-        if (!EDGE_CYCLES[face]) return;
-        const turns = move.endsWith('2') ? 2 : 1;
-        const dir = move.endsWith("'") ? -1 : 1;
-        for (let i = 0; i < turns; i++) {
-            rotateFace(state, face, dir);
-            cycleEdges(state, face, dir);
+        if (!MOVE_CYCLES[face]) return;
+        const turns = move.endsWith("'") || move.endsWith('2') ? 2 : 1;
+        for (let step = 0; step < turns; step++) {
+            const snapshot = cloneFaces(state);
+            MOVE_CYCLES[face].forEach(cycle => {
+                cycle.forEach((slot, index) => {
+                    const target = cycle[(index + 1) % cycle.length];
+                    state[target[0]][target[1]] = snapshot[slot[0]][slot[1]];
+                });
+            });
         }
     }
 
@@ -494,6 +450,33 @@
         return points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
     }
 
+    function faceCentroid3D(face) {
+        const keys = FACE_VERTEX_KEYS[face];
+        return {
+            x: (TETRA_VERTICES[keys[0]].x + TETRA_VERTICES[keys[1]].x + TETRA_VERTICES[keys[2]].x) / 3,
+            y: (TETRA_VERTICES[keys[0]].y + TETRA_VERTICES[keys[1]].y + TETRA_VERTICES[keys[2]].y) / 3,
+            z: (TETRA_VERTICES[keys[0]].z + TETRA_VERTICES[keys[1]].z + TETRA_VERTICES[keys[2]].z) / 3
+        };
+    }
+
+    function cornerLabels() {
+        return Object.entries(CORNER_VERTEX).map(([label, vertexKey]) => {
+            const vertex = TETRA_VERTICES[vertexKey];
+            const adjacent = FACE_NAMES
+                .filter(face => FACE_VERTEX_KEYS[face].includes(vertexKey))
+                .sort((a, b) => rotate3D(faceOutwardNormal(b)).z - rotate3D(faceOutwardNormal(a)).z);
+            const face = adjacent[0];
+            if (rotate3D(faceOutwardNormal(face)).z <= 0.001) return null;
+            const centroid = faceCentroid3D(face);
+            const anchor = {
+                x: vertex.x + (centroid.x - vertex.x) * 0.34,
+                y: vertex.y + (centroid.y - vertex.y) * 0.34,
+                z: vertex.z + (centroid.z - vertex.z) * 0.34
+            };
+            return { label, face, center: project3D(anchor) };
+        }).filter(Boolean).sort((a, b) => a.center.z - b.center.z);
+    }
+
     function renderPyraminxView() {
         const solid = document.getElementById('pyraminx-solid');
         if (!solid) return;
@@ -514,10 +497,7 @@
         });
         polygons.sort((a, b) => a.depth - b.depth);
 
-        const labels = visibleFaces.map(face => {
-            const center = project3D(localFacePointTo3D(face, [90, TRIANGLE_HEIGHT * 0.66]));
-            return { face, center };
-        }).sort((a, b) => a.center.z - b.center.z);
+        const labels = cornerLabels();
 
         solid.innerHTML = `
             <svg class="pyraminx-projection" viewBox="0 0 ${PYRAMINX_VIEWBOX.width} ${PYRAMINX_VIEWBOX.height}" aria-label="金字塔魔方">
@@ -530,7 +510,7 @@
                     <text class="pyraminx-projection-label"
                         x="${item.center.x.toFixed(2)}"
                         y="${item.center.y.toFixed(2)}"
-                        style="--face-tint:${FACE_COLORS[item.face]}">${item.face}</text>
+                        style="--face-tint:${FACE_COLORS[item.face]}">${item.label}</text>
                 `).join('')}
             </svg>
         `;
@@ -718,6 +698,7 @@
                     <div class="instructions space-instructions">
                         <h3>系统法则:</h3>
                         <p>支持金字塔魔方基础记号：U L R B，可加 ' 或 2。</p>
+                        <p>U L R B 分别绕四个角块转动两层，角尖不随转动改变。</p>
                         <p>求解器会压缩连续同面转动，并按当前历史生成还原路径。</p>
                         <p>可用右侧转动面板单步操作，也可直接输入完整公式。</p>
                     </div>

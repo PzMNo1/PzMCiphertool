@@ -118,10 +118,6 @@
   overflow: visible;
 }
 
-.squareone-layer-base {
-  fill: rgba(3, 14, 20, 0.98);
-}
-
 .squareone-unit {
   fill: var(--piece-color);
   stroke: rgba(2, 12, 18, 0.92);
@@ -295,7 +291,8 @@
             part,
             size,
             faceColor,
-            sideColor
+            sideColor,
+            shapeAngle: 0
         }));
     }
 
@@ -326,6 +323,10 @@
         if (normalized > 6) normalized -= UNIT_COUNT;
         if (normalized < -5) normalized += UNIT_COUNT;
         return normalized;
+    }
+
+    function normalizeAngle(value) {
+        return ((Math.round(Number(value) || 0) % 360) + 360) % 360;
     }
 
     function rotateLayer(layer, amount) {
@@ -387,6 +388,16 @@
 
         topLayer = rotateLayer(topLayer, topTurn);
         bottomLayer = rotateLayer(bottomLayer, bottomTurn);
+        if (topTurn) {
+            topLayer.forEach(unit => {
+                unit.shapeAngle = normalizeAngle(unit.shapeAngle + topTurn * 30);
+            });
+        }
+        if (bottomTurn) {
+            bottomLayer.forEach(unit => {
+                unit.shapeAngle = normalizeAngle(unit.shapeAngle + bottomTurn * 30);
+            });
+        }
 
         if (options.record) {
             pushHistory({ type: 'turn', top: topTurn, bottom: bottomTurn });
@@ -405,8 +416,9 @@
             return false;
         }
 
-        const topFront = topLayer.slice(0, 6).reverse().map(cloneUnit);
-        const bottomFront = bottomLayer.slice(0, 6).reverse().map(cloneUnit);
+        const reflectAngle = unit => ({ ...unit, shapeAngle: normalizeAngle(180 - unit.shapeAngle) });
+        const topFront = topLayer.slice(0, 6).reverse().map(cloneUnit).map(reflectAngle);
+        const bottomFront = bottomLayer.slice(0, 6).reverse().map(cloneUnit).map(reflectAngle);
         topLayer = bottomFront.concat(topLayer.slice(6).map(cloneUnit));
         bottomLayer = topFront.concat(bottomLayer.slice(6).map(cloneUnit));
 
@@ -505,8 +517,11 @@
     function squareBoundaryPoints(startAngle, endAngle, halfSize) {
         const cornerAngles = [45, 135, 225, 315];
         const angles = [startAngle];
-        cornerAngles.forEach(angle => {
-            if (angle > startAngle && angle < endAngle) angles.push(angle);
+        cornerAngles.forEach(cornerAngle => {
+            [-360, 0, 360, 720].forEach(offset => {
+                const angle = cornerAngle + offset;
+                if (angle > startAngle && angle < endAngle) angles.push(angle);
+            });
         });
         angles.push(endAngle);
         return angles.map(angle => squareBoundaryPoint(halfSize, angle));
@@ -565,8 +580,10 @@
         return collectLayerPieces(layer).map(piece => {
             const start = piece.start * 30;
             const end = (piece.start + piece.span) * 30;
+            const angle = normalizeAngle(piece.unit.shapeAngle || 0);
             const cutClass = isSliceBoundaryPiece(piece.start, piece.span) ? 'cut' : '';
-            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${squareWedgePath(start, end, 18, 118)}" style="--piece-color:${piece.unit.faceColor}" />`;
+            const path = squareWedgePath(start - angle, end - angle, 18, 118);
+            return `<path class="squareone-unit ${piece.unit.type} ${cutClass}" d="${path}" transform="rotate(${angle})" style="--piece-color:${piece.unit.faceColor}" />`;
         }).join('');
     }
 
@@ -583,7 +600,6 @@
 
     function renderLayerSvg(layer, label, className) {
         return `<svg class="squareone-layer-svg ${className}" viewBox="-122 -122 244 244" aria-label="${label}">
-            <rect class="squareone-layer-base" x="-122" y="-122" width="244" height="244"></rect>
             ${renderLayerFacePieces(layer)}
             <path class="squareone-layer-core" d="${squareCorePath(18)}"></path>
             <line class="squareone-cut-line" x1="0" y1="-122" x2="0" y2="122"></line>
