@@ -721,8 +721,8 @@ class HistoryManager {
     }
 
     compactThoughtTrace(trace, level = 'normal') {
-        const limit = level === 'normal' ? 60 : level === 'tight' ? 40 : 20;
-        const maxText = level === 'normal' ? 900 : 500;
+        const limit = level === 'normal' ? 200 : level === 'tight' ? 120 : 60;
+        const maxText = level === 'normal' ? 1200 : 700;
         return (Array.isArray(trace) ? trace : []).slice(-limit).map(item => ({
             stage: this.truncateText(item?.stage || 'act', 24),
             key: this.truncateText(item?.key || '', 80),

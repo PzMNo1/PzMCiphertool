@@ -42,6 +42,12 @@ class AgentRuntime {
         // 研究交付契约：决定档位与硬性交付指标
         this.researchContract = window.agentResearchContract
             || (window.AgentResearchContract ? new window.AgentResearchContract() : null);
+
+        // 插件层：Skill / Harness / MCP 均可装卸，缺省时链路与旧版一致
+        this.skillRegistry = window.agentSkillRegistry || null;
+        this.harnessRegistry = window.agentHarnessRegistry || null;
+        this.mcpClient = window.agentMcpClient || null;
+        if (this.mcpClient && typeof this.mcpClient.hydrate === 'function') this.mcpClient.hydrate();
         
         // 并行专家研究面板
         this.expertPanel = window.AgentExpertPanel
@@ -129,9 +135,13 @@ class AgentRuntime {
                     citationTarget: 0
                 }
             };
+        const harness = this.resolveHarness(intent);
+        const skills = this.skillRegistry ? this.skillRegistry.activate(intent) : [];
         return {
             runId: 'run-' + Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 7),
             mode: intent.mode,
+            harness: harness ? { id: harness.id, name: harness.name, policy: harness.policy } : null,
+            skills,
             researchProfile: policy.researchProfile || 'agentic',
             newsBriefScope: null,
             writingContract: null,
@@ -139,16 +149,18 @@ class AgentRuntime {
             policyFlags: policy.policyFlags || {},
             selectedTools: policy.selectedTools,
             agentEarthTargetCalls: 0,
-            maxIterations: policy.maxIterations,
+            maxIterations: Number(harness?.maxAgentIterations) > 0 ? harness.maxAgentIterations : policy.maxIterations,
             sourceTarget: 0,
             citationTarget: 0,
-            stages: [
-                { id: 'plan', label: 'Plan' },
-                { id: 'route', label: 'Route' },
-                { id: 'act', label: 'Act' },
-                { id: 'observe', label: 'Observe' },
-                { id: 'synthesize', label: 'Synthesize' }
-            ],
+            stages: harness
+                ? harness.stages
+                : [
+                    { id: 'plan', label: 'Plan' },
+                    { id: 'route', label: 'Route' },
+                    { id: 'act', label: 'Act' },
+                    { id: 'observe', label: 'Observe' },
+                    { id: 'synthesize', label: 'Synthesize' }
+                ],
             collaboration: { enabled: false, strategy: 'single_agent', collaborators: [], handoffs: [], quality_gates: [] }
         };
     }
@@ -188,15 +200,47 @@ class AgentRuntime {
     }
 
     buildAgentSystemPrompt(plan, contextPack = null) {
-        if (this.agentProfiles) {
-            return this.agentProfiles.buildSystemPrompt(plan, contextPack);
+        const base = this.agentProfiles
+            ? this.agentProfiles.buildSystemPrompt(plan, contextPack)
+            : [
+                'Agent runtime policy:',
+                '- Treat the conversation as a bounded run with these phases: plan, route, act, observe, synthesize.',
+                '- Choose and use tools autonomously, observe results, and synthesize a direct final answer.',
+                '- Current run mode: ' + (plan?.mode || 'chat') + '.'
+            ].join('\n');
+        return [base, ...this.buildPluginPrompt(plan)].filter(Boolean).join('\n');
+    }
+
+    /**
+     * 插件提示词：Harness 规则 → 激活的 Skill 片段 → MCP 能力清单。
+     * 任一插件缺失时返回空数组，提示词与旧版逐字一致。
+     */
+    buildPluginPrompt(plan) {
+        const parts = [];
+        try {
+            const harness = this.harnessRegistry?.get?.(plan?.harness?.id);
+            parts.push(...(this.harnessRegistry?.buildPrompt?.(harness) || []));
+            parts.push(...(this.skillRegistry?.buildPrompt?.(plan?.skills || []) || []));
+            parts.push(...(this.mcpClient?.buildPromptFragment?.() || []));
+        } catch (error) {
+            console.warn('Plugin prompt assembly failed.', error);
         }
-        return [
-            'Agent runtime policy:',
-            '- Treat the conversation as a bounded run with these phases: plan, route, act, observe, synthesize.',
-            '- Choose and use tools autonomously, observe results, and synthesize a direct final answer.',
-            '- Current run mode: ' + (plan?.mode || 'chat') + '.'
-        ].join('\n');
+        return parts;
+    }
+
+    resolveHarness(intent) {
+        if (!this.harnessRegistry) return null;
+        try {
+            return this.harnessRegistry.resolve(intent);
+        } catch (error) {
+            console.warn('Harness resolve failed, falling back to default pipeline.', error);
+            return null;
+        }
+    }
+
+    harnessAllows(plan, key) {
+        const policy = plan?.harness?.policy;
+        return !policy || policy[key] !== false;
     }
 
     buildContextMemoryPolicy(contextPack) {
@@ -240,7 +284,7 @@ class AgentRuntime {
         runState.onSnapshot = typeof onRunSnapshot === 'function' ? onRunSnapshot : null;
 
         // 交付档位：按意图信号判定（不再使用字符数门槛，避免 9 个字符的研究请求被判为普通问答）
-        const contract = this.researchContract
+        let contract = this.researchContract
             ? this.researchContract.classify({
                 query: userMessage,
                 mode: plan.mode,
@@ -248,6 +292,7 @@ class AgentRuntime {
                 deepThink: Boolean(enableThinking)
             })
             : null;
+        if (contract && !this.harnessAllows(plan, 'deliverable')) contract = null;
         plan.contract = contract;
         runState.contract = contract;
         // 研究档位：工具循环只产出内部草稿，正文由唯一的交付物写作阶段输出，
@@ -256,7 +301,7 @@ class AgentRuntime {
         const runtimeConfig = this.resolvePanelConfig();
 
         // 让运行面板提前准备好专家状态容器（面板在 createAgentRunPanel 时据此创建）
-        if (contract && contract.needsExpertPanel && this.expertPanel && this.expertPanel.isEnabled()) {
+        if (contract && contract.needsExpertPanel && this.expertPanel && this.expertPanel.isEnabled() && this.harnessAllows(plan, 'expertPanel')) {
             plan.collaboration = {
                 enabled: true,
                 strategy: 'expert_panel',
@@ -424,7 +469,7 @@ class AgentRuntime {
         // 墙钟时间 = 最慢专家的耗时，而不是所有轮次之和。
         let expertDigest = '';
         let panelUsage = null;
-        if (this.expertPanel && contract && contract.needsExpertPanel) {
+        if (this.expertPanel && contract && contract.needsExpertPanel && this.harnessAllows(plan, 'expertPanel')) {
             try {
                 this.ui.setAgentStage(container, 'route', 'active', '并行Agent研究');
                 const panel = await this.expertPanel.run({
@@ -494,7 +539,7 @@ class AgentRuntime {
                         container,
                         'route',
                         '专家面板完成：成功 ' + panel.successCount + '/' + panel.experts.length
-                        + '，并行墙钟 ' + (panel.wallMs / 1000).toFixed(1) + 's'
+                        + '，并行用时 ' + (panel.wallMs / 1000).toFixed(1) + 's'
                         + '（串行等价 ' + (panel.serialEquivalentMs / 1000).toFixed(1) + 's，提速约 ' + speedup + '×）'
                     );
                 }
@@ -1044,12 +1089,45 @@ class AgentRuntime {
         if (ledger.length && withSnippet / ledger.length < 0.3) {
             notes.push('多数来源只有页面链接而无正文摘录，涉及具体数值的结论应写明数字来源类型（如厂商自报、媒体转述），不要写成第三方实测。');
         }
+        const mix = this.describeSourceMix(ledger);
+        if (mix.note) notes.push(mix.note);
         if (!notes.length) return '';
 
         return [
             '【证据强度提示】以下内容用于校准主张强度，不要把这些句子或类似表述写进正文，也不要提及检索过程：',
             ...notes.map(note => '- ' + note)
         ].join('\n');
+    }
+
+    describeSourceMix(ledger = []) {
+        const labels = {
+            paper: '论文',
+            official_policy: '监管/官方',
+            official_docs: '官方文档',
+            institution_report: '机构报告',
+            news: '新闻',
+            community: '社区/论坛',
+            encyclopedia: '百科',
+            webpage: '普通网页',
+            search_candidate: '搜索结果'
+        };
+        const counts = new Map();
+        (ledger || []).forEach(item => {
+            const key = String(item?.sourceType || 'webpage');
+            counts.set(key, (counts.get(key) || 0) + 1);
+        });
+        if (!counts.size) return { note: '' };
+        const parts = Array.from(counts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, count]) => `${labels[key] || key} ${count}`);
+        const primary = (counts.get('paper') || 0)
+            + (counts.get('official_policy') || 0)
+            + (counts.get('official_docs') || 0)
+            + (counts.get('institution_report') || 0);
+        const note = primary < 3
+            ? `可用来源以${parts.join('、')}为主，一手来源（论文/监管披露/官方文档/机构报告）不足 3 条；涉及学术结论、监管口径、财务数字的论断必须降低主张强度，并在「局限与数据说明」写明来源结构。`
+            : `来源结构：${parts.join('、')}。一手来源充足，引用仍需逐条落到具体编号。`;
+        return { note };
     }
 
     /**
@@ -1333,7 +1411,10 @@ class AgentRuntime {
             const entry = evidence.find(item => String(item.source_id) === String(num)) || evidence[num - 1];
             const url = entry && /^https?:\/\//i.test(String(entry.url || '')) ? String(entry.url) : '';
             if (!url) return line;
-            return match[1] + '[' + num + '] ' + (body ? body + ' — ' : '') + url;
+            const site = String(entry?.site || '').trim() || this.hostOfUrl(url);
+            const written = body || this.cleanOneLine(entry?.title || '');
+            const labelled = site && written && !written.includes(site) ? `${site} · ${written}` : written;
+            return match[1] + '[' + num + '] ' + (labelled ? labelled + ' — ' : '') + url;
         }).join('\n');
     }
 
@@ -1367,10 +1448,10 @@ class AgentRuntime {
             tool_contracts: this.getSelectedToolContracts(plan.selectedTools),
             events: runState?.events || [],
             thought_trace: includeThoughts
-                ? (runState?.thoughtTrace || []).slice(-60).map(item => ({
+                ? (runState?.thoughtTrace || []).slice(-200).map(item => ({
                     stage: item.stage || 'act',
                     key: item.key || '',
-                    text: this.previewValue(item.text || '', 900),
+                    text: this.previewValue(item.text || '', 1200),
                     at: item.at || null
                 }))
                 : undefined,
@@ -1448,7 +1529,7 @@ class AgentRuntime {
 
         let total = Number(runState.thoughtChars) || 0;
         total += Math.max(0, String(entry.text || '').length - beforeLength);
-        while (trace.length > 180 || total > 22000) {
+        while (trace.length > 400 || total > 60000) {
             const removed = trace.shift();
             total -= String(removed?.text || '').length;
         }
@@ -1817,7 +1898,8 @@ class AgentRuntime {
             push({
                 url: urlCandidate,
                 title: node.title || node.name || node.headline || '',
-                snippet: node.snippet || node.summary || node.description || node.content_preview || node.text || ''
+                snippet: node.snippet || node.summary || node.description || node.content_preview || node.text || '',
+                site: this.pickSite(node)
             });
             used += 1;
         }
@@ -1848,8 +1930,36 @@ class AgentRuntime {
         return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    pickSite(node = {}) {
+        const candidate = node.site_name || node.siteName || node.site || node.publisher || node.media || node.platform;
+        if (typeof candidate !== 'string') return '';
+        const value = this.cleanOneLine(candidate).trim();
+        if (!value || value.length > 40 || /^https?:\/\//i.test(value)) return '';
+        return value;
+    }
+
+    hostOfUrl(url) {
+        try {
+            return new URL(url).hostname.replace(/^www\./, '');
+        } catch (error) {
+            return '';
+        }
+    }
+
+    inferSourceType(url) {
+        const value = String(url || '').toLowerCase();
+        if (/arxiv\.org|doi\.org|pubmed|nature\.com|science\.org|cell\.com|ieee\.org|acm\.org|springer|sciencedirect|wiley|thelancet|nejm/.test(value)) return 'paper';
+        if (/\.gov|who\.int|un\.org|imf\.org|oecd\.org|worldbank\.org|sec\.gov|pbc\.gov\.cn|csrc\.gov\.cn|sse\.com\.cn|szse\.cn/.test(value)) return 'official_policy';
+        if (/docs\.|developer\.|developers\.|github\.com|npmjs\.com|pypi\.org/.test(value)) return 'official_docs';
+        if (/reuters|bloomberg|cls\.cn|caixin|yicai|xinhuanet|people\.com\.cn|36kr|stcn\.com|cnstock/.test(value)) return 'news';
+        if (/wikipedia|baike\./.test(value)) return 'encyclopedia';
+        if (/cninfo\.com\.cn/.test(value)) return 'official_policy';
+        return 'webpage';
+    }
+
     addEvidenceEntry(runState, entry) {
         if (!runState || !entry || !entry.url) return null;
+        const site = this.cleanOneLine(entry.site || '').trim() || this.hostOfUrl(entry.url);
         const evidenceEntry = {
             id: 'evd-' + (runState.evidenceLedger.length + 1),
             source_id: String(runState.evidenceLedger.length + 1),
@@ -1858,6 +1968,8 @@ class AgentRuntime {
             title: entry.title || '',
             snippet: entry.snippet || '',
             url: entry.url,
+            site,
+            sourceType: entry.sourceType || this.inferSourceType(entry.url),
             observed_at: new Date().toISOString(),
             trustLevel: 'medium'
         };

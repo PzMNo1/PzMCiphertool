@@ -9,8 +9,8 @@
     let client = null;
 
     // 状态
-    let isToolEnabled = false;
-    let isDeepThinkEnabled = false;
+    let isToolEnabled = true;
+    let isDeepThinkEnabled = true;
     let eventsInitialized = false;
     let durableRecoveryInitialized = false;
     let attachments = [];
@@ -1457,11 +1457,9 @@
                 owner_id: getCurrentAccountId()
             }) !== false;
 
-            // 获取状态
-            const deepThinkToggle = document.getElementById('deep-think-toggle');
-            const toolToggle = document.getElementById('tool-toggle');
-            isDeepThinkEnabled = deepThinkToggle && deepThinkToggle.classList.contains('active');
-            isToolEnabled = toolToggle && toolToggle.classList.contains('active');
+            // 工具与深度思考已并入插件层，默认常开；作图/建模模式下由 syncModeControls 关闭
+            isDeepThinkEnabled = !isImageModeEnabled && !isModelingModeEnabled;
+            isToolEnabled = !isImageModeEnabled && !isModelingModeEnabled;
 
             // 构建消息
             const messages = [
@@ -2659,24 +2657,6 @@
             deleteButton.addEventListener('click', deleteSelectedChats);
         }
 
-        // 深度思考开关
-        const deepThinkToggle = document.getElementById('deep-think-toggle');
-        if (deepThinkToggle) {
-            deepThinkToggle.classList.add('active');
-            deepThinkToggle.addEventListener('click', () => {
-                deepThinkToggle.classList.toggle('active');
-            });
-        }
-
-        // 工具开关
-        const toolToggle = document.getElementById('tool-toggle');
-        if (toolToggle) {
-            toolToggle.classList.add('active');
-            toolToggle.addEventListener('click', () => {
-                toolToggle.classList.toggle('active');
-            });
-        }
-
         const modelingModeToggle = document.getElementById('modeling-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
         if (modelingModeToggle || imageModeToggle) {
@@ -2687,13 +2667,8 @@
                 modelingModeToggle?.classList.toggle('active', modelingEnabled);
                 imageModeToggle?.classList.toggle('active', imageEnabled);
                 inputActions?.classList.toggle('image-mode-only', modelingEnabled || imageEnabled);
-                if (modelingEnabled || imageEnabled) {
-                    toolToggle?.classList.remove('active');
-                    deepThinkToggle?.classList.remove('active');
-                } else {
-                    toolToggle?.classList.add('active');
-                    deepThinkToggle?.classList.add('active');
-                }
+                isToolEnabled = !modelingEnabled && !imageEnabled;
+                isDeepThinkEnabled = !modelingEnabled && !imageEnabled;
             };
             const initialMode = modelingModeToggle?.classList.contains('active')
                 ? 'modeling'
@@ -2790,6 +2765,15 @@
         // 初始化 UI
         window.chatUI.init();
 
+        if (window.agentPluginPanel) {
+            window.agentPluginPanel.init();
+            const pluginBtn = document.getElementById('agent-plugin-btn');
+            if (pluginBtn && !pluginBtn.dataset.pluginBound) {
+                pluginBtn.dataset.pluginBound = '1';
+                pluginBtn.addEventListener('click', () => window.agentPluginPanel.toggle());
+            }
+        }
+
         // 绑定事件
         bindEvents();
 
@@ -2815,9 +2799,126 @@
         refreshAgentForCurrentAccount();
     }
 
+    /**
+     * Agent 插件面：所有装卸都经内核校验（manifest + 约束硬拒载）。
+     * 控制台可直接操作，后续设置面板复用同一组函数。
+     */
+    function createAgentPluginApi() {
+        const kernel = window.agentPluginKernel || null;
+        const skills = window.agentSkillRegistry || null;
+        const harnesses = window.agentHarnessRegistry || null;
+        const mcp = window.agentMcpClient || null;
+
+        function mount(manifest) {
+            if (!kernel) throw new Error('插件内核未加载');
+            kernel.mount(manifest);
+            return () => kernel.unmount(manifest.id);
+        }
+
+        function skillManifest(skill = {}) {
+            return {
+                id: `skill.${skill.id}`,
+                kind: 'skill',
+                name: skill.name || skill.id,
+                source: 'runtime',
+                placement: 'runtime',
+                contracts: 'read-only',
+                capabilities: [],
+                prompt: Array.isArray(skill.prompt) ? skill.prompt : [],
+                provides: { skills: [skill.id] },
+                mount: ctx => ctx.skills.register(skill)
+            };
+        }
+
+        function harnessManifest(harness = {}) {
+            return {
+                id: `harness.${harness.id}`,
+                kind: 'harness',
+                name: harness.name || harness.id,
+                source: 'runtime',
+                placement: 'runtime',
+                contracts: 'read-only',
+                capabilities: [],
+                prompt: Array.isArray(harness.prompt) ? harness.prompt : [],
+                provides: { harnesses: [harness.id] },
+                mount: ctx => ctx.harnesses.register(harness)
+            };
+        }
+
+        function mcpManifest(server) {
+            return {
+                id: `mcp.${server.id}`,
+                kind: 'mcp',
+                name: server.name,
+                source: 'runtime',
+                placement: 'runtime',
+                contracts: 'read-only',
+                capabilities: ['network'],
+                provides: { tools: [] },
+                mount: ctx => () => ctx.mcp.removeServer(server.id)
+            };
+        }
+
+        return {
+            kernel: {
+                list: () => (kernel ? kernel.list() : []),
+                validate: manifest => (kernel ? kernel.validate(manifest) : ['插件内核未加载']),
+                mount,
+                unmount: id => Boolean(kernel && kernel.unmount(id))
+            },
+            skills: {
+                list: () => (skills ? skills.list() : []),
+                register: skill => mount(skillManifest(skill)),
+                unregister: id => Boolean(kernel && kernel.unmount(`skill.${id}`)) || Boolean(skills && skills.unregister(id)),
+                activate: (message, mode = 'agent') => (skills ? skills.activate({ mode, text: String(message || '') }) : [])
+            },
+            harnesses: {
+                list: () => (harnesses ? harnesses.list() : []),
+                register: harness => mount(harnessManifest(harness)),
+                unregister: id => Boolean(kernel && kernel.unmount(`harness.${id}`)) || Boolean(harnesses && harnesses.unregister(id)),
+                current: () => (harnesses ? harnesses.resolve() : null),
+                use: id => {
+                    const next = String(id || '');
+                    if (next && harnesses && !harnesses.has(next)) throw new Error(`未知 harness: ${next}`);
+                    window.PZM_AGENT_HARNESS = next;
+                    return harnesses ? harnesses.resolve() : null;
+                }
+            },
+            mcp: {
+                list: () => (mcp ? mcp.listServers() : []),
+                add: async config => {
+                    if (!mcp) throw new Error('MCP 客户端未加载');
+                    const server = mcp.normalizeServer(config);
+                    const dispose = mount(mcpManifest(server));
+                    mcp.addServer(server);
+                    try {
+                        const tools = await mcp.connect(server.id);
+                        return { server, tools: tools.map(tool => tool.name), dispose };
+                    } catch (error) {
+                        dispose();
+                        throw error;
+                    }
+                },
+                remove: id => {
+                    const unmounted = Boolean(kernel && kernel.unmount(`mcp.${id}`));
+                    if (unmounted) return true;
+                    return Boolean(mcp && mcp.removeServer(id));
+                },
+                connect: async id => {
+                    if (!mcp) throw new Error('MCP 客户端未加载');
+                    const tools = await mcp.connect(id);
+                    return tools.map(tool => tool.name);
+                },
+                connectAll: () => (mcp ? mcp.connectAll() : Promise.resolve([])),
+                call: (serverId, toolName, args) => mcp.callTool(serverId, toolName, args || {})
+            }
+        };
+    }
+
     // 导出全局函数
     window.initChatFunctions = initChatFunctions;
     window.bindChatEvents = bindEvents;
+    window.PZMAgentPlugins = createAgentPluginApi();
 
     // DOM 加载完成后自动初始化（如果在大模型页面）
     document.addEventListener('DOMContentLoaded', function () {

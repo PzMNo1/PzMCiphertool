@@ -127,8 +127,9 @@
             ].filter(Boolean).join('\n');
         }
 
-        buildExpertSystemPrompt(dimensionKey, query) {
+        buildExpertSystemPrompt(dimensionKey, query, plan = null) {
             const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
+            const skillLines = this.runtime?.skillRegistry?.buildPrompt?.(plan?.skills || []) || [];
             return [
                 `你是「${dim.label}」方向的研究专家，正在参与一次多专家并行研究。`,
                 `研究主题：${query}`,
@@ -138,7 +139,8 @@
                 '- 所有关键论断都要有来源；没有来源的推断必须显式标注为推断。',
                 '- 数字必须带单位、口径与期间（例如"2026 Q3 毛利率 86.8%"而非"毛利率很高"）。',
                 '- 宁可少写而准，不可多写而虚。禁止"据悉""业内人士称"这类无主体表述。',
-                '- 用陈述句直接给出发现，不要使用「一句话判断」「结论先行」「证据缺口」这类标签或元话语。'
+                '- 用陈述句直接给出发现，不要使用「一句话判断」「结论先行」「证据缺口」这类标签或元话语。',
+                ...(skillLines.length ? ['', '本次研究已激活的能力包：', ...skillLines] : [])
             ].join('\n');
         }
 
@@ -205,7 +207,7 @@
             }
 
             const messages = [
-                { role: 'system', content: this.buildExpertSystemPrompt(dimensionKey, query) },
+                { role: 'system', content: this.buildExpertSystemPrompt(dimensionKey, query, plan) },
                 { role: 'user', content: this.buildSubQuestion(dimensionKey, query, contract) }
             ];
 
@@ -410,7 +412,7 @@
 
             if (onTrace) {
                 onTrace('collaboration.completed',
-                    `专家面板结束：成功 ${okExperts.length}/${settled.length}，墙钟 ${((now() - wallStart) / 1000).toFixed(1)}s`);
+                    `专家面板结束：成功 ${okExperts.length}/${settled.length}，用时 ${((now() - wallStart) / 1000).toFixed(1)}s`);
             }
 
             const result = {

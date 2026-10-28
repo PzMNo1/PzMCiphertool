@@ -62,6 +62,54 @@
   var templateCache = Object.create(null);
   var saveTimer = null;
   var viewerBootTimer = null;
+  var viewerReady = false;
+  var viewerErrorsClickAt = 0;
+
+  function parseViewerErrors(text) {
+    var lines = String(text || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean);
+    var start = -1;
+    var count = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var match = lines[i].match(/^(\d+)\s*个错误$/);
+      if (match) { start = i; count = parseInt(match[1], 10); break; }
+    }
+    if (start < 0) return { count: 0, lines: [] };
+    var details = [];
+    for (var j = start + 1; j < lines.length; j++) {
+      var line = lines[j];
+      if (/^(鼠线|📏|边界|视图|▼)$/.test(line)) break;
+      if (line === '›' || /^\d+$/.test(line)) continue;
+      details.push(line);
+    }
+    return { count: count, lines: details.slice(0, 16) };
+  }
+
+  function findErrorBadge(doc, count) {
+    var candidates = doc.querySelectorAll('div');
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      if (el.children.length === 0 && String(el.textContent || '').trim() === count + ' 个错误') return el;
+    }
+    return null;
+  }
+
+  function readViewerErrors() {
+    try {
+      var doc = viewerFrame && viewerFrame.contentDocument;
+      if (!doc || !doc.body) return { count: 0, lines: [] };
+      var parsed = parseViewerErrors(doc.body.innerText || '');
+      if (parsed.count > 0 && !parsed.lines.length && Date.now() - viewerErrorsClickAt > 1500) {
+        var badge = findErrorBadge(doc, parsed.count);
+        if (badge) {
+          viewerErrorsClickAt = Date.now();
+          badge.click();
+        }
+      }
+      return parsed;
+    } catch (e) {
+      return { count: 0, lines: [] };
+    }
+  }
 
   function setEditorStatus(text, isError) {
     if (!editorStatus) return;
@@ -150,6 +198,7 @@
 
   function startViewer() {
     clearTimeout(viewerBootTimer);
+    viewerReady = false;
     setViewerLoading(true, '正在启动 tscircuit 引擎', '首次加载约 10–20 秒；进入电子实验室后已开始后台预热');
     // 把编辑器当前的代码快照交给 viewer，避免 viewer 读到旧的 localStorage 内容。
     var codeRev = Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 8);
@@ -299,11 +348,13 @@
       if (data.source !== 'pzma-pcb-engine') return;
       if (data.type === 'ready') {
         clearTimeout(viewerBootTimer);
+        viewerReady = true;
         setViewerLoading(false);
         setEditorStatus('引擎已就绪');
         postToLab('ready');
       } else if (data.type === 'error') {
         clearTimeout(viewerBootTimer);
+        viewerReady = false;
         setViewerLoading(true, '引擎启动失败', data.message || '未知错误', true);
         setEditorStatus('引擎启动失败', true);
         postToLab('error', { message: data.message || '未知错误' });
@@ -337,6 +388,17 @@
       openSidebar: function () {
         setSidebarCollapsed(false, true);
         return { ok: true, message: '已展开代码侧栏' };
+      },
+      getStatus: function () {
+        var parsed = readViewerErrors();
+        return {
+          ok: true,
+          status: editorStatus ? editorStatus.textContent : '',
+          engineReady: viewerReady,
+          codeLength: editor.value.length,
+          errorCount: parsed.count,
+          errors: parsed.lines
+        };
       }
     };
   }

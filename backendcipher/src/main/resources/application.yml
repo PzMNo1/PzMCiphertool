@@ -174,3 +174,9 @@ logging:
   level:
     com.ciphertool: DEBUG
     root: INFO
+
+# MCP relay: 允许经后端中转的 MCP 源，逗号分隔 scheme://host:port；留空即全部拒绝
+ciphertool:
+  mcp:
+    relay:
+      allowed-origins: ${CIPHERTOOL_MCP_RELAY_ALLOWED_ORIGINS:}

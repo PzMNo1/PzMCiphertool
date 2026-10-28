@@ -28,6 +28,12 @@
             } else {
                 this.element = document.querySelector(target || this.selector);
             }
+            if (this.element && !this.element.dataset.perfToggleBound) {
+                this.element.dataset.perfToggleBound = '1';
+                this.element.addEventListener('click', () => {
+                    this.element.classList.toggle('expanded');
+                });
+            }
             return this.element;
         }
 

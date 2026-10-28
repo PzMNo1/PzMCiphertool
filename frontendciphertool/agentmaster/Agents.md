@@ -18,6 +18,11 @@
 - 请求统一走 `buildUsageHeaders()`：携带登录 token、`X-Agent-Surface: agentmaster`
 - 每天 10 次，由后端 `UsageQuotaService` 计数，超出后聊天窗口提示“今日 Agentmaster 使用次数已用完”
 
+## 运行状态
+- 请求、流式生成、工具执行期间常驻 `.agent-loading` 三点动画与“正在思考… / 正在生成… / 正在执行操作…”
+- 工具消息或流式内容追加时，加载条保持在聊天记录底部；结束或报错后移除
+- `isSending` 防止并发发送，忙碌时提示上一条请求仍在运行
+
 ## 绝对禁止
 - 新增和修改agentmaster的任何样式
 
@@ -37,6 +42,16 @@ TEST: 悬浮球菜单中出现新工具
 LOCATE: backendconfig.js → agentmaster.js 的 API 调用
 ACTION: 修改 `AGENT_API_URL` 或添加模型选择逻辑
 TEST: 聊天正常响应
+
+### 电路模拟工具
+LOCATE: agentmaster.js → `buildCircuit` / `readCircuit`；electronic_lab.js → `electronicLabBuildCircuit`
+ACTION: 通过 `ui_action` 的 `build_circuit` 传入 `{title, components}`，由 `circuit_builder.js` 生成 CircuitJS 网表
+TEST: 电子实验室 → 电路模拟 出现电路并开始仿真，工具消息返回元件读数
+
+### 电路板布局工具
+LOCATE: agentmaster.js → `editPcbCode` / `readPcbCode`；PCBLayout/editor.js → `PzmaPcbEditor.getStatus`
+ACTION: 通过 `ui_action` 的 `edit_pcb_code` 写入 TSX；`normalizePcbTsx` 自动修正常见语法，`autoRepairPcbPlacement` 按引擎越界提示微调并重跑；返回的 `errors` 来自 PCB 引擎渲染检查
+TEST: 电路板布局出现 PCB，错误 TSX 会在工具消息中报告引擎错误
 
 ## 依赖关系
 ↑ modules.js（路由加载）

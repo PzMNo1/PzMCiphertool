@@ -88,7 +88,7 @@ PCBLayout/
    - `文件 → 导出`：导出 Gerber / BOM 等制造文件。
 5. 右上角「导入 TSX / 导出 TSX」可导入或导出当前 `main.tsx`。
 6. 代码会自动保存在浏览器 `localStorage`（键名 `pzma-pcb-code`）。
-7. Agentmaster（悬浮球）可通过 `edit_pcb_code` / `read_pcb_code` 工具直接读写左侧 `main.tsx`：例如「帮我在电路板左侧写一个 5V LED 指示板」会自动切到「电子实验室 → 电路板布局」、展开代码侧栏并写入重跑；「看看现在左侧的代码」会读回当前文件。写入完成后仍可继续用其它模块切换与 Agentmaster 操作，互不影响。
+7. Agentmaster（悬浮球）可通过 `edit_pcb_code` / `read_pcb_code` 工具直接读写左侧 `main.tsx`：例如「帮我在电路板左侧写一个 5V LED 指示板」会自动切到「电子实验室 → 电路板布局」、展开代码侧栏并写入重跑；「看看现在左侧的代码」会读回当前文件。写入前会自动修正常见 TSX 语法（trace `thickness`→`width`、fiducial `padDiameter`、testpoint `footprint`、丝印 `fontSize` 单位），写入后会等待引擎渲染并把 PCB 引擎的 `errors` 一并回传；位置越界会按引擎提示微调后重跑。`read_pcb_code` 也会附带引擎就绪状态和当前错误。写入完成后仍可继续用其它模块切换与 Agentmaster 操作，互不影响。
 
 ## 5. 更新 vendor 引擎
 

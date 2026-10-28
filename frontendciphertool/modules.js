@@ -49,18 +49,25 @@ const MODULES = {
 
 </div>`,
 
-    // 电子实验室模块（电路模拟 / 电路板布局 单按钮子模块切换）
+    // 电子实验室模块（电路模拟 / 电路板布局 双子模块切换）
     electroniclab: `
     <div id="electroniclab-content" class="content-section">
         <div class="module-header electronic-module-header">
             <h2 class="neon-title" data-text="ELECTRONIC LABORATORY">ELECTRONIC LABORATORY</h2>
-            <button type="button" id="electronic-submodule-toggle"
-                class="submodule-btn electronic-submodule-btn active"
-                data-active-panel="simulation" data-mode="SIM"
-                aria-pressed="false" aria-label="切换到电路板布局"
-                title="点击切换到电路板布局">
-                <span id="electronic-submodule-toggle-label" class="electronic-submodule-btn-label">电路模拟</span>
-            </button>
+            <nav class="electronic-submodule-nav" aria-label="电子实验室子模块">
+                <button type="button"
+                    class="submodule-btn electronic-submodule-btn active"
+                    data-panel="simulation" data-mode="SIM"
+                    aria-pressed="true">
+                    <span class="electronic-submodule-btn-label">电路模拟</span>
+                </button>
+                <button type="button"
+                    class="submodule-btn electronic-submodule-btn"
+                    data-panel="pcb" data-mode="PCB"
+                    aria-pressed="false">
+                    <span class="electronic-submodule-btn-label">电路板布局</span>
+                </button>
+            </nav>
         </div>
 
         <div class="electronic-submodule-stack">
@@ -72,7 +79,7 @@ const MODULES = {
                     <iframe
                         id="circuit-frame"
                         src=""
-                        data-src="./electronic/war/circuitjs.html"
+                        data-src="./electronic/war/circuitjs.html?v=20261027-16"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -86,7 +93,7 @@ const MODULES = {
                     <iframe
                         id="pcb-frame"
                         src=""
-                        data-src="./electronic/PCBLayout/index.html?v=20261023-19"
+                        data-src="./electronic/PCBLayout/index.html?v=20261027-16"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -365,16 +372,14 @@ const MODULES = {
                         <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式：自动接续本会话中的上一张图，可用「换个主题」重新开始" type="button">
                             <span class="cyber-button__tag">作图模式</span>
                         </button>
-                        <button id="tool-toggle" class="cyber-button active" title="启用工具">
-                            <span class="cyber-button__tag">🔧 工具</span>
-                        </button>
-                        <button id="deep-think-toggle" class="cyber-button active" title="深度思考">
-                            <span class="cyber-button__tag">深度思考</span>
+                        <button id="agent-plugin-btn" class="cyber-button" title="插件切换：Skill / Harness / MCP" type="button">
+                            <span class="cyber-button__tag">插件切换</span>
                         </button>
                         <button id="send-message" class="cyber-button">
                             <span class="cyber-button__tag">发送</span>
                         </button>
                     </div>
+                    <div id="agent-plugin-panel" class="agent-plugin-panel" aria-hidden="true"></div>
                 </div>
             </div>
             
@@ -584,6 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './modelinglab/modelinglab.js',
         ],
         electroniclab: [
+            './electronic/circuit_builder.js',
             './electronic/electronic_lab.js',
         ],
         workflow: [
@@ -635,6 +641,13 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentExpertPanel.js',
             './model/agent/AgentDiagramRenderer.js',
             './model/agent/AgentChartRenderer.js',
+            './model/agent/AgentSkillRegistry.js',
+            './model/agent/AgentHarnessRegistry.js',
+            './model/agent/AgentMcpClient.js',
+            './model/agent/AgentToolExecutor.js',
+            './model/agent/AgentPluginKernel.js',
+            './model/agent/AgentPluginCatalog.js',
+            './model/agent/AgentPluginPanel.js',
             './model/AgentRuntime.js',
             './model/main.js',
         ],
@@ -682,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261026-08';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261027-16';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

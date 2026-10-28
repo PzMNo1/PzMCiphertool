@@ -302,8 +302,8 @@
                 '1. 直接输出正文，不要写开场白，不要复述本指令，不要输出修改说明。',
                 '2. 开篇是执行摘要：给出核心结论与关键数字，不写"本文分为几部分"这类目录式元话语。',
                 `3. 全文不少于 ${contract.minChars} 个中文字，用小标题分隔章节。`,
-                `4. 至少 ${contract.minTables} 个 Markdown 表格、${contract.minDiagrams} 个数据图表（统计图用 \`\`\`chart，流程/时间线用 \`\`\`mermaid），放在最能承载信息的位置；仅为凑数而存在的图表不要出现。`,
-                '5. 文末依次为「局限与数据说明」与「来源：」两节；来源每条一行「[n] 标题 — URL」，编号与正文引用严格对应。',
+                `4. 至少 ${contract.minTables} 个 Markdown 表格、${contract.minDiagrams} 个数据图表（统计图用 \`\`\`chart，流程/时间线用 \`\`\`mermaid），放在最能承载信息的位置；仅为凑数而存在的图表不要出现。mermaid 时间线必须写成「时间 : 事件」，每个时间点至少补一个带数字或事实的事件，只有日期会被判为不合格。`,
+                '5. 文末依次为「局限与数据说明」与「来源：」两节；来源每条一行「[n] 平台 · 标题 — URL」，平台写发布方（期刊、交易所、监管机构、媒体），编号与正文引用严格对应。',
                 '6. 保持用户使用的语言。',
                 '7. 正文中不得出现任何关于检索过程的叙述（本轮、本次、本简报、检索、采集、未取得、缺口等）。'
             );
@@ -355,6 +355,21 @@
             return markers.size;
         }
 
+        countEmptyTimelinePeriods(text) {
+            const blocks = String(text || '').matchAll(/```mermaid\s*\n([\s\S]*?)```/gi);
+            let empty = 0;
+            for (const block of blocks) {
+                const body = block[1] || '';
+                if (!/^\s*timeline\b/im.test(body)) continue;
+                body.split('\n').forEach(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed || /^(timeline|title|section)\b/i.test(trimmed)) return;
+                    if (/^\d{4}(?:[-/.]\d{1,2})?\s*:\s*$/.test(trimmed)) empty += 1;
+                });
+            }
+            return empty;
+        }
+
         hasSourcesSection(text) {
             return /(^|\n)\s*(#{1,6}\s*)?(来源|参考|引用|Sources|References)\s*[:：]?\s*(\n|$)/i.test(String(text || ''));
         }
@@ -391,6 +406,10 @@
             }
             if (contract.requiresSources && !stats.hasSources) {
                 issues.push('缺少文末「来源：」列表。');
+            }
+            const emptyTimeline = this.countEmptyTimelinePeriods(text);
+            if (emptyTimeline > 0) {
+                issues.push(`时间线里有 ${emptyTimeline} 个时间点只有日期没有事件，需要补成「时间 : 事件」。`);
             }
 
             return { ok: issues.length === 0, issues, stats };
@@ -481,6 +500,8 @@
                 const id = entry.source_id ?? entry.sourceId ?? '';
                 const title = String(entry.title || '').replace(/\s+/g, ' ').trim() || this.hostOf(String(entry.url || ''));
                 const url = String(entry.url || '');
+                const site = String(entry.site || '').replace(/\s+/g, ' ').trim() || this.hostOf(url);
+                const type = String(entry.sourceType || '').trim();
                 const snippet = String(entry.snippet || entry.content_preview || entry.contentPreview || '')
                     .replace(/\s+/g, ' ')
                     .trim();
@@ -488,7 +509,9 @@
                 const detail = snippet && snippet.length > 20
                     ? `\n    ${this.clip(snippet, itemChars)}`
                     : '';
-                const line = `[${id}] ${this.clip(title, 120)} — ${url}${detail}`;
+                const label = site ? `${site} · ${this.clip(title, 120)}` : this.clip(title, 120);
+                const tag = type && type !== 'webpage' && type !== 'search_candidate' ? `{${type}} ` : '';
+                const line = `[${id}] ${tag}${label} — ${url}${detail}`;
                 if (used + line.length > maxChars) break;
                 lines.push(line);
                 used += line.length + 1;

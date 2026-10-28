@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const mobileAgentMedia = window.matchMedia('(max-width: 1100px)');
     const windowAgent = createBrowserWorkspaceAgent();
     let isChatActive = false;
+    let isSending = false;
+    let activeLoadingEl = null;
     let isDocked = false;
     let wasChatActiveBeforeDock = false;
     let didDragOrb = false;
@@ -69,13 +71,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
-                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code.',
+                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code, build_circuit, read_circuit, run_circuit, stop_circuit.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
                 'Use generate_world when the user asks to create or generate a 3D world / scene / environment with the world model (世界模型, Marble, 世界生成, 生成场景, 文生世界). Put the scene description in the "prompt" argument. Set "confirm" to true to only fill the description and wait for the user to press 生成世界; omit it and the generation starts immediately.',
+                'Use build_circuit to build or replace the circuit in 电子实验室 → 电路模拟. Pass a circuit object like {"title":"5V LED 指示灯","components":[{"type":"dc_source","name":"V1","from":"VCC","to":"GND","value":"5V"},{"type":"resistor","name":"R1","from":"VCC","to":"N1","value":"1k"},{"type":"led","name":"D1","from":"N1","to":"GND"}]}. Supported types: dc_source, ac_source, square_source, triangle_source, sawtooth_source, resistor, capacitor, inductor, diode, led, switch, current_source, wire, ground. Values accept SI suffixes (1k, 4.7k, 100nF, 10mH, 5V, 2mA). Net names are arbitrary; for LED/diode use from=anode and to=cathode; for sources use from=positive and to=negative. The tool auto-places, routes, adds a ground when missing, starts the simulation, and returns live readings. Inspect the readings and fix reverse-biased or disconnected parts before answering.',
+                'Use read_circuit to inspect the circuit currently shown in 电路模拟, run_circuit to start it, and stop_circuit to pause it. When the user asks to design a circuit, produce the complete component list in one build_circuit call instead of narrating steps.',
                 'Use edit_pcb_code to write or replace the TSX code in 电子实验室 → 电路板布局 left panel. Put the complete main.tsx in "value" and keep run=true (default) so the engine re-renders. The action opens the section and expands the code sidebar automatically.',
                 'Use read_pcb_code before reviewing or modifying the board currently shown in the left panel; edit_pcb_code replaces the whole file, so preserve the user changes you still need.',
                 'When generating PCB TSX, follow DFX/DFM: declare the board size, place connectors at the board edge, add mounting holes/fiducials/test points, put decoupling caps next to power pins, label silkscreen, use explicit pcbX/pcbY for placement and schX/schY for a clean schematic, keep signal traces about 0.25mm and power traces 0.5mm or wider, and keep every component inside the board outline.',
+                'Every PCB component with pcbX/pcbY or edge placement needs a footprint (0603 for resistors/LEDs, pinrow2 or pinrow4 for pin headers). Prefer the verified main.tsx pattern: pinheader + resistor + led + testpoint + hole + fiducial + silkscreentext + trace. Do not put voltagesource/analogsimulation on the PCB unless they have the required footprint; use the circuit simulator for sources and waveforms.',
+                'Verified PCB TSX syntax: <pinheader name="J1" pinCount={2} footprint="pinrow2" pitch="2.54mm" pinLabels={["5V","GND"]} pcbX={-16} pcbY={0} pcbRotation={90} />; <resistor name="R1" resistance="1k" footprint="0603" pcbX={-8} pcbY={5} />; <led name="D1" footprint="0603" color="green" pcbX={0} pcbY={5} />; <testpoint name="TP1" footprintVariant="pad" padShape="circle" padDiameter="1.4mm" pcbX={-13} pcbY={3} />; <hole name="H1" diameter="3.2mm" pcbX={-17} pcbY={-9.5} />; <fiducial name="FID1" padDiameter="1mm" soldermaskPullback="1mm" pcbX={-11} pcbY={9} />; <silkscreentext text="5V IN" pcbX={-18} pcbY={-4} fontSize="0.9mm" />; <trace from=".J1 > .pin1" to=".R1 > .pin1" width="0.5mm" />. Use width (not thickness) on traces, give every size a unit string, and keep component bodies at least 1mm inside the board edge.',
+                'edit_pcb_code automatically fixes common TSX syntax and small placement overflows, then waits for the PCB engine and reports any remaining render errors. If errors remain, state them clearly in your reply and give the concrete fix instead of claiming success.',
                 'If native tool calls are not available for PCB coding, emit the full TSX inside a raw <pcb_code>...</pcb_code> block (no JSON escaping and no Markdown fences inside the block). Prefer the native edit_pcb_code tool when it is available.',
+                'If native tool calls are not available for circuit building, emit the circuit spec JSON inside a raw <circuit_spec>...</circuit_spec> block (valid JSON only, no Markdown fences inside the block). Prefer the native build_circuit tool when it is available.',
                 'World generation is a long-running job (about 5 minutes) and consumes paid API credits, so for vague or very short requests prefer filling the prompt first instead of starting generation immediately.',
                 'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
                 'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. 插件实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
@@ -116,7 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             'batch',
                             'generate_world',
                             'edit_pcb_code',
-                            'read_pcb_code'
+                            'read_pcb_code',
+                            'build_circuit',
+                            'read_circuit',
+                            'run_circuit',
+                            'stop_circuit'
                         ],
                         description: 'The UI operation to execute.'
                     },
@@ -126,7 +138,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     value: {
                         type: 'string',
-                        description: 'Text/value for set_value or search, or the full TSX source for edit_pcb_code.'
+                        description: 'Text/value for set_value or search, the full TSX source for edit_pcb_code, or raw CircuitJS text when format=circuitjs.'
+                    },
+                    circuit: {
+                        type: 'object',
+                        description: 'Circuit spec for build_circuit. Shape: {"title":"...","components":[{"type":"dc_source","name":"V1","from":"VCC","to":"GND","value":"5V"},{"type":"resistor","name":"R1","from":"VCC","to":"N1","value":"1k"},{"type":"led","name":"D1","from":"N1","to":"GND"}]}. Types: dc_source, ac_source, square_source, triangle_source, sawtooth_source, resistor, capacitor, inductor, diode, led, switch, current_source, wire, ground. from/to are net names; LED/diode from=anode to=cathode; sources from=positive to=negative.',
+                        properties: {
+                            title: { type: 'string', description: 'Short circuit title, max 80 characters.' },
+                            components: {
+                                type: 'array',
+                                description: 'Complete component list. Each item needs type plus from/to net names.',
+                                items: { type: 'object' }
+                            }
+                        },
+                        required: ['components']
+                    },
+                    format: {
+                        type: 'string',
+                        enum: ['spec', 'circuitjs'],
+                        description: 'For build_circuit: spec (default structured circuit) or circuitjs (raw CircuitJS netlist in value).'
                     },
                     prompt: {
                         type: 'string',
@@ -440,6 +470,9 @@ document.addEventListener('DOMContentLoaded', () => {
         d.className = `agent-msg agent-msg-${role}`;
         role === 'user' ? (d.textContent = text) : (d.innerHTML = fmt(text));
         history.appendChild(d);
+        if (activeLoadingEl && activeLoadingEl !== d && history.contains(activeLoadingEl)) {
+            history.appendChild(activeLoadingEl);
+        }
         scrollDown();
         return d;
     }
@@ -449,17 +482,30 @@ document.addEventListener('DOMContentLoaded', () => {
         d.className = 'agent-msg agent-msg-tool';
         d.textContent = text;
         history.appendChild(d);
+        if (activeLoadingEl && history.contains(activeLoadingEl)) {
+            history.appendChild(activeLoadingEl);
+        }
         scrollDown();
         return d;
     }
 
-    function showLoading() {
+    function showLoading(label) {
         const d = document.createElement('div');
         d.className = 'agent-msg agent-msg-ai agent-loading';
         d.innerHTML = '<div class="agent-dot"></div><div class="agent-dot"></div><div class="agent-dot"></div>';
+        const text = document.createElement('span');
+        text.textContent = label || '正在运行…';
+        d.appendChild(text);
+        activeLoadingEl = d;
         history.appendChild(d);
         scrollDown();
         return d;
+    }
+
+    function setLoadingLabel(label) {
+        if (!activeLoadingEl || !label) return;
+        const text = activeLoadingEl.querySelector('span');
+        if (text) text.textContent = label;
     }
 
     function setupSubmitVoiceButton() {
@@ -671,8 +717,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function send() {
+        if (isSending) {
+            addToolMsg('Agentmaster 正在处理上一条请求，请稍候...');
+            return;
+        }
         const text = textarea.value.trim();
         if (!text) return;
+        isSending = true;
+        let loader = null;
+        try {
+            await runSend(text, function (element) { loader = element; });
+        } finally {
+            if (loader) {
+                loader.remove();
+                if (activeLoadingEl === loader) activeLoadingEl = null;
+            }
+            isSending = false;
+        }
+    }
+
+    async function runSend(text, setLoader) {
         textarea.value = '';
         textarea.style.height = '24px';
         suggestions?.classList.add('hidden');
@@ -706,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 原生工具模式下始终挂载页面工具，由模型按系统提示词自主决定是否调用；
         // 关键词预闸仅保留给 inline-block fallback 模式（防注入必需）。
         const allowAgentTools = AGENT_USE_NATIVE_TOOLS ? true : shouldAllowAgentTools(text);
-        const loader = showLoading();
+        setLoader(showLoading('正在思考…'));
 
         try {
             const payload = {
@@ -725,8 +789,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
 
-            loader.remove();
-
             if (!res.ok) {
                 const errorText = await res.text().catch(() => '');
                 const detail = errorText ? `\n\n${errorText.slice(0, 500)}` : '';
@@ -734,15 +796,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const { reply, toolCalls, inlineActions } = await readStream(res, allowAgentTools);
+            const { reply, toolCalls, inlineActions, msgEl } = await readStream(res, allowAgentTools);
 
             if (toolCalls.length > 0 || inlineActions.length > 0) {
+                setLoadingLabel('正在执行操作…');
                 const executed = [
                     ...await executeToolCalls(toolCalls),
                     ...(allowAgentTools ? await executeInlineActions(inlineActions) : [])
                 ];
                 if (!reply) {
-                    messages.push({ role: 'assistant', content: executed.join('\n') || 'Action completed.' });
+                    const summary = executed.filter(Boolean).join('\n');
+                    const firstLine = (executed.find(Boolean) || 'Action completed.').split('\n')[0];
+                    if (msgEl) {
+                        const label = firstLine.length > 240 ? firstLine.slice(0, 240) + '…' : firstLine;
+                        msgEl.innerHTML = fmt(label) + '<p>详细结果见上方工具消息。</p>';
+                    }
+                    messages.push({ role: 'assistant', content: summary || 'Action completed.' });
                 }
                 if (!allowAgentTools && inlineActions.length > 0) {
                     addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
@@ -753,7 +822,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 messages.push({ role: 'assistant', content: reply });
             }
         } catch (err) {
-            loader.remove();
             addMsg('ai', `**[Network Error]** ${err.message}`);
         }
     }
@@ -829,8 +897,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!delta) continue;
 
                     if (delta.content) {
+                        if (!reply) setLoadingLabel('正在生成…');
                         reply += delta.content;
-                        msgDiv.innerHTML = fmt(reply) + '<span class="agent-caret"></span>';
+                        msgDiv.innerHTML = fmt(stripDsmlForDisplay(reply)) + '<span class="agent-caret"></span>';
                         renderMath(msgDiv);
                         history.scrollTop = history.scrollHeight;
                     }
@@ -850,7 +919,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             reply: parsed.text,
             toolCalls: compactToolCalls(toolCalls),
-            inlineActions: parsed.actions
+            inlineActions: parsed.actions,
+            msgEl: msgDiv
         };
     }
 
@@ -910,10 +980,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return results;
     }
 
+    function normalizeDsmlMarkup(text) {
+        return String(text || '')
+            .replace(/<\s*\/\s*(?:\|\s*){0,2}\s*DSML\s*(?:\|\s*){0,2}/gi, '</||DSML||')
+            .replace(/<\s*(?:\|\s*){0,2}\s*DSML\s*(?:\|\s*){0,2}/gi, '<||DSML||');
+    }
+
+    function parseDsmlParameter(raw, isString) {
+        const value = String(raw || '').trim();
+        if (isString) return value;
+        try { return JSON.parse(value); } catch (error) { return value; }
+    }
+
+    function extractDsmlActions(text, actions) {
+        let cleaned = normalizeDsmlMarkup(text);
+        const invokePattern = /<\|{2}DSML\|{2}invoke\s+name\s*=\s*"([^"]+)"\s*>([\s\S]*?)<\/\|{2}DSML\|{2}invoke>/gi;
+        let invoke;
+        while ((invoke = invokePattern.exec(cleaned))) {
+            const name = invoke[1];
+            const body = invoke[2];
+            const args = {};
+            const paramPattern = /<\|{2}DSML\|{2}parameter\s+name\s*=\s*"([^"]+)"([^>]*)>([\s\S]*?)<\/\|{2}DSML\|{2}parameter>/gi;
+            let param;
+            while ((param = paramPattern.exec(body))) {
+                args[param[1]] = parseDsmlParameter(param[3], /string\s*=\s*"true"/i.test(param[2] || ''));
+            }
+            if (name === 'ui_action' || name === 'browser_action') {
+                actions.push({ name, arguments: args });
+            } else {
+                actions.push({ name: 'ui_action', arguments: Object.assign({ action: name }, args) });
+            }
+        }
+        cleaned = cleaned.replace(/<\|{2}DSML\|{2}[\s\S]*?<\/\|{2}DSML\|{2}(?:calls?|tool_calls)>/gi, '');
+        cleaned = cleaned.replace(/<\|{2}DSML\|{2}[\s\S]*?<\/\|{2}DSML\|{2}invoke>/gi, '');
+        cleaned = cleaned.replace(/<\/?\|{2}DSML\|{2}[^>]*>/gi, '');
+        return cleaned.trim();
+    }
+
+    function stripDsmlForDisplay(text) {
+        const cleaned = normalizeDsmlMarkup(text);
+        const start = cleaned.search(/<\|{2}DSML\|{2}/i);
+        return start >= 0 ? cleaned.slice(0, start) : cleaned;
+    }
+
     function extractInlineActions(text) {
         const actions = [];
         let hasPcbCode = false;
-        let cleaned = String(text || '').replace(/<pcb_code>([\s\S]*?)<\/pcb_code>/g, (match, raw) => {
+        let cleaned = extractDsmlActions(String(text || ''), actions);
+        cleaned = cleaned.replace(/<pcb_code>([\s\S]*?)<\/pcb_code>/g, (match, raw) => {
             const code = String(raw || '')
                 .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
                 .replace(/\n?```\s*$/, '')
@@ -922,6 +1036,21 @@ document.addEventListener('DOMContentLoaded', () => {
             hasPcbCode = true;
             actions.push({ name: 'ui_action', arguments: { action: 'edit_pcb_code', value: code, run: true } });
             return '';
+        });
+
+        cleaned = cleaned.replace(/<circuit_spec>([\s\S]*?)<\/circuit_spec>/g, (match, raw) => {
+            const text = String(raw || '')
+                .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+                .replace(/\n?```\s*$/, '')
+                .trim();
+            if (!text) return '';
+            try {
+                const spec = JSON.parse(text);
+                actions.push({ name: 'ui_action', arguments: { action: 'build_circuit', circuit: spec } });
+                return '';
+            } catch {
+                return match;
+            }
         });
 
         cleaned = cleaned.replace(/<(ui_action|browser_action)>([\s\S]*?)<\/\1>/g, (match, name, raw) => {
@@ -1103,6 +1232,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return editPcbCode(args);
             case 'read_pcb_code':
                 return readPcbCode(args);
+            case 'build_circuit':
+                return buildCircuit(args);
+            case 'read_circuit':
+                return readCircuit(args);
+            case 'run_circuit':
+                return runCircuit(args);
+            case 'stop_circuit':
+                return stopCircuit(args);
             default:
                 throw new Error(`unknown action "${action}"`);
         }
@@ -1162,17 +1299,123 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function replaceTsxTags(code, tagName, replacer) {
+        const pattern = new RegExp('<' + tagName + '\\b', 'g');
+        let result = '';
+        let last = 0;
+        let match;
+        while ((match = pattern.exec(code))) {
+            const start = match.index;
+            let quote = null;
+            let end = -1;
+            for (let i = start + 1; i < code.length; i++) {
+                const ch = code[i];
+                if (quote) {
+                    if (ch === quote) quote = null;
+                } else if (ch === '"' || ch === "'") {
+                    quote = ch;
+                } else if (ch === '>') {
+                    end = i + 1;
+                    break;
+                }
+            }
+            if (end < 0) break;
+            const tag = code.slice(start, end);
+            result += code.slice(last, start) + replacer(tag);
+            last = end;
+            pattern.lastIndex = end;
+        }
+        result += code.slice(last);
+        return result;
+    }
+
+    function normalizePcbTsx(code) {
+        const notes = [];
+        let next = String(code || '');
+        next = replaceTsxTags(next, 'trace', tag => {
+            if (!/\sthickness=/.test(tag)) return tag;
+            notes.push('trace thickness → width');
+            if (/\swidth=/.test(tag)) return tag.replace(/\sthickness="[^"]*"/, '');
+            return tag.replace(/\sthickness=/, ' width=');
+        });
+        next = replaceTsxTags(next, 'fiducial', tag => {
+            if (/\bpadDiameter=/.test(tag) || !/\/>$/.test(tag)) return tag;
+            notes.push('fiducial 补 padDiameter');
+            return tag.replace(/\s*\/>$/, ' padDiameter="1mm" />');
+        });
+        next = replaceTsxTags(next, 'testpoint', tag => {
+            if (!/\bfootprint="testpoint"/.test(tag)) return tag;
+            notes.push('testpoint footprint → footprintVariant');
+            const without = tag.replace(/\s*footprint="testpoint"/, '');
+            if (/\bfootprintVariant=/.test(without)) return without;
+            return without.replace(/<testpoint\b/, '<testpoint footprintVariant="pad"');
+        });
+        next = replaceTsxTags(next, 'silkscreentext', tag => {
+            if (!/fontSize=\{/.test(tag)) return tag;
+            notes.push('silkscreentext fontSize 补单位');
+            return tag.replace(/fontSize=\{(\d+(?:\.\d+)?)\}/, 'fontSize="$1mm"');
+        });
+        return { code: next, notes: Array.from(new Set(notes)) };
+    }
+
+    function autoRepairPcbPlacement(code, errors) {
+        const notes = [];
+        let next = code;
+        (errors || []).forEach(line => {
+            const match = String(line).match(/Component\s+(\S+)\s+extends outside board boundaries by\s+([\d.]+)mm\.\s*Try moving it\s+([\d.]+)mm\s+(right|left|up|down)/i);
+            if (!match) return;
+            const name = match[1].replace(/["']/g, '');
+            const axis = /right|left/i.test(match[4]) ? 'pcbX' : 'pcbY';
+            const delta = parseFloat(match[3]) * (/right|up/i.test(match[4]) ? 1 : -1);
+            const safeName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const tagRe = new RegExp('<([a-zA-Z][\\w-]*)\\b[^>]*\\bname="' + safeName + '"[^>]*>');
+            const before = next;
+            next = next.replace(tagRe, tag => {
+                const attrRe = new RegExp('\\b' + axis + '=\\{(-?[\\d.]+)\\}');
+                if (attrRe.test(tag)) {
+                    return tag.replace(attrRe, (full, value) => `${axis}={${(parseFloat(value) + delta).toFixed(2)}}`);
+                }
+                const stringRe = new RegExp('\\b' + axis + '="(-?[\\d.]+)mm"');
+                if (stringRe.test(tag)) {
+                    return tag.replace(stringRe, (full, value) => `${axis}="${(parseFloat(value) + delta).toFixed(2)}mm"`);
+                }
+                return tag;
+            });
+            if (next !== before) notes.push(`${name} ${axis} ${delta > 0 ? '+' : ''}${delta.toFixed(2)}mm`);
+        });
+        return { code: next, notes: notes, changed: next !== code };
+    }
+
     async function editPcbCode(args = {}) {
-        const code = String(args.value ?? args.code ?? args.content ?? args.tsx ?? args.text ?? '')
+        const rawCode = String(args.value ?? args.code ?? args.content ?? args.tsx ?? args.text ?? '')
             .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
             .replace(/\n?```\s*$/, '');
-        if (!code.trim()) throw new Error('edit_pcb_code requires the full TSX code in value');
+        if (!rawCode.trim()) throw new Error('edit_pcb_code requires the full TSX code in value');
+        const normalized = normalizePcbTsx(rawCode);
+        let code = normalized.code;
         await preparePcbLab(args.reason);
         const writePcbCode = await waitForWindowFunction('electronicLabWritePcbCode', 15000);
         if (!writePcbCode) throw new Error('电子实验室模块未就绪，无法写入 PCB 代码');
-        const result = await writePcbCode(code, { run: args.run !== false, reason: args.reason || '' });
+        addToolMsg('正在写入 main.tsx 并等待 PCB 引擎渲染检查...');
+        let result = await writePcbCode(code, { run: args.run !== false, reason: args.reason || '' });
         if (!result || result.ok === false) throw new Error(result?.message || 'PCB TSX 写入失败');
-        return ok(result.message || `已写入 PCB TSX（${code.length} 字符）`, args.reason);
+        let repairRounds = 0;
+        while (result.errorCount > 0 && repairRounds < 2) {
+            const repair = autoRepairPcbPlacement(code, result.errors);
+            if (!repair.changed) break;
+            code = repair.code;
+            normalized.notes.push(...repair.notes);
+            addToolMsg('PCB 引擎报告越界，正在自动微调位置并重跑...');
+            result = await writePcbCode(code, { run: args.run !== false, reason: args.reason || '' });
+            repairRounds += 1;
+        }
+        const errors = Array.isArray(result.errors) ? result.errors : [];
+        const errorCount = Number.isFinite(result.errorCount) ? result.errorCount : errors.length;
+        const fixNote = normalized.notes.length ? `\n已自动修正语法：${normalized.notes.join('；')}` : '';
+        const suffix = errorCount
+            ? `\nPCB 引擎报告 ${errorCount} 条错误：\n${errors.slice(0, 10).join('\n')}\n请修正 TSX 后重新调用 edit_pcb_code。`
+            : '';
+        return ok((result.message || `已写入 PCB TSX（${code.length} 字符）`) + fixNote + suffix, args.reason);
     }
 
     async function readPcbCode(args = {}) {
@@ -1182,13 +1425,106 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await readPcb();
         if (!result || result.ok === false) throw new Error(result?.message || 'PCB TSX 读取失败');
         const code = String(result.code || '');
-        return ok(`当前 main.tsx（${code.length} 字符）：\n\`\`\`tsx\n${code}\n\`\`\``, args.reason);
+        const errors = Array.isArray(result.errors) ? result.errors : [];
+        const errorCount = Number.isFinite(result.errorCount) ? result.errorCount : errors.length;
+        const status = errorCount
+            ? `\nPCB 引擎错误（${errorCount}）：\n${errors.slice(0, 10).join('\n')}`
+            : (result.engineReady ? '\nPCB 引擎已就绪，当前无渲染错误。' : '\nPCB 引擎仍在加载。');
+        return ok(`当前 main.tsx（${code.length} 字符）：\n\`\`\`tsx\n${code}\n\`\`\`${status}`, args.reason);
+    }
+
+    async function prepareCircuitLab(reason) {
+        navigateSection('electroniclab', reason);
+        if (typeof window.ensureCipherModule === 'function') {
+            try {
+                await window.ensureCipherModule('electroniclab');
+            } catch (error) {
+                // 模块已加载但初始化失败时继续尝试使用已存在的桥接。
+            }
+        }
+    }
+
+    function formatCircuitReadings(readings) {
+        return (readings || []).slice(0, 12).map(item => {
+            const name = item.name || item.type || 'element';
+            const info = (item.info || []).slice(0, 5).join(' ');
+            return `${name}: ${info || '无读数'}`;
+        }).join('\n');
+    }
+
+    function parseCircuitSpec(args = {}) {
+        let spec = args.circuit ?? args.spec ?? args.plan ?? args.value ?? args.text ?? args.netlist;
+        if (!spec && args.components !== undefined) {
+            let components = args.components;
+            if (typeof components === 'string') {
+                try { components = JSON.parse(components); } catch (error) { /* 保留原始字符串 */ }
+            }
+            if (Array.isArray(components)) spec = { title: args.title || '', components };
+        }
+        if (typeof spec === 'string' && args.format !== 'circuitjs') {
+            const trimmed = spec.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try { spec = JSON.parse(trimmed); } catch (error) { /* 保留原始字符串 */ }
+            }
+        }
+        return spec;
+    }
+
+    async function buildCircuit(args = {}) {
+        const spec = parseCircuitSpec(args);
+        if (!spec) throw new Error('build_circuit requires a circuit spec in circuit');
+        await prepareCircuitLab(args.reason);
+        const build = await waitForWindowFunction('electronicLabBuildCircuit', 15000);
+        if (!build) throw new Error('电子实验室模块未就绪，无法搭建电路');
+        const result = await build(spec, {
+            format: args.format,
+            run: args.run !== false,
+            reason: args.reason || ''
+        });
+        if (!result || result.ok === false) throw new Error(result?.message || '电路搭建失败');
+        const readings = formatCircuitReadings(result.readings);
+        const warnings = (result.warnings || []).filter(Boolean).join('；');
+        const componentCount = Number.isFinite(result.componentCount) ? result.componentCount : (result.readings || []).length;
+        const netCount = Number.isFinite(result.netCount) ? result.netCount : 0;
+        const summary = `已搭建「${result.title || 'Agentmaster 电路'}」：${componentCount} 个元件 / ${netCount} 个网络，仿真已运行。`;
+        return ok([summary, warnings ? `提示：${warnings}` : '', readings].filter(Boolean).join('\n'), args.reason);
+    }
+
+    async function readCircuit(args = {}) {
+        await prepareCircuitLab(args.reason);
+        const read = await waitForWindowFunction('electronicLabReadCircuit', 15000);
+        if (!read) throw new Error('电子实验室模块未就绪，无法读取电路');
+        const result = await read({ timeoutMs: 20000 });
+        if (!result || result.ok === false) throw new Error(result?.message || '电路读取失败');
+        const netlist = String(result.netlist || '');
+        const readings = formatCircuitReadings(result.readings);
+        const header = `当前电路「${result.title || '未命名'}」${result.running ? '，仿真运行中' : '，仿真已暂停'}（${netlist.split('\n').filter(Boolean).length} 行网表）：`;
+        return ok(`${header}\n\`\`\`circuitjs\n${netlist.slice(0, 8000)}\n\`\`\`\n${readings}`, args.reason);
+    }
+
+    async function runCircuit(args = {}) {
+        await prepareCircuitLab(args.reason);
+        const run = await waitForWindowFunction('electronicLabRunCircuit', 15000);
+        if (!run) throw new Error('电子实验室模块未就绪，无法运行仿真');
+        const result = await run({ timeoutMs: 20000 });
+        if (!result || result.ok === false) throw new Error(result?.message || '仿真启动失败');
+        return ok('电路仿真已运行。', args.reason);
+    }
+
+    async function stopCircuit(args = {}) {
+        await prepareCircuitLab(args.reason);
+        const stop = await waitForWindowFunction('electronicLabStopCircuit', 15000);
+        if (!stop) throw new Error('电子实验室模块未就绪，无法暂停仿真');
+        const result = await stop({ timeoutMs: 20000 });
+        if (!result || result.ok === false) throw new Error(result?.message || '仿真暂停失败');
+        return ok('电路仿真已暂停。', args.reason);
     }
 
     function resolveActionTarget(args, action) {
         if (!args || typeof args !== 'object') return '';
         // 世界生成 / PCB 编码没有元素目标，别让 prompt 或代码被当成 CSS 选择器去 normalize
-        if (action === 'generate_world' || action === 'edit_pcb_code' || action === 'read_pcb_code') return '';
+        if (action === 'generate_world' || action === 'edit_pcb_code' || action === 'read_pcb_code'
+            || action === 'build_circuit' || action === 'read_circuit' || action === 'run_circuit' || action === 'stop_circuit') return '';
         const direct = args.target ?? args.selector ?? args.element ?? args.id ?? args.name;
         if (action === 'open_logic_puzzle') return args.puzzle ?? args.logic_puzzle ?? args.logicPuzzle ?? args.puzzle_target ?? args.puzzleTarget ?? direct ?? '';
         if (action === 'open_space_puzzle') {
@@ -1259,7 +1595,28 @@ document.addEventListener('DOMContentLoaded', () => {
             get_pcb_code: 'read_pcb_code',
             show_pcb_code: 'read_pcb_code',
             read_pcb_tsx: 'read_pcb_code',
-            get_pcb_tsx: 'read_pcb_code'
+            get_pcb_tsx: 'read_pcb_code',
+            build_circuit: 'build_circuit',
+            create_circuit: 'build_circuit',
+            make_circuit: 'build_circuit',
+            generate_circuit: 'build_circuit',
+            draw_circuit: 'build_circuit',
+            design_circuit: 'build_circuit',
+            edit_circuit: 'build_circuit',
+            write_circuit: 'build_circuit',
+            set_circuit: 'build_circuit',
+            simulate_circuit: 'build_circuit',
+            circuit_build: 'build_circuit',
+            read_circuit: 'read_circuit',
+            get_circuit: 'read_circuit',
+            show_circuit: 'read_circuit',
+            export_circuit: 'read_circuit',
+            get_circuit_code: 'read_circuit',
+            run_circuit: 'run_circuit',
+            start_circuit: 'run_circuit',
+            resume_circuit: 'run_circuit',
+            stop_circuit: 'stop_circuit',
+            pause_circuit: 'stop_circuit'
         };
         return aliases[raw] || aliases[raw.toLowerCase()] || raw;
     }
@@ -2142,8 +2499,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return target && action;
     }
 
+    function isCircuitBuildIntent(raw, normalized) {
+        const target = /(电路模拟|电路仿真|仿真电路|电路|circuit|falstad|示波器|波形|信号源)/i.test(raw);
+        const action = /(搭|搭建|创建|生成|画|设计|仿真|模拟|运行|启动|暂停|停止|读取|看看|查看|修改|调整|替换|重建|做一个|来个)/.test(raw);
+        return target && action;
+    }
+
     function hasExplicitOperationIntent(raw, normalized) {
         if (isPcbCodingIntent(raw, normalized)) return true;
+        if (isCircuitBuildIntent(raw, normalized)) return true;
         const operationStarts = [
             '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航到', '去', '点击', '点开', '选择',
             '输入', '填入', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',
@@ -2160,7 +2524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const operationTerms = [
             '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航', '去到', '点击', '点开', '选择',
             '输入', '填入', '填成', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',
-            '刷新', '关闭', '后退', '前进', 'open', 'show', 'goto', 'switch', 'navigate', 'click', 'select',
+            '刷新', '关闭', '后退', '前进', '搭建', '生成', '画一个', '仿真', 'open', 'show', 'goto', 'switch', 'navigate', 'click', 'select',
             'type', 'set', 'search', 'find', 'clear', 'highlight', 'scroll', 'focus', 'reload', 'close'
         ];
         return operationTerms.some(term => normalized.includes(normalizeText(term)));

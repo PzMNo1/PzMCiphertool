@@ -7,6 +7,7 @@ class ToolRegistry {
     constructor() {
         this.tools = new Map();
         this.dynamicAvailability = new Map();
+        this.executor = null;
         this.agentEarthStatusCheckedAt = 0;
         // DeepSeek Search / Fetch 的账号级 QPS 分别是 100 / 25，前端再压一层并发。
         this.requestSlots = {
@@ -79,57 +80,63 @@ class ToolRegistry {
         }
     }
 
+    attachExecutor(executor) {
+        this.executor = executor || null;
+        return this;
+    }
+
+    detachExecutor() {
+        this.executor = null;
+        return this;
+    }
+
+    async request(url, options = {}, timeoutMs = 30000) {
+        if (!this.executor) throw new Error('执行器未挂载，工具网络能力不可用');
+        return this.executor.run({
+            transport: 'http',
+            capability: 'network',
+            request: { url, init: options, timeoutMs },
+            timeoutMs
+        });
+    }
+
     async fetchJson(url, options = {}, timeoutMs = 30000) {
-        const controller = new AbortController();
-        const timer = Number.isFinite(timeoutMs) && timeoutMs > 0
-            ? setTimeout(() => controller.abort(), timeoutMs)
-            : null;
+        const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30000;
+        let response;
         try {
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal
-            });
-            const text = await response.text();
-            let result = null;
-            try {
-                result = text ? JSON.parse(text) : null;
-            } catch (parseError) {
-                parseError.response = response;
-                parseError.responseText = text;
-                throw parseError;
-            }
-            return { response, result, text };
+            response = await this.request(url, options, effectiveTimeout);
         } catch (error) {
-            if (error?.name === 'AbortError') {
-                throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`);
-            }
-            throw error;
-        } finally {
-            if (timer) clearTimeout(timer);
+            throw this.normalizeRequestError(error, effectiveTimeout);
         }
+        const text = await response.text();
+        let result = null;
+        try {
+            result = text ? JSON.parse(text) : null;
+        } catch (parseError) {
+            parseError.response = response;
+            parseError.responseText = text;
+            throw parseError;
+        }
+        return { response, result, text };
     }
 
     async fetchWithAbort(url, options = {}, timeoutMs = null) {
         const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
             ? timeoutMs
             : this.inferFetchTimeoutMs(url);
-        const controller = new AbortController();
-        const timer = effectiveTimeout > 0
-            ? setTimeout(() => controller.abort(), effectiveTimeout)
-            : null;
         try {
-            return await fetch(url, {
-                ...options,
-                signal: controller.signal
-            });
+            return await this.request(url, options, effectiveTimeout);
         } catch (error) {
-            if (error?.name === 'AbortError') {
-                throw new Error(`request timed out after ${Math.round(effectiveTimeout / 1000)}s`);
-            }
-            throw error;
-        } finally {
-            if (timer) clearTimeout(timer);
+            throw this.normalizeRequestError(error, effectiveTimeout);
         }
+    }
+
+    normalizeRequestError(error, timeoutMs) {
+        const message = String(error?.message || '');
+        if (/超时|timed out/i.test(message)) {
+            return new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`);
+        }
+        return error;
     }
 
     inferFetchTimeoutMs(url) {
@@ -1272,6 +1279,15 @@ class ToolRegistry {
             ? window.AgentContract.normalizeToolContract(tool)
             : this.normalizeToolContractFallback(tool);
         this.tools.set(normalized.name, normalized);
+    }
+
+    /**
+     * 注销工具（插件卸载时撤销注册）
+     * @param {string} name
+     * @returns {boolean}
+     */
+    unregister(name) {
+        return this.tools.delete(String(name || ''));
     }
 
     /**
