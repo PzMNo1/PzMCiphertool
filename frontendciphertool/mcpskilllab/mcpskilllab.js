@@ -174,133 +174,6 @@
   padding-right: 1.5rem;
 }
 
-.mcpskilllab-intro {
-  margin: 1rem 0 1rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
-  gap: 1rem;
-  align-items: stretch;
-}
-
-.mcpskilllab-intro .card {
-  min-height: 0;
-}
-
-.mcpskilllab-intro-title {
-  margin-top: 0.55rem;
-  margin-bottom: 0.65rem;
-  color: rgba(236, 240, 241, 0.96);
-  font-size: 1.12rem;
-  font-weight: 900;
-}
-
-.mcpskilllab-intro-text {
-  color: rgba(236, 240, 241, 0.8);
-  font-size: 0.92rem;
-  line-height: 1.65;
-}
-
-.mcpskilllab-flow {
-  display: grid;
-  gap: 0.55rem;
-  color: rgba(236, 240, 241, 0.78);
-  font-size: 0.86rem;
-}
-
-.mcpskilllab-flow div {
-  padding: 0.52rem 0.7rem;
-  border: 1px solid rgba(64, 224, 255, 0.14);
-  border-radius: 6px;
-  background: rgba(0, 20, 40, 0.2);
-}
-
-.mcpskilllab-top-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.85rem;
-  margin: 0.4rem 0 1rem;
-  counter-reset: logic-counter;
-}
-
-.mcpskilllab-lab-btn {
-  position: relative;
-  background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
-  border: 1px solid rgba(64, 224, 255, 0.15);
-  padding: 1rem;
-  height: 60px;
-  min-width: 132px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  text-decoration: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: 'Orbitron', 'Segoe UI', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  backdrop-filter: blur(4px);
-  clip-path: polygon(15px 0, 100% 0,
-      100% calc(100% - 15px), calc(100% - 15px) 100%,
-      0 100%, 0 15px);
-  box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.mcpskilllab-lab-btn::after {
-  counter-increment: logic-counter;
-  content: "NO." counter(logic-counter, decimal-leading-zero);
-  position: absolute;
-  bottom: 6px;
-  right: 20px;
-  font-size: 0.6rem;
-  color: rgba(64, 224, 255, 0.3);
-  font-family: monospace;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
-}
-
-.mcpskilllab-lab-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 15px;
-  height: 15px;
-  border-top: 2px solid rgba(64, 224, 255, 0.5);
-  border-left: 2px solid rgba(64, 224, 255, 0.5);
-  transition: all 0.4s ease;
-  opacity: 0.6;
-}
-
-.mcpskilllab-lab-btn:hover {
-  transform: translateY(-5px) scale(1.02);
-  background: rgba(64, 224, 255, 0.1);
-  border-color: rgba(64, 224, 255, 0.6);
-  color: #fff;
-  text-shadow: 0 0 15px rgba(64, 224, 255, 0.8);
-  box-shadow:
-    0 10px 30px -10px rgba(0, 243, 255, 0.2),
-    inset 0 0 20px rgba(64, 224, 255, 0.15);
-}
-
-.mcpskilllab-lab-btn:hover::before {
-  width: 100%;
-  height: 95%;
-  border-color: #fff;
-  opacity: 1;
-  box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
-}
-
-.mcpskilllab-lab-btn:active {
-  transform: scale(0.98);
-  border-color: var(--primary);
-}
-
 .mcpskilllab-batch-panel {
   display: grid;
   gap: 0.75rem;
@@ -1202,7 +1075,6 @@
 }
 
 @media (max-width: 760px) {
-  .mcpskilllab-intro,
   .mcpskilllab-workbench,
   .mcpskilllab-hub-grid,
   .mcpskilllab-field-grid,
@@ -1239,28 +1111,6 @@
 
   .mcpskilllab-review-actions .cyber-button {
     flex: 1 1 auto;
-  }
-
-  .mcpskilllab-top-actions {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.5rem;
-    margin: 0.3rem 0 0.7rem;
-  }
-
-  .mcpskilllab-lab-btn {
-    width: 100%;
-    min-width: 0;
-    height: 52px;
-    padding: 0.4rem 0.35rem;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-  }
-
-  .mcpskilllab-lab-btn::after {
-    right: 8px;
-    bottom: 3px;
-    font-size: 0.52rem;
   }
 
   .mcpskilllab-actions .cyber-button {
@@ -1975,40 +1825,6 @@
         };
     }
 
-    function renderIntro() {
-        return `
-            <div class="mcpskilllab-intro">
-                <div class="card">
-                    <div class="badge">这个页面做什么</div>
-                    <div class="mcpskilllab-intro-title">插件实验室</div>
-                    <div class="mcpskilllab-intro-text">
-                        这里按 Prompt、Tools、Skill、MCP、Workflow、Harness 六类整理插件与能力资源。
-                        每张卡都写清楚它具体能做什么、要准备什么、怎么验证。
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="badge">建议怎么看</div>
-                    <div class="mcpskilllab-flow">
-                        <div>1. Prompt：提示词模板和可复用的指令片段</div>
-                        <div>2. Tools：Agent 能直接调用的工具与执行能力</div>
-                        <div>3. Skill / MCP：技能包，以及通过 MCP 接入的外部服务</div>
-                        <div>4. Workflow / Harness：多步骤编排，以及 DSH 本体与插件</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    function renderTopActions() {
-        return `
-            <div class="mcpskilllab-top-actions">
-                <button class="mcpskilllab-lab-btn" id="mcpskilllab-refresh-server" type="button">刷新目录</button>
-                <button class="mcpskilllab-lab-btn mcpskilllab-panel-toggle" type="button" data-panel="add" aria-expanded="${activeDialog === 'add'}">共享目录</button>
-                <button class="mcpskilllab-lab-btn mcpskilllab-panel-toggle" type="button" data-panel="templates" aria-expanded="${activeDialog === 'templates'}">配置模板</button>
-            </div>
-        `;
-    }
-
     function getCategoryDialStyle(index, total) {
         if (!total || total < 2) return '--dial-y: 0px; --dial-r: 0deg;';
         const ratio = (index - (total - 1) / 2) / ((total - 1) / 2);
@@ -2347,8 +2163,6 @@
 
                     <main class="apizz-console-main cipher-lab-console-main">
                         <div class="cipher-lab-panel-stack">
-                            ${renderTopActions()}
-                            ${renderIntro()}
                             ${renderInlinePanel()}
 
                             <div class="mcpskilllab-toolbar">
@@ -2367,7 +2181,7 @@
                                     ? pageItems.map(item => renderResourceCard(item, favorites)).join('')
                                     : `<div class="card mcpskilllab-empty">${searching
                                         ? '没有匹配的条目，换个关键词试试。'
-                                        : '这个分类还没有资源，点上方「共享目录」上传技能包或联网搜索后加入。'}</div>`}
+                                        : '这个分类还没有资源。'}</div>`}
                             </div>
 
                             ${renderPagination(totalPages, filtered.length, true)}
