@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261027-16';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-06';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

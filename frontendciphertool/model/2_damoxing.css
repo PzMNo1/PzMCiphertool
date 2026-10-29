@@ -105,6 +105,85 @@
   align-self: center;
 }
 
+/* 新会话空状态：中间补一块引导卡，避免整屏空白 */
+.agent-welcome {
+  display: flex;
+  justify-content: center;
+  margin: auto 0;
+  padding: 8px 0 20px;
+}
+
+.agent-welcome-inner {
+  width: min(680px, 100%);
+  padding: 20px 22px 16px;
+  border: 1px solid rgba(142, 231, 255, 0.16);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(9, 22, 32, 0.76), rgba(8, 16, 24, 0.52));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+}
+
+.agent-welcome-title {
+  margin: 0 0 16px;
+  color: rgba(240, 252, 255, 0.96);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.agent-welcome-guides {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-welcome-guide {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(142, 231, 255, 0.14);
+  border-radius: 9px;
+  background: rgba(12, 28, 40, 0.55);
+  color: rgba(226, 245, 255, 0.9);
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.agent-welcome-guide:hover {
+  border-color: rgba(142, 231, 255, 0.45);
+  background: rgba(16, 42, 58, 0.72);
+  transform: translateX(2px);
+}
+
+.agent-welcome-tag {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid rgba(142, 231, 255, 0.35);
+  border-radius: 999px;
+  color: rgba(142, 231, 255, 0.9);
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+}
+
+.agent-welcome-shuffle {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(142, 231, 255, 0.6);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+
+.agent-welcome-shuffle:hover {
+  color: rgba(142, 231, 255, 0.95);
+}
+
 .message-header {
   font-size: 0.85rem;
   margin-bottom: 6px;
@@ -2851,6 +2930,21 @@
 
 .pzm-timeline .taskWrapper .timeline-node .node-bkg {
   fill: #ffffff !important;
+}
+
+/* 事件卡：Mermaid 主题给 eventWrapper 挂了 brightness(120%)，浅底色会被漂成纯白，这里关掉 */
+.pzm-timeline .eventWrapper {
+  filter: none !important;
+}
+
+.pzm-timeline .eventWrapper .timeline-node .node-bkg {
+  fill: #EDF3FA !important;
+  stroke: #AEC4D8 !important;
+  stroke-width: 1 !important;
+}
+
+.pzm-timeline .eventWrapper .timeline-node line {
+  display: none;
 }
 
 .pzm-timeline .timeline-node text {

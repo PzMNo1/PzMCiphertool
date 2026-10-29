@@ -3,6 +3,93 @@
  * 负责消息显示、格式化、工具调用状态展示
  */
 
+const AGENT_WELCOME_GUIDES = [
+    { tag: '研报', prompt: '半导体最近的产能动态，以及未来几年的产能供给与落地进展' },
+    { tag: '研报', prompt: '先进封装最近的产能进展，以及未来两年的扩产规划' },
+    { tag: '研报', prompt: '存储芯片最近的价格与库存，以及明年供需缺口的判断' },
+    { tag: '研报', prompt: '大模型最近的商业化收入结构，以及明年推理侧成本的下降空间' },
+    { tag: '研报', prompt: '开源模型最近的性能进展，以及闭源模型的护城河还剩什么' },
+    { tag: '研报', prompt: 'Agent 产品最近的落地场景分布，以及明年企业侧的采购节奏' },
+    { tag: '研报', prompt: '多智能体协作最近的工程实践，以及相对单智能体的优势边界' },
+    { tag: '研报', prompt: '算力租赁最近的价格与上架率，以及明年 GPU 供给的释放节奏' },
+    { tag: '研报', prompt: '智算中心最近的开工与交付，以及未来两年的上电瓶颈' },
+    { tag: '研报', prompt: '电竞酒店最近的扩张速度与入住率，以及未来两年的下沉空间' },
+    { tag: '研报', prompt: '连锁酒店最近的 RevPAR 与开店结构，以及明年的加盟节奏' },
+    { tag: '研报', prompt: '食品供应链最近的原料价格与库存，以及明年的采购成本趋势' },
+    { tag: '研报', prompt: '预制菜最近的渠道结构变化，以及未来几年的产能布局' },
+    { tag: '研报', prompt: '商业航天最近的发射次数与订单，以及未来两年的产能瓶颈' },
+    { tag: '研报', prompt: '储能最近的招标规模与价格，以及明年产能过剩的判断' },
+    { tag: '研报', prompt: '光伏最近的排产与库存，以及明年需求增速的区间' },
+    { tag: '研报', prompt: '机器人最近的产业链进展，以及未来几年的量产节奏' },
+    { tag: '研报', prompt: '全球流动性最近的边际变化，以及明年降息路径的定价' },
+    { tag: '新闻', prompt: '这周半导体出口管制的新动作，以及下一批清单可能落到哪些环节' },
+    { tag: '新闻', prompt: '这周开源模型的新发布，以及各家榜单排名的变化' },
+    { tag: '新闻', prompt: '最近一个月大模型价格战的动作，以及云厂商的补贴策略' },
+    { tag: '新闻', prompt: '最近几个 Agent 平台的版本更新，以及工具调用能力的差异' },
+    { tag: '新闻', prompt: '最近一个月算力供给的公开表态，以及各家扩产计划的兑现情况' },
+    { tag: '新闻', prompt: '最近半年电竞酒店的闭店与并购动态，以及监管口径的变化' },
+    { tag: '新闻', prompt: '最近半年的食品召回与舆情事件，以及供应链上的共性问题' },
+    { tag: '新闻', prompt: '最近几次深空探测的新发现，以及后续任务的观测窗口' },
+    { tag: '新闻', prompt: '最近一年的系外行星发现，以及大气成分探测的方法差异' },
+    { tag: '新闻', prompt: '今年诺贝尔物理学奖的获奖工作，以及它解决了什么问题' },
+    { tag: '新闻', prompt: '今年诺贝尔化学奖的获奖工作，以及产业界能怎么用' },
+    { tag: '新闻', prompt: '今年诺贝尔文学奖得主的写作脉络，以及中文译本的引进情况' },
+    { tag: '新闻', prompt: '最近几起案件的侦破过程，以及关键证据链是怎么闭合的' },
+    { tag: '新闻', prompt: '创新药最近的出海授权动态，以及管线兑现的进度' },
+    { tag: '新闻', prompt: '最近一次议息会议的措辞变化，以及市场预期的修正' },
+    { tag: '财报', prompt: 'A 股半导体设备最近一期的在手订单，以及明年收入确认的节奏' },
+    { tag: '财报', prompt: '几家晶圆厂最近的资本开支，以及未来两年的折旧压力' },
+    { tag: '财报', prompt: '封测厂最近的产能利用率，以及先进封装的收入占比' },
+    { tag: '财报', prompt: '存储原厂最近一期的毛利率与库存，以及价格拐点的位置' },
+    { tag: '财报', prompt: '设备公司最近的应收账款与存货，以及回款周期的变化' },
+    { tag: '财报', prompt: '服务器厂商最近的毛利率与存货，以及明年的订单能见度' },
+    { tag: '财报', prompt: '连锁酒店集团最近一期的 RevPAR 与单房成本，以及明年的开店指引' },
+    { tag: '财报', prompt: '本地生活平台最近一期的到店业务增速，以及明年补贴的力度' },
+    { tag: '财报', prompt: '食品加工企业最近一期的毛利率与存货周转，以及明年的提价空间' },
+    { tag: '财报', prompt: '电池厂最近一期的产能利用率，以及明年的价格与毛利' },
+    { tag: '财报', prompt: '减速器与丝杠厂商最近的订单，以及明年的产能投放' },
+    { tag: '论文', prompt: '先进封装最近的论文都在解决什么，以及瓶颈卡在哪' },
+    { tag: '论文', prompt: '芯片良率预测最近的研究进展，以及工业界的落地情况' },
+    { tag: '论文', prompt: 'AI 训练框架的研究前沿到了什么程度，以及今年的主要方向' },
+    { tag: '论文', prompt: '大模型推理加速最近的方法进展，以及可复现的开源实现' },
+    { tag: '论文', prompt: '长上下文建模最近的研究进展，以及效果上的真实边界' },
+    { tag: '论文', prompt: 'Agent 评测基准最近的研究进展，以及现有 benchmark 的偏差' },
+    { tag: '论文', prompt: '工具调用与规划最近的方法进展，以及长任务上的失败模式' },
+    { tag: '论文', prompt: '大规模集群训练的网络互联进展，以及公开的故障率数据' },
+    { tag: '论文', prompt: '体验式消费最近的研究进展，以及电竞场景的用户留存数据' },
+    { tag: '论文', prompt: '食品冷链的损耗控制最近的研究进展，以及可落地的方案' },
+    { tag: '论文', prompt: '詹姆斯韦布最近的光谱观测，以及早期星系形成的证据冲突' },
+    { tag: '论文', prompt: '暗能量观测最近的研究进展，以及 DESI 与欧几里得的分歧' },
+    { tag: '论文', prompt: '引力波探测最近的灵敏度提升，以及下一步的观测目标' },
+    { tag: '论文', prompt: '近十年诺贝尔物理学奖的共同特征，以及奖项风向的变化' },
+    { tag: '论文', prompt: '诺贝尔化学奖近十年的方法学脉络，以及产业化落地情况' },
+    { tag: '论文', prompt: '法医物证鉴定最近的技术进展，以及微量检材的检出率' },
+    { tag: '论文', prompt: '数字取证最近的研究进展，以及设备端加密带来的挑战' },
+    { tag: '论文', prompt: '抗体偶联药物最近的研究进展，以及临床数据的读出节奏' },
+    { tag: '论文', prompt: '出口管制的效果目前有哪些实证研究，以及方法上的分歧' },
+    { tag: '文章', prompt: '国产 EDA 现在做到哪一步，以及还差哪几个环节' },
+    { tag: '文章', prompt: '光刻机的难点现在卡在哪一层，以及国内外差距有多大' },
+    { tag: '文章', prompt: '一个晶圆厂从开工到量产要过哪几关，以及各环节的时间' },
+    { tag: '文章', prompt: 'AI 模型的训练框架前沿到了什么程度，以及从零开始该怎么学' },
+    { tag: '文章', prompt: '大模型的幻觉问题现在解决到什么程度，以及工程上怎么缓解' },
+    { tag: '文章', prompt: '从预训练到后训练的技术栈都包括什么，以及新人在哪一环切入' },
+    { tag: '文章', prompt: 'Agent 工程现在成熟到什么程度，以及落地先解决什么' },
+    { tag: '文章', prompt: '做一个能跑长任务的 Agent 需要哪几层设施，以及各自的坑' },
+    { tag: '文章', prompt: 'MCP 这类协议被接受到了什么程度，以及生态里还缺什么' },
+    { tag: '文章', prompt: '万卡集群到底难在哪，以及国内外的工程差距' },
+    { tag: '文章', prompt: '电竞酒店这门生意现在赚不赚钱，以及单店模型的成本结构' },
+    { tag: '文章', prompt: '一颗蔬菜从产地到餐桌要过几道关，以及各环节的加价与损耗' },
+    { tag: '文章', prompt: '中国空间站现在都在做什么实验，以及各实验的科学目标' },
+    { tag: '文章', prompt: '可重复使用火箭成熟到什么程度，以及成本下降的真实幅度' },
+    { tag: '文章', prompt: '系外生命探测现在到了哪一步，以及判定标准是什么' },
+    { tag: '文章', prompt: '今年诺贝尔文学奖为什么颁给他，以及作品里在写什么' },
+    { tag: '文章', prompt: '诺贝尔奖的评审逻辑现在变了吗，以及哪些领域在被冷落' },
+    { tag: '文章', prompt: '一起命案从现场到起诉要过哪几道程序，以及证据标准是什么' },
+    { tag: '文章', prompt: '现代刑侦里哪些技术真正在破案，以及影视桥段哪些是假的' },
+    { tag: '文章', prompt: '推理小说里的诡计在现实中成立吗，以及哪些设定违反物理常识' },
+    { tag: '文章', prompt: '固态电池现在到了什么阶段，以及量产还要过哪几关' }
+];
+
 class ChatUI {
     constructor() {
         this.messagesContainer = null;
@@ -31,6 +118,7 @@ class ChatUI {
 
         this.messagesContainer.addEventListener('click', event => this.handleCitationClick(event));
         this.messagesContainer.addEventListener('click', event => this.handleMediaClick(event));
+        this.messagesContainer.addEventListener('click', event => this.handleWelcomeClick(event));
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape' && this._lightbox) this.closeLightbox();
         });
@@ -594,6 +682,7 @@ class ChatUI {
      * @param {string} content
      */
     displayUserMessage(content, attachments = []) {
+        this.messagesContainer?.querySelector('.agent-welcome')?.remove();
         const messageElement = document.createElement('div');
         messageElement.className = 'message user-message';
 
@@ -2269,16 +2358,68 @@ class ChatUI {
     }
 
     /**
-     * 清空消息区域并显示初始提示
+     * 清空消息区域，并给出新会话引导
      */
     clearMessages() {
-        if (this.messagesContainer) {
-            this.messagesContainer.innerHTML = `
-                <div class="message system-message">
-                    <div class="message-content">请输入您的问题...</div>
-                </div>
-            `;
+        if (!this.messagesContainer) return;
+        this.messagesContainer.innerHTML = '';
+        this.messagesContainer.appendChild(this.createWelcomePanel());
+    }
+
+    createWelcomePanel() {
+        const panel = document.createElement('div');
+        panel.className = 'agent-welcome';
+        panel.innerHTML = `
+            <div class="agent-welcome-inner">
+                <div class="agent-welcome-title">PzM Agent能为你做什么研究？</div>
+                <div class="agent-welcome-guides">${this.renderWelcomeGuides()}</div>
+                <button type="button" class="agent-welcome-shuffle">换一批</button>
+            </div>
+        `;
+        return panel;
+    }
+
+    renderWelcomeGuides() {
+        return this.pickWelcomeGuides().map(guide => `
+            <button type="button" class="agent-welcome-guide" data-prompt="${this.escapeHtml(guide.prompt)}" title="点击填入输入框">
+                <span class="agent-welcome-tag">${this.escapeHtml(guide.tag)}</span>
+                <span class="agent-welcome-text">${this.escapeHtml(guide.prompt)}</span>
+            </button>
+        `).join('');
+    }
+
+    /**
+     * 每次抽三个不同体裁的选题，保证换一批之后不会总是同一类
+     */
+    pickWelcomeGuides() {
+        const groups = new Map();
+        AGENT_WELCOME_GUIDES.forEach(guide => {
+            if (!groups.has(guide.tag)) groups.set(guide.tag, []);
+            groups.get(guide.tag).push(guide);
+        });
+        const tags = Array.from(groups.keys()).sort(() => Math.random() - 0.5).slice(0, 3);
+        return tags.map(tag => {
+            const pool = groups.get(tag);
+            return pool[Math.floor(Math.random() * pool.length)];
+        });
+    }
+
+    handleWelcomeClick(event) {
+        const shuffle = event.target.closest('.agent-welcome-shuffle');
+        if (shuffle) {
+            const guides = shuffle.closest('.agent-welcome-inner')?.querySelector('.agent-welcome-guides');
+            if (guides) guides.innerHTML = this.renderWelcomeGuides();
+            return;
         }
+
+        const guide = event.target.closest('.agent-welcome-guide');
+        if (!guide) return;
+        const input = document.getElementById('user-input');
+        if (!input) return;
+        input.value = guide.dataset.prompt || '';
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     /**

@@ -327,7 +327,7 @@
 
         /**
          * Mermaid 的 timeline 默认色板偏暗，且深色主题的节点文字会取黑色填充。
-         * 这里统一改成白纸卡片：浅蓝区块 + 白色事件卡 + 深色文字，并回收底部多余的连接线。
+         * 这里统一改成白纸卡片：浅蓝区块 + 白色事件卡 + 深色文字，并按真实内容重排。
          */
         decorateTimeline(wrapper, head = '') {
             const svg = wrapper.querySelector('svg');
@@ -335,7 +335,159 @@
             svg.classList.add('pzm-timeline');
             svg.dataset.diagram = 'timeline';
             this.wrapTimelineLabels(svg);
-            if (!/^timeline\s+TD\b/i.test(head)) this.trimTimelineConnectors(svg);
+            if (!/^timeline\s+TD\b/i.test(head)) this.layoutTimeline(svg);
+        }
+
+        /**
+         * Mermaid 把事件卡画在轴线下方很远处，旧逻辑按“轴线往下 46”裁 viewBox，
+         * 事件全部落在画布外只剩时间刻度；标题又是左锚点，整张图看着偏右、顶部被切。
+         * 这里把事件卡收回轴线下方、补上竖向连接线，再按真实内容重算 viewBox 与标题位置。
+         */
+        layoutTimeline(svg) {
+            const axis = this.findTimelineAxis(svg);
+            const axisY = axis ? Number(axis.getAttribute('y1')) : NaN;
+            if (!Number.isFinite(axisY)) return;
+
+            const columns = this.collectTimelineColumns(svg);
+            if (!columns.length) return;
+
+            const connectorGap = 30;
+            const eventGap = 10;
+            columns.forEach(column => {
+                let top = axisY + connectorGap;
+                column.events.forEach(event => {
+                    event.el.setAttribute('transform', `translate(${column.x}, ${top})`);
+                    top += event.height + eventGap;
+                });
+                if (!column.connector) return;
+                column.connector.setAttribute('x1', String(column.center));
+                column.connector.setAttribute('x2', String(column.center));
+                column.connector.setAttribute('y1', String(column.top + column.height));
+                column.connector.setAttribute('y2', String(column.events.length ? axisY + connectorGap - 8 : axisY));
+            });
+
+            this.fitTimelineViewBox(svg);
+        }
+
+        findTimelineAxis(svg) {
+            return Array.from(svg.querySelectorAll('.lineWrapper line'))
+                .filter(line => Math.abs(Number(line.getAttribute('x1')) - Number(line.getAttribute('x2'))) > 1)
+                .sort((a, b) => {
+                    const spanA = Math.abs(Number(a.getAttribute('x2')) - Number(a.getAttribute('x1')));
+                    const spanB = Math.abs(Number(b.getAttribute('x2')) - Number(b.getAttribute('x1')));
+                    return spanB - spanA;
+                })[0] || null;
+        }
+
+        collectTimelineColumns(svg) {
+            const columns = new Map();
+            const measure = element => {
+                try {
+                    return element.getBBox();
+                } catch (error) {
+                    return null;
+                }
+            };
+
+            svg.querySelectorAll('.taskWrapper').forEach(task => {
+                const box = measure(task);
+                const point = this.translateOf(task);
+                if (!box || !point) return;
+                columns.set(Math.round(point.x), {
+                    x: point.x,
+                    top: point.y,
+                    center: point.x + box.width / 2,
+                    height: box.height,
+                    events: [],
+                    connector: null
+                });
+            });
+            if (!columns.size) return [];
+
+            svg.querySelectorAll('.eventWrapper').forEach(event => {
+                const point = this.translateOf(event);
+                const box = measure(event);
+                if (!point || !box) return;
+                const column = columns.get(Math.round(point.x));
+                if (column) column.events.push({ el: event, height: box.height });
+            });
+
+            Array.from(svg.querySelectorAll('.lineWrapper line'))
+                .filter(line => Math.abs(Number(line.getAttribute('x1')) - Number(line.getAttribute('x2'))) <= 1)
+                .forEach(line => {
+                    const x = Number(line.getAttribute('x1'));
+                    columns.forEach(column => {
+                        if (column.connector || Math.abs(x - column.center) > 30) return;
+                        column.connector = line;
+                    });
+                });
+
+            return Array.from(columns.values());
+        }
+
+        translateOf(element) {
+            const match = /translate\(\s*(-?[\d.]+)(?:[\s,]+(-?[\d.]+))?\s*\)/.exec(element?.getAttribute?.('transform') || '');
+            if (!match) return null;
+            return { x: Number(match[1]), y: Number(match[2] || 0) };
+        }
+
+        fitTimelineViewBox(svg) {
+            const title = svg.querySelector(':scope > text');
+            let contentBox = null;
+            if (title) {
+                title.setAttribute('text-anchor', 'middle');
+                const next = title.nextSibling;
+                const parent = title.parentNode;
+                parent.removeChild(title);
+                try {
+                    contentBox = this.measureBox(svg);
+                } finally {
+                    parent.insertBefore(title, next);
+                }
+            } else {
+                contentBox = this.measureBox(svg);
+            }
+            if (!contentBox || !contentBox.width || !contentBox.height) return;
+
+            const center = contentBox.x + contentBox.width / 2;
+            let left = contentBox.x;
+            let right = contentBox.x + contentBox.width;
+            let top = contentBox.y;
+            let bottom = contentBox.y + contentBox.height;
+
+            if (title) {
+                title.setAttribute('x', String(center));
+                const titleBox = this.measureBox(title);
+                if (titleBox) {
+                    left = Math.min(left, titleBox.x);
+                    right = Math.max(right, titleBox.x + titleBox.width);
+                    top = Math.min(top, titleBox.y);
+                    bottom = Math.max(bottom, titleBox.y + titleBox.height);
+                }
+            }
+
+            const padX = 10;
+            const padTop = 10;
+            const padBottom = 14;
+            const x = Math.floor(left - padX);
+            const y = Math.floor(top - padTop);
+            const width = Math.ceil(right - left + padX * 2);
+            const height = Math.ceil(bottom - top + padTop + padBottom);
+
+            svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
+            svg.setAttribute('height', String(height));
+            if (svg.style) svg.style.maxWidth = `${width}px`;
+        }
+
+        measureBox(element) {
+            if (!element) return null;
+            try {
+                const box = element.getBBox();
+                if (!box || !Number.isFinite(box.width) || !Number.isFinite(box.height)) return null;
+                return { x: box.x, y: box.y, width: box.width, height: box.height };
+            } catch (error) {
+                return null;
+            }
         }
 
         wrapTimelineLabels(svg) {
@@ -372,6 +524,8 @@
                 if (/\d/.test(full[split - 1] || '') && !/\d/.test(full[split] || '')) {
                     split += 1;
                 }
+                if (/[，。、；：！？）》】」』,.;:!?)]/.test(full[split] || '')) split += 1;
+                if (/[（《【「『(]/.test(full[split - 1] || '')) split -= 1;
                 const softBreak = new Set([
                     '地方', '目标', '进入', '兑现', '保护', '立法', '可能', '扩展',
                     '签约', '实施', '渗透', '首次', '可见', '未成', '成年', '雷霆',
@@ -390,41 +544,6 @@
                     textEl.appendChild(tspan);
                 });
             });
-        }
-
-        trimTimelineConnectors(svg) {
-            const lines = Array.from(svg.querySelectorAll('.lineWrapper line'));
-            const horizontal = lines
-                .map(line => ({
-                    line,
-                    x1: Number(line.getAttribute('x1')),
-                    x2: Number(line.getAttribute('x2'))
-                }))
-                .filter(item => Number.isFinite(item.x1) && Number.isFinite(item.x2) && Math.abs(item.x1 - item.x2) > 1)
-                .sort((a, b) => Math.abs(b.x2 - b.x1) - Math.abs(a.x2 - a.x1));
-            if (!horizontal.length) return;
-            const axis = horizontal[0].line;
-            const axisY = Number(axis.getAttribute('y1'));
-            if (!Number.isFinite(axisY)) return;
-
-            lines.forEach(line => {
-                if (line === axis) return;
-                const x1 = Number(line.getAttribute('x1'));
-                const x2 = Number(line.getAttribute('x2'));
-                const y2 = Number(line.getAttribute('y2'));
-                if (Math.abs(x1 - x2) < 0.1 && y2 > axisY) {
-                    line.setAttribute('y2', String(axisY));
-                    line.removeAttribute('marker-end');
-                }
-            });
-
-            const box = String(svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
-            if (box.length !== 4 || !box.every(Number.isFinite)) return;
-            const top = Math.max(box[1], 0);
-            const height = axisY + 46 - top;
-            if (height <= 0) return;
-            svg.setAttribute('viewBox', `${box[0]} ${top} ${box[2]} ${height}`);
-            svg.setAttribute('height', String(height));
         }
 
         hash(text) {

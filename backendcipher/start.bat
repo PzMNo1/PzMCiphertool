@@ -11,11 +11,12 @@ set SCRIPT_DIR=%~dp0
 set PROJECT_ROOT=%SCRIPT_DIR%..
 set FRONTEND_DIR=%PROJECT_ROOT%\frontendciphertool
 
-REM Java / Maven / Redis paths
-if not defined JAVA_HOME set JAVA_HOME=d:\10_Leochad\jdk-17.0.12
-if not defined MAVEN_HOME set MAVEN_HOME=d:\10_Leochad\apache-maven-3.9.5
-if not defined REDIS_HOME set REDIS_HOME=d:\10_Leochad\redis
-set PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%PATH%
+REM Java / Maven / Redis paths (portable env lives in D:\10_LeoChad\env)
+if not defined JAVA_HOME set JAVA_HOME=D:\10_LeoChad\env\jdk-21
+if not defined MAVEN_HOME set MAVEN_HOME=D:\10_LeoChad\env\maven
+if not defined REDIS_HOME set REDIS_HOME=D:\10_LeoChad\env\redis
+if not defined NODE_HOME set NODE_HOME=D:\10_LeoChad\env\node
+set PATH=%JAVA_HOME%\bin;%MAVEN_HOME%\bin;%NODE_HOME%;%PATH%
 
 REM LLM API Configuration
 REM Load the project .env so local config is the single source of truth.
