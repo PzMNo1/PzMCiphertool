@@ -2192,7 +2192,69 @@ class ChatUI {
             } catch (error) {
                 // ignore renderer refresh failures
             }
-        }, 60);
+            this.attachPdfAction(container);
+        }, 260);
+    }
+
+    /**
+     * 正文下方的 PDF 导出入口：只有成篇的回答才挂，点开时才真正生成。
+     */
+    attachPdfAction(container) {
+        const element = container?.element;
+        const content = container?.contentDiv;
+        if (!element || !content || !content.isConnected) return;
+        if (element.querySelector('.agent-pdf-bar')) return;
+        if (String(content.textContent || '').trim().length < 240) return;
+
+        const bar = document.createElement('div');
+        bar.className = 'agent-pdf-bar';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'agent-pdf-btn';
+        button.textContent = '导出 PDF';
+        const status = document.createElement('span');
+        status.className = 'agent-pdf-status';
+        bar.appendChild(button);
+        bar.appendChild(status);
+        element.appendChild(bar);
+
+        button.addEventListener('click', () => this.exportPdf(bar));
+    }
+
+    pdfTitleFor(content) {
+        const chatId = window.historyManager?.getCurrentChatId?.();
+        const history = window.historyManager?.getChatHistory?.() || {};
+        const chatTitle = String(history[chatId]?.title || '').trim();
+        if (chatTitle) return chatTitle.slice(0, 60);
+        const heading = content?.querySelector('h1, h2, h3');
+        return String(heading?.textContent || '').trim().slice(0, 60);
+    }
+
+    async exportPdf(bar) {
+        const button = bar.querySelector('.agent-pdf-btn');
+        const status = bar.querySelector('.agent-pdf-status');
+        const messageEl = bar.closest('.message');
+        const contentEl = messageEl?.querySelector('.message-text');
+        if (!contentEl || !window.agentReportPdf) return;
+
+        // 生成要几秒，先把空白页开在用户点击的手势里，避免异步之后被拦截
+        const previewWindow = window.open('', '_blank');
+        if (button) button.disabled = true;
+        if (status) status.textContent = '生成中…';
+
+        try {
+            const result = await window.agentReportPdf.exportAndOpen(contentEl, {
+                title: this.pdfTitleFor(contentEl),
+                filename: (this.pdfTitleFor(contentEl) || 'PzM Agent 报告') + '.pdf',
+                window: previewWindow
+            });
+            if (status) status.textContent = `${result.pageCount} 页 · 已打开`;
+        } catch (error) {
+            if (previewWindow && !previewWindow.closed) previewWindow.close();
+            if (status) status.textContent = '导出失败：' + (error?.message || error);
+        } finally {
+            if (button) button.disabled = false;
+        }
     }
 
     /**
@@ -2353,6 +2415,9 @@ class ChatUI {
         };
         if (isRunning && rendered.reasoningSummary) {
             this.startRuntimeTimer(rendered, Number(msg.created_at) || Date.now());
+        }
+        if (!isRunning && String(messageContent.textContent || '').trim()) {
+            setTimeout(() => this.attachPdfAction(rendered), 320);
         }
         return rendered;
     }

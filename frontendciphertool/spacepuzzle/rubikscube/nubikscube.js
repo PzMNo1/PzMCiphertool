@@ -13,6 +13,28 @@ const STANDARD_CUBE_STYLES = `
   color: rgba(255, 255, 255, 0.7);
 }
 
+#standard-cube-workspace .space-cube-hud {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  row-gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.cube-last-move {
+  color: rgba(64, 224, 255, 0.62);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.cube-last-move b {
+  margin-left: 2px;
+  color: #eaffff;
+  font-weight: 800;
+}
+
 .space-cube-panel {
   min-width: 400px;
   background:
@@ -33,15 +55,18 @@ const STANDARD_CUBE_STYLES = `
 }
 
 .cube-scene {
-  width: 270px;
-  height: 270px;
+  position: relative;
+  width: 320px;
+  height: 300px;
   display: grid;
   place-items: center;
   perspective: 900px;
-  margin: 0 auto 2rem;
+  margin: 0 auto 1.1rem;
   cursor: grab;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cube-scene.dragging {
@@ -55,6 +80,10 @@ const STANDARD_CUBE_STYLES = `
   transform-style: preserve-3d;
   transform: rotateX(var(--cube-rot-x, -28deg)) rotateY(var(--cube-rot-y, -38deg));
   transition: transform 0.08s linear;
+}
+
+.cube-3d.is-resetting {
+  transition: transform 0.46s cubic-bezier(0.2, 0.85, 0.25, 1);
 }
 
 .cube-face {
@@ -117,6 +146,152 @@ const STANDARD_CUBE_STYLES = `
   box-shadow:
     inset 0 0 10px rgba(255, 255, 255, 0.24),
     0 0 12px rgba(64, 224, 255, 0.16);
+}
+
+.cube-sticker.is-grabbed {
+  outline: 2px solid rgba(240, 255, 255, 0.92);
+  outline-offset: -2px;
+  box-shadow:
+    inset 0 0 14px rgba(255, 255, 255, 0.6),
+    0 0 18px rgba(64, 224, 255, 0.62);
+}
+
+.cube-face.is-turned {
+  animation: cube-face-turn 0.44s ease;
+}
+
+@keyframes cube-face-turn {
+  0% {
+    border-color: rgba(170, 248, 255, 0.95);
+    box-shadow:
+      inset 0 0 30px rgba(64, 224, 255, 0.5),
+      0 0 36px rgba(64, 224, 255, 0.45);
+  }
+
+  100% {
+    border-color: rgba(64, 224, 255, 0.26);
+    box-shadow:
+      inset 0 0 18px rgba(64, 224, 255, 0.12),
+      0 0 24px rgba(64, 224, 255, 0.08);
+  }
+}
+
+.cube-drag-badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  min-width: 48px;
+  padding: 3px 10px;
+  transform: translate(-50%, -165%);
+  border: 1px solid var(--cube-badge-color, #40e0ff);
+  border-radius: 4px;
+  background: rgba(2, 12, 18, 0.9);
+  color: #f2ffff;
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-align: center;
+  box-shadow: 0 0 14px rgba(64, 224, 255, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.cube-drag-badge.is-visible {
+  opacity: 1;
+}
+
+.cube-drag-badge.is-committed {
+  animation: cube-badge-pop 0.32s ease;
+}
+
+@keyframes cube-badge-pop {
+  0% {
+    transform: translate(-50%, -165%) scale(0.78);
+  }
+
+  55% {
+    transform: translate(-50%, -165%) scale(1.12);
+  }
+
+  100% {
+    transform: translate(-50%, -165%) scale(1);
+  }
+}
+
+#standard-cube-workspace .cube-drag-hint {
+  margin: -0.35rem 0 1rem;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.cube-toolbar {
+  width: min(620px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+
+.cube-toolbar .cyber-button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0.35rem 0.3rem;
+  font-size: 0.78rem;
+}
+
+.cube-toolbar .cyber-button:disabled {
+  opacity: 0.34;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cube-pad {
+  width: min(620px, 100%);
+}
+
+.cube-pad-toggle {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px dashed rgba(64, 224, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.24);
+  color: rgba(255, 255, 255, 0.72);
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.cube-pad-toggle:hover {
+  border-color: rgba(64, 224, 255, 0.72);
+  color: #eaffff;
+}
+
+.cube-pad-caret {
+  transition: transform 0.24s ease;
+}
+
+.cube-pad:not(.is-collapsed) .cube-pad-caret {
+  transform: rotate(180deg);
+}
+
+.cube-pad.is-collapsed .cube-move-spatial {
+  display: none;
 }
 
 .cube-move-grid {
@@ -204,9 +379,9 @@ const STANDARD_CUBE_STYLES = `
 
 @media (max-width: 760px) {
   .cube-scene {
-    width: 210px;
-    height: 210px;
-    margin-bottom: 1.4rem;
+    width: 100%;
+    height: 280px;
+    margin-bottom: 0.9rem;
   }
 
   .cube-3d {
@@ -284,6 +459,28 @@ const STANDARD_CUBE_STYLES = `
     order: -1;
   }
 
+  .space-cube-panel {
+    min-width: 0;
+  }
+
+  .cube-toolbar {
+    gap: 0.4rem;
+  }
+
+  .cube-toolbar .cyber-button {
+    min-height: 46px;
+    font-size: 0.8rem;
+  }
+
+  .cube-pad-toggle {
+    min-height: 44px;
+  }
+
+  #standard-cube-workspace .cube-move-chip {
+    min-height: 42px;
+    font-size: 0.85rem;
+  }
+
   #standard-cube-workspace .cube-move-spatial {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-areas:
@@ -346,6 +543,27 @@ const STANDARD_CUBE_STYLES = `
     let cubeRotX = -28;
     let cubeRotY = -38;
     let cubeMapOpen = false;
+    let moveLog = [];
+    let redoStack = [];
+    let gesture = null;
+    let orbitFrame = 0;
+    let orbitVelocity = { x: 0, y: 0 };
+    let lastBackgroundTap = null;
+    let faceFlashTimer = 0;
+    let badgeTimer = 0;
+    const activePointers = new Map();
+
+    const DEFAULT_VIEW = { x: -28, y: -38 };
+    const TURN_THRESHOLD = 12;
+    const ORBIT_SENSITIVITY = 0.45;
+    const FACE_NORMALS = {
+        U: [0, 1, 0],
+        D: [0, -1, 0],
+        R: [1, 0, 0],
+        L: [-1, 0, 0],
+        F: [0, 0, 1],
+        B: [0, 0, -1]
+    };
 
     function makeSticker(face, x, y, z, nx, ny, nz) {
         return {
@@ -521,16 +739,26 @@ const STANDARD_CUBE_STYLES = `
         turnState(stickers, move);
 
         if (shouldRecord) {
-            rawHistoryLength++;
-            history = normalizeMoveSequence([...history, move]);
+            moveLog.push(move);
+            redoStack.length = 0;
+            rawHistoryLength = moveLog.length;
+            history = normalizeMoveSequence(moveLog);
             lastSolution = [];
             resetSolutionPreview();
+            setLastAction(move);
         }
     }
 
     function applyMoves(moves, shouldRecord) {
         moves.forEach(move => applyMove(move, shouldRecord));
         renderCube();
+    }
+
+    function syncHistoryAfterLog() {
+        rawHistoryLength = moveLog.length;
+        history = normalizeMoveSequence(moveLog);
+        lastSolution = [];
+        resetSolutionPreview();
     }
 
     function inverseSequence(moves) {
@@ -726,9 +954,21 @@ const STANDARD_CUBE_STYLES = `
         renderCubeMap(state);
         setText('cube-history-count', String(rawHistoryLength));
         setText('cube-reduced-count', String(history.length));
+        syncHistoryButtons();
         if (!options.preview) {
             setStatus(isSolved() ? '魔方处于还原态' : '魔方已扰乱，等待求解');
         }
+    }
+
+    function setLastAction(label) {
+        setText('cube-last-move', label);
+    }
+
+    function syncHistoryButtons() {
+        const undo = document.getElementById('cube-undo-btn');
+        const redo = document.getElementById('cube-redo-btn');
+        if (undo) undo.disabled = moveLog.length === 0;
+        if (redo) redo.disabled = redoStack.length === 0;
     }
 
     function updateSolutionPanel(solution, elapsed) {
@@ -812,46 +1052,456 @@ const STANDARD_CUBE_STYLES = `
         return isSolved(state);
     }
 
-    function bindCubeDrag() {
-        const scene = document.querySelector ? document.querySelector('.cube-scene') : null;
-        if (!scene || scene.dataset.dragReady === 'true') return;
-        scene.dataset.dragReady = 'true';
+    function rotateByView(point) {
+        const angleX = cubeRotX * Math.PI / 180;
+        const angleY = cubeRotY * Math.PI / 180;
+        const cosY = Math.cos(angleY);
+        const sinY = Math.sin(angleY);
+        const x1 = point[0] * cosY + point[2] * sinY;
+        const z1 = -point[0] * sinY + point[2] * cosY;
+        const cosX = Math.cos(angleX);
+        const sinX = Math.sin(angleX);
+        const y2 = -point[1] * cosX - z1 * sinX;
+        const z2 = -point[1] * sinX + z1 * cosX;
+        return [x1, y2, z2];
+    }
 
-        let dragging = false;
-        let startX = 0;
-        let startY = 0;
-        let startRotX = cubeRotX;
-        let startRotY = cubeRotY;
+    function projectCubePoint(point, metrics) {
+        const [x, y, z] = rotateByView(point);
+        const scale = metrics.perspective / Math.max(1, metrics.perspective - z);
+        return { x: metrics.cx + x * scale, y: metrics.cy + y * scale, z };
+    }
 
-        scene.addEventListener('pointerdown', event => {
-            dragging = true;
-            startX = event.clientX;
-            startY = event.clientY;
-            startRotX = cubeRotX;
-            startRotY = cubeRotY;
-            scene.classList.add('dragging');
-            if (scene.setPointerCapture) scene.setPointerCapture(event.pointerId);
-        });
-
-        scene.addEventListener('pointermove', event => {
-            if (!dragging) return;
-            const dx = event.clientX - startX;
-            const dy = event.clientY - startY;
-            cubeRotY = startRotY + dx * 0.45;
-            cubeRotX = Math.max(-80, Math.min(80, startRotX - dy * 0.45));
-            applyCubeRotation();
-        });
-
-        const stopDragging = event => {
-            if (!dragging) return;
-            dragging = false;
-            scene.classList.remove('dragging');
-            if (scene.releasePointerCapture) scene.releasePointerCapture(event.pointerId);
+    function cubeMetrics() {
+        const scene = document.getElementById('cube-scene');
+        const mount = document.getElementById('standard-cube-3d');
+        if (!scene || !mount) return null;
+        const rect = scene.getBoundingClientRect();
+        if (!rect.width) return null;
+        const size = parseFloat(getComputedStyle(mount).width) || 180;
+        const face = mount.querySelector('.cube-face-f');
+        let faceZ = size / 2 + 4;
+        if (face) {
+            const transform = getComputedStyle(face).transform;
+            if (transform && transform.indexOf('matrix3d') === 0) {
+                const depth = parseFloat(transform.slice(9, -1).split(',')[14]);
+                if (Number.isFinite(depth) && depth > 0) faceZ = depth;
+            }
+        }
+        const faceStyle = face ? getComputedStyle(face) : null;
+        const padding = faceStyle ? parseFloat(faceStyle.paddingLeft) || 0 : 0;
+        const gap = faceStyle ? parseFloat(faceStyle.columnGap) || 0 : 0;
+        const cell = (size - padding * 2 - gap * 2) / 3;
+        return {
+            cx: rect.left + rect.width / 2,
+            cy: rect.top + rect.height / 2,
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            size,
+            faceZ,
+            pitch: cell + gap || size / 3,
+            perspective: parseFloat(getComputedStyle(scene).perspective) || 900
         };
+    }
 
-        scene.addEventListener('pointerup', stopDragging);
-        scene.addEventListener('pointercancel', stopDragging);
-        scene.addEventListener('pointerleave', stopDragging);
+    function faceBasis(face) {
+        const axis = FACE_AXIS[face];
+        if (axis === 'x') return [[0, 1, 0], [0, 0, 1]];
+        if (axis === 'y') return [[1, 0, 0], [0, 0, 1]];
+        return [[1, 0, 0], [0, 1, 0]];
+    }
+
+    function stickerWorldPoint(sticker, metrics) {
+        const axisIndex = AXIS_INDEX[FACE_AXIS[normalToFace(sticker.normal)]];
+        return sticker.pos.map((value, index) => value * (index === axisIndex ? metrics.faceZ : metrics.pitch));
+    }
+
+    function hitTestCube(clientX, clientY, metrics) {
+        if (!metrics) return null;
+        if (clientX < metrics.left || clientX > metrics.right || clientY < metrics.top || clientY > metrics.bottom) return null;
+        const radius = metrics.pitch * 0.8;
+        let best = null;
+        stickers.forEach(sticker => {
+            if (rotateByView(sticker.normal)[2] <= 0.02) return;
+            const point = projectCubePoint(stickerWorldPoint(sticker, metrics), metrics);
+            const distance = Math.hypot(clientX - point.x, clientY - point.y);
+            if (distance > radius) return;
+            if (!best || distance < best.distance - 2 || (Math.abs(distance - best.distance) <= 2 && point.z > best.z)) {
+                const face = normalToFace(sticker.normal);
+                best = {
+                    face,
+                    index: faceIndex(face, sticker.pos),
+                    pos: [...sticker.pos],
+                    distance,
+                    z: point.z
+                };
+            }
+        });
+        return best;
+    }
+
+    function turnScreenDelta(point, face, metrics) {
+        const def = MOVE_DEFS[face];
+        const axisIndex = AXIS_INDEX[def.axis];
+        const rotated = rotateVector(point, def.axis, def.dir);
+        const tangent = rotated.map((value, index) => index === axisIndex ? 0 : value);
+        const length = Math.hypot(...tangent);
+        if (!length) return { x: 0, y: 0 };
+        const step = metrics.pitch * 0.4 / length;
+        const from = projectCubePoint(point, metrics);
+        const to = projectCubePoint(point.map((value, index) => value + tangent[index] * step), metrics);
+        return { x: to.x - from.x, y: to.y - from.y };
+    }
+
+    function faceReferencePoint(face, metrics, dragX, dragY) {
+        const centerPoint = FACE_NORMALS[face].map(value => value * metrics.faceZ);
+        const origin = projectCubePoint(centerPoint, metrics);
+        const basis = faceBasis(face);
+        const projected = basis.map(vector =>
+            projectCubePoint(centerPoint.map((value, index) => value + vector[index] * metrics.pitch), metrics)
+        );
+        const horizontal = Math.abs(dragX) >= Math.abs(dragY);
+        let use = 0;
+        if (horizontal) {
+            if (Math.abs(projected[1].y - origin.y) > Math.abs(projected[0].y - origin.y)) use = 1;
+        } else if (Math.abs(projected[1].x - origin.x) > Math.abs(projected[0].x - origin.x)) {
+            use = 1;
+        }
+        const screen = { x: projected[use].x - origin.x, y: projected[use].y - origin.y };
+        const flip = horizontal ? screen.y > 0 : screen.x < 0;
+        return centerPoint.map((value, index) => {
+            const offset = basis[use][index] * metrics.pitch * 0.7;
+            return value + (flip ? -offset : offset);
+        });
+    }
+
+    function turnSign(point, face, dragX, dragY, metrics) {
+        const delta = turnScreenDelta(point, face, metrics);
+        const scale = Math.hypot(delta.x, delta.y) * Math.hypot(dragX, dragY);
+        if (!scale) return 0;
+        return (delta.x * dragX + delta.y * dragY) / scale;
+    }
+
+    function resolveTurn(hit, dragX, dragY, metrics) {
+        if (!metrics) return '';
+        const axisIndex = AXIS_INDEX[FACE_AXIS[hit.face]];
+        const contact = hit.pos.map((value, index) => value * (index === axisIndex ? metrics.faceZ : metrics.pitch));
+        const inPlane = Math.hypot(...contact.map((value, index) => index === axisIndex ? 0 : value));
+        let score = inPlane < metrics.pitch * 0.3 ? 0 : turnSign(contact, hit.face, dragX, dragY, metrics);
+        if (Math.abs(score) < 0.22) {
+            score = turnSign(faceReferencePoint(hit.face, metrics, dragX, dragY), hit.face, dragX, dragY, metrics);
+        }
+        return score >= 0 ? hit.face : `${hit.face}'`;
+    }
+
+    function stickerElement(hit) {
+        const mount = document.getElementById('standard-cube-3d');
+        if (!mount) return null;
+        const face = mount.querySelector(`.cube-face-${hit.face.toLowerCase()}`);
+        if (!face) return null;
+        return face.querySelectorAll('.cube-sticker')[hit.index] || null;
+    }
+
+    function flashFace(face) {
+        const mount = document.getElementById('standard-cube-3d');
+        if (!mount) return;
+        const element = mount.querySelector(`.cube-face-${face.toLowerCase()}`);
+        if (!element) return;
+        window.clearTimeout(faceFlashTimer);
+        mount.querySelectorAll('.cube-face.is-turned').forEach(node => node.classList.remove('is-turned'));
+        element.classList.add('is-turned');
+        faceFlashTimer = window.setTimeout(() => element.classList.remove('is-turned'), 460);
+    }
+
+    function showDragBadge(move, clientX, clientY) {
+        const scene = document.getElementById('cube-scene');
+        const badge = document.getElementById('cube-drag-badge');
+        if (!scene || !badge) return;
+        const rect = scene.getBoundingClientRect();
+        badge.textContent = move;
+        badge.style.left = `${clientX - rect.left}px`;
+        badge.style.top = `${clientY - rect.top}px`;
+        badge.style.setProperty('--cube-badge-color', FACE_COLORS[move.charAt(0)] || '#40e0ff');
+        badge.classList.remove('is-committed');
+        badge.classList.add('is-visible');
+        window.clearTimeout(badgeTimer);
+    }
+
+    function hideDragBadge(committed) {
+        const badge = document.getElementById('cube-drag-badge');
+        if (!badge) return;
+        window.clearTimeout(badgeTimer);
+        if (committed) {
+            badge.classList.add('is-committed');
+            badgeTimer = window.setTimeout(() => badge.classList.remove('is-visible', 'is-committed'), 420);
+            return;
+        }
+        badge.classList.remove('is-visible', 'is-committed');
+    }
+
+    function commitCubeTurn(move, face) {
+        applyMove(move, true);
+        hideDragBadge(true);
+        renderCube();
+        flashFace(face);
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try { navigator.vibrate(8); } catch (error) {}
+        }
+    }
+
+    function stopOrbitInertia() {
+        if (orbitFrame) window.cancelAnimationFrame(orbitFrame);
+        orbitFrame = 0;
+        orbitVelocity = { x: 0, y: 0 };
+    }
+
+    function startOrbitInertia(velocityX, velocityY) {
+        stopOrbitInertia();
+        if (Math.hypot(velocityX, velocityY) < 0.4) return;
+        orbitVelocity = {
+            x: Math.max(-6, Math.min(6, velocityX)),
+            y: Math.max(-6, Math.min(6, velocityY))
+        };
+        const step = () => {
+            rotateByDrag(orbitVelocity.x, orbitVelocity.y);
+            orbitVelocity.x *= 0.87;
+            orbitVelocity.y *= 0.87;
+            if (Math.abs(orbitVelocity.x) + Math.abs(orbitVelocity.y) < 0.2) {
+                orbitFrame = 0;
+                return;
+            }
+            orbitFrame = window.requestAnimationFrame(step);
+        };
+        orbitFrame = window.requestAnimationFrame(step);
+    }
+
+    function rotateByDrag(x, y) {
+        cubeRotY += x;
+        cubeRotX = Math.max(-85, Math.min(85, cubeRotX + y));
+        applyCubeRotation();
+    }
+
+    function pointerCentroid() {
+        let x = 0;
+        let y = 0;
+        activePointers.forEach(point => {
+            x += point.x;
+            y += point.y;
+        });
+        const count = activePointers.size || 1;
+        return { x: x / count, y: y / count };
+    }
+
+    function releasePointer(scene, pointerId) {
+        if (!scene || !scene.releasePointerCapture || pointerId === undefined) return;
+        try { scene.releasePointerCapture(pointerId); } catch (error) {}
+    }
+
+    function clearCubeGesture(scene, pointerId) {
+        if (gesture && gesture.stickerEl) gesture.stickerEl.classList.remove('is-grabbed');
+        if (scene) scene.classList.remove('dragging');
+        releasePointer(scene, pointerId);
+        activePointers.clear();
+        gesture = null;
+    }
+
+    function handleScenePointerDown(event) {
+        if (event.pointerType === 'mouse' && event.button !== 0 && event.button !== 2) return;
+        const scene = event.currentTarget;
+        if (!gesture) activePointers.clear();
+        activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+        if (gesture) {
+            if (gesture.mode === 'sticker') {
+                if (gesture.stickerEl) gesture.stickerEl.classList.remove('is-grabbed');
+                gesture.stickerEl = null;
+                gesture.committed = true;
+                gesture.mode = 'orbit';
+                scene.classList.add('dragging');
+            }
+            gesture.lastCentroid = pointerCentroid();
+            return;
+        }
+
+        stopOrbitInertia();
+        hideDragBadge(false);
+        const mount = document.getElementById('standard-cube-3d');
+        if (mount) mount.classList.remove('is-resetting');
+        const forceOrbit = event.pointerType === 'mouse' && event.button === 2;
+        const metrics = forceOrbit ? null : cubeMetrics();
+        const hit = forceOrbit ? null : hitTestCube(event.clientX, event.clientY, metrics);
+        if (hit) {
+            if (solutionFrames.length) {
+                resetSolutionPreview();
+                renderCube();
+            }
+        } else {
+            scene.classList.add('dragging');
+        }
+
+        gesture = {
+            pointerId: event.pointerId,
+            mode: hit ? 'sticker' : 'orbit',
+            hit,
+            metrics,
+            startX: event.clientX,
+            startY: event.clientY,
+            startedAt: performance.now(),
+            lastMoveAt: performance.now(),
+            lastCentroid: pointerCentroid(),
+            moved: 0,
+            committed: false,
+            velocityX: 0,
+            velocityY: 0,
+            stickerEl: hit ? stickerElement(hit) : null
+        };
+        if (gesture.stickerEl) gesture.stickerEl.classList.add('is-grabbed');
+        try { scene.setPointerCapture(event.pointerId); } catch (error) {}
+    }
+
+    function handleScenePointerMove(event) {
+        if (!activePointers.has(event.pointerId)) return;
+        activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (!gesture) return;
+
+        if (gesture.mode === 'sticker') {
+            if (event.pointerId !== gesture.pointerId) return;
+            const dragX = event.clientX - gesture.startX;
+            const dragY = event.clientY - gesture.startY;
+            const distance = Math.hypot(dragX, dragY);
+            gesture.moved = Math.max(gesture.moved, distance);
+            if (gesture.committed) return;
+            if (distance >= TURN_THRESHOLD) {
+                const move = resolveTurn(gesture.hit, dragX, dragY, gesture.metrics);
+                if (move) {
+                    gesture.committed = true;
+                    commitCubeTurn(move, gesture.hit.face);
+                }
+                return;
+            }
+            if (distance > 6) {
+                const move = resolveTurn(gesture.hit, dragX, dragY, gesture.metrics);
+                if (move) showDragBadge(move, event.clientX, event.clientY);
+            }
+            return;
+        }
+
+        const centroid = pointerCentroid();
+        const dx = centroid.x - gesture.lastCentroid.x;
+        const dy = centroid.y - gesture.lastCentroid.y;
+        if (!dx && !dy) return;
+        gesture.lastCentroid = centroid;
+        gesture.moved = Math.max(gesture.moved, Math.hypot(centroid.x - gesture.startX, centroid.y - gesture.startY));
+        rotateByDrag(dx * ORBIT_SENSITIVITY, -dy * ORBIT_SENSITIVITY);
+        const now = performance.now();
+        const frameRatio = Math.min(2.5, 16.7 / Math.max(8, now - gesture.lastMoveAt));
+        gesture.velocityX = gesture.velocityX * 0.7 + dx * ORBIT_SENSITIVITY * frameRatio * 0.35;
+        gesture.velocityY = gesture.velocityY * 0.7 - dy * ORBIT_SENSITIVITY * frameRatio * 0.35;
+        gesture.lastMoveAt = now;
+    }
+
+    function handleBackgroundTap(clientX, clientY) {
+        const now = performance.now();
+        if (lastBackgroundTap && now - lastBackgroundTap.at < 340 && Math.hypot(clientX - lastBackgroundTap.x, clientY - lastBackgroundTap.y) < 40) {
+            lastBackgroundTap = null;
+            window.resetCubeView();
+            return;
+        }
+        lastBackgroundTap = { x: clientX, y: clientY, at: now };
+    }
+
+    function finishCubeGesture(event, cancelled) {
+        const scene = event.currentTarget;
+        const current = gesture;
+        if (!current) {
+            releasePointer(scene, event.pointerId);
+            return;
+        }
+        const distance = Math.max(current.moved, Math.hypot(event.clientX - current.startX, event.clientY - current.startY));
+        const duration = performance.now() - current.startedAt;
+        const tapped = !cancelled && duration < 500 && distance < TURN_THRESHOLD;
+
+        if (!cancelled && current.mode === 'sticker' && !current.committed && tapped) {
+            current.committed = true;
+            showDragBadge(current.hit.face, event.clientX, event.clientY);
+            commitCubeTurn(current.hit.face, current.hit.face);
+        }
+        if (!cancelled && current.mode === 'orbit' && tapped) {
+            handleBackgroundTap(event.clientX, event.clientY);
+        }
+        if (!cancelled && current.mode === 'orbit' && !tapped && performance.now() - current.lastMoveAt < 90) {
+            lastBackgroundTap = null;
+            startOrbitInertia(current.velocityX, current.velocityY);
+        }
+        if (!current.committed) hideDragBadge(false);
+        clearCubeGesture(scene, event.pointerId);
+    }
+
+    function handleScenePointerUp(event) {
+        activePointers.delete(event.pointerId);
+        if (!gesture) {
+            releasePointer(event.currentTarget, event.pointerId);
+            return;
+        }
+        if (event.pointerId !== gesture.pointerId) {
+            gesture.lastCentroid = pointerCentroid();
+            return;
+        }
+        finishCubeGesture(event, false);
+    }
+
+    function handleScenePointerCancel(event) {
+        activePointers.delete(event.pointerId);
+        if (!gesture) return;
+        finishCubeGesture(event, true);
+    }
+
+    function bindCubeGestures() {
+        const scene = document.getElementById('cube-scene');
+        if (!scene || scene.dataset.gestureReady === 'true') return;
+        scene.dataset.gestureReady = 'true';
+        scene.addEventListener('pointerdown', handleScenePointerDown);
+        scene.addEventListener('pointermove', handleScenePointerMove);
+        scene.addEventListener('pointerup', handleScenePointerUp);
+        scene.addEventListener('pointercancel', handleScenePointerCancel);
+        scene.addEventListener('contextmenu', event => event.preventDefault());
+    }
+
+    function bindCubeKeyboard() {
+        if (window.standardCubeKeyboardReady) return;
+        window.standardCubeKeyboardReady = true;
+        document.addEventListener('keydown', event => {
+            const target = event.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+            const workspace = document.getElementById('standard-cube-workspace');
+            if (!workspace || !workspace.offsetParent) return;
+            const key = event.key.length === 1 ? event.key.toUpperCase() : '';
+
+            if (event.ctrlKey || event.metaKey) {
+                if (key === 'Z') {
+                    event.preventDefault();
+                    if (event.shiftKey) window.redoCubeMove();
+                    else window.undoCubeMove();
+                } else if (key === 'Y') {
+                    event.preventDefault();
+                    window.redoCubeMove();
+                }
+                return;
+            }
+            if (event.key === 'Backspace') {
+                event.preventDefault();
+                window.undoCubeMove();
+                return;
+            }
+            if (!FACE_NAMES.includes(key)) return;
+            event.preventDefault();
+            const move = event.shiftKey ? `${key}'` : key;
+            applyMove(move, true);
+            renderCube();
+            flashFace(key);
+        });
     }
 
     function getRegisteredSpacePuzzleModules() {
@@ -954,20 +1604,31 @@ const STANDARD_CUBE_STYLES = `
                             <h3>系统法则:</h3>
                             <p>支持标准 Singmaster 记号：U D R L F B，可加 ' 或 2。</p>
                             <p>求解器会先合并抵消同面转动，并规约同轴可交换转动，再生成还原公式。</p>
-                            <p>可用下方空间操作台单步旋转，也可直接输入完整公式。</p>
+                            <p>直接拖动魔方贴纸即可转动该面，空白处拖动旋转视角；点击贴纸旋转 90°。桌面端可按 U D R L F B 键，按住 Shift 反向。</p>
                         </div>
                     </div>
 
                     <div class="grid-container card space-display-panel space-cube-panel">
                         <div class="space-cube-hud">
                             <span id="cube-status">魔方处于还原态</span>
+                            <span class="cube-last-move" aria-live="polite">最近 <b id="cube-last-move">—</b></span>
                         </div>
-                        <div class="cube-scene">
+                        <div class="cube-scene" id="cube-scene" role="img" aria-label="三维魔方：拖动贴纸转动该面，空白处拖动旋转视角">
                             <div class="cube-3d" id="standard-cube-3d"></div>
+                            <div class="cube-drag-badge" id="cube-drag-badge" aria-hidden="true"></div>
                         </div>
-                        <div class="cube-drag-hint">拖动魔方观察空间姿态</div>
-                        <div class="cube-control-title">空间转动面板</div>
-                        <div class="cube-move-spatial">${moveButtons}</div>
+                        <div class="cube-drag-hint">拖动贴纸转面 · 空白处拖动转视角</div>
+                        <div class="cube-toolbar">
+                            <button class="cyber-button cube-tool-btn" id="cube-undo-btn" type="button" onclick="window.undoCubeMove()"><span class="cyber-button__tag">↶ 撤销</span></button>
+                            <button class="cyber-button cube-tool-btn" id="cube-redo-btn" type="button" onclick="window.redoCubeMove()"><span class="cyber-button__tag">↷ 重做</span></button>
+                            <button class="cyber-button cube-tool-btn" type="button" onclick="window.resetCubeView()"><span class="cyber-button__tag">⟲ 视角</span></button>
+                        </div>
+                        <div class="cube-pad is-collapsed" id="cube-pad">
+                            <button class="cube-pad-toggle" id="cube-pad-toggle" type="button" aria-expanded="false" onclick="window.toggleCubePad()">
+                                <span class="cube-pad-label">空间转动面板 · 展开</span><span class="cube-pad-caret">▾</span>
+                            </button>
+                            <div class="cube-move-spatial">${moveButtons}</div>
+                        </div>
                     </div>
                 </div>
                 ${extraWorkspaces}
@@ -982,7 +1643,8 @@ const STANDARD_CUBE_STYLES = `
         getRegisteredSpacePuzzleModules().forEach(module => {
             if (typeof module.init === 'function') module.init();
         });
-        bindCubeDrag();
+        bindCubeGestures();
+        bindCubeKeyboard();
     };
 
     window.openSpacePuzzle = function (id) {
@@ -992,7 +1654,8 @@ const STANDARD_CUBE_STYLES = `
         if (id === 'standard-cube') {
             document.getElementById('standard-cube-workspace').style.display = 'flex';
             renderCube();
-            bindCubeDrag();
+            bindCubeGestures();
+            bindCubeKeyboard();
         }
         const extraModule = getRegisteredSpacePuzzleModules().find(module => module.id === id);
         if (extraModule && typeof extraModule.open === 'function') {
@@ -1009,8 +1672,11 @@ const STANDARD_CUBE_STYLES = `
     window.resetStandardCube = function () {
         stickers = createSolvedStickers();
         history = [];
+        moveLog = [];
+        redoStack = [];
         rawHistoryLength = 0;
         lastSolution = [];
+        setLastAction('—');
         resetSolutionPreview();
         const input = document.getElementById('cube-formula-input');
         if (input) input.value = '';
@@ -1021,6 +1687,8 @@ const STANDARD_CUBE_STYLES = `
     window.scrambleStandardCube = function () {
         stickers = createSolvedStickers();
         history = [];
+        moveLog = [];
+        redoStack = [];
         rawHistoryLength = 0;
         lastSolution = [];
         resetSolutionPreview();
@@ -1028,6 +1696,7 @@ const STANDARD_CUBE_STYLES = `
         const input = document.getElementById('cube-formula-input');
         if (input) input.value = moves.join(' ');
         applyMoves(moves, true);
+        setLastAction('扰乱');
         updateSolutionPanel([], 0);
     };
 
@@ -1036,6 +1705,7 @@ const STANDARD_CUBE_STYLES = `
             const input = document.getElementById('cube-formula-input');
             const moves = parseFormula(input ? input.value : '');
             applyMoves(moves, true);
+            if (moves.length) setLastAction('公式');
             updateSolutionPanel([], 0);
         } catch (error) {
             setStatus(error.message);
@@ -1044,6 +1714,50 @@ const STANDARD_CUBE_STYLES = `
 
     window.applyCubeMoveFromButton = function (move) {
         applyMoves([move], true);
+        flashFace(move.charAt(0));
+    };
+
+    window.undoCubeMove = function () {
+        if (!moveLog.length) return;
+        const move = moveLog.pop();
+        redoStack.push(move);
+        turnState(stickers, invertMove(move));
+        syncHistoryAfterLog();
+        setLastAction(`↶ ${move}`);
+        renderCube();
+    };
+
+    window.redoCubeMove = function () {
+        if (!redoStack.length) return;
+        const move = redoStack.pop();
+        turnState(stickers, move);
+        moveLog.push(move);
+        syncHistoryAfterLog();
+        setLastAction(`↷ ${move}`);
+        renderCube();
+    };
+
+    window.resetCubeView = function () {
+        stopOrbitInertia();
+        cubeRotX = DEFAULT_VIEW.x;
+        cubeRotY = DEFAULT_VIEW.y;
+        const mount = document.getElementById('standard-cube-3d');
+        if (mount) {
+            mount.classList.add('is-resetting');
+            window.setTimeout(() => mount.classList.remove('is-resetting'), 520);
+        }
+        applyCubeRotation();
+    };
+
+    window.toggleCubePad = function (force) {
+        const pad = document.getElementById('cube-pad');
+        if (!pad) return;
+        const open = typeof force === 'boolean' ? force : pad.classList.contains('is-collapsed');
+        pad.classList.toggle('is-collapsed', !open);
+        const toggle = document.getElementById('cube-pad-toggle');
+        const label = toggle ? toggle.querySelector('.cube-pad-label') : null;
+        if (toggle) toggle.setAttribute('aria-expanded', String(open));
+        if (label) label.textContent = open ? '空间转动面板 · 收起' : '空间转动面板 · 展开';
     };
 
     window.solveStandardCube = function () {
@@ -1051,7 +1765,10 @@ const STANDARD_CUBE_STYLES = `
         if (isSolved()) {
             lastSolution = [];
             history = [];
+            moveLog = [];
+            redoStack = [];
             rawHistoryLength = 0;
+            setLastAction('—');
         } else {
             lastSolution = optimizedInverseSequence(history);
             if (!solutionRestoresCube(lastSolution)) {
@@ -1060,6 +1777,7 @@ const STANDARD_CUBE_STYLES = `
         }
         const elapsed = Math.max(1, Math.round(performance.now() - started));
         updateSolutionPanel(lastSolution, elapsed);
+        syncHistoryButtons();
         if (lastSolution.length) {
             buildSolutionFrames(lastSolution);
             setStatus(`已生成规约解法：${rawHistoryLength} 步历史压缩为 ${lastSolution.length} 步，可翻页查看`);
@@ -1087,8 +1805,11 @@ const STANDARD_CUBE_STYLES = `
         if (!lastSolution.length) return;
         applyMoves(lastSolution, false);
         history = [];
+        moveLog = [];
+        redoStack = [];
         rawHistoryLength = 0;
         lastSolution = [];
+        setLastAction('—');
         resetSolutionPreview();
         updateSolutionPanel([], 0);
         renderCube();

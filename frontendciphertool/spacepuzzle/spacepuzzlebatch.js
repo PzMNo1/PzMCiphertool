@@ -1,7 +1,7 @@
 // 空间类按需加载器
 // 只预加载公共 UI；具体空间谜题脚本在用户点击对应工具时再加载。
 (function () {
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261021-3';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-23';
     const loadedScripts = new Set();
     const initializedModules = new Set();
     let standardCubeApi = null;

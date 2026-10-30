@@ -3833,3 +3833,189 @@ pre.markdown-code-block[data-mermaid-state="error"] {
   color: #ffd98a;
   box-shadow: 0 0 12px rgba(255, 176, 46, 0.3);
 }
+
+/* ---------- 正文 PDF 导出 ---------- */
+
+.agent-pdf-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(142, 231, 255, 0.16);
+}
+
+.agent-pdf-btn {
+  padding: 4px 12px;
+  border: 1px solid rgba(142, 231, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(12, 32, 44, 0.6);
+  color: rgba(198, 244, 255, 0.92);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.agent-pdf-btn:hover {
+  border-color: rgba(142, 231, 255, 0.7);
+  background: rgba(18, 48, 64, 0.75);
+  color: #eafcff;
+}
+
+.agent-pdf-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.agent-pdf-status {
+  color: rgba(190, 220, 235, 0.62);
+  font-size: 0.68rem;
+}
+
+/* 白纸页面：PDF 里的内容与站内深色主题无关 */
+.agent-pdf-root {
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.agent-pdf-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+}
+
+.agent-pdf-page {
+  width: 688px;
+  box-sizing: border-box;
+  padding: 0;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+}
+
+.agent-pdf-title {
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #1b2a38;
+  color: #12222f;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.agent-pdf-body,
+.agent-pdf-body * {
+  color: #1f2d3a !important;
+  text-shadow: none !important;
+}
+
+.agent-pdf-body {
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.agent-pdf-body h1,
+.agent-pdf-body h2,
+.agent-pdf-body h3,
+.agent-pdf-body h4 {
+  color: #12222f !important;
+  line-height: 1.5;
+}
+
+.agent-pdf-body h2 {
+  margin: 18px 0 8px;
+  padding-left: 8px;
+  border-left: 4px solid #1b6ea8;
+  font-size: 17px;
+}
+
+.agent-pdf-body h3 {
+  margin: 14px 0 6px;
+  font-size: 15px;
+}
+
+.agent-pdf-body p {
+  margin: 8px 0;
+}
+
+.agent-pdf-body a {
+  color: #0b5cad !important;
+  text-decoration: none;
+}
+
+.agent-pdf-body table {
+  width: 100%;
+  margin: 12px 0;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.agent-pdf-body th,
+.agent-pdf-body td {
+  padding: 5px 7px;
+  border: 1px solid #c9d3dd !important;
+  text-align: left;
+  vertical-align: top;
+}
+
+.agent-pdf-body th {
+  background: #eef3f8 !important;
+  font-weight: 600;
+}
+
+.agent-pdf-body pre,
+.agent-pdf-body code {
+  background: #f6f8fa !important;
+  color: #24292f !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 4px;
+}
+
+.agent-pdf-body pre {
+  padding: 10px 12px;
+  overflow: visible;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.agent-pdf-body code {
+  padding: 1px 4px;
+  font-size: 11px;
+}
+
+.agent-pdf-body blockquote {
+  margin: 10px 0;
+  padding: 6px 12px;
+  border-left: 3px solid #b7c6d4;
+  background: #f7fafc !important;
+}
+
+.agent-pdf-body img,
+.agent-pdf-body svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.agent-pdf-body .agent-chart,
+.agent-pdf-body .agent-diagram {
+  margin: 10px 0;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* 引用上标在纸上保持低调 */
+.agent-pdf-body .citation-link {
+  color: #1b6ea8 !important;
+  font-size: 10px;
+}

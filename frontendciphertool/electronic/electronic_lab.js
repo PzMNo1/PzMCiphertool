@@ -5,7 +5,7 @@
  * - 右上角单个按钮在【电路模拟】/【电路板布局】之间切换
  */
 
-var ELECTRONIC_LAB_CIRCUIT_VERSION = '20261027-16';
+var ELECTRONIC_LAB_CIRCUIT_VERSION = '20261030-31';
 var ELECTRONIC_LAB_CIRCUIT_SRC = './electronic/war/circuitjs.html?v=' + ELECTRONIC_LAB_CIRCUIT_VERSION;
 var ELECTRONIC_LAB_PCB_VERSION = '20261027-16';
 var ELECTRONIC_LAB_PCB_SRC = './electronic/PCBLayout/index.html?v=' + ELECTRONIC_LAB_PCB_VERSION;

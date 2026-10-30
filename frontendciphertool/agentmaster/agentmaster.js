@@ -441,7 +441,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isChatActive && messages.length > 1) {
             chatWindow.classList.add('active');
             isChatActive = true;
-            suggestions?.classList.add('hidden');
         }
     });
     document.querySelectorAll('.agent-suggestion-btn').forEach(btn => {
@@ -687,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetVoiceInputUi() {
         submitBtn.classList.remove('agent-voice-arming', 'agent-voice-recording');
         submitBtn.removeAttribute('aria-pressed');
-        textarea.placeholder = ' Reply...';
+        textarea.placeholder = 'Reply...';
         voiceInput.active = false;
         voiceInput.stopping = false;
         voiceInput.sendOnEnd = false;
@@ -739,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function runSend(text, setLoader) {
         textarea.value = '';
         textarea.style.height = '24px';
-        suggestions?.classList.add('hidden');
 
         if (!isChatActive) { chatWindow.classList.add('active'); isChatActive = true; }
 
@@ -2294,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         restoreAgent();
         chatWindow.classList.add('active');
         isChatActive = true;
-        suggestions?.classList.add('hidden');
+        suggestions?.classList.remove('hidden');
         textarea.value = text;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         send();
@@ -2342,7 +2340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeChatWindow() {
         chatWindow.classList.remove('active');
-        suggestions?.classList.add('hidden');
+        suggestions?.classList.remove('hidden');
         isChatActive = false;
         wasChatActiveBeforeDock = false;
     }
@@ -2364,10 +2362,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (wasChatActiveBeforeDock || messages.length > 1) {
             chatWindow.classList.add('active');
             isChatActive = true;
-            suggestions?.classList.add('hidden');
-        } else {
-            suggestions?.classList.remove('hidden');
         }
+        suggestions?.classList.remove('hidden');
         textarea.focus();
     }
 

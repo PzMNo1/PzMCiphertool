@@ -79,7 +79,7 @@ const MODULES = {
                     <iframe
                         id="circuit-frame"
                         src=""
-                        data-src="./electronic/war/circuitjs.html?v=20261027-16"
+                        data-src="./electronic/war/circuitjs.html?v=20261030-31"
                         allowfullscreen>
                     </iframe>
                 </div>
@@ -648,6 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentPluginKernel.js',
             './model/agent/AgentPluginCatalog.js',
             './model/agent/AgentPluginPanel.js',
+            './model/agent/AgentReportPdf.js',
             './model/AgentRuntime.js',
             './model/main.js',
         ],
@@ -695,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-18';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-23';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

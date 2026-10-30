@@ -293,7 +293,6 @@
             hideOverlay();
             const file = event.dataTransfer.files && event.dataTransfer.files[0];
             if (!file) return;
-            if ($('wm-stage-empty').hidden) showWorkbench();
             setLibraryOpen(false);
             acceptImage(file);
         });
@@ -616,7 +615,9 @@
         setLibraryOpen(false);
         renderWorlds();
 
-        $('wm-stage-empty').hidden = true;
+        const workbench = $('wm-stage-empty');
+        workbench.hidden = false;
+        workbench.classList.add('is-scene');
 
         renderStageActions(world);
         if (options.autoLoad !== false) {
@@ -632,6 +633,7 @@
         setLibraryOpen(false);
         $('wm-stage-actions').innerHTML = '';
         $('wm-stage-empty').hidden = false;
+        $('wm-stage-empty').classList.remove('is-scene');
         renderWorlds();
         const prompt = $('wm-prompt');
         if (prompt) prompt.focus();

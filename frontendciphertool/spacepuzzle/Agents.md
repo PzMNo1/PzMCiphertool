@@ -47,9 +47,14 @@ STEP 3: 创建 {新谜题名}.css（样式）
 STEP 4: 在 spacepuzzlebatch.js 中注册谜题
 
 ### 修改 3D 魔方旋转逻辑
-LOCATE: rubikscube/rubikscube.js
-ACTION: 修改 rotate() 方法的旋转矩阵
+LOCATE: rubikscube/nubikscube.js
+ACTION: 修改 turnState() 的旋转矩阵
 TEST: 旋转后各面颜色正确对齐
+
+### 修改 3D 魔方交互
+LOCATE: rubikscube/nubikscube.js
+ACTION: 手势入口 bindCubeGestures / handleScenePointerDown；转动方向 resolveTurn；投影命中 cubeMetrics / projectCubePoint / hitTestCube
+NOTE: 拖动贴纸转动该面，空白处拖动旋转视角，点击贴纸旋转 90°；空间转动面板默认折叠，按钮仅作精确操作备选
 
 ### 优化 Canvas 渲染性能
 TARGET: spacepuzzle_ui.js 中的 render() 函数

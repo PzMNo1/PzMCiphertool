@@ -5,7 +5,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
-    max-width: 700px;
+    max-width: 780px;
     z-index: 10000;
     display: flex;
     flex-direction: column;
@@ -359,8 +359,8 @@
 /* Suggestions */
 .agent-suggestions {
     display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
     justify-content: flex-start;
     width: 100%;
@@ -379,9 +379,9 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, .1);
     color: #cbd5e1;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: .85rem;
+    padding: 8px 14px;
+    border-radius: 22px;
+    font-size: .95rem;
     cursor: pointer;
     transition: all .2s;
     white-space: nowrap;
@@ -396,7 +396,7 @@
 /* Input Area */
 .agent-input-container {
     width: 100%;
-    padding: 8px 16px;
+    padding: 8px 14px;
     display: flex;
     align-items: center;
     background:
@@ -404,7 +404,7 @@
         linear-gradient(90deg, rgba(15, 27, 38, .58), rgba(22, 50, 62, .48));
     backdrop-filter: blur(24px) saturate(135%);
     -webkit-backdrop-filter: blur(24px) saturate(135%);
-    border-radius: 16px;
+    border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, .12);
     box-shadow: 0 14px 38px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .12);
     transform-origin: bottom center;
@@ -418,17 +418,18 @@
 
 #agent-textarea {
     flex: 1 !important;
-    background: transparent !important;
-    border: none !important;
-    color: #f8fafc !important;
+    background: rgba(6, 18, 28, .34) !important;
+    border: 1px solid rgba(142, 231, 255, .18) !important;
+    border-radius: 10px !important;
+    color: #eef6ff !important;
     font-size: 1rem !important;
     resize: none !important;
     outline: none !important;
-    padding: 0 !important;
+    padding: 8px 14px !important;
     margin: 0 !important;
-    line-height: 24px !important;
-    min-height: 24px !important;
-    height: 52px !important;
+    line-height: 20px !important;
+    min-height: 20px !important;
+    height: 58px !important;
     max-height: 120px !important;
     font-family: inherit !important;
     scrollbar-width: none !important;
@@ -441,10 +442,9 @@
 }
 
 #agent-textarea:focus {
-    box-shadow: none !important;
-    background: transparent !important;
-    border: none !important;
-    outline: none !important;
+    border-color: rgba(142, 231, 255, .36) !important;
+    background: rgba(8, 24, 36, .42) !important;
+    box-shadow: 0 0 0 3px rgba(64, 224, 255, .07) !important;
 }
 
 .agent-submit-btn {

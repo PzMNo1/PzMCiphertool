@@ -44,11 +44,30 @@
     width: 111%;
     height: 85%;
     position: relative;
-    background: #000;
-    border-radius: 12px;
+    background: #030a14;
+    border-radius: 14px;
     overflow: hidden;
-    border: 1px solid rgba(46, 204, 113, 0.3);
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(64, 224, 255, 0.38);
+    box-shadow:
+        0 0 0 1px rgba(64, 224, 255, 0.08),
+        0 0 34px rgba(0, 0, 0, 0.65),
+        0 0 26px rgba(64, 224, 255, 0.12);
+}
+
+/* 电路模拟视口：HUD 取景角标 */
+#electroniclab-content #electronic-submodule-simulation .engine-viewport::after {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0.7;
+    background:
+        linear-gradient(#40e0ff, #40e0ff) left top / 20px 1px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) left top / 1px 20px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) right top / 20px 1px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) right top / 1px 20px no-repeat;
+    filter: drop-shadow(0 0 6px rgba(64, 224, 255, 0.55));
 }
 
 /* iframe 全尺寸 */
@@ -72,7 +91,7 @@ iframe#circuit-frame {
     gap: 15px;
     justify-content: center;
     align-items: center;
-    color: #2ecc71;
+    color: #40e0ff;
     z-index: 5;
     pointer-events: none;
     transition: opacity 0.5s;
@@ -88,7 +107,7 @@ iframe#circuit-frame {
 
 .loading-mask i {
     font-size: 2rem;
-    color: #2ecc71;
+    color: #40e0ff;
 }
 
 /* 移动端适配 */

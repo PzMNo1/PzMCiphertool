@@ -119,10 +119,10 @@ body {
   padding: 0 4px;
   font-size: 9px;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(224, 255, 255, 0.82);
+  border: 1px solid rgba(64, 224, 255, 0.2);
   border-radius: 999px;
-  background: rgba(38, 38, 40, 0.88);
+  background: rgba(64, 224, 255, 0.08);
 }
 
 .wm-library-count[hidden] { display: none; }
@@ -195,6 +195,29 @@ body {
 
 .wm-stage-empty[hidden] { display: none; }
 
+.wm-stage-empty.is-scene {
+  justify-content: flex-end;
+  padding-bottom: 104px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.wm-stage-empty.is-scene .wm-hero { display: none; }
+
+.wm-stage-empty.is-scene .wm-composer {
+  width: min(760px, 100%);
+  pointer-events: auto;
+}
+
+.wm-stage-empty.is-scene .wm-tips { display: none; }
+
+.wm-stage-empty.is-scene .wm-composer textarea {
+  height: 46px;
+  min-height: 46px;
+  max-height: 92px;
+  resize: none;
+}
+
 .wm-hero {
   box-sizing: border-box;
   flex: 1 1 auto;
@@ -256,28 +279,28 @@ body {
   flex-direction: column;
   gap: 9px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-top-color: rgba(255, 255, 255, 0.4);
-  border-radius: 22px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-top-color: rgba(64, 224, 255, 0.32);
+  border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.055) 34%, rgba(255, 255, 255, 0.018) 60%, rgba(255, 255, 255, 0.08)),
-    rgba(255, 255, 255, 0.035);
-  -webkit-backdrop-filter: blur(30px) saturate(85%) brightness(1.06);
-  backdrop-filter: blur(30px) saturate(85%) brightness(1.06);
+    linear-gradient(145deg, rgba(64, 224, 255, 0.07), rgba(0, 20, 40, 0.16) 46%, rgba(0, 0, 0, 0.18)),
+    rgba(0, 20, 40, 0.36);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.4),
-    inset 0 -1px rgba(255, 255, 255, 0.05),
-    0 24px 60px rgba(0, 0, 0, 0.36),
-    0 2px 10px rgba(0, 0, 0, 0.18);
+    inset 0 0 15px rgba(64, 224, 255, 0.05),
+    5px 0 15px rgba(12, 153, 134, 0.24),
+    0 0 22px rgba(12, 153, 134, 0.18),
+    0 18px 48px rgba(0, 0, 0, 0.44);
   transition: border-color 0.16s, box-shadow 0.16s;
 }
 
 .wm-composer.is-dragover {
-  border-color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(64, 224, 255, 0.55);
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.45),
-    inset 0 0 46px rgba(255, 255, 255, 0.08),
-    0 20px 54px rgba(0, 0, 0, 0.42);
+    inset 0 0 24px rgba(64, 224, 255, 0.08),
+    5px 0 18px rgba(12, 153, 134, 0.42),
+    0 18px 48px rgba(0, 0, 0, 0.46);
 }
 
 .wm-composer .cyber-button { top: 0; }
@@ -287,11 +310,9 @@ body {
   align-items: center;
   gap: 9px;
   padding: 7px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: transparent;
 }
 
 .wm-image-field[hidden] { display: none; }
@@ -302,9 +323,9 @@ body {
   height: 52px;
   object-fit: cover;
   display: block;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(64, 224, 255, 0.2);
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 20, 40, 0.25);
 }
 
 .wm-image-field img[hidden] { display: none; }
@@ -328,7 +349,7 @@ body {
 .wm-image-note {
   font-size: 10.5px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(170, 215, 230, 0.7);
 }
 
 .wm-composer textarea {
@@ -342,21 +363,20 @@ body {
   font-size: 12.5px;
   line-height: 1.7;
   color: #e8f4fb;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.055);
-  -webkit-backdrop-filter: blur(12px) saturate(90%);
-  backdrop-filter: blur(12px) saturate(90%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
   outline: none;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
 }
 
 .wm-composer textarea:focus {
-  border-color: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
 }
 
-.wm-composer textarea::placeholder { color: rgba(220, 232, 240, 0.42); }
+.wm-composer textarea::placeholder { color: rgba(232, 238, 243, 0.42); }
 
 .wm-tips {
   display: flex;
@@ -371,19 +391,19 @@ body {
   font-family: inherit;
   font-size: 10.5px;
   padding: 3px 8px;
-  color: rgba(235, 245, 250, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(220, 255, 255, 0.78);
+  border: 1px solid rgba(64, 224, 255, 0.2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.055);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  background: rgba(64, 224, 255, 0.06);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   transition: color 0.16s, border-color 0.16s, background 0.16s;
 }
 
 .wm-chip:hover {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(64, 224, 255, 0.48);
+  background: rgba(64, 224, 255, 0.14);
 }
 
 .wm-pano-wrap img[hidden] { display: none; }
@@ -414,21 +434,20 @@ body {
   font-family: inherit;
   font-size: 11.5px;
   color: #e8f4fb;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.055);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
   outline: none;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
 }
 
 #wm-name:focus {
-  border-color: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
 }
 
-#wm-name::placeholder { color: rgba(220, 232, 240, 0.42); }
+#wm-name::placeholder { color: rgba(232, 238, 243, 0.42); }
 
 .wm-generate {
   flex: 0 0 auto;
@@ -454,8 +473,8 @@ body {
 .wm-progress-bar {
   height: 2px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.08);
+  background: rgba(64, 224, 255, 0.12);
+  box-shadow: 0 0 8px rgba(64, 224, 255, 0.12);
   overflow: hidden;
 }
 
@@ -464,8 +483,8 @@ body {
   width: 0%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), #ffffff);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+  background: linear-gradient(90deg, rgba(64, 224, 255, 0.5), #b6f5ff);
+  box-shadow: 0 0 8px rgba(64, 224, 255, 0.5);
   transition: width 0.35s;
 }
 
@@ -486,12 +505,12 @@ body {
 
 #wm-progress-text {
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.66);
+  color: rgba(200, 250, 255, 0.7);
 }
 
 #wm-progress-time {
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(160, 220, 235, 0.4);
 }
 
 #wm-progress-hint {
@@ -500,7 +519,7 @@ body {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(190, 240, 250, 0.55);
 }
 
 .wm-progress.is-error #wm-progress-text { color: rgba(255, 196, 154, 0.95); }
@@ -523,7 +542,7 @@ body {
   font-family: inherit;
   font-size: 9.5px;
   line-height: 1.25;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(200, 250, 255, 0.55);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -544,16 +563,16 @@ body {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  border: 1.5px dashed rgba(255, 255, 255, 0.5);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.07);
-  -webkit-backdrop-filter: blur(14px) saturate(70%) brightness(1.05);
-  backdrop-filter: blur(14px) saturate(70%) brightness(1.05);
-  box-shadow: inset 0 0 60px rgba(255, 255, 255, 0.06), 0 0 30px rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.88);
+  border: 1.5px dashed rgba(64, 224, 255, 0.55);
+  border-radius: 18px;
+  background: rgba(0, 20, 40, 0.25);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: inset 0 0 40px rgba(64, 224, 255, 0.06), 0 0 24px rgba(12, 153, 134, 0.2);
+  color: rgba(224, 255, 255, 0.9);
   font-size: 13px;
   letter-spacing: 1.4px;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 0 12px rgba(64, 224, 255, 0.35);
 }
 
 .wm-drop-overlay[hidden] { display: none; }
@@ -584,18 +603,19 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-top-color: rgba(255, 255, 255, 0.4);
-  border-radius: 22px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-top-color: rgba(64, 224, 255, 0.32);
+  border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 36%, rgba(255, 255, 255, 0.018) 64%, rgba(255, 255, 255, 0.08) 100%),
-    rgba(255, 255, 255, 0.04);
-  -webkit-backdrop-filter: blur(36px) saturate(80%) brightness(1.05);
-  backdrop-filter: blur(36px) saturate(80%) brightness(1.05);
+    linear-gradient(145deg, rgba(64, 224, 255, 0.07), rgba(0, 20, 40, 0.16) 46%, rgba(0, 0, 0, 0.18)),
+    rgba(0, 20, 40, 0.36);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.42),
-    inset 0 0 26px rgba(255, 255, 255, 0.045),
-    0 24px 60px rgba(0, 0, 0, 0.42);
+    inset 0 0 15px rgba(64, 224, 255, 0.05),
+    5px 0 15px rgba(12, 153, 134, 0.28),
+    0 0 24px rgba(12, 153, 134, 0.2),
+    0 20px 52px rgba(0, 0, 0, 0.46);
   animation: wm-panel-in 0.18s ease-out;
 }
 
@@ -616,8 +636,9 @@ body {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 1.4px;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(224, 255, 255, 0.9);
   text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(64, 224, 255, 0.2);
 }
 
 .wm-library-head .wm-card-title { flex: 1 1 auto; }
@@ -634,10 +655,10 @@ body {
   font-family: inherit;
   font-size: 17px;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(224, 255, 255, 0.72);
+  border: 1px solid rgba(64, 224, 255, 0.2);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(64, 224, 255, 0.06);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   transition: color 0.16s, border-color 0.16s, background 0.16s;
@@ -645,8 +666,8 @@ body {
 
 .wm-library-close:hover {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(64, 224, 255, 0.48);
+  background: rgba(64, 224, 255, 0.14);
 }
 
 .wm-library-options {
@@ -655,9 +676,9 @@ body {
   flex-direction: column;
   gap: 7px;
   padding: 9px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(64, 224, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(64, 224, 255, 0.05);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -665,7 +686,7 @@ body {
 .wm-library-options-title {
   font-size: 10px;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.52);
+  color: rgba(170, 230, 245, 0.65);
 }
 
 .wm-check {
@@ -674,7 +695,7 @@ body {
   gap: 7px;
   font-size: 11px;
   line-height: 1.6;
-  color: rgba(235, 245, 250, 0.82);
+  color: rgba(220, 245, 250, 0.82);
   cursor: pointer;
 }
 
@@ -695,7 +716,7 @@ body {
   gap: 7px;
   padding-right: 2px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  scrollbar-color: rgba(64, 224, 255, 0.24) transparent;
 }
 
 .wm-list::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -706,14 +727,14 @@ body {
 }
 
 .wm-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(64, 224, 255, 0.2);
   border: 0;
   border-radius: 999px;
   box-shadow: none;
 }
 
 .wm-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(64, 224, 255, 0.36);
   box-shadow: none;
 }
 
@@ -732,20 +753,20 @@ body {
   gap: 9px;
   padding: 8px;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(64, 224, 255, 0.11);
+  border-radius: 12px;
+  background: rgba(0, 20, 40, 0.3);
   transition: border-color 0.16s, background 0.16s;
 }
 
 .wm-item:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(64, 224, 255, 0.32);
+  background: rgba(64, 224, 255, 0.07);
 }
 
 .wm-item.on {
   border-color: rgba(0, 255, 136, 0.45);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 255, 136, 0.07);
 }
 
 .wm-item-thumb {
@@ -754,8 +775,8 @@ body {
   height: 58px;
   object-fit: cover;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 20, 40, 0.25);
+  border: 1px solid rgba(64, 224, 255, 0.18);
 }
 
 .wm-item-main {
@@ -777,7 +798,7 @@ body {
 .wm-item-meta {
   font-size: 10px;
   letter-spacing: 0.3px;
-  color: rgba(255, 255, 255, 0.48);
+  color: rgba(170, 215, 230, 0.62);
 }
 
 .wm-item-tags {
@@ -790,9 +811,9 @@ body {
   font-size: 9.5px;
   padding: 1px 6px;
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(220, 255, 255, 0.72);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  background: rgba(64, 224, 255, 0.06);
 }
 
 /* ---------------- 按钮：复刻 0_zhuyeyangshi.css 的 cyber-button ---------------- */
@@ -896,9 +917,9 @@ body {
 
 .wm-library-toggle.on {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(64, 224, 255, 0.55);
   text-shadow: 0 0 4px #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.16), inset 0 0 8px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.18), inset 0 0 8px rgba(64, 224, 255, 0.1);
 }
 
 /* ---------------- 窄屏 / 矮屏 ---------------- */
@@ -908,6 +929,8 @@ body {
     gap: 10px;
     padding: 10px 14px 18px;
   }
+
+  .wm-stage-empty.is-scene { padding-bottom: 112px; }
 
   .wm-hero {
     min-height: 72px;
@@ -955,6 +978,13 @@ body {
   }
 
   .wm-stage-empty { padding: 14px 10px 20px; }
+
+  .wm-stage-empty.is-scene { padding-bottom: 128px; }
+
+  .wm-stage-empty.is-scene .wm-composer textarea {
+    height: 64px;
+    min-height: 64px;
+  }
 
   .wm-hero { gap: 8px; }
 
