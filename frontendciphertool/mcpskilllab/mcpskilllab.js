@@ -155,6 +155,10 @@
   padding-top: 2rem;
 }
 
+#mcpskilllab-content .module-header {
+  margin-bottom: 1rem;
+}
+
 .mcpskilllab-shell {
   max-width: 1280px;
   margin: 0 auto;
@@ -163,15 +167,7 @@
 
 .mcpskilllab-toolbar {
   display: block;
-  max-width: 720px;
-  margin: 1rem auto 0.8rem;
-}
-
-.mcpskilllab-toolbar select {
-  min-width: 0;
-  width: 100%;
-  padding-left: 1rem;
-  padding-right: 1.5rem;
+  margin: 0 0 1rem;
 }
 
 .mcpskilllab-batch-panel {
@@ -1060,20 +1056,7 @@
   color: rgba(236, 240, 241, 0.74);
 }
 
-/* 插件实验室：手机端筛选下拉改为两列，搜索与排序保留整行 */
-@media (max-width: 1100px) {
-  .mcpskilllab-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
-    margin: 0.8rem auto 0.6rem;
-  }
-
-  .mcpskilllab-toolbar > #mcpskilllab-search,
-  .mcpskilllab-toolbar > #mcpskilllab-sort {
-    grid-column: 1 / -1;
-  }
-}
-
+/* 插件实验室：窄屏时卡片与操作按钮改为单列 */
 @media (max-width: 760px) {
   .mcpskilllab-workbench,
   .mcpskilllab-hub-grid,
@@ -2181,7 +2164,7 @@
                                     ? pageItems.map(item => renderResourceCard(item, favorites)).join('')
                                     : `<div class="card mcpskilllab-empty">${searching
                                         ? '没有匹配的条目，换个关键词试试。'
-                                        : '这个分类还没有资源。'}</div>`}
+                                        : '抱歉！目前没有资源。这不是你的错，也并非我们的问题。只是有些东西，还需要更多的时间'}</div>`}
                             </div>
 
                             ${renderPagination(totalPages, filtered.length, true)}

@@ -9,10 +9,12 @@
     const POLL_SLOW_MS = 12000;
     const POLL_SWITCH_MS = 2 * 60 * 1000;
     const POLL_TIMEOUT_MS = 40 * 60 * 1000;
+    const WORLD_MODEL = 'marble-1.1-plus';
+    const TEXT_PROMPT_PLACEHOLDER = '例如：一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪';
+    const IMAGE_PROMPT_PLACEHOLDER = '（可选）补充描述，留空则由模型根据图片自动理解';
 
     const state = {
         initialized: false,
-        mode: 'text',
         imageDataUrl: '',
         activeWorld: null,
         worlds: [],
@@ -48,10 +50,6 @@
     }
 
     function bind() {
-        document.querySelectorAll('.wm-mode').forEach(button => {
-            button.addEventListener('click', () => setMode(button.getAttribute('data-mode')));
-        });
-
         document.querySelectorAll('.wm-stage-tab').forEach(button => {
             button.addEventListener('click', () => setStageView(button.getAttribute('data-view')));
         });
@@ -69,36 +67,36 @@
         $('wm-cancel').addEventListener('click', () => stopPolling('已取消等待（生成仍会在上游继续，完成后可在作品库看到）'));
 
         bindImageInput();
+        bindLibrary();
         bindHostCommands();
         bindViewportKeys();
+    }
 
-        const sidePanel = document.getElementById('wm-side');
-        const sideToggle = document.getElementById('wm-side-toggle');
-        if (sidePanel && sideToggle) {
-            const setSideCollapsed = collapsed => {
-                sidePanel.classList.toggle('collapsed', collapsed);
-                sideToggle.textContent = collapsed ? String.fromCharCode(8250) : String.fromCharCode(8249);
-                sideToggle.setAttribute('aria-expanded', String(!collapsed));
-                sideToggle.setAttribute('aria-label', collapsed ? '展开侧边栏' : '收起侧边栏');
-            };
-            sideToggle.addEventListener('click', () => {
-                setSideCollapsed(!sidePanel.classList.contains('collapsed'));
-            });
-        }
+    function bindLibrary() {
+        $('wm-library-toggle').addEventListener('click', () => {
+            setLibraryOpen($('wm-library').hidden);
+        });
+        $('wm-library-close').addEventListener('click', () => setLibraryOpen(false));
+        $('wm-library-backdrop').addEventListener('click', () => setLibraryOpen(false));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !$('wm-library').hidden) setLibraryOpen(false);
+        });
+        updateLibraryCount();
+    }
 
-        // 侧栏从 stage 工具栏下方开始，避免挡住「高斯溅射 3D / 全景图」等切换按钮。
-        const stage = document.querySelector('.wm-stage');
-        const stageHead = document.querySelector('.wm-stage-head');
-        if (sidePanel && stage && stageHead) {
-            const syncSideTop = () => {
-                sidePanel.style.top = (stage.offsetTop + stage.clientTop + stageHead.offsetHeight) + 'px';
-            };
-            if (window.ResizeObserver) {
-                new ResizeObserver(syncSideTop).observe(stageHead);
-            }
-            window.addEventListener('resize', syncSideTop);
-            syncSideTop();
-        }
+    function setLibraryOpen(open) {
+        $('wm-library').hidden = !open;
+        $('wm-library-backdrop').hidden = !open;
+        $('wm-library-toggle').classList.toggle('on', open);
+        $('wm-library-toggle').setAttribute('aria-expanded', String(open));
+    }
+
+    function updateLibraryCount() {
+        const badge = $('wm-library-count');
+        if (!badge) return;
+        const count = state.worlds.length;
+        badge.textContent = String(count);
+        badge.hidden = count === 0;
     }
 
     /**
@@ -195,18 +193,8 @@
         if (typeof data.displayName === 'string' && data.displayName && $('wm-name')) {
             $('wm-name').value = data.displayName;
         }
-        if (typeof data.model === 'string' && data.model && $('wm-model')) {
-            $('wm-model').value = data.model;
-        }
         if (data.imageDataUrl) {
-            state.imageDataUrl = data.imageDataUrl;
-            setMode('image');
-            const preview = $('wm-image-preview');
-            if (preview) {
-                preview.src = data.imageDataUrl;
-                preview.hidden = false;
-            }
-            if ($('wm-image-clear')) $('wm-image-clear').hidden = false;
+            renderImage(data.imageDataUrl, '来自上游的参考图');
         }
     }
 
@@ -249,60 +237,91 @@
         text.textContent = parts.join(' ') || '世界模型暂不可用。';
     }
 
-    /* ================= 输入方式 ================= */
-
-    function setMode(mode) {
-        state.mode = mode === 'image' ? 'image' : 'text';
-        document.querySelectorAll('.wm-mode').forEach(button => {
-            const on = button.getAttribute('data-mode') === state.mode;
-            button.classList.toggle('on', on);
-            button.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        // 图片模式下提示词变成「可选补充说明」，位置保持不动，避免布局跳动。
-        $('wm-prompt-field').hidden = false;
-        $('wm-image-field').hidden = state.mode !== 'image';
-        $('wm-prompt').placeholder = state.mode === 'image'
-            ? '（可选）补充描述，留空则由模型根据图片自动理解'
-            : '例如：一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪';
-    }
+    /* ================= 参考图 ================= */
 
     function bindImageInput() {
-        const drop = $('wm-drop');
         const input = $('wm-image');
+        const attach = $('wm-attach');
 
-        drop.addEventListener('click', () => input.click());
+        attach.addEventListener('click', () => input.click());
         input.addEventListener('change', () => {
             if (input.files && input.files[0]) acceptImage(input.files[0]);
         });
-
-        ['dragenter', 'dragover'].forEach(name => {
-            drop.addEventListener(name, event => {
-                event.preventDefault();
-                drop.classList.add('dragover');
-            });
-        });
-        ['dragleave', 'drop'].forEach(name => {
-            drop.addEventListener(name, event => {
-                event.preventDefault();
-                drop.classList.remove('dragover');
-            });
-        });
-        drop.addEventListener('drop', event => {
-            const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
-            if (file) acceptImage(file);
-        });
-
         $('wm-image-clear').addEventListener('click', () => clearImage());
+        bindImageDrop();
+    }
+
+    function bindImageDrop() {
+        const stage = document.querySelector('.wm-stage');
+        const overlay = $('wm-drop-overlay');
+        if (!stage || !overlay) return;
+
+        const hasFiles = event => {
+            const types = event.dataTransfer && event.dataTransfer.types;
+            return !!types && Array.from(types).includes('Files');
+        };
+        const showOverlay = () => {
+            overlay.hidden = false;
+            $('wm-composer').classList.add('is-dragover');
+        };
+        const hideOverlay = () => {
+            overlay.hidden = true;
+            $('wm-composer').classList.remove('is-dragover');
+        };
+
+        stage.addEventListener('dragenter', event => {
+            if (!hasFiles(event)) return;
+            event.preventDefault();
+            showOverlay();
+        });
+        stage.addEventListener('dragover', event => {
+            if (!hasFiles(event)) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+            if (overlay.hidden) showOverlay();
+        });
+        stage.addEventListener('dragleave', event => {
+            if (overlay.hidden) return;
+            const rect = stage.getBoundingClientRect();
+            const outside = event.clientX <= rect.left || event.clientX >= rect.right
+                || event.clientY <= rect.top || event.clientY >= rect.bottom;
+            if (outside) hideOverlay();
+        });
+        stage.addEventListener('drop', event => {
+            if (!hasFiles(event)) return;
+            event.preventDefault();
+            hideOverlay();
+            const file = event.dataTransfer.files && event.dataTransfer.files[0];
+            if (!file) return;
+            if ($('wm-stage-empty').hidden) showWorkbench();
+            setLibraryOpen(false);
+            acceptImage(file);
+        });
+
+        // 拖到页面其它区域时也不要让浏览器直接打开文件
+        window.addEventListener('dragover', event => {
+            if (hasFiles(event)) event.preventDefault();
+        });
+        window.addEventListener('drop', event => {
+            if (hasFiles(event)) event.preventDefault();
+        });
+    }
+
+    function renderImage(dataUrl, label) {
+        state.imageDataUrl = dataUrl;
+        const preview = $('wm-image-preview');
+        preview.src = dataUrl;
+        preview.hidden = false;
+        $('wm-image-field').hidden = false;
+        $('wm-image-clear').hidden = false;
+        $('wm-image-name').textContent = label || '已附加参考图';
+        $('wm-prompt').placeholder = IMAGE_PROMPT_PLACEHOLDER;
     }
 
     async function acceptImage(file) {
         try {
-            state.imageDataUrl = await window.WorldModelClient.readImageAsDataUrl(file);
-            const preview = $('wm-image-preview');
-            preview.src = state.imageDataUrl;
-            preview.hidden = false;
-            $('wm-drop-text').textContent = `${file.name} · ${(file.size / 1024).toFixed(0)} KB`;
-            $('wm-image-clear').hidden = false;
+            const dataUrl = await window.WorldModelClient.readImageAsDataUrl(file);
+            renderImage(dataUrl, `${file.name} · ${(file.size / 1024).toFixed(0)} KB`);
         } catch (error) {
             alert(error.message);
         }
@@ -313,9 +332,11 @@
         const preview = $('wm-image-preview');
         preview.removeAttribute('src');
         preview.hidden = true;
-        $('wm-drop-text').textContent = '点击或拖入图片（png / jpg / webp，≤ 8MB）';
+        $('wm-image-field').hidden = true;
         $('wm-image-clear').hidden = true;
+        $('wm-image-name').textContent = '';
         $('wm-image').value = '';
+        $('wm-prompt').placeholder = TEXT_PROMPT_PLACEHOLDER;
     }
 
     /* ================= 生成与轮询 ================= */
@@ -323,10 +344,10 @@
     async function generate(overrides = {}) {
         const prompt = String(overrides.prompt !== undefined ? overrides.prompt : $('wm-prompt').value || '').trim();
         const imageDataUrl = overrides.imageDataUrl !== undefined ? overrides.imageDataUrl : state.imageDataUrl;
-        const mode = overrides.mode || (imageDataUrl ? 'image' : state.mode);
+        const mode = overrides.mode || (imageDataUrl ? 'image' : 'text');
 
         if (mode === 'image' && !imageDataUrl) {
-            alert('图片生成模式需要先选择一张图片。');
+            alert('请先添加一张参考图片。');
             return;
         }
         if (mode === 'text' && !prompt) {
@@ -338,7 +359,7 @@
             mode,
             prompt,
             displayName: overrides.displayName || $('wm-name').value || '',
-            model: overrides.model || $('wm-model').value,
+            model: WORLD_MODEL,
             disableRecaption: !$('wm-recaption').checked,
             isPublic: $('wm-public').checked
         };
@@ -375,11 +396,16 @@
     }
 
     function startProgress(text) {
-        $('wm-progress').hidden = false;
+        const progress = $('wm-progress');
+        progress.hidden = false;
+        progress.classList.remove('is-error');
+        progress.title = '';
         $('wm-progress-text').textContent = text;
         $('wm-progress-time').textContent = '';
         $('wm-progress-hint').textContent = '世界生成通常需要 5 分钟左右，可以先去干别的。';
+        $('wm-progress-hint').title = '';
         $('wm-progress-fill').style.width = '4%';
+        $('wm-progress-fill').style.background = '';
         $('wm-cancel').hidden = false;
         $('wm-cancel').disabled = false;
     }
@@ -389,15 +415,22 @@
             $('wm-progress-fill').style.width = Math.max(4, Math.min(100, percent)) + '%';
         }
         if (text) $('wm-progress-text').textContent = text;
-        if (hint) $('wm-progress-hint').textContent = hint;
+        if (hint) {
+            $('wm-progress-hint').textContent = hint;
+            $('wm-progress-hint').title = hint;
+        }
     }
 
     function failProgress(message) {
-        $('wm-progress').hidden = false;
+        const progress = $('wm-progress');
+        progress.hidden = false;
+        progress.classList.add('is-error');
+        progress.title = message;
         $('wm-progress-fill').style.width = '100%';
         $('wm-progress-fill').style.background = 'linear-gradient(90deg,#ff5f6d,#ffc371)';
         $('wm-progress-text').textContent = '生成失败';
         $('wm-progress-hint').textContent = message;
+        $('wm-progress-hint').title = message;
         $('wm-cancel').hidden = true;
     }
 
@@ -494,6 +527,8 @@
 
         // 没配 Key 时不必去打上游，直接给出可操作的引导。
         if (!state.status || !state.status.configured) {
+            state.worlds = [];
+            updateLibraryCount();
             list.innerHTML = '<div class="wm-empty">配置 WORLD_LABS_API_KEY 并重启后端后，这里会列出你生成过的世界。</div>';
             return;
         }
@@ -512,8 +547,9 @@
 
     function renderWorlds() {
         const list = $('wm-list');
+        updateLibraryCount();
         if (!state.worlds.length) {
-            list.innerHTML = '<div class="wm-empty">还没有作品。左边写一句场景描述，试试生成第一个世界。</div>';
+            list.innerHTML = '<div class="wm-empty">还没有作品。生成完成后会自动出现在这里。</div>';
             return;
         }
         list.innerHTML = '';
@@ -526,7 +562,6 @@
             if (thumb) {
                 const img = document.createElement('img');
                 img.className = 'wm-item-thumb';
-                img.loading = 'lazy';
                 img.decoding = 'async';
                 img.alt = world.displayName || '世界缩略图';
                 img.src = thumb;
@@ -578,16 +613,28 @@
 
     function selectWorld(world, options = {}) {
         state.activeWorld = world;
+        setLibraryOpen(false);
         renderWorlds();
 
         $('wm-stage-empty').hidden = true;
-        $('wm-stage-title').textContent = (world.displayName || shortId(world.worldId))
-            + (world.model ? ' · ' + world.model : '');
 
         renderStageActions(world);
         if (options.autoLoad !== false) {
+            if (world.spzUrls && Object.keys(world.spzUrls).length) {
+                setStageView('splat');
+            }
             loadIntoViewport(world);
         }
+    }
+
+    function showWorkbench() {
+        state.activeWorld = null;
+        setLibraryOpen(false);
+        $('wm-stage-actions').innerHTML = '';
+        $('wm-stage-empty').hidden = false;
+        renderWorlds();
+        const prompt = $('wm-prompt');
+        if (prompt) prompt.focus();
     }
 
     /** 把世界资产推给高分辨率视口 iframe */
@@ -644,6 +691,7 @@
         const box = $('wm-stage-actions');
         box.innerHTML = '';
 
+        box.appendChild(button('新建世界', () => showWorkbench()));
         if (world.spzUrls && Object.keys(world.spzUrls).length) {
             box.appendChild(button('splat 视口', () => {
                 setStageView('splat');
@@ -743,10 +791,7 @@
         try {
             await window.WorldModelClient.remove(world.worldId);
             if (state.activeWorld && state.activeWorld.worldId === world.worldId) {
-                state.activeWorld = null;
-                $('wm-stage-actions').innerHTML = '';
-                $('wm-stage-title').textContent = '未选择作品';
-                $('wm-stage-empty').hidden = false;
+                showWorkbench();
             }
             await loadWorlds({ silent: true });
         } catch (error) {

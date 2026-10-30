@@ -1,16 +1,33 @@
 /**
  * AgentRuntime - front-end agent orchestration layer.
  *
- * 执行链路：classify → plan →（并行专家面板）→ act/observe（补缺）→ 长文合成 → 交付校验
+ * 执行链路：route（模型判定交付档位）→ plan →（并行专家面板）→ act/observe（补缺）→ 长文合成 → 交付校验
  *
  * 关键设计：
- * - 交付档位由 AgentResearchContract 按意图信号判定（不用字符数门槛），决定篇幅/表格/图表/引用下限，
- *   以及并行专家面板的规模。
+ * - 交付档位由模型自己判断（一次轻量路由调用），本地词表只在这次调用失败时兜底；
+ *   档位决定篇幅/表格/图表/引用下限，以及并行专家面板的规模与维度。
  * - 检索主体由 AgentExpertPanel 并行承担：每个专家跑自己的完整工具循环，墙钟时间从
  *   「所有轮次之和」变成「最慢那个专家的耗时」。
  * - 主模型循环退化为"补缺与交叉验证"，轮次大幅压缩；最终长篇交付物由独立合成 pass 产出，
  *   并做交付校验（不达标则补充一次），因此不会再出现"模型自己决定写多短"。
  */
+const AGENT_ROUTING_PROMPT = [
+    '你是研究型 Agent 的任务路由。读下面这条用户请求，判断需要交付到什么分量，只输出一行 JSON，不要解释、不要代码块。',
+    '格式：{"tier":"brief","dimensions":["维度一","维度二","维度三"],"reason":"一句话"}',
+    '',
+    'tier 只能取这四个英文单词之一（不要翻译成中文）：',
+    '- chat：纯粹闲聊寒暄、操作指令（打开/切换/几点了）、无需任何检索的一句话事实。',
+    '- brief：只要问的是一个具体对象在某个时间段的情况（份额、价格、产能、毛利、获奖、发现、进展、评价等），选这个。',
+    '- report：行业或领域级问题，需要拆多个维度并交叉验证。',
+    '- deep_research：用户明确要深度研究、白皮书、全面梳理、尽调，或问题横跨多个市场与多年跨度。',
+    '',
+    '判断原则：拿不准 brief 还是 chat 时一律选 brief；只有明显是寒暄或操作指令才选 chat。',
+    'dimensions：这次研究要覆盖的信息维度，3-6 个，每个 4-14 个汉字，彼此不重叠，按这个具体问题拆；',
+    '不同话题用适合它的维度（例如奖项类可用「获奖工作与原始论文」「科学意义与后续验证」「学界评价与争议」）。tier 为 chat 时给空数组。',
+    '',
+    '用户请求：'
+].join('\n');
+
 class AgentRuntime {
     constructor({ client, registry, ui, clientFactory = null }) {
         this.client = client;
@@ -277,21 +294,81 @@ class AgentRuntime {
         return parts.join('\n');
     }
 
+    /**
+     * 交付档位由模型判定：一次轻量调用同时给出档位与研究维度。
+     * 连续失败时按情报简报兜底（不用本地词表判档，否则大量领域问题会被判成对话）。
+     */
+    async decideContract(userMessage, options = {}) {
+        const { mode = 'agent', toolEnabled = true, deepThink = false, signal = null } = options;
+        const client = options.client || this.client;
+        if (!this.researchContract) return null;
+        if (typeof client?.chat !== 'function') {
+            this.lastRouting = { source: 'fallback', tier: 'brief', reason: '无可用客户端' };
+            return this.researchContract.contractFor('brief', { reasons: ['无可用客户端，按情报简报兜底'] });
+        }
+
+        const probe = String(userMessage || '').slice(0, 2000);
+        let lastError = '';
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            if (signal?.aborted) return null;
+            try {
+                const response = await client.chat({
+                    messages: [{ role: 'user', content: AGENT_ROUTING_PROMPT + probe }],
+                    maxTokens: 900,
+                    temperature: 0,
+                    enableThinking: false,
+                    signal
+                });
+                const content = String(response?.content ?? response?.choices?.[0]?.message?.content ?? '');
+                const routed = parseAgentRouting(content);
+                if (!routed) {
+                    lastError = content ? '返回内容无法解析' : '返回内容为空';
+                    continue;
+                }
+                const contract = this.researchContract.contractFor(routed.tier, {
+                    reasons: routed.reason ? ['模型判定：' + routed.reason] : []
+                });
+                contract.dimensions = routed.dimensions;
+                this.lastRouting = {
+                    source: 'model',
+                    tier: contract.tier,
+                    tierLabel: contract.tierLabel,
+                    reason: routed.reason || '',
+                    dimensions: routed.dimensions || []
+                };
+                return contract;
+            } catch (error) {
+                if (signal?.aborted) return null;
+                lastError = error?.message || String(error);
+            }
+        }
+
+        const contract = this.researchContract.contractFor('brief', { reasons: ['路由失败，按情报简报兜底'] });
+        contract.dimensions = [];
+        this.lastRouting = {
+            source: 'fallback',
+            tier: contract.tier,
+            tierLabel: contract.tierLabel,
+            reason: lastError,
+            dimensions: []
+        };
+        console.warn('[AgentRuntime] 档位路由失败，按情报简报兜底:', lastError);
+        return contract;
+    }
+
     async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null, toolContext = null, onRunSnapshot = null, signal = null }) {
         const plan = this.createPlan(userMessage, { toolEnabled, hasAttachments, messages });
         const runState = this.createRunState(plan, contextPack, toolContext, userMessage);
         runState.uiContainer = container;
         runState.onSnapshot = typeof onRunSnapshot === 'function' ? onRunSnapshot : null;
 
-        // 交付档位：按意图信号判定（不再使用字符数门槛，避免 9 个字符的研究请求被判为普通问答）
-        let contract = this.researchContract
-            ? this.researchContract.classify({
-                query: userMessage,
-                mode: plan.mode,
-                toolEnabled: Boolean(toolEnabled),
-                deepThink: Boolean(enableThinking)
-            })
-            : null;
+        // 交付档位由模型判定（模型同时给出研究维度），本地词表只在调用失败时兜底
+        let contract = await this.decideContract(userMessage, {
+            mode: plan.mode,
+            toolEnabled: Boolean(toolEnabled),
+            deepThink: Boolean(enableThinking),
+            signal
+        });
         if (contract && !this.harnessAllows(plan, 'deliverable')) contract = null;
         plan.contract = contract;
         runState.contract = contract;
@@ -357,11 +434,23 @@ class AgentRuntime {
                 min_diagrams: contract.minDiagrams,
                 min_citations: contract.minCitations,
                 panel_size: contract.panelSize
-            } : null
+            } : null,
+            routing: this.lastRouting || null
         }, { stage: 'plan', visibility: 'history' });
         this.ui.createAgentRunPanel(container, plan);
         this.ui.setAgentStage(container, 'plan', 'active', '解析任务目标');
         this.ui.addAgentTrace(container, 'plan', 'Run ' + plan.runId + ' initialized in ' + plan.mode + ' mode.');
+        if (this.lastRouting) {
+            const routing = this.lastRouting;
+            const dimensions = (routing.dimensions || []).join(' / ');
+            this.ui.addAgentTrace(
+                container,
+                'plan',
+                '档位判定：' + (routing.tierLabel || routing.tier)
+                + '（' + (routing.source === 'model' ? '模型路由' : '兜底') + (routing.reason ? ' · ' + routing.reason : '') + '）'
+                + (dimensions ? ' · 维度：' + dimensions : '')
+            );
+        }
         if (contract) {
             this.ui.addAgentTrace(
                 container,
@@ -477,6 +566,7 @@ class AgentRuntime {
                     contract,
                     plan,
                     signal,
+                    dimensions: contract?.dimensions || null,
                     perfMonitor: this.performanceMonitor,
                     clientFactory: () => this.createExpertClient(),
                     executeTool: async (name, args, toolCall) => {
@@ -2067,6 +2157,35 @@ class AgentRuntime {
         };
     }
 
+}
+
+/**
+ * 解析路由模型输出：尽量从 JSON 里取 tier 与 dimensions，取不到就用正则兜住档位单词。
+ */
+function parseAgentRouting(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return null;
+    const tiers = ['deep_research', 'report', 'brief', 'chat'];
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const tier = tiers.find(key => String(parsed?.tier || '').toLowerCase().includes(key));
+            const dimensions = Array.isArray(parsed?.dimensions)
+                ? parsed.dimensions.filter(item => typeof item === 'string' && item.trim()).slice(0, 6)
+                : [];
+            if (tier) return { tier, dimensions, reason: String(parsed?.reason || '').slice(0, 120) };
+        } catch (error) {
+            // JSON 不完整时继续用正则兜底
+        }
+    }
+    const tier = tiers.find(key => raw.toLowerCase().includes(key));
+    if (!tier) return null;
+    const dimensions = Array.from(raw.matchAll(/"([^"\n]{3,24})"/g))
+        .map(match => match[1].trim())
+        .filter(item => item !== tier && !/^[a-z_]+$/.test(item))
+        .slice(0, 6);
+    return { tier, dimensions, reason: '' };
 }
 
 window.AgentRuntime = AgentRuntime;

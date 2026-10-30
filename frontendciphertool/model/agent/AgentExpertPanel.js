@@ -56,6 +56,12 @@
 
     const DEFAULT_ORDER = ['data', 'policy', 'technology', 'market', 'capital', 'supplychain', 'risk'];
 
+    // 维度通常由模型按问题现场给出；这里只提供通用的取材口径与默认工具。
+    const CUSTOM_DIMENSION = {
+        tools: ['web_research', 'read_webpage', 'search_urls'],
+        focus: '围绕这个维度检索一手材料：具体数值、日期、主体与口径；同一结论尽量两个来源交叉；找不到就明确说明，不要猜测。'
+    };
+
     class AgentExpertPanel {
         constructor(runtime, options = {}) {
             this.runtime = runtime;
@@ -104,18 +110,33 @@
         }
 
         /**
+         * 模型现场给出的维度（字符串或 {label, focus, tools}）→ 统一维度对象。
+         */
+        normalizeDimensions(list) {
+            if (!Array.isArray(list)) return [];
+            return list
+                .map(item => (typeof item === 'string' ? { label: item } : item))
+                .filter(item => item && item.label)
+                .map(item => ({
+                    label: String(item.label).trim().slice(0, 40),
+                    focus: String(item.focus || CUSTOM_DIMENSION.focus).trim().slice(0, 400),
+                    tools: Array.isArray(item.tools) && item.tools.length ? item.tools.slice() : CUSTOM_DIMENSION.tools.slice()
+                }));
+        }
+
+        /**
          * 为每个维度生成**互不重叠**的子问题。
          */
-        buildSubQuestion(dimensionKey, query, contract) {
-            const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
+        buildSubQuestion(dimensionKey, query, contract, dim = null) {
+            const resolved = dim || DIMENSIONS[dimensionKey] || DIMENSIONS.data;
             const sectionHint = contract && contract.sections.length
                 ? `你的产出将用于报告中的相关章节，请让结论可直接支撑可比较的数据表。`
                 : '';
             return [
                 `总任务：${query}`,
                 '',
-                `你负责的维度：${dim.label}`,
-                `取材范围：${dim.focus}`,
+                `你负责的维度：${resolved.label}`,
+                `取材范围：${resolved.focus}`,
                 sectionHint,
                 '',
                 '工作方式：',
@@ -127,11 +148,11 @@
             ].filter(Boolean).join('\n');
         }
 
-        buildExpertSystemPrompt(dimensionKey, query, plan = null) {
-            const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
+        buildExpertSystemPrompt(dimensionKey, query, plan = null, dim = null) {
+            const resolved = dim || DIMENSIONS[dimensionKey] || DIMENSIONS.data;
             const skillLines = this.runtime?.skillRegistry?.buildPrompt?.(plan?.skills || []) || [];
             return [
-                `你是「${dim.label}」方向的研究专家，正在参与一次多专家并行研究。`,
+                `你是「${resolved.label}」方向的研究专家，正在参与一次多专家并行研究。`,
                 `研究主题：${query}`,
                 '',
                 '纪律要求：',
@@ -170,10 +191,11 @@
                 onStatus = null,
                 perfMonitor = null,
                 clientFactory = null,
-                onThought = null
+                onThought = null,
+                dimension = null
             } = options;
 
-            const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
+            const dim = dimension || DIMENSIONS[dimensionKey] || DIMENSIONS.data;
             const startedAt = Date.now();
             const expert = {
                 key: dimensionKey,
@@ -207,11 +229,11 @@
             }
 
             const messages = [
-                { role: 'system', content: this.buildExpertSystemPrompt(dimensionKey, query, plan) },
-                { role: 'user', content: this.buildSubQuestion(dimensionKey, query, contract) }
+                { role: 'system', content: this.buildExpertSystemPrompt(dimensionKey, query, plan, dim) },
+                { role: 'user', content: this.buildSubQuestion(dimensionKey, query, contract, dim) }
             ];
 
-            const tools = this.resolveTools(dimensionKey, plan);
+            const tools = this.resolveTools(dimensionKey, plan, dim);
 
             // 每次迭代的 LLM 计时（该专家的指标，最终并入整轮性能统计）
             let iterationStartAt = 0;
@@ -322,11 +344,11 @@
             return expert;
         }
 
-        resolveTools(dimensionKey, plan) {
+        resolveTools(dimensionKey, plan, dim = null) {
             const available = Array.isArray(plan?.selectedTools) ? plan.selectedTools : [];
             if (!available.length) return [];
-            const dim = DIMENSIONS[dimensionKey] || DIMENSIONS.data;
-            const preferred = dim.tools.filter(name => available.includes(name));
+            const resolved = dim || DIMENSIONS[dimensionKey] || DIMENSIONS.data;
+            const preferred = resolved.tools.filter(name => available.includes(name));
             const chosen = preferred.length ? preferred : available;
             return this.runtime?.registry?.getToolDefinitions
                 ? this.runtime.registry.getToolDefinitions(chosen)
@@ -349,7 +371,8 @@
                 onTrace = null,
                 perfMonitor = null,
                 clientFactory = null,
-                onThought = null
+                onThought = null,
+                dimensions = null
             } = options;
 
             if (!this.isEnabled()) {
@@ -360,13 +383,20 @@
                 return null;
             }
 
-            const dimensionKeys = this.selectDimensions(query, panelSize);
+            // 维度由模型按问题现场给出；没有给出时才退回按关键词挑固定维度。
+            const planned = this.normalizeDimensions(dimensions).slice(0, panelSize);
+            const dimensionKeys = planned.length
+                ? planned.map((dim, index) => `plan-${index}`)
+                : this.selectDimensions(query, panelSize);
             if (!dimensionKeys.length) return null;
+            const dimensionMap = planned.length
+                ? Object.fromEntries(dimensionKeys.map((key, index) => [key, planned[index]]))
+                : null;
 
             const wallStart = now();
             const experts = dimensionKeys.map(key => ({
                 key,
-                label: (DIMENSIONS[key] || {}).label || key,
+                label: (dimensionMap?.[key] || DIMENSIONS[key] || {}).label || key,
                 status: 'queued',
                 ok: false,
                 findings: '',
@@ -394,6 +424,7 @@
                         perfMonitor,
                         clientFactory,
                         onThought,
+                        dimension: dimensionMap?.[key] || null,
                         onStatus: status => {
                             experts[index] = { ...experts[index], ...status };
                             if (onStatus) onStatus(experts.slice());

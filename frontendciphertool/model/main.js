@@ -2920,6 +2920,74 @@
     window.bindChatEvents = bindEvents;
     window.PZMAgentPlugins = createAgentPluginApi();
 
+    /**
+     * 档位自检：只跑一次路由判定，不启动完整 Agent。
+     * 控制台里 PZMAgentRoute.probe('问题') 看单条，PZMAgentRoute.probeAll() 把选题池一次跑完。
+     */
+    function createRouteProbe() {
+        const probe = async text => {
+            initClient();
+            const runtime = agentRuntime;
+            if (!runtime || typeof runtime.decideContract !== 'function') {
+                throw new Error('Agent runtime 未就绪');
+            }
+            const contract = await runtime.decideContract(String(text || ''), {
+                mode: 'agent',
+                toolEnabled: true,
+                client: createRunClient()
+            });
+            const routing = runtime.lastRouting || {};
+            return {
+                text: String(text || ''),
+                tier: contract ? contract.tier : null,
+                label: contract ? contract.tierLabel : null,
+                minChars: contract ? contract.minChars : 0,
+                panelSize: contract ? contract.panelSize : 0,
+                source: routing.source || null,
+                reason: routing.reason || '',
+                dimensions: contract?.dimensions || []
+            };
+        };
+
+        return {
+            probe,
+            async probeAll(list) {
+                const pool = Array.isArray(list) && list.length
+                    ? list
+                    : ((typeof AGENT_WELCOME_GUIDES !== 'undefined' && AGENT_WELCOME_GUIDES) || []).map(item => item.prompt);
+                const results = [];
+                for (let i = 0; i < pool.length; i += 4) {
+                    const batch = await Promise.all(pool.slice(i, i + 4).map(async text => {
+                        try {
+                            return await probe(text);
+                        } catch (error) {
+                            return { text, tier: 'error', reason: error?.message || String(error) };
+                        }
+                    }));
+                    results.push(...batch);
+                }
+                const tally = results.reduce((acc, item) => {
+                    acc[item.tier] = (acc[item.tier] || 0) + 1;
+                    return acc;
+                }, {});
+                if (console.table) {
+                    console.table(results.map(item => ({
+                        问题: item.text.slice(0, 28),
+                        档位: item.tier,
+                        字数: item.minChars,
+                        专家: item.panelSize,
+                        来源: item.source,
+                        原因: item.reason || ''
+                    })));
+                }
+                console.log('档位分布：', tally);
+                return results;
+            }
+        };
+    }
+
+    window.PZMAgentRoute = createRouteProbe();
+
     // DOM 加载完成后自动初始化（如果在大模型页面）
     document.addEventListener('DOMContentLoaded', function () {
         if (window.location.hash === '#damoxing') {

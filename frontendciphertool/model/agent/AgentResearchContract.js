@@ -2,7 +2,7 @@
  * AgentResearchContract - 研究交付契约
  *
  * 本模块提供三件事：
- * 1. classify()   —— 按意图信号（而非字符数）判定任务档位，输出硬性交付指标。
+ * 1. contractFor() —— 把模型判定的档位翻译成硬性交付指标；classify() 只在模型判定失败时兜底。
  * 2. 契约提示词   —— 注入系统提示词，把篇幅/章节/表格/图表变成明确要求。
  * 3. verify()     —— 生成后校验，不合格则给出可执行的补充指令（repair）。
  * 4. buildEvidenceDigest() —— 把数百条证据压成可引用的编号摘要，提高引用利用率。
@@ -209,6 +209,14 @@
 
         matchSignals(lowerText, signals) {
             return signals.filter(signal => lowerText.includes(String(signal).toLowerCase()));
+        }
+
+        /**
+         * 由模型给出的档位生成交付契约（本地词表只在模型判定失败时兜底）。
+         */
+        contractFor(tierKey, meta = {}) {
+            const tier = TIERS[tierKey] || TIERS.chat;
+            return this.describe(tier, { reasons: meta.reasons || [] });
         }
 
         /* ---------------- 契约提示词 ---------------- */
