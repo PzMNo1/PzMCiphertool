@@ -45,6 +45,12 @@ const corpusFile = path.join(directory, 'worldCorpus.bin');
 if (fs.existsSync(corpusFile) && store) {
     store.documents = JSON.parse(zlib.gunzipSync(fs.readFileSync(corpusFile)).toString('utf8')).documents || {};
 }
+const expansionCorpusFile = path.join(directory, 'worldExpansionCorpus.bin');
+let expansionCorpus = null;
+if (fs.existsSync(expansionCorpusFile) && expansionStore) {
+    expansionCorpus = JSON.parse(zlib.gunzipSync(fs.readFileSync(expansionCorpusFile)).toString('utf8'));
+    expansionStore.documents = expansionCorpus.documents || {};
+}
 
 vm.runInContext(`${graphSource}\nthis.__tree=getGraphTree({});this.__graph=buildGraphData(this.__tree,{});this.__lookup=getGraphNodeWorldKnowledge;this.__stats=getWorldGraphStats;`, context);
 const tree = context.__tree || [];
@@ -91,6 +97,22 @@ for (const node of expansionNodes) {
         record.evidenceLevel === 'external-description' && record.citation?.url), `${node.name}: missing sourced external record`);
 }
 check(expansionNodes.some(node => node.crossDomain), 'no cross-disciplinary expansion nodes');
+
+check(modulesSource.includes('./zhishitupu/worldExpansionCorpusLoader.js'), 'modules.js does not load worldExpansionCorpusLoader.js');
+check(Boolean(expansionStore?.meta?.corpus?.file), 'worldExpansion.js has no expansion corpus metadata');
+if (expansionCorpus) {
+    const documents = expansionCorpus.documents || {};
+    check(Object.keys(documents).length > 0, 'expansion corpus has no documents');
+    for (const node of expansionNodes) {
+        if (!node.article) continue;
+        const doc = documents[node.worldId];
+        check(Boolean(doc), `${node.name}: article metadata without corpus document`);
+        if (!doc) continue;
+        check(Array.isArray(doc.chunks) && doc.chunks.length > 0 && doc.chunks.every(chunk => chunk.text), `${node.name}: expansion corpus text is empty`);
+        check(Boolean(doc.url && doc.revision && doc.license), `${node.name}: expansion corpus lacks URL/revision/license`);
+        check(doc.revision === node.article.revision && doc.url === node.article.url, `${node.name}: article metadata does not match corpus`);
+    }
+}
 
 
 for (const required of ['Quantum mechanics', 'Artificial intelligence', 'World War II', 'CRISPR', 'Lithium-ion battery']) {

@@ -1,14 +1,20 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const zlib = require('zlib');
 const traditional = require('./traditionalChinese.js');
+const source = require('./worldSource.js');
 
 const DIRECTORY = __dirname;
 const OUTPUT = path.join(DIRECTORY, 'worldExpansion.js');
+const CORPUS_OUTPUT = path.join(DIRECTORY, 'worldExpansionCorpus.bin');
 const ENDPOINT = 'https://dbpedia.org/sparql';
 const USER_AGENT = 'PzM-Knowledge-Expansion/1.0 (local build)';
 const PAGE_SIZE = 4000;
+const ARTICLE_LIMIT = 24;
+const SKIP_ARTICLES = process.argv.includes('--no-articles');
 const NAME_STOP = /^(Clown|Professional wrestling|Ronove|Weather Machine|Recursive acronym|Kick the cat|Mushroom management|Perfect crime|Trap street|Phantom settlement|Corrupted Blood incident|Male contraceptive|Homesickness|Penile implant|Room temperature|Maiden flight|Cesspit|T9 \(predictive text\)|SAMV \(algorithm\)|Average CPU power|Breit–Wheeler process|A picture is worth a thousand words|Problem|Resource|Image|Performance|Thesis|Concept|Explanation|Premiere|Audience|Photograph|Show business|Chinese Text Project|Loudspeaker|International Standard Musical Work Code|Striptease|Precovery|Supporting character|Guest appearance|Popularity|Binocular vision|Plastiglomerate|Rural area|Free element|Density dependence|Ulnar collateral ligament reconstruction|Videotelephony|Coronary stent)$/i;
 const OCCUPATION_STOP = /(trainer|therapist|counselor|surgeon|physician|nurse|psychologist|economist|engineer|scientist|astronomer|biologist|chemist|physicist|surveyor|ceramist|pedorthist|programmer|bureaucrat|civil servant|entrepreneur|pharmacist|dentist|photographer)$/i;
 const EVENT_STOP = /(incident|controversy|scandal|hoax|urban legend|conspiracy theory)$/i;
@@ -494,6 +500,173 @@ function unique(candidates, used, limit) {
     return selected;
 }
 
+function resourceIri(resource) {
+    return `<http://dbpedia.org/resource/${encodeURI(resource)}>`;
+}
+
+async function fetchWikidataQids(resources) {
+    const qids = new Map();
+    for (let index = 0; index < resources.length; index += 50) {
+        const chunk = resources.slice(index, index + 50);
+        const query = `SELECT ?s ?qid WHERE {
+            VALUES ?s { ${chunk.map(resourceIri).join(' ')} }
+            ?s owl:sameAs ?qid .
+            FILTER(STRSTARTS(STR(?qid), "http://www.wikidata.org/entity/Q"))
+        }`;
+        try {
+            const rows = await sparql(query);
+            for (const row of rows) {
+                const uri = row.s?.value || '';
+                if (!uri.includes('/resource/')) continue;
+                const resource = decodeURIComponent(uri.split('/resource/')[1]);
+                if (!qids.has(resource)) qids.set(resource, row.qid.value.split('/').pop());
+            }
+        } catch (error) {
+            console.error(`wikidata qid batch ${index / 50 + 1}: query failed`, error.message);
+        }
+    }
+    return qids;
+}
+
+function articleUrl(language, title) {
+    return `https://${language}.wikipedia.org/wiki/${encodeURIComponent(String(title).replace(/ /g, '_'))}`;
+}
+
+async function loadArticle(language, title) {
+    try {
+        const page = await source.fetchWikipediaPage(language, title);
+        const sections = source.parseSections(page.source, { maxSections: 40, maxParagraphsPerSection: 12 });
+        const chunks = source.chunkParagraphs(sections, { maxChars: 900, overlapChars: 120, minChars: 100 }).slice(0, ARTICLE_LIMIT);
+        if (!chunks.length) return null;
+        const cleanTitle = String(page.title || title).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+        return {
+            language,
+            title: cleanTitle,
+            url: articleUrl(language, cleanTitle),
+            revision: page.latest?.id || null,
+            timestamp: page.latest?.timestamp || '',
+            license: page.license?.title || 'CC BY-SA 4.0',
+            chunks
+        };
+    } catch (error) {
+        if (error.statusCode !== 404) {
+            console.error(`article ${language}:${title} failed`, error.message);
+        }
+        return null;
+    }
+}
+
+const ARTICLE_CACHE = path.join(os.tmpdir(), 'pzm-world-expansion-articles.json');
+const ARTICLE_CACHE_VERSION = 'world-expansion-articles-v1';
+const ARTICLE_CONCURRENCY = 4;
+const REFRESH_ARTICLES = process.argv.includes('--refresh-articles');
+
+function loadArticleCache() {
+    if (REFRESH_ARTICLES) return {};
+    try {
+        const cached = JSON.parse(fs.readFileSync(ARTICLE_CACHE, 'utf8'));
+        if (cached?.schemaVersion !== ARTICLE_CACHE_VERSION || !cached.entries) return {};
+        return cached.entries;
+    } catch (error) {
+        return {};
+    }
+}
+
+function saveArticleCache(entries) {
+    try {
+        fs.writeFileSync(ARTICLE_CACHE, JSON.stringify({ schemaVersion: ARTICLE_CACHE_VERSION, builtAt: new Date().toISOString(), entries }), 'utf8');
+    } catch (error) {
+        console.error('article cache write failed', error.message);
+    }
+}
+
+async function attachArticles(categories) {
+    const nodes = categories.flatMap(category => category.nodes);
+    const resources = [...new Set(nodes.map(node => node.resource).filter(Boolean))];
+    const cache = loadArticleCache();
+    const isValid = entry => Boolean(entry && Array.isArray(entry.chunks) && entry.chunks.length && entry.url);
+    const pending = nodes.filter(node => !isValid(cache[node.resource]));
+    console.log(`article cache: ${nodes.length - pending.length}/${nodes.length} hit, ${pending.length} to fetch`);
+
+    let entities = {};
+    let qidByResource = new Map();
+    if (pending.length) {
+        const pendingResources = [...new Set(pending.map(node => node.resource).filter(Boolean))];
+        qidByResource = await fetchWikidataQids(pendingResources);
+        console.log(`wikidata qids: ${qidByResource.size}/${pendingResources.length}`);
+        entities = await source.fetchWikidataEntities([...qidByResource.values()]);
+    }
+
+    const documents = {};
+    let withArticle = 0;
+    let zhCount = 0;
+    let enCount = 0;
+    let paragraphCount = 0;
+    let done = 0;
+    let cursor = 0;
+
+    const record = node => {
+        const article = isValid(cache[node.resource]) ? cache[node.resource] : null;
+        if (!article) return;
+        node.article = {
+            language: article.language,
+            title: article.title,
+            url: article.url,
+            revision: article.revision,
+            timestamp: article.timestamp,
+            license: article.license,
+            paragraphs: article.chunks.length
+        };
+        documents[node.worldId] = article;
+        withArticle += 1;
+        paragraphCount += article.chunks.length;
+        if (article.language === 'zh') zhCount += 1;
+        else enCount += 1;
+    };
+
+    const worker = async () => {
+        while (true) {
+            const index = cursor;
+            cursor += 1;
+            if (index >= nodes.length) return;
+            const node = nodes[index];
+            if (!isValid(cache[node.resource])) {
+                const entity = entities[qidByResource.get(node.resource)];
+                const zhTitle = entity?.sitelinks?.zhwiki?.title || node.nameZh;
+                const enTitle = entity?.sitelinks?.enwiki?.title || node.nameEn;
+                let article = zhTitle ? await loadArticle('zh', zhTitle) : null;
+                if ((!article || article.chunks.length < 3) && enTitle) {
+                    const fallback = await loadArticle('en', enTitle);
+                    if (fallback && (!article || fallback.chunks.length > article.chunks.length)) article = fallback;
+                }
+                if (article) cache[node.resource] = article;
+            }
+            record(node);
+            done += 1;
+            if (done % 25 === 0 || done === nodes.length) {
+                saveArticleCache(cache);
+                console.log(`articles ${done}/${nodes.length} zh=${zhCount} en=${enCount} missing=${done - withArticle}`);
+            }
+        }
+    };
+    await Promise.all(new Array(ARTICLE_CONCURRENCY).fill(0).map(worker));
+
+    const corpus = {
+        meta: {
+            schemaVersion: 'world-expansion-corpus-v1',
+            builtAt: new Date().toISOString(),
+            license: 'CC BY-SA 4.0',
+            documentCount: withArticle,
+            paragraphCount,
+            languages: { zh: zhCount, en: enCount }
+        },
+        documents
+    };
+    const buffer = Buffer.from(JSON.stringify(corpus), 'utf8');
+    fs.writeFileSync(CORPUS_OUTPUT, zlib.gzipSync(buffer, { level: 9 }));
+    return { meta: corpus.meta, bytes: buffer.byteLength };
+}
+
 async function main() {
     const { namesEn, namesZh, lookup } = loadExisting();
     const used = { uri: new Set(), en: new Set(namesEn), zh: new Set(namesZh) };
@@ -628,6 +801,15 @@ async function main() {
         }
     }
 
+    let articleResult = null;
+    if (SKIP_ARTICLES) {
+        console.log('articles: skipped (--no-articles)');
+    } else {
+        source.setIntervalMs(Number(process.env.WG_INTERVAL_MS) || 450);
+        articleResult = await attachArticles(categories);
+        console.log(`articles: ${articleResult.meta.documentCount}/${total} zh=${articleResult.meta.languages.zh} en=${articleResult.meta.languages.en} paragraphs=${articleResult.meta.paragraphCount}`);
+    }
+
     const payload = {
         meta: {
             schemaVersion: 'world-expansion-v1',
@@ -637,7 +819,16 @@ async function main() {
             nodeCount: total,
             categoryCount: categories.length,
             crossLinkCount: crossLinks.length,
-            domainCounts: stats
+            domainCounts: stats,
+            corpus: articleResult ? {
+                file: path.basename(CORPUS_OUTPUT),
+                builtAt: articleResult.meta.builtAt,
+                license: articleResult.meta.license,
+                documentCount: articleResult.meta.documentCount,
+                paragraphCount: articleResult.meta.paragraphCount,
+                languages: articleResult.meta.languages,
+                bytes: articleResult.bytes
+            } : null
         },
         categories,
         crossLinks

@@ -618,6 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './zhishitupu/obsidianVault.js',
             './zhishitupu/worldKnowledge.js',
             './zhishitupu/worldExpansion.js',
+            './zhishitupu/worldExpansionCorpusLoader.js',
             './zhishitupu/worldCorpusLoader.js',
             './zhishitupu/worldRag.js',
             './zhishitupu/graphData.js',
@@ -678,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
         jianmoshiyanshi: () => {
             if (typeof initModelingLab === 'function') initModelingLab();
             if (typeof window.modelingLabShowView === 'function') {
-                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'world');
+                window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'industrial');
             }
         },
         zhishitupu: () => {
@@ -696,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-23';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-35';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -815,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (id === 'jianmoshiyanshi' && typeof window.modelingLabShowView === 'function') {
             // 唤醒：恢复上次所在视图，并让 iframe 内部画布重新计算尺寸
-            window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'world');
+            window.modelingLabShowView(document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view') || 'industrial');
         }
 
         document.querySelectorAll('.menu-item').forEach(item =>

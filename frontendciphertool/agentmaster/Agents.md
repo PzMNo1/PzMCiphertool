@@ -19,9 +19,16 @@
 - 每天 10 次，由后端 `UsageQuotaService` 计数，超出后聊天窗口提示“今日 Agentmaster 使用次数已用完”
 
 ## 运行状态
-- 请求、流式生成、工具执行期间常驻 `.agent-loading` 三点动画与“正在思考… / 正在生成… / 正在执行操作…”
+- 请求、流式生成、工具执行期间常驻 `.agent-loading` 三点动画与“正在思考… / 正在推理… / 正在生成… / 正在执行操作…”
 - 工具消息或流式内容追加时，加载条保持在聊天记录底部；结束或报错后移除
 - `isSending` 防止并发发送，忙碌时提示上一条请求仍在运行
+
+## 上下文衔接
+- `messages` 是唯一会话状态：每轮先入队 user，回答（含错误、空回答）再用 `rememberAssistant()` 入队，保证下一轮能看到完整对话
+- 请求一律经 `buildConversationMessages()`：保留 system + 最近对话，超出 `HISTORY_CHAR_BUDGET` 时折叠更早消息并插入折叠说明
+- `answerWithKnowledgeGraphRetrieval` 复用同一份历史，只把检索结果作为一条 system 追加在当前提问之前，不再丢掉前文
+- 选项/续写类短回复（`2`、`第2个`、`option 2`、`继续`、`好的` 等）由 `isConversationFollowup()` 拦截，不触发知识图谱检索
+- 模型只输出 `reasoning_content` 而没有正文时，`readStream` 用 `emptyReplyNote()` 说明原因并把该轮写入历史
 
 ## 绝对禁止
 - 新增和修改agentmaster的任何样式

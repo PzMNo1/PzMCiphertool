@@ -66,6 +66,11 @@ async function initKnowledgeGraph() {
             await window.WORLD_CORPUS_READY;
             if (loader) loader.innerText = '正在装配世界知识图谱...';
         }
+        if (window.WORLD_EXPANSION_CORPUS_READY) {
+            if (loader) loader.innerText = '正在加载维基百科扩展正文...';
+            await window.WORLD_EXPANSION_CORPUS_READY;
+            if (loader) loader.innerText = '正在装配世界知识图谱...';
+        }
         if (!document.getElementById('sci-fi-font')) {
             const fontLink = document.createElement('link');
             fontLink.id = 'sci-fi-font';
@@ -1791,6 +1796,13 @@ function renderGraph(container) {
         return result;
     }
 
+    function getExpansionArticle(node) {
+        if (typeof window === 'undefined') return null;
+        const store = window.WORLD_KNOWLEDGE_EXPANSION;
+        const documents = store && store.documents;
+        return documents && documents[node.worldId] ? documents[node.worldId] : null;
+    }
+
     function renderExpansionKnowledgeSection(node) {
         const descriptionZh = sanitizeKnowledgeText(node.descriptionZh || '');
         const descriptionEn = sanitizeKnowledgeText(node.descriptionEn || '');
@@ -1801,6 +1813,19 @@ function renderGraph(container) {
                 `<button type="button" class="zstp-vault-link" data-graph-node-id="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>`
             ).join('')}</div>`
             : '<p class="zstp-vault-empty">暂无跨学科关联。</p>';
+        const article = node.article || null;
+        const corpus = article ? getExpansionArticle(node) : null;
+        const paragraphs = (corpus && corpus.chunks ? corpus.chunks : []);
+        const articleHtml = article ? `
+                <section class="zstp-kb-record">
+                    <h4>百科条目《${escapeHtml(article.title || '')}》</h4>
+                    ${paragraphs.length
+                        ? paragraphs.map(chunk => `<p class="zstp-world-prose">${escapeHtml(chunk.text || '')}</p>`).join('')
+                        : '<p class="zstp-vault-empty">百科正文加载中…</p>'}
+                </section>` : '';
+        const provenance = article
+            ? `来源：Wikipedia · ${escapeHtml(article.license || 'CC BY-SA 4.0')} · 修订 ${escapeHtml(String(article.revision || '—'))} · 由 compileWorldExpansion.js 生成`
+            : '来源：DBpedia · CC BY-SA 3.0 · 由 compileWorldExpansion.js 生成';
         return `
             <section class="zstp-world">
                 <div class="zstp-world-entity">
@@ -1811,14 +1836,16 @@ function renderGraph(container) {
                 <div class="zstp-vault-tags">${tags.map(tag =>
                     `<span class="zstp-vault-tag">${escapeHtml(tag)}</span>`
                 ).join('')}</div>
+                ${articleHtml}
                 <section class="zstp-kb-record">
                     <h4>跨学科关联 (${neighbors.length})</h4>
                     ${neighborHtml}
                 </section>
                 <div class="zstp-world-sources">
                     <a class="zstp-vault-link" href="${escapeHtml(node.sourceUrl)}" target="_blank" rel="noopener">DBpedia 条目</a>
+                    ${article ? `<a class="zstp-vault-link" href="${escapeHtml(article.url || '')}" target="_blank" rel="noopener">维基百科条目</a>` : ''}
                 </div>
-                <p class="zstp-world-provenance">来源：DBpedia · CC BY-SA 3.0 · 由 compileWorldExpansion.js 生成</p>
+                <p class="zstp-world-provenance">${provenance}</p>
             </section>
         `;
     }
@@ -1889,9 +1916,10 @@ function renderGraph(container) {
     function inspectKnowledgeGraphNode(node) {
         const context = getNodeGraphContext(node);
         if (node.kind === 'expansion') {
+            const paragraphs = Number(node.article && node.article.paragraphs) || 0;
             showPreview(
                 node.name,
-                `${(context.path || []).join(' > ')} · DBpedia 概念`,
+                `${(context.path || []).join(' > ')} · ${paragraphs ? `百科正文 ${paragraphs} 段` : 'DBpedia 概念'}`,
                 renderExpansionKnowledgeSection(node)
             );
             return;

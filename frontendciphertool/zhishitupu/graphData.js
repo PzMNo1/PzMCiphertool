@@ -255,6 +255,7 @@ function buildWorldTree(store) {
             descriptionEn: sanitizeDisplayText(entry.descriptionEn || ''),
             sourceUrl: entry.sourceUrl || '',
             wikiUrl: entry.wikiUrl || '',
+            article: entry.article || null,
             curated: entry.curated === true,
             crossDomain: entry.cross === true,
             knowledgeBase: records

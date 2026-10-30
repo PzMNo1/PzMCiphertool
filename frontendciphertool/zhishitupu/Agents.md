@@ -9,7 +9,9 @@
 - graphData.js → 把真实世界知识数据装配成图谱树与关系边
 - worldKnowledge.js → **生成产物**：节点/分类/关系元数据
 - worldExpansion.js → **生成产物**：DBpedia 扩展概念、分类与跨学科关系
-- compileWorldExpansion.js → DBpedia 扩展知识编译器（Node 构建期，需要访问 dbpedia.org）
+- compileWorldExpansion.js → DBpedia 扩展知识编译器（Node 构建期，需要访问 dbpedia.org / wikidata.org / api.wikimedia.org）
+- worldExpansionCorpus.bin → **生成产物**：gzip 压缩的扩展概念维基百科正文
+- worldExpansionCorpusLoader.js → 浏览器本地解压扩展正文，供扩展节点面板展示
 - worldCorpus.bin → **生成产物**：gzip 压缩的完整 Wikipedia 正文与索引源
 - worldCorpusLoader.js → 浏览器本地解压并挂载正文
 - traditionalChinese.js → OpenCC TSCharacters 构建期繁简映射
@@ -26,8 +28,8 @@
 2. Wikidata 简体中文标签、英文标签、别名、sitelink、结构化声明
 3. Wikipedia 条目 wikitext → 去标记后的**完整**正文段落（含 revision / URL / CC BY-SA 4.0）
 4. `compileWorldGraph.js` 生成节点元数据 `worldKnowledge.js` 和 gzip 正文 `worldCorpus.bin`
-5. `compileWorldExpansion.js` 从 DBpedia 拉取领域概念、双语标题、简介、分类与跨学科关系，生成 `worldExpansion.js`
-6. `worldCorpusLoader.js` 在浏览器本地解压正文；`graphData.js` 装配知识大陆/章节/实体，并把扩展分类挂到对应章节下
+5. `compileWorldExpansion.js` 从 DBpedia 拉取领域概念、双语标题、简介、分类与跨学科关系；再按 Wikidata sitelink 抓取每个概念的中文（缺失回退英文）维基百科正文，生成 `worldExpansion.js` 与 gzip 正文 `worldExpansionCorpus.bin`
+6. `worldCorpusLoader.js` / `worldExpansionCorpusLoader.js` 在浏览器本地解压正文；`graphData.js` 装配知识大陆/章节/实体，并把扩展分类挂到对应章节下
 7. `worldRag.js` 在本地建立倒排索引，`zhishitupu.js` 暴露 `ZSTP.searchWorldKnowledge` / `ZSTP.retrieveKnowledge`
 8. Agentmaster 对知识问题自动调用本地检索，并按 citationId 引用原文
 
@@ -59,8 +61,9 @@ node compileWorldGraph.js
 ### 重新生成 DBpedia 扩展知识
 ```
 node compileWorldExpansion.js
+node compileWorldExpansion.js --no-articles   # 只更新 DBpedia 概念层，跳过维基正文抓取
 ```
-需要访问 `https://dbpedia.org/sparql`；运行前确认 `CURATED` / `CROSS_NODES` 中没有与现有实体重复的标题。
+需要访问 `https://dbpedia.org/sparql`、`https://www.wikidata.org`、`https://api.wikimedia.org`；运行前确认 `CURATED` / `CROSS_NODES` 中没有与现有实体重复的标题。正文抓取按 `WG_INTERVAL_MS`（默认 450ms）节流，单个节点失败会回退英文条目并继续。
 
 ### 验证
 ```

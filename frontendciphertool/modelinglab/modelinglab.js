@@ -10,6 +10,11 @@
     };
 
     const VIEWS = {
+        industrial: {
+            src: './modelinglab/goneyeyinqing/industrial.html?v=20261030-28',
+            title: '工业建模工作台',
+            tab: '工业建模'
+        },
         world: {
             src: './worldmodel/worldmodel.html?v=20261030-22',
             title: '世界模型工作台',

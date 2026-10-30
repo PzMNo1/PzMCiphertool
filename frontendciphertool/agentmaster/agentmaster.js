@@ -95,6 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
+    // 上下文窗口预算：超出后折叠最早的消息，保留最近若干轮，长会话既不丢上下文也不会撑爆上游。
+    const HISTORY_CHAR_BUDGET = 48000;
+    const HISTORY_MIN_RECENT = 6;
+
     const uiActionTool = {
         type: 'function',
         function: {
@@ -748,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fastResult) {
             if (fastResult.tool) addToolMsg(fastResult.tool);
             if (fastResult.reply) addMsg('ai', fastResult.reply);
-            messages.push({ role: 'assistant', content: fastResult.reply || fastResult.tool || 'Fast action completed.' });
+            rememberAssistant(fastResult.reply || fastResult.tool || 'Fast action completed.');
             return;
         }
 
@@ -757,6 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const handled = await runKnowledgeGraphRag(text, { requireEvidence: true });
             if (handled) return;
             addMsg('ai', '本地世界知识语料中没有检索到与该节点相关的原文段落。请先在知识图谱中重新编译世界知识数据，或换一个更具体的问法。');
+            rememberAssistant('本地世界知识语料中没有检索到与该节点相关的原文段落，本轮没有回答。');
             return;
         }
 
@@ -772,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const payload = {
-                messages: buildRequestMessages(messages, allowAgentTools),
+                messages: buildRequestMessages(buildConversationMessages(), allowAgentTools),
                 stream: true
             };
             if (AGENT_MODEL) payload.model = AGENT_MODEL;
@@ -791,10 +796,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorText = await res.text().catch(() => '');
                 const detail = errorText ? `\n\n${errorText.slice(0, 500)}` : '';
                 addMsg('ai', `**[Error]** API request failed: ${res.status}${detail}`);
+                rememberAssistant(`上一轮请求失败（HTTP ${res.status}），没有拿到回答。${errorText ? `上游返回：${errorText.slice(0, 300)}` : ''}`);
                 return;
             }
 
-            const { reply, toolCalls, inlineActions, msgEl } = await readStream(res, allowAgentTools);
+            const { reply, reasoning, toolCalls, inlineActions, msgEl } = await readStream(res, allowAgentTools);
 
             if (toolCalls.length > 0 || inlineActions.length > 0) {
                 setLoadingLabel('正在执行操作…');
@@ -809,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const label = firstLine.length > 240 ? firstLine.slice(0, 240) + '…' : firstLine;
                         msgEl.innerHTML = fmt(label) + '<p>详细结果见上方工具消息。</p>';
                     }
-                    messages.push({ role: 'assistant', content: summary || 'Action completed.' });
+                    rememberAssistant(summary || 'Action completed.');
                 }
                 if (!allowAgentTools && inlineActions.length > 0) {
                     addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
@@ -817,10 +823,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (reply) {
-                messages.push({ role: 'assistant', content: reply });
+                rememberAssistant(reply);
+            } else if (!toolCalls.length && !inlineActions.length) {
+                rememberAssistant(emptyReplyNote(reasoning));
             }
         } catch (err) {
             addMsg('ai', `**[Network Error]** ${err.message}`);
+            rememberAssistant(`上一轮请求网络异常：${err.message}`);
         }
     }
 
@@ -837,10 +846,62 @@ document.addEventListener('DOMContentLoaded', () => {
             loader.remove();
             if (requireEvidence) {
                 addMsg('ai', `**[Knowledge Graph Retrieval Error]** ${err.message}`);
+                rememberAssistant(`上一轮知识图谱检索失败：${err.message}`);
                 return true;
             }
             return false;
         }
+    }
+
+    function rememberAssistant(content) {
+        const text = String(content || '').trim();
+        if (!text) return;
+        messages.push({ role: 'assistant', content: text });
+    }
+
+    function messageChars(message) {
+        const content = message?.content;
+        if (typeof content === 'string') return content.length;
+        if (Array.isArray(content)) return content.reduce((sum, part) => sum + String(part?.text || '').length, 0);
+        return 0;
+    }
+
+    function buildConversationMessages() {
+        const system = messages.filter(message => message.role === 'system').slice(0, 1);
+        const turns = messages.filter(message => message.role !== 'system');
+        let used = system.reduce((sum, message) => sum + messageChars(message), 0);
+        const kept = [];
+        for (let i = turns.length - 1; i >= 0; i -= 1) {
+            const message = turns[i];
+            const size = messageChars(message);
+            if (kept.length >= HISTORY_MIN_RECENT && used + size > HISTORY_CHAR_BUDGET) break;
+            used += size;
+            kept.unshift(message);
+        }
+        const folded = turns.length - kept.length;
+        if (!folded) return [...system, ...kept];
+        return [
+            ...system,
+            {
+                role: 'system',
+                content: `Earlier ${folded} messages were folded out to fit the context window. Continue the conversation from the retained turns and do not invent the folded content.`
+            },
+            ...kept
+        ];
+    }
+
+    function emptyReplyNote(reasoning) {
+        if (String(reasoning || '').trim()) {
+            return '模型本轮只在推理阶段输出了内容，没有给出最终回答。回复「继续」我会沿同一思路接着写；也可以把要求拆小一点再发一次。';
+        }
+        return '模型本轮没有返回任何内容。请再发一次，或稍后在大模型 Agent 模块里确认模型与接口是否可用。';
+    }
+
+    function isConversationFollowup(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return false;
+        if (/^(?:(?:选项|option|number|no\.?|选|要|做|用)\s*)?(?:第\s*)?(?:[0-9]{1,2}|[一二三四五六七八九十]{1,2}|[A-Da-d])\s*(?:个|条|项|步|节|页)?$/i.test(raw)) return true;
+        return /^(?:继续|接着|接着写|继续写|继续往下|往下|下一步|好|好的|可以|行|开始|就这样|go\s*on|continue|next)\s*[!！。,.，；;~～]*$/i.test(raw);
     }
 
     function buildRequestMessages(baseMessages, allowTools, allowKnowledgeGraphRetrieval = false) {
@@ -861,7 +922,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (allowTools) return baseMessages;
         const guard = {
             role: 'system',
-            content: 'The latest user message is a normal information/explanation question, not a page-control request. Do not call tools and do not emit <ui_action> or <browser_action> blocks. Answer directly in the user language.'
+            content: [
+                'The latest user message is a normal information/explanation request, not a page-control request. Do not call tools and do not emit <ui_action> or <browser_action> blocks. Answer in the user language.',
+                'Treat it as the next turn of this conversation: when it is a number, a letter, or a short reply such as 继续/好的/第2个, resolve it against your previous answer and continue from there instead of asking the user to repeat the request.'
+            ].join('\n')
         };
         return [baseMessages[0], guard, ...baseMessages.slice(1)];
     }
@@ -869,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function readStream(res, allowInlineActions = true) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let reply = '', buf = '';
+        let reply = '', buf = '', reasoning = '';
         const toolCalls = [];
         const msgDiv = addMsg('ai', '');
 
@@ -894,6 +958,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const delta = choice?.delta;
                     if (!delta) continue;
 
+                    if (delta.reasoning_content) {
+                        reasoning += delta.reasoning_content;
+                        if (!reply) setLoadingLabel('正在推理…');
+                    }
+
                     if (delta.content) {
                         if (!reply) setLoadingLabel('正在生成…');
                         reply += delta.content;
@@ -912,10 +981,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const parsed = allowInlineActions ? extractInlineActions(reply) : { text: reply, actions: [] };
-        msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : (allowInlineActions ? '<p>正在操作页面...</p>' : '<p>我理解这是普通问题，但没有生成回答。</p>');
+        msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : `<p>${allowInlineActions ? '正在操作页面...' : esc(emptyReplyNote(reasoning))}</p>`;
         renderMath(msgDiv, true);
         return {
             reply: parsed.text,
+            reasoning,
             toolCalls: compactToolCalls(toolCalls),
             inlineActions: parsed.actions,
             msgEl: msgDiv
@@ -1142,8 +1212,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function answerWithKnowledgeGraphRetrieval(userText, retrievedMessages) {
         const retrievalText = retrievedMessages.join('\n\n');
+        const history = buildConversationMessages();
+        const lastIndex = history.length - 1;
+        const priorTurns = history[lastIndex]?.role === 'user' ? history.slice(0, lastIndex) : history;
         const followupMessages = [
-            messages[0],
+            ...priorTurns,
             {
                 role: 'system',
                 content: [
@@ -1176,13 +1249,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) {
                 const errorText = await res.text().catch(() => '');
                 addMsg('ai', `**[Error]** API request failed after retrieval: ${res.status}${errorText ? `\n\n${errorText.slice(0, 500)}` : ''}`);
+                rememberAssistant(`上一轮检索回答请求失败（HTTP ${res.status}）。`);
                 return;
             }
-            const { reply } = await readStream(res, false);
-            if (reply) messages.push({ role: 'assistant', content: reply });
+            const { reply, reasoning } = await readStream(res, false);
+            rememberAssistant(reply || emptyReplyNote(reasoning));
         } catch (err) {
             loader.remove();
             addMsg('ai', `**[Network Error]** ${err.message}`);
+            rememberAssistant(`上一轮检索回答网络异常：${err.message}`);
         }
     }
 
@@ -2461,6 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const raw = String(text || '').trim();
         const normalized = normalizeText(raw);
         if (!normalized) return false;
+        if (isConversationFollowup(raw)) return false;
         const answerIntent = isLikelyAnswerOnlyRequest(raw, normalized) ||
             ['节点', '知识图谱', '是什么', '解释', '说明', 'what', 'explain', 'meaning']
                 .some(term => normalized.includes(normalizeText(term)));
@@ -2471,6 +2547,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const raw = String(text || '').trim();
         const normalized = normalizeText(raw);
         if (!normalized || raw.length < 4) return false;
+        if (isConversationFollowup(raw)) return false;
         if (hasExplicitOperationIntent(raw, normalized)) return false;
         if (/^(?:你好|您好|hi|hello|hey|谢谢|多谢|再见|晚安|早上好|晚上好)[!！。,.，\s]*$/i.test(raw)) return false;
         if (/^(?:写|帮我写|生成|画|翻译|润色|续写|总结一下这|把这段)/.test(raw)) return false;

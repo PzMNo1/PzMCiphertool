@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工业建模 · Industrial CAD Workbench</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23050d16'/%3E%3Cpath d='M16 4 27 10v12L16 28 5 22V10z' fill='none' stroke='%2340e0ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='none' stroke='%2300ff88' stroke-width='1.6'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./industrial.css?v=20261030-28" />
+  <style>
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0A192F;
+      border-radius: 4px;
+      box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    }
+    ::-webkit-scrollbar-corner {
+      background: #0A192F;
+    }
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+      }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.185.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.185.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div class="ind-shell" id="ind-shell" data-engine="booting">
+    <header class="ind-top">
+      <div class="ind-brand">
+        <span class="ind-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36">
+            <path d="M18 2.5 32 10v14L18 31.5 4 24V10z" />
+            <path d="M18 11.5 23 14.3v5.4L18 22.5 13 19.7v-5.4z" />
+            <path d="M18 2.5v9M32 10l-9 4.3M4 10l9 4.3M18 31.5v-9M32 24l-9-4.3M4 24l9-4.3" />
+          </svg>
+        </span>
+        <div class="ind-brand-text">
+          <strong>工业建模</strong>
+          <span>INDUSTRIAL CAD WORKBENCH</span>
+        </div>
+      </div>
+
+      <div class="ind-top-center">
+        <span class="ind-engine-chip" id="engine-chip" data-state="loading" title="replicad 1.2.0 · OpenCascade OCCT">
+          <i></i><b>OCCT</b><span id="engine-text">内核装载中</span>
+        </span>
+        <span class="ind-part-chip" id="part-chip">法兰盘 · FLANGE</span>
+      </div>
+
+      <div class="ind-top-actions">
+        <button type="button" class="cyber-button ind-cyber" id="import-step-btn">
+          <span class="cyber-button__glitch"></span><span class="cyber-button__tag">导入 STEP</span>
+        </button>
+        <button type="button" class="cyber-button ind-cyber" id="export-step-btn" disabled>
+          <span class="cyber-button__glitch"></span><span class="cyber-button__tag">导出 STEP</span>
+        </button>
+        <button type="button" class="cyber-button ind-cyber" id="export-stl-btn" disabled>
+          <span class="cyber-button__glitch"></span><span class="cyber-button__tag">导出 STL</span>
+        </button>
+        <button type="button" class="ind-side-open" id="side-open" aria-label="打开零件参数栏">
+          <span></span><span></span><span></span>
+        </button>
+        <input type="file" id="step-file" accept=".step,.stp" hidden />
+      </div>
+    </header>
+
+    <div class="ind-body">
+      <div class="ind-side-backdrop" id="side-backdrop" hidden></div>
+      <aside class="ind-side" id="side-panel" aria-label="零件参数">
+        <div class="ind-side-head">
+          <div>
+            <h2>零件库</h2>
+            <span>PART LIBRARY</span>
+          </div>
+          <button type="button" class="ind-side-close" id="side-close" aria-label="收起参数栏">&#215;</button>
+        </div>
+
+        <div class="ind-template-grid" id="template-grid" role="tablist" aria-label="零件模板"></div>
+
+        <div class="ind-side-scroll">
+          <section class="ind-card">
+            <div class="ind-card-head">
+              <h3 id="param-title">法兰盘参数</h3>
+              <button type="button" class="ind-reset" id="reset-params">复位</button>
+            </div>
+            <div class="ind-params" id="param-groups"></div>
+          </section>
+
+          <section class="ind-card">
+            <div class="ind-card-head">
+              <h3>特征树</h3>
+              <span class="ind-tree-count" id="tree-count">—</span>
+            </div>
+            <ol class="ind-tree" id="feature-tree"></ol>
+            <div class="ind-notes" id="param-notes" hidden></div>
+          </section>
+        </div>
+      </aside>
+
+      <main class="ind-stage" id="stage">
+        <div class="ind-viewport" id="viewport"></div>
+
+        <div class="ind-stage-top">
+          <div class="ind-stage-title">
+            <span id="stage-name">法兰盘</span>
+            <em id="stage-en">FLANGE</em>
+          </div>
+          <div class="ind-tools" role="toolbar" aria-label="视图工具">
+            <button type="button" data-tool="fit" title="适应视图">适应</button>
+            <button type="button" data-tool="edges" class="is-on" title="显示 CAD 边线">边线</button>
+            <button type="button" data-tool="grid" class="is-on" title="显示地面网格">网格</button>
+            <button type="button" data-tool="bbox" title="显示尺寸包围框">尺寸框</button>
+            <button type="button" data-tool="spin" title="自动旋转">自转</button>
+          </div>
+          <button type="button" class="ind-import-clear" id="import-clear" hidden>退出导入</button>
+        </div>
+
+        <div class="ind-stats" id="stats" data-state="idle">
+          <div class="ind-stats-head">
+            <span class="ind-stats-title">零件数据</span>
+            <span class="ind-stats-time" id="stat-time">—</span>
+            <label class="ind-material">
+              <span>材料</span>
+              <select id="material-select">
+                <option value="steel">碳钢</option>
+                <option value="stainless">不锈钢</option>
+                <option value="aluminium">铝合金</option>
+                <option value="brass">黄铜</option>
+                <option value="titanium">钛合金</option>
+                <option value="abs">ABS</option>
+              </select>
+            </label>
+          </div>
+          <div class="ind-stat-grid">
+            <div class="ind-stat"><span>体积</span><b id="stat-volume">—</b><em>cm³</em></div>
+            <div class="ind-stat"><span>估算质量</span><b id="stat-mass">—</b><em id="stat-mass-unit">kg</em></div>
+            <div class="ind-stat ind-stat--wide"><span>包围盒</span><b id="stat-bbox">—</b><em>mm</em></div>
+            <div class="ind-stat"><span>三角面</span><b id="stat-mesh">—</b><em>tri</em></div>
+            <div class="ind-stat"><span>特征</span><b id="stat-features">—</b><em>step</em></div>
+          </div>
+          <div class="ind-stats-alert" id="stats-alert" hidden></div>
+        </div>
+
+        <div class="ind-view-hint">左键旋转 · 右键平移 · 滚轮缩放 · 双击复位</div>
+
+        <div class="ind-axis-triad" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <path class="ax ax-x" d="M32 40 L58 50" />
+            <path class="ax ax-y" d="M32 40 L6 50" />
+            <path class="ax ax-z" d="M32 40 L32 6" />
+            <text class="tx tx-x" x="58" y="58">X</text>
+            <text class="tx tx-y" x="0" y="58">Y</text>
+            <text class="tx tx-z" x="37" y="8">Z</text>
+          </svg>
+        </div>
+
+        <div class="ind-loading" id="engine-loading">
+          <div class="ind-loader">
+            <div class="ind-loader-ring"></div>
+            <strong>正在装载工业几何内核</strong>
+            <span id="loader-text">OpenCascade OCCT · WebAssembly</span>
+            <div class="ind-loader-bar"><i id="loader-fill"></i></div>
+            <button type="button" class="cyber-button ind-cyber" id="loader-retry" hidden>
+              <span class="cyber-button__glitch"></span><span class="cyber-button__tag">重试</span>
+            </button>
+            <small>首次约 23 MB，装载后由浏览器缓存</small>
+          </div>
+        </div>
+
+        <div class="ind-toasts" id="toasts" aria-live="polite"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../../vendor/replicad/replicad.umd.js?v=1.2.0"></script>
+  <script type="module" src="./industrial.js?v=20261030-28"></script>
+</body>
+
+</html>
