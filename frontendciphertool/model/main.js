@@ -793,59 +793,6 @@
     }
 
     /**
-     * 显示/隐藏登录遮罩层
-     * @param {boolean} show
-     */
-    function showLoginOverlay(show) {
-        const chatInterface = document.querySelector('.chat-interface');
-        if (!chatInterface) return;
-
-        let overlay = document.getElementById('chat-login-overlay');
-
-        if (show && !overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'chat-login-overlay';
-            overlay.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.88);
-                backdrop-filter: blur(10px);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 200;
-                color: #0ff;
-                padding: 24px;
-                text-align: center;
-            `;
-            overlay.innerHTML = `
-                <div style="font-size: 1.5rem; margin-bottom: 20px; text-shadow: 0 0 10px #0ff; font-family: 'Orbitron', sans-serif;">
-                    SYSTEM LOCKED
-                </div>
-                <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">请登录后使用 Agent，使用次数与聊天记录将绑定当前账号</p>
-                <button class="cyber-button" onclick="window.CipherAuth && window.CipherAuth.openModal()">
-                    <span class="cyber-button__tag">立即登录</span>
-                </button>
-            `;
-            chatInterface.style.position = 'relative';
-            chatInterface.appendChild(overlay);
-        } else if (!show && overlay) {
-            overlay.remove();
-        }
-
-        // 禁用/启用输入
-        const input = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-message');
-        if (input) input.disabled = show;
-        if (sendBtn) sendBtn.disabled = show;
-        if (chatInterface) chatInterface.classList.toggle('agent-locked', show);
-    }
-
-    /**
      * 初始化客户端
      */
     function initClient() {
@@ -1353,7 +1300,7 @@
         const authUser = checkLogin();
         updateAgentUsageBadge();
         if (!authUser) {
-            showLoginOverlay(true);
+            window.chatUI?.showLoginRequired?.();
             return;
         }
 
@@ -2729,7 +2676,6 @@
 
     async function refreshAgentForCurrentAccount() {
         if (!checkLogin()) {
-            showLoginOverlay(true);
             window.chatUI.clearMessages();
             selectedChatIds.clear();
             const historyList = document.getElementById('chat-history-list');
@@ -2738,7 +2684,6 @@
             return;
         }
 
-        showLoginOverlay(false);
         try {
             await window.historyManager.syncFromBackend();
         } catch (error) {

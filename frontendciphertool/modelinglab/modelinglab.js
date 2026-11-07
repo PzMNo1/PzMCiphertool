@@ -11,7 +11,7 @@
 
     const VIEWS = {
         industrial: {
-            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-57',
+            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-62',
             title: '工业建模 · Cascade Studio',
             tab: '工业建模'
         },
@@ -254,6 +254,109 @@
                 // 跨域时回退
             }
             return '世界模型页面尚未初始化。';
+        };
+
+        const industrialFrame = () => {
+            const frame = Array.from(frames).find(f => f.getAttribute('data-view-frame') === 'industrial');
+            return frame && frame.tagName === 'IFRAME' ? frame : null;
+        };
+
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        function getIndustrialCadContext() {
+            const frame = industrialFrame();
+            if (!frame || !frame.contentWindow) {
+                return { frame, ctx: null, reason: '工业建模 iframe 尚未加载' };
+            }
+            let cadFrame;
+            try {
+                cadFrame = frame.contentWindow.document.getElementById('cad-frame');
+            } catch (error) {
+                return { frame, ctx: null, reason: '无法访问工业建模 iframe：' + error.message };
+            }
+            if (!cadFrame || !cadFrame.contentWindow) {
+                return { frame, ctx: null, reason: 'Cascade Studio 尚未加载' };
+            }
+            const cadWindow = cadFrame.contentWindow;
+            const api = cadWindow.CascadeAPI;
+            return {
+                frame,
+                ctx: api ? { api, app: api._app, cadWindow } : null,
+                reason: 'Cascade Studio API 尚未就绪'
+            };
+        }
+
+        async function waitForIndustrialContext(timeoutMs = 90000) {
+            showView('industrial');
+            const started = Date.now();
+            let reason = '';
+            while (Date.now() - started < timeoutMs) {
+                const result = getIndustrialCadContext();
+                reason = result.reason || '';
+                const app = result.ctx?.app;
+                if (result.ctx && app?.editor && app?.engine?.isReady) {
+                    return result.ctx;
+                }
+                await wait(250);
+            }
+            throw new Error('工业建模未就绪：' + (reason || 'Cascade Studio 仍在加载'));
+        }
+
+        async function waitForCascadeIdle(ctx, timeoutMs = 90000) {
+            await wait(1500);
+            const started = Date.now();
+            while (ctx.cadWindow.workerWorking) {
+                if (Date.now() - started > timeoutMs) {
+                    throw new Error('Cascade Studio 仍在执行上一段代码，请稍后重试');
+                }
+                await wait(200);
+            }
+            await wait(250);
+        }
+
+        window.industrialCadBridge = {
+            async ensureReady(timeoutMs = 90000) {
+                const ctx = await waitForIndustrialContext(timeoutMs);
+                return { ready: true, codeLength: ctx.api.getCode().length };
+            },
+            async readCode() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getCode();
+            },
+            async runCode(code, timeoutMs = 90000) {
+                const ctx = await waitForIndustrialContext(timeoutMs);
+                await waitForCascadeIdle(ctx, timeoutMs);
+                return await ctx.api.runCode(String(code || ''));
+            },
+            async evaluate() {
+                const ctx = await waitForIndustrialContext();
+                await waitForCascadeIdle(ctx);
+                await ctx.api.evaluate();
+                return {
+                    success: ctx.api.getErrors().length === 0,
+                    errors: ctx.api.getErrors(),
+                    logs: ctx.api.getConsoleLog(),
+                    historySteps: ctx.api.getHistorySteps()
+                };
+            },
+            async status() {
+                const ctx = await waitForIndustrialContext();
+                return {
+                    engineReady: Boolean(ctx.app.engine?.isReady),
+                    workerWorking: Boolean(ctx.cadWindow.workerWorking),
+                    codeLength: ctx.api.getCode().length,
+                    errors: ctx.api.getErrors(),
+                    historySteps: ctx.api.getHistorySteps().length
+                };
+            },
+            async getQuickStart() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getQuickStart();
+            },
+            async getStandardLibrary() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getStandardLibrary();
+            }
         };
     }
 

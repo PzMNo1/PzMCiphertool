@@ -2429,6 +2429,31 @@ class ChatUI {
     }
 
     /**
+     * 未登录时在对话区提示登录并给出登录入口
+     */
+    showLoginRequired() {
+        if (!this.messagesContainer) return;
+        let element = this.messagesContainer.querySelector('.agent-login-required');
+        if (!element) {
+            element = document.createElement('div');
+            element.className = 'message assistant-message agent-login-required';
+            element.innerHTML = `
+                <div class="message-content message-text">
+                    <p>请先登录后再和 Agent 对话。登录后，使用次数与聊天记录会绑定当前账号。</p>
+                    <button type="button" class="cyber-button agent-login-btn" data-agent-login>
+                        <span class="cyber-button__tag">登录 / 注册</span>
+                    </button>
+                </div>
+            `;
+            element.querySelector('[data-agent-login]')?.addEventListener('click', () => {
+                if (window.CipherAuth?.openModal) window.CipherAuth.openModal();
+            });
+        }
+        this.messagesContainer.appendChild(element);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    /**
      * 清空消息区域，并给出新会话引导
      */
     clearMessages() {

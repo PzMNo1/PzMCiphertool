@@ -569,14 +569,14 @@ const MODULES = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    // ===== 首屏批次：加密实验室 + 词汇区 =====
+    // ===== 首屏批次：Agent + 加密实验室 + 词汇区 =====
     const coreScripts = [
         './0_sidebar_funtion.js',
         './wordsearch/wordsearch.js',
         './wordsearch/wordsearch_chinese.js',
     ];
 
-    // ===== 其余模块：首屏就绪后在后台分 5 组预热；用户提前点击时也会由 showModule 兜底触发 =====
+    // ===== 其余模块：首屏就绪后在后台分 5 组预热；Agent 已并入首屏批次 =====
     // key 用侧边栏 data-target（也是 showModule 的入参）；逻辑区/空间类是加密实验室的子区，用独立 key。
     const LAZY_GROUPS = {
         logic: [
@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './spacepuzzle/spacepuzzlebatch.js',
         ],
         jianmoshiyanshi: [
-            './modelinglab/modelinglab.js?v=20261104-57',
+            './modelinglab/modelinglab.js',
         ],
         electroniclab: [
             './electronic/circuit_builder.js',
@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261104-14';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261108-01';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -708,8 +708,15 @@ document.addEventListener('DOMContentLoaded', () => {
         })));
     }
 
+    // ===== 首屏加载顺序：侧边栏/词汇区 → Agent → 加密实验室 =====
+    const coreScriptsPromise = loadBatch(coreScripts);
+    const agentScriptsPromise = loadBatch(LAZY_GROUPS.damoxing);
+    const cipherScriptsPromise = window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([]);
+
     // 按区懒加载：同一组只加载一次，初始化在脚本到位之后才执行
-    const groupPromises = {};
+    const groupPromises = {
+        damoxing: agentScriptsPromise
+    };
     function ensureGroup(id) {
         if (!LAZY_GROUPS[id]) return Promise.resolve();
         if (!groupPromises[id]) {
@@ -737,12 +744,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ['logic', 'spacepuzzle'],
         ['yijianfankui', 'workflow', 'apizhongzhuanzhan'],
         ['jianmoshiyanshi'],
-        ['damoxing', 'electroniclab'],
+        ['electroniclab'],
         ['mcpskilllab'],
     ];
 
     // ===== 并行加载：首屏批次 + 加密实验室脚本批次（互不阻塞）=====
-    Promise.all([loadBatch(coreScripts), window.loadCipherScriptBatch ? window.loadCipherScriptBatch(loadBatch) : Promise.resolve([])])
+    Promise.all([coreScriptsPromise, cipherScriptsPromise])
         .then(() => {
             // 加密实验室的数据驱动卡片必须等本文件把 MODULES 注入 DOM 之后再挂载，
             // 否则拿不到 #mimaqu / #xiandaiqu 这些子模块容器
@@ -834,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    showModule('jiamishiyanshi');
+    showModule('damoxing');
     document.querySelectorAll('.menu-item').forEach(item =>
         item.addEventListener('click', e => {
             e.preventDefault();

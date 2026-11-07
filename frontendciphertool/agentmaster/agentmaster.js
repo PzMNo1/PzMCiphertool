@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
-                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code, build_circuit, read_circuit, run_circuit, stop_circuit.',
+                'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code, build_circuit, read_circuit, run_circuit, stop_circuit, write_industrial_code, read_industrial_code, run_industrial_code, industrial_status, industrial_reference.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
                 'Use generate_world when the user asks to create or generate a 3D world / scene / environment with the world model (世界模型, Marble, 世界生成, 生成场景, 文生世界). Put the scene description in the "prompt" argument. Set "confirm" to true to only fill the description and wait for the user to press 生成世界; omit it and the generation starts immediately.',
                 'Use build_circuit to build or replace the circuit in 电子实验室 → 电路模拟. Pass a circuit object like {"title":"5V LED 指示灯","components":[{"type":"dc_source","name":"V1","from":"VCC","to":"GND","value":"5V"},{"type":"resistor","name":"R1","from":"VCC","to":"N1","value":"1k"},{"type":"led","name":"D1","from":"N1","to":"GND"}]}. Supported types: dc_source, ac_source, square_source, triangle_source, sawtooth_source, resistor, capacitor, inductor, diode, led, switch, current_source, wire, ground. Values accept SI suffixes (1k, 4.7k, 100nF, 10mH, 5V, 2mA). Net names are arbitrary; for LED/diode use from=anode and to=cathode; for sources use from=positive and to=negative. The tool auto-places, routes, adds a ground when missing, starts the simulation, and returns live readings. Inspect the readings and fix reverse-biased or disconnected parts before answering.',
@@ -83,7 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Verified PCB TSX syntax: <pinheader name="J1" pinCount={2} footprint="pinrow2" pitch="2.54mm" pinLabels={["5V","GND"]} pcbX={-16} pcbY={0} pcbRotation={90} />; <resistor name="R1" resistance="1k" footprint="0603" pcbX={-8} pcbY={5} />; <led name="D1" footprint="0603" color="green" pcbX={0} pcbY={5} />; <testpoint name="TP1" footprintVariant="pad" padShape="circle" padDiameter="1.4mm" pcbX={-13} pcbY={3} />; <hole name="H1" diameter="3.2mm" pcbX={-17} pcbY={-9.5} />; <fiducial name="FID1" padDiameter="1mm" soldermaskPullback="1mm" pcbX={-11} pcbY={9} />; <silkscreentext text="5V IN" pcbX={-18} pcbY={-4} fontSize="0.9mm" />; <trace from=".J1 > .pin1" to=".R1 > .pin1" width="0.5mm" />. Use width (not thickness) on traces, give every size a unit string, and keep component bodies at least 1mm inside the board edge.',
                 'edit_pcb_code automatically fixes common TSX syntax and small placement overflows, then waits for the PCB engine and reports any remaining render errors. If errors remain, state them clearly in your reply and give the concrete fix instead of claiming success.',
                 'If native tool calls are not available for PCB coding, emit the full TSX inside a raw <pcb_code>...</pcb_code> block (no JSON escaping and no Markdown fences inside the block). Prefer the native edit_pcb_code tool when it is available.',
+                'If native tool calls are not available for industrial modeling, emit the full Cascade Studio JavaScript inside a raw <industrial_code>...</industrial_code> block (no JSON escaping and no Markdown fences inside the block). Prefer the native write_industrial_code tool when it is available.',
                 'If native tool calls are not available for circuit building, emit the circuit spec JSON inside a raw <circuit_spec>...</circuit_spec> block (valid JSON only, no Markdown fences inside the block). Prefer the native build_circuit tool when it is available.',
+                'Use write_industrial_code to replace the complete Cascade Studio modeling script in 建模实验室 → 工业建模 and execute it immediately. Put the full runnable JavaScript source in "value"; never send a diff or a partial snippet. Inspect result.errors, logs and historySteps, then fix and retry until the model is correct.',
+                'Use read_industrial_code before modifying an existing model, run_industrial_code to re-evaluate the current code, industrial_status to inspect engine readiness and errors, and industrial_reference to obtain exact Cascade Studio API signatures and examples.',
+                'For complex geometry or unfamiliar Cascade Studio functions, call industrial_reference first, then write code that uses only documented primitives and operations.',
+                'Cascade Studio API summary: Box(x,y,z,centered?), Sphere(r), Cylinder(r,h,centered?), Cone(r1,r2,h), Circle(r,wire?), Polygon(points,wire?), new Sketch([x,y], plane?).LineTo([x,y]).Fillet(r).End(true).Face(), Extrude(face,[dx,dy,dz],keepFace?), Revolve(face,degrees,[axis]?), Loft([wires]), Pipe(shape,wirePath), Union(shapes), Difference(mainBody,[tools]), Intersection(shapes), Translate([x,y,z],shape), Rotate([ax,ay,az],degrees,shape), FilletEdges(shape,radius,edgeIndices), ChamferEdges(shape,distance,edgeIndices), Edges(shape).max([axis]).indices(), Volume(shape). Transforms return NEW shapes, so capture the return value. Difference takes an array of tool shapes.',
+                'Cascade Studio coordinates: X=right, Y=depth, Z=up; extrusion [0,0,z] is vertical; Revolve defaults around Z. A minimal example is: let base = Box(80,60,20,true); let hole = Translate([0,0,-10], Cylinder(12,40)); Difference(base, [hole]);',
+                'For industrial modeling requests, do not merely describe the CAD steps. Call write_industrial_code with a complete script, read the execution result, and iterate until success. Reply to the user only after the tool result is known.',
                 'World generation is a long-running job (about 5 minutes) and consumes paid API credits, so for vague or very short requests prefer filling the prompt first instead of starting generation immediately.',
                 'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
                 'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. 插件实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
@@ -132,7 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             'build_circuit',
                             'read_circuit',
                             'run_circuit',
-                            'stop_circuit'
+                            'stop_circuit',
+                            'write_industrial_code',
+                            'read_industrial_code',
+                            'run_industrial_code',
+                            'industrial_status',
+                            'industrial_reference'
                         ],
                         description: 'The UI operation to execute.'
                     },
@@ -142,7 +154,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     value: {
                         type: 'string',
-                        description: 'Text/value for set_value or search, the full TSX source for edit_pcb_code, or raw CircuitJS text when format=circuitjs.'
+                        description: 'Text/value for set_value or search, the full TSX source for edit_pcb_code, raw CircuitJS text when format=circuitjs, or the complete JavaScript source for write_industrial_code/run_industrial_code.'
+                    },
+                    code: {
+                        type: 'string',
+                        description: 'Complete Cascade Studio JavaScript source for write_industrial_code/run_industrial_code. Alias of value.'
+                    },
+                    timeoutMs: {
+                        type: 'number',
+                        description: 'Optional execution timeout for industrial modeling actions, default 120000 ms.'
                     },
                     circuit: {
                         type: 'object',
@@ -1094,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function extractInlineActions(text) {
         const actions = [];
         let hasPcbCode = false;
+        let hasIndustrialCode = false;
         let cleaned = extractDsmlActions(String(text || ''), actions);
         cleaned = cleaned.replace(/<pcb_code>([\s\S]*?)<\/pcb_code>/g, (match, raw) => {
             const code = String(raw || '')
@@ -1103,6 +1124,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!code) return '';
             hasPcbCode = true;
             actions.push({ name: 'ui_action', arguments: { action: 'edit_pcb_code', value: code, run: true } });
+            return '';
+        });
+
+        cleaned = cleaned.replace(/<industrial_code>([\s\S]*?)<\/industrial_code>/g, (match, raw) => {
+            const code = String(raw || '')
+                .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+                .replace(/\n?```\s*$/, '')
+                .trim();
+            if (!code) return '';
+            hasIndustrialCode = true;
+            actions.push({ name: 'ui_action', arguments: { action: 'write_industrial_code', value: code } });
             return '';
         });
 
@@ -1126,6 +1158,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const parsed = JSON.parse(raw.trim());
                 // 原生工具和 <pcb_code> 同时出现时，以代码块为准，避免写入两次。
                 if (name === 'ui_action' && hasPcbCode && normalizeUiActionName(parsed.action) === 'edit_pcb_code') {
+                    return '';
+                }
+                if (name === 'ui_action' && hasIndustrialCode && normalizeUiActionName(parsed.action) === 'write_industrial_code') {
                     return '';
                 }
                 actions.push({ name, arguments: parsed });
@@ -1313,6 +1348,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return runCircuit(args);
             case 'stop_circuit':
                 return stopCircuit(args);
+            case 'write_industrial_code':
+                return writeIndustrialCode(args);
+            case 'read_industrial_code':
+                return readIndustrialCode(args);
+            case 'run_industrial_code':
+                return runIndustrialCode(args);
+            case 'industrial_status':
+                return industrialStatus(args);
+            case 'industrial_reference':
+                return industrialReference(args);
             default:
                 throw new Error(`unknown action "${action}"`);
         }
@@ -1506,6 +1551,112 @@ document.addEventListener('DOMContentLoaded', () => {
         return ok(`当前 main.tsx（${code.length} 字符）：\n\`\`\`tsx\n${code}\n\`\`\`${status}`, args.reason);
     }
 
+    function stripIndustrialCodeFence(code) {
+        return String(code || '')
+            .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+            .replace(/\n?```\s*$/, '');
+    }
+
+    async function prepareIndustrialLab(reason) {
+        navigateSection('jianmoshiyanshi', reason);
+        if (typeof window.ensureCipherModule === 'function') {
+            try {
+                await window.ensureCipherModule('jianmoshiyanshi');
+            } catch (error) {
+                // 模块可能已加载，继续检查桥接函数。
+            }
+        }
+        if (typeof window.initModelingLab === 'function') {
+            window.initModelingLab();
+        }
+        const started = Date.now();
+        while (Date.now() - started < 20000) {
+            if (typeof window.modelingLabShowView === 'function') {
+                window.modelingLabShowView('industrial');
+            }
+            if (window.industrialCadBridge && typeof window.industrialCadBridge.runCode === 'function') {
+                return window.industrialCadBridge;
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        throw new Error('工业建模模块未就绪：Cascade Studio 桥接未加载');
+    }
+
+    function formatIndustrialExecution(result, code) {
+        const errors = Array.isArray(result?.errors) ? result.errors : [];
+        const logs = Array.isArray(result?.logs) ? result.logs : [];
+        const steps = Array.isArray(result?.historySteps) ? result.historySteps : [];
+        const recent = steps.slice(-10).map(step => {
+            const index = Number.isFinite(step.index) ? `${step.index + 1}. ` : '';
+            const shapeCount = step.shapeCount == null ? '' : ` · shapeCount=${step.shapeCount}`;
+            return `${index}${step.fnName || 'operation'}${shapeCount}`;
+        });
+        const formatLine = item => typeof item === 'string' ? item : JSON.stringify(item);
+        const lines = [
+            `执行状态：${result?.success ? '成功' : '存在错误'}`,
+            `代码长度：${String(code || '').length} 字符`,
+            `错误数量：${errors.length}`
+        ];
+        if (recent.length) lines.push(`最近操作：${recent.join('；')}`);
+        if (logs.length) lines.push(`日志：${logs.slice(-12).map(formatLine).join(' | ')}`);
+        if (errors.length) lines.push(`错误：\n${errors.slice(0, 12).map(formatLine).join('\n')}`);
+        if (!result?.success) lines.push('请修正代码后再次调用 write_industrial_code。');
+        return lines.join('\n');
+    }
+
+    async function writeIndustrialCode(args = {}) {
+        const code = stripIndustrialCodeFence(args.value ?? args.code ?? args.content ?? args.script ?? args.text ?? '');
+        if (!code.trim()) throw new Error('write_industrial_code requires the full Cascade Studio JavaScript source in value');
+        const bridge = await prepareIndustrialLab(args.reason);
+        addToolMsg('正在写入 Cascade Studio 建模代码并执行...');
+        const result = await bridge.runCode(code, args.timeoutMs || 120000);
+        if (!result || typeof result !== 'object') throw new Error('Cascade Studio 未返回执行结果');
+        return ok(`Cascade Studio 已执行建模代码。\n${formatIndustrialExecution(result, code)}`, args.reason);
+    }
+
+    async function readIndustrialCode(args = {}) {
+        const bridge = await prepareIndustrialLab(args.reason);
+        const code = await bridge.readCode();
+        return ok(`当前 Cascade Studio 建模代码（${String(code || '').length} 字符）：\n\`\`\`javascript\n${code}\n\`\`\``, args.reason);
+    }
+
+    async function runIndustrialCode(args = {}) {
+        const providedCode = args.value ?? args.code ?? args.content ?? args.script ?? args.text;
+        if (String(providedCode || '').trim()) {
+            return writeIndustrialCode(args);
+        }
+        const bridge = await prepareIndustrialLab(args.reason);
+        addToolMsg('正在执行当前 Cascade Studio 建模代码...');
+        const result = await bridge.evaluate();
+        return ok(`Cascade Studio 已重新执行当前代码。\n${formatIndustrialExecution(result, await bridge.readCode())}`, args.reason);
+    }
+
+    async function industrialStatus(args = {}) {
+        const bridge = await prepareIndustrialLab(args.reason);
+        const status = await bridge.status();
+        return ok([
+            `Cascade Studio 状态：${status.engineReady ? '内核就绪' : '内核加载中'}`,
+            `代码长度：${status.codeLength} 字符`,
+            `历史步骤：${status.historySteps}`,
+            `错误数量：${Array.isArray(status.errors) ? status.errors.length : 0}`
+        ].join('\n'), args.reason);
+    }
+
+    async function industrialReference(args = {}) {
+        const bridge = await prepareIndustrialLab(args.reason);
+        const quickStart = await bridge.getQuickStart();
+        const reference = {
+            workflow: quickStart?.workflow || [],
+            coordinates: quickStart?.coordinates || '',
+            functions: quickStart?.functions || {},
+            strategy: quickStart?.strategy || [],
+            tips: quickStart?.tips || [],
+            pitfalls: quickStart?.pitfalls || [],
+            examples: quickStart?.examples || {}
+        };
+        return ok(`Cascade Studio API 参考：\n${JSON.stringify(reference, null, 2)}`, args.reason);
+    }
+
     async function prepareCircuitLab(reason) {
         navigateSection('electroniclab', reason);
         if (typeof window.ensureCipherModule === 'function') {
@@ -1597,7 +1748,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!args || typeof args !== 'object') return '';
         // 世界生成 / PCB 编码没有元素目标，别让 prompt 或代码被当成 CSS 选择器去 normalize
         if (action === 'generate_world' || action === 'edit_pcb_code' || action === 'read_pcb_code'
-            || action === 'build_circuit' || action === 'read_circuit' || action === 'run_circuit' || action === 'stop_circuit') return '';
+            || action === 'build_circuit' || action === 'read_circuit' || action === 'run_circuit' || action === 'stop_circuit'
+            || action === 'write_industrial_code' || action === 'read_industrial_code' || action === 'run_industrial_code'
+            || action === 'industrial_status' || action === 'industrial_reference') return '';
         const direct = args.target ?? args.selector ?? args.element ?? args.id ?? args.name;
         if (action === 'open_logic_puzzle') return args.puzzle ?? args.logic_puzzle ?? args.logicPuzzle ?? args.puzzle_target ?? args.puzzleTarget ?? direct ?? '';
         if (action === 'open_space_puzzle') {
@@ -1689,7 +1842,31 @@ document.addEventListener('DOMContentLoaded', () => {
             start_circuit: 'run_circuit',
             resume_circuit: 'run_circuit',
             stop_circuit: 'stop_circuit',
-            pause_circuit: 'stop_circuit'
+            pause_circuit: 'stop_circuit',
+            write_industrial_code: 'write_industrial_code',
+            write_cascade_code: 'write_industrial_code',
+            set_cascade_code: 'write_industrial_code',
+            edit_cascade_code: 'write_industrial_code',
+            generate_industrial_code: 'write_industrial_code',
+            industrial_model: 'write_industrial_code',
+            model_industrial: 'write_industrial_code',
+            cascade_model: 'write_industrial_code',
+            read_industrial_code: 'read_industrial_code',
+            read_cascade_code: 'read_industrial_code',
+            get_cascade_code: 'read_industrial_code',
+            show_cascade_code: 'read_industrial_code',
+            run_industrial_code: 'run_industrial_code',
+            execute_industrial_code: 'run_industrial_code',
+            run_cascade_code: 'run_industrial_code',
+            evaluate_cascade_code: 'run_industrial_code',
+            run_modeling_code: 'run_industrial_code',
+            industrial_status: 'industrial_status',
+            cascade_status: 'industrial_status',
+            modeling_status: 'industrial_status',
+            industrial_reference: 'industrial_reference',
+            cascade_reference: 'industrial_reference',
+            cascade_docs: 'industrial_reference',
+            industrial_api: 'industrial_reference'
         };
         return aliases[raw] || aliases[raw.toLowerCase()] || raw;
     }
@@ -2578,9 +2755,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return target && action;
     }
 
+    function isIndustrialCodingIntent(raw, normalized) {
+        const target = /(工业建模|cascade\s*studio|cascade|建模实验室|建模代码|cad|三维模型|3d模型|零件|模型)/i.test(raw);
+        const action = /(建模|建一个|建|做|创建|生成|绘制|画|写|编写|修改|重做|参数化|代码|执行|运行|设计|导出)/.test(raw);
+        return target && action;
+    }
+
     function hasExplicitOperationIntent(raw, normalized) {
         if (isPcbCodingIntent(raw, normalized)) return true;
         if (isCircuitBuildIntent(raw, normalized)) return true;
+        if (isIndustrialCodingIntent(raw, normalized)) return true;
         const operationStarts = [
             '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航到', '去', '点击', '点开', '选择',
             '输入', '填入', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',

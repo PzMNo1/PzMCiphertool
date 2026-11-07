@@ -64,3 +64,12 @@ TEST: 电路板布局出现 PCB，错误 TSX 会在工具消息中报告引擎�
 ↑ modules.js（路由加载）
 ↑ backendconfig.js（API 配置）
 ↑ model/ （如果需要 ChatUI 组件）
+
+### 工业建模代码工具
+- `window.industrialCadBridge` 由 `modelinglab.js` 暴露
+- `write_industrial_code`：写入完整 Cascade Studio JavaScript 并立即执行
+- `read_industrial_code`：读取当前建模代码
+- `run_industrial_code`：重新执行当前代码；传 `value` 时替换后执行
+- `industrial_status`：查看 Cascade Studio 内核、错误和历史步骤状态
+- `industrial_reference`：获取 Cascade Studio API、陷阱与示例
+- 模型与 Agent 之间只传递完整脚本，不传局部 diff
