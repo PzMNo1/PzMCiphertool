@@ -97,6 +97,14 @@ for (const node of expansionNodes) {
         record.evidenceLevel === 'external-description' && record.citation?.url), `${node.name}: missing sourced external record`);
 }
 check(expansionNodes.some(node => node.crossDomain), 'no cross-disciplinary expansion nodes');
+const rawExpansionArticleCount = (expansionStore?.categories || [])
+    .flatMap(category => category.nodes || [])
+    .filter(node => node.article).length;
+const graphExpansionArticleCount = expansionNodes.filter(node => node.article).length;
+check(rawExpansionArticleCount === graphExpansionArticleCount, 'graphData dropped expansion article metadata');
+check(!retrieverSource.includes('DBpedia 条目'), 'DBpedia entry button remains in the node panel');
+check(!retrieverSource.includes('百科正文加载中'), 'node panel still shows a placeholder instead of readable text');
+check(!modulesSource.includes('DBpedia 概念'), 'module guide still mentions DBpedia concepts');
 
 check(modulesSource.includes('./zhishitupu/worldExpansionCorpusLoader.js'), 'modules.js does not load worldExpansionCorpusLoader.js');
 check(Boolean(expansionStore?.meta?.corpus?.file), 'worldExpansion.js has no expansion corpus metadata');

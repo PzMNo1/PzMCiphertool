@@ -207,7 +207,7 @@ function buildWorldTree(store) {
         if (!nameZh || !nameEn) return null;
         const description = sanitizeDisplayText(entry.descriptionZh || entry.descriptionEn || '');
         const citation = {
-            source: 'DBpedia',
+            source: '百科',
             title: nameEn,
             url: entry.sourceUrl || `https://dbpedia.org/page/${entry.resource || ''}`,
             license: 'CC BY-SA 3.0',
@@ -215,12 +215,12 @@ function buildWorldTree(store) {
         };
         const records = [{
             id: `${entry.worldId}:description`,
-            title: 'DBpedia 概念说明',
+            title: '百科摘要',
             content: [
                 entry.descriptionZh ? `中文：${entry.descriptionZh}` : '',
                 entry.descriptionEn ? `English: ${entry.descriptionEn}` : ''
             ].filter(Boolean).join('\n\n'),
-            source: 'DBpedia',
+            source: '百科',
             url: citation.url,
             evidenceLevel: 'external-description',
             evidenceUsability: 'concept-definition',
@@ -230,7 +230,7 @@ function buildWorldTree(store) {
             id: `${entry.worldId}:category`,
             title: '所属领域',
             content: category.name,
-            source: 'DBpedia',
+            source: '百科',
             url: citation.url,
             evidenceLevel: 'source-index',
             citation,
@@ -243,7 +243,7 @@ function buildWorldTree(store) {
             kind: 'expansion',
             color: entry.cross ? 0xff66aa : (category.color || 0x00e5ff),
             description,
-            source: 'DBpedia',
+            source: '百科',
             worldId: entry.worldId,
             qid: '',
             nameZh,
@@ -274,7 +274,7 @@ function buildWorldTree(store) {
             kind: 'category',
             color: category.color || 0x00e5ff,
             description: sanitizeDisplayText(category.description || ''),
-            source: 'DBpedia',
+            source: '百科',
             worldId: category.id,
             qid: '',
             nameZh: category.nameZh || '',
@@ -284,11 +284,11 @@ function buildWorldTree(store) {
                 id: `${category.id}:members`,
                 title: `${category.name} · 概念清单`,
                 content: `${children.length} 个概念：${children.map(node => node.name).join('；')}`,
-                source: 'DBpedia',
+                source: '百科',
                 url: 'https://dbpedia.org/',
                 evidenceLevel: 'source-index',
                 citation: {
-                    source: 'DBpedia',
+                    source: '百科',
                     title: category.nameEn || category.name,
                     url: 'https://dbpedia.org/',
                     license: 'CC BY-SA 3.0',
@@ -445,6 +445,7 @@ function buildGraphData(roots, THEME, prefix) {
             descriptionEn: raw.descriptionEn || '',
             sourceUrl: raw.sourceUrl || '',
             wikiUrl: raw.wikiUrl || '',
+            article: raw.article || null,
             curated: raw.curated === true,
             crossDomain: raw.crossDomain === true,
             knowledgeBase: normalizeGraphKnowledgeBase(raw.knowledgeBase)

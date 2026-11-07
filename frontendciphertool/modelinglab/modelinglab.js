@@ -11,8 +11,8 @@
 
     const VIEWS = {
         industrial: {
-            src: './modelinglab/goneyeyinqing/industrial.html?v=20261030-28',
-            title: '工业建模工作台',
+            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-57',
+            title: '工业建模 · Cascade Studio',
             tab: '工业建模'
         },
         world: {
@@ -78,6 +78,7 @@
                         data-view-frame="${key}"
                         data-src="${view.src}"
                         title="${view.title}"
+                        allow="fullscreen; clipboard-read; clipboard-write"
                         allowfullscreen
                         style="display:${active ? 'block' : 'none'}">
                     </iframe>`;
@@ -258,3 +259,8 @@
 
     window.initModelingLab = initModelingLab;
 })();
+
+
+
+
+

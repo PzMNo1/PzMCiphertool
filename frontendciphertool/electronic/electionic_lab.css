@@ -334,13 +334,13 @@ iframe#circuit-frame {
     display: block;
 }
 
-/* ---- 手机/窄屏：收起大标题，子模块按钮改为底部圆形拨盘 ---- */
+/* ---- 手机/窄屏：收起大标题，子模块按钮悬浮在 iframe 右下角 ---- */
 @media (max-width: 900px) {
     #electroniclab-content {
         padding-top: 72px;
         padding-left: 0;
         padding-right: 0;
-        padding-bottom: 92px;
+        padding-bottom: 0;
     }
 
     #electroniclab-content .electronic-module-header {
@@ -358,97 +358,113 @@ iframe#circuit-frame {
 
     #electroniclab-content .electronic-submodule-nav {
         position: fixed;
-        left: 50%;
-        right: auto;
+        left: auto;
+        right: calc(env(safe-area-inset-right, 0px) + 8px);
         top: auto;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-        transform: translateX(-50%);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+        transform: none;
         display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        gap: clamp(0.7rem, 4vw, 1.4rem);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
         width: auto;
-        padding: 0;
+        padding: 4px;
+        border: 1px solid rgba(64, 224, 255, 0.22);
+        border-radius: 12px;
+        background: linear-gradient(155deg, rgba(4, 22, 40, 0.78), rgba(2, 8, 18, 0.66));
+        box-shadow:
+            0 10px 26px rgba(0, 0, 0, 0.45),
+            inset 0 0 14px rgba(64, 224, 255, 0.06);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
         z-index: 60;
         pointer-events: none;
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn {
-        width: clamp(58px, 17vw, 68px);
-        height: clamp(58px, 17vw, 68px);
+        width: 76px;
+        height: 34px;
         min-width: 0;
-        padding: 0.3rem 0.2rem;
-        border-radius: 50%;
+        padding: 0 8px 0 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
         clip-path: none;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         justify-content: center;
         align-items: center;
-        font-size: 0.72rem;
-        letter-spacing: 0;
-        line-height: 1.1;
-        transform: rotate(-6deg);
-        transform-origin: 50% 100%;
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
+        line-height: 1;
+        transform: none;
+        transform-origin: center;
+        background: transparent;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
         pointer-events: auto;
-        backdrop-filter: blur(8px);
-    }
-
-    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:nth-child(2) {
-        transform: rotate(6deg);
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn::before {
-        inset: 6px;
-        width: auto;
-        height: auto;
-        border: 1px solid rgba(64, 224, 255, 0.28);
-        border-radius: 50%;
-        opacity: 0.55;
+        inset: auto;
+        top: 50%;
+        left: 4px;
+        width: 2px;
+        height: 12px;
+        border: 0;
+        border-radius: 2px;
+        background: rgba(64, 224, 255, 0.35);
+        opacity: 1;
+        transform: translateY(-50%);
+        box-shadow: none;
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn::after {
-        right: auto;
-        left: 50%;
-        bottom: 7px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: rgba(64, 224, 255, 0.55);
-        color: transparent;
-        font-size: 0;
-        letter-spacing: 0;
-        transform: translateX(-50%);
+        display: none;
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:hover {
-        transform: rotate(-6deg) translateY(-3px) scale(1.03);
+        transform: none;
+        border-color: rgba(64, 224, 255, 0.32);
+        background: rgba(64, 224, 255, 0.1);
+        color: #fff;
+        box-shadow: none;
     }
 
-    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:nth-child(2):hover {
-        transform: rotate(6deg) translateY(-3px) scale(1.03);
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:hover::before {
+        width: 2px;
+        height: 14px;
+        border: 0;
+        background: rgba(64, 224, 255, 0.7);
+        box-shadow: 0 0 8px rgba(64, 224, 255, 0.6);
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:active {
+        transform: scale(0.96);
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn.active {
-        transform: rotate(-6deg) scale(1.06);
-        border-color: rgba(64, 224, 255, 0.72);
-        background: rgba(64, 224, 255, 0.16);
+        transform: none;
+        border-color: rgba(64, 224, 255, 0.45);
+        background: linear-gradient(135deg, rgba(64, 224, 255, 0.22), rgba(64, 224, 255, 0.06));
         color: #fff;
-        box-shadow:
-            0 0 22px rgba(64, 224, 255, 0.32),
-            inset 0 0 18px rgba(64, 224, 255, 0.22);
+        text-shadow: 0 0 12px rgba(64, 224, 255, 0.7);
+        box-shadow: inset 0 0 12px rgba(64, 224, 255, 0.16);
     }
 
-    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:nth-child(2).active {
-        transform: rotate(6deg) scale(1.06);
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn.active::before {
+        height: 16px;
+        background: #40e0ff;
+        box-shadow: 0 0 8px rgba(64, 224, 255, 0.9);
     }
 
     #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn-label {
-        font-size: clamp(0.62rem, 2.6vw, 0.74rem);
-        line-height: 1.08;
-        letter-spacing: 0;
-        white-space: normal;
-        word-break: break-all;
-        text-shadow: 0 0 10px rgba(64, 224, 255, 0.5);
+        font-size: 0.7rem;
+        line-height: 1.05;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        word-break: keep-all;
+        text-shadow: inherit;
     }
 
     #electroniclab-content .loading-mask {
@@ -460,5 +476,15 @@ iframe#circuit-frame {
 
     #electroniclab-content .loading-mask i {
         font-size: 1.4rem;
+    }
+}
+
+/* 横屏矮视口：右侧一列全是 CircuitJS 控件，切换按钮改停在顶部留白区 */
+@media (max-width: 900px) and (max-height: 480px) {
+    #electroniclab-content .electronic-submodule-nav {
+        top: calc(env(safe-area-inset-top, 0px) + 10px);
+        bottom: auto;
+        flex-direction: row;
+        align-items: center;
     }
 }

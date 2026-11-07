@@ -2211,7 +2211,7 @@ class ChatUI {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'agent-pdf-btn';
-        button.textContent = '导出 PDF';
+        button.textContent = '下载 PDF';
         const status = document.createElement('span');
         status.className = 'agent-pdf-status';
         bar.appendChild(button);
@@ -2222,12 +2222,13 @@ class ChatUI {
     }
 
     pdfTitleFor(content) {
+        const heading = content?.querySelector('h1, h2, h3');
+        const headingTitle = String(heading?.textContent || '').replace(/\s+/g, ' ').trim();
+        if (headingTitle) return headingTitle.slice(0, 60);
         const chatId = window.historyManager?.getCurrentChatId?.();
         const history = window.historyManager?.getChatHistory?.() || {};
         const chatTitle = String(history[chatId]?.title || '').trim();
-        if (chatTitle) return chatTitle.slice(0, 60);
-        const heading = content?.querySelector('h1, h2, h3');
-        return String(heading?.textContent || '').trim().slice(0, 60);
+        return chatTitle.slice(0, 60);
     }
 
     async exportPdf(bar) {
@@ -2237,21 +2238,26 @@ class ChatUI {
         const contentEl = messageEl?.querySelector('.message-text');
         if (!contentEl || !window.agentReportPdf) return;
 
-        // 生成要几秒，先把空白页开在用户点击的手势里，避免异步之后被拦截
-        const previewWindow = window.open('', '_blank');
+        const title = this.pdfTitleFor(contentEl);
         if (button) button.disabled = true;
-        if (status) status.textContent = '生成中…';
+        if (status) status.textContent = '准备生成…';
 
         try {
-            const result = await window.agentReportPdf.exportAndOpen(contentEl, {
-                title: this.pdfTitleFor(contentEl),
-                filename: (this.pdfTitleFor(contentEl) || 'PzM Agent 报告') + '.pdf',
-                window: previewWindow
+            const result = await window.agentReportPdf.exportAndDownload(contentEl, {
+                title,
+                filename: (title || 'PzM Agent 报告') + '.pdf',
+                onProgress: progress => {
+                    if (!status) return;
+                    if (progress.phase === 'loading') status.textContent = '加载 PDF 组件…';
+                    else if (progress.phase === 'render') {
+                        const percent = progress.total ? Math.round(progress.current / progress.total * 100) : 0;
+                        status.textContent = `排版中 ${percent}%`;
+                    } else if (progress.phase === 'finalize') status.textContent = '正在生成下载…';
+                }
             });
-            if (status) status.textContent = `${result.pageCount} 页 · 已打开`;
+            if (status) status.textContent = `${result.pageCount} 页 · 已下载`;
         } catch (error) {
-            if (previewWindow && !previewWindow.closed) previewWindow.close();
-            if (status) status.textContent = '导出失败：' + (error?.message || error);
+            if (status) status.textContent = '下载失败：' + (error?.message || error);
         } finally {
             if (button) button.disabled = false;
         }

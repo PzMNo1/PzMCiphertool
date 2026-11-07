@@ -279,7 +279,7 @@ const MODULES = {
                     <div><span class="key">SCROLL</span> ZOOM 缩放</div>
                     <div><span class="key">CLICK</span> FOCUS 聚焦</div>
                 </div>
-                <div style="margin-top: 10px; font-size: 10px; line-height: 1.6; color: rgba(124, 247, 255, 0.62); letter-spacing: 0.5px;">由内向外：知识大陆 → 分类 → 条目 / DBpedia 概念<br>默认只看结构，右上角可显示全部节点<br>粉色节点为跨学科概念，方向键切换六个正交视角</div>
+                <div style="margin-top: 10px; font-size: 10px; line-height: 1.6; color: rgba(124, 247, 255, 0.62); letter-spacing: 0.5px;">由内向外：知识大陆 → 分类 → 百科条目<br>默认只看结构，右上角可显示全部节点<br>粉色节点为跨学科概念，方向键切换六个正交视角</div>
                 <div style="margin-top: 15px; font-size: 10px; color: #4a6; letter-spacing: 1px;">● SYSTEM ONLINE</div>
             </div>
         </div>
@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './spacepuzzle/spacepuzzlebatch.js',
         ],
         jianmoshiyanshi: [
-            './modelinglab/modelinglab.js',
+            './modelinglab/modelinglab.js?v=20261104-57',
         ],
         electroniclab: [
             './electronic/circuit_builder.js',
@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261030-35';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261104-14';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -842,4 +842,5 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     );
 });
+
 

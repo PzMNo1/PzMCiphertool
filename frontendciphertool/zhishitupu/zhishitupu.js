@@ -63,12 +63,20 @@ async function initKnowledgeGraph() {
     try {
         if (window.WORLD_CORPUS_READY) {
             if (loader) loader.innerText = '正在加载本地世界知识正文...';
-            await window.WORLD_CORPUS_READY;
+            try {
+                await window.WORLD_CORPUS_READY;
+            } catch (error) {
+                console.warn('[知识图谱] 本地世界知识正文不可用，继续加载图谱:', error);
+            }
             if (loader) loader.innerText = '正在装配世界知识图谱...';
         }
         if (window.WORLD_EXPANSION_CORPUS_READY) {
-            if (loader) loader.innerText = '正在加载维基百科扩展正文...';
-            await window.WORLD_EXPANSION_CORPUS_READY;
+            if (loader) loader.innerText = '正在加载百科扩展正文...';
+            try {
+                await window.WORLD_EXPANSION_CORPUS_READY;
+            } catch (error) {
+                console.warn('[知识图谱] 扩展百科正文不可用，继续加载图谱:', error);
+            }
             if (loader) loader.innerText = '正在装配世界知识图谱...';
         }
         if (!document.getElementById('sci-fi-font')) {
@@ -1816,22 +1824,31 @@ function renderGraph(container) {
         const article = node.article || null;
         const corpus = article ? getExpansionArticle(node) : null;
         const paragraphs = (corpus && corpus.chunks ? corpus.chunks : []);
-        const articleHtml = article ? `
+        const summaryParagraphs = [
+            descriptionZh,
+            descriptionEn && descriptionEn !== descriptionZh ? `English: ${descriptionEn}` : ''
+        ].filter(Boolean);
+        const paragraphTexts = paragraphs.length
+            ? paragraphs.map(chunk => chunk && chunk.text || '').filter(Boolean)
+            : summaryParagraphs;
+        const hasArticleBody = paragraphTexts.length > 0 && paragraphs.length > 0;
+        const bodyTitle = hasArticleBody && article && article.title
+            ? `百科正文《${escapeHtml(article.title)}》`
+            : '百科简介';
+        const articleHtml = `
                 <section class="zstp-kb-record">
-                    <h4>百科条目《${escapeHtml(article.title || '')}》</h4>
-                    ${paragraphs.length
-                        ? paragraphs.map(chunk => `<p class="zstp-world-prose">${escapeHtml(chunk.text || '')}</p>`).join('')
-                        : '<p class="zstp-vault-empty">百科正文加载中…</p>'}
-                </section>` : '';
-        const provenance = article
-            ? `来源：Wikipedia · ${escapeHtml(article.license || 'CC BY-SA 4.0')} · 修订 ${escapeHtml(String(article.revision || '—'))} · 由 compileWorldExpansion.js 生成`
-            : '来源：DBpedia · CC BY-SA 3.0 · 由 compileWorldExpansion.js 生成';
+                    <h4>${bodyTitle}</h4>
+                    ${paragraphTexts.length
+                        ? paragraphTexts.map(paragraph => `<p class="zstp-world-prose">${escapeHtml(paragraph)}</p>`).join('')
+                        : '<p class="zstp-vault-empty">暂无可用百科简介。</p>'}
+                </section>`;
+        const provenance = hasArticleBody
+            ? `来源：百科 · ${escapeHtml(article.license || 'CC BY-SA 4.0')} · 修订 ${escapeHtml(String(article.revision || '—'))} · 由 compileWorldExpansion.js 生成`
+            : '来源：本地知识图谱离线摘要';
         return `
             <section class="zstp-world">
                 <div class="zstp-world-entity">
                     <div class="zstp-world-label">${escapeHtml(node.nameZh || '')} ${escapeHtml(node.nameEn || '')}</div>
-                    ${descriptionZh ? `<p class="zstp-world-desc">${escapeHtml(descriptionZh)}</p>` : ''}
-                    ${descriptionEn ? `<p class="zstp-world-aliases">${escapeHtml(descriptionEn)}</p>` : ''}
                 </div>
                 <div class="zstp-vault-tags">${tags.map(tag =>
                     `<span class="zstp-vault-tag">${escapeHtml(tag)}</span>`
@@ -1841,10 +1858,7 @@ function renderGraph(container) {
                     <h4>跨学科关联 (${neighbors.length})</h4>
                     ${neighborHtml}
                 </section>
-                <div class="zstp-world-sources">
-                    <a class="zstp-vault-link" href="${escapeHtml(node.sourceUrl)}" target="_blank" rel="noopener">DBpedia 条目</a>
-                    ${article ? `<a class="zstp-vault-link" href="${escapeHtml(article.url || '')}" target="_blank" rel="noopener">维基百科条目</a>` : ''}
-                </div>
+                ${article && article.url ? `<div class="zstp-world-sources"><a class="zstp-vault-link" href="${escapeHtml(article.url)}" target="_blank" rel="noopener">查看百科条目</a></div>` : ''}
                 <p class="zstp-world-provenance">${provenance}</p>
             </section>
         `;
@@ -1919,7 +1933,7 @@ function renderGraph(container) {
             const paragraphs = Number(node.article && node.article.paragraphs) || 0;
             showPreview(
                 node.name,
-                `${(context.path || []).join(' > ')} · ${paragraphs ? `百科正文 ${paragraphs} 段` : 'DBpedia 概念'}`,
+                `${(context.path || []).join(' > ')} · ${paragraphs ? `百科正文 ${paragraphs} 段` : '百科简介'}`,
                 renderExpansionKnowledgeSection(node)
             );
             return;
