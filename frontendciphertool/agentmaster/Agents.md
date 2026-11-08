@@ -86,3 +86,22 @@ TEST: 电路板布局出现 PCB，错误 TSX 会在工具消息中报告引擎�
 - 语音为长按开始、再次点击结束并发送；结束后不会因 pointerup 自动停止。
 - 识别到的 interim transcript 会实时填入输入框；aborted 且已有文本时仍继续发送，不再显示原始 aborted 错误。
 - 外部 `.agent-suggestions` 常驻隐藏；会话打开或结束后在聊天记录内渲染 `.agent-inline-suggestions`，发送消息或输入文字时移除。
+
+### harness v2: native tools, domain briefs, structured repair gates, reasoning display, X-Agent-Turn dedupe.
+
+## Harness v2
+- Native tool calls are enabled by default; `AGENTMASTER_USE_NATIVE_TOOLS=false` opts out.
+- Each user turn gets a domain brief for industrial CAD, circuit, or PCB tasks.
+- Tool results are structured objects; `mustRepair`, `errors`, and `issues` trigger repair rounds.
+- At most 3 tool rounds plus 1 final no-tool synthesis. All requests in one turn share `X-Agent-Turn`.
+- Industrial validation checks IIFE/final-expression structure and requested components.
+- Circuit validation inspects warnings and LED current readings for reverse bias or insufficient current.
+- `reasoning_content` is rendered as a collapsible thinking panel when the provider returns it.
+
+- reasoning_content streams into a one-line details ticker with a right-edge mask; no static 'think process' summary remains.
+
+### harness v2.1 simplification
+- Tool success now finalizes locally; no extra model call or extra thinking round.
+- Max 2 tool rounds plus one final fallback.
+- Removed dynamic domain briefs, semantic industrial audits, and temperature/max-token overrides.
+- Tool metadata is reduced to success/mustRepair for repair routing; UI still receives readable strings.

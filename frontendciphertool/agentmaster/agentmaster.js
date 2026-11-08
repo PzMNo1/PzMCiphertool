@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             // Anonymous fallback.
         }
+        if (currentUsageTurnId) headers['X-Agent-Turn'] = currentUsageTurnId;
         return headers;
     }
 
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const windowAgent = createBrowserWorkspaceAgent();
     let isChatActive = false;
     let isSending = false;
+    let currentUsageTurnId = '';
     let inlineSuggestionsEl = null;
     let showSuggestionsOnNextOpen = true;
     let industrialIntentContextUntil = 0;
@@ -84,8 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code, build_circuit, read_circuit, run_circuit, stop_circuit, write_industrial_code, read_industrial_code, run_industrial_code, industrial_status, industrial_reference.',
                 'Never invent action names. Use switch_submodule for cipher tabs, switch_contact_submodule for 联系我们 subpages, open_logic_puzzle for logic puzzles such as 数独/Sudoku, open_space_puzzle for space puzzles such as Skewb, set_value for filling inputs, and click for ordinary buttons.',
                 'Use generate_world when the user asks to create or generate a 3D world / scene / environment with the world model (世界模型, Marble, 世界生成, 生成场景, 文生世界). Put the scene description in the "prompt" argument. Set "confirm" to true to only fill the description and wait for the user to press 生成世界; omit it and the generation starts immediately.',
-                'Use build_circuit to build or replace the circuit in 电子实验室 → 电路模拟. Pass a circuit object like {"title":"5V LED 指示灯","components":[{"type":"dc_source","name":"V1","from":"VCC","to":"GND","value":"5V"},{"type":"resistor","name":"R1","from":"VCC","to":"N1","value":"1k"},{"type":"led","name":"D1","from":"N1","to":"GND"}]}. Supported types: dc_source, ac_source, square_source, triangle_source, sawtooth_source, resistor, capacitor, inductor, diode, led, switch, current_source, wire, ground. Values accept SI suffixes (1k, 4.7k, 100nF, 10mH, 5V, 2mA). Net names are arbitrary; for LED/diode use from=anode and to=cathode; for sources use from=positive and to=negative. The tool auto-places, routes, adds a ground when missing, starts the simulation, and returns live readings. Inspect the readings and fix reverse-biased or disconnected parts before answering.',
+                'Use build_circuit to build or replace the circuit in 电子实验室 → 电路模拟. Pass a circuit object like {"title":"5V LED 指示灯","components":[{"type":"dc_source","name":"V1","from":"VCC","to":"GND","value":"5V"},{"type":"resistor","name":"R1","from":"VCC","to":"N1","value":"1k"},{"type":"led","name":"D1","from":"N1","to":"GND"}]}. Supported types: dc_source, ac_source, square_source, triangle_source, sawtooth_source, resistor, capacitor, inductor, diode, led, switch, current_source, wire, ground. For switch use state:"closed" or state:"open"; do not put closed/open into value. Values accept SI suffixes (1k, 4.7k, 100nF, 10mH, 5V, 2mA). Net names are arbitrary; for LED/diode use from=anode and to=cathode; for sources use from=positive and to=negative. The tool auto-places, routes, adds a ground when missing, starts the simulation, and returns live readings. Inspect the readings and fix reverse-biased or disconnected parts before answering.',
                 'Use read_circuit to inspect the circuit currently shown in 电路模拟, run_circuit to start it, and stop_circuit to pause it. When the user asks to design a circuit, produce the complete component list in one build_circuit call instead of narrating steps.',
+                'For switch components use state:"closed" or state:"open" (or closed:true/false); do not use value:"closed" for switches. If a tool reports an unsupported value, correct the component fields and call build_circuit again.',
                 'Use edit_pcb_code to write or replace the TSX code in 电子实验室 → 电路板布局 left panel. Put the complete main.tsx in "value" and keep run=true (default) so the engine re-renders. The action opens the section and expands the code sidebar automatically.',
                 'Use read_pcb_code before reviewing or modifying the board currently shown in the left panel; edit_pcb_code replaces the whole file, so preserve the user changes you still need.',
                 'When generating PCB TSX, follow DFX/DFM: declare the board size, place connectors at the board edge, add mounting holes/fiducials/test points, put decoupling caps next to power pins, label silkscreen, use explicit pcbX/pcbY for placement and schX/schY for a clean schematic, keep signal traces about 0.25mm and power traces 0.5mm or wider, and keep every component inside the board outline.',
@@ -103,6 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Cascade Studio API summary: Box(x,y,z,centered?), Sphere(r), Cylinder(r,h,centered?), Cone(r1,r2,h), Circle(r,wire?), Polygon(points,wire?), new Sketch([x,y], plane?).LineTo([x,y]).Fillet(r).End(true).Face(), Extrude(face,[dx,dy,dz],keepFace?), Revolve(face,degrees,[axis]?), Loft([wires]), Pipe(shape,wirePath), Union(shapes), Difference(mainBody,[tools]), Intersection(shapes), Translate([x,y,z],shape), Rotate([ax,ay,az],degrees,shape), FilletEdges(shape,radius,edgeIndices), ChamferEdges(shape,distance,edgeIndices), Edges(shape).max([axis]).indices(), Volume(shape). Transforms return NEW shapes, so capture the return value. Difference takes an array of tool shapes.',
                 'Cascade Studio coordinates: X=right, Y=depth, Z=up; extrusion [0,0,z] is vertical; Revolve defaults around Z. A minimal example is: let base = Box(80,60,20,true); let hole = Translate([0,0,-10], Cylinder(12,40)); Difference(base, [hole]);',
                 'For industrial modeling requests, do not merely describe the CAD steps. Call write_industrial_code with a complete script, read the execution result, and iterate until success. Reply to the user only after the tool result is known.',
+                'You are running inside a multi-step agent harness. After every tool call, the runtime will send you the authoritative tool result. If the result contains errors or clearly does not satisfy the request, repair it and call the tool again; do not claim success before checking the result.',
+                'For industrial modeling, first plan dimensions, axes and part hierarchy. For multi-part assemblies, wrap construction inside an IIFE so intermediate shapes are not rendered separately: const finalModel = (() => { const body = Box(...); const wheel = Rotate([1,0,0], 90, Cylinder(...)); return Union([body, ...wheels]); })(); finalModel; Do not leave multiple top-level component variables as separate scene objects.',
+                'Car modeling checklist: body, cabin, four wheels, lights, and final Union must all be present; wheels use Cylinder and Rotate around X; return one final assembled variable. Gear checklist: tooth profile, circular array, hub, bore, and final Union/Difference result; return one final variable. After execution inspect historySteps and logs; if only components appear or operations are missing, fix and rerun.',
                 'World generation is a long-running job (about 5 minutes) and consumes paid API credits, so for vague or very short requests prefer filling the prompt first instead of starting generation immediately.',
                 'Available section targets: jiamishiyanshi, electroniclab, jianmoshiyanshi, workflow, zhishitupu, damoxing, apizhongzhuanzhan, mcpskilllab, yijianfankui.',
                 'Sidebar label 建模实验室 means section target jianmoshiyanshi. Sidebar label Agent means section target damoxing. 插件实验室 means section target mcpskilllab. Do not map 建模实验室 requests to damoxing.',
@@ -507,6 +513,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const scrollDown = () => setTimeout(() => history.scrollTo({ top: history.scrollHeight, behavior: 'smooth' }), 10);
 
+    function setAiMessageBody(msgEl, html) {
+        const body = msgEl?.querySelector?.('.agent-ai-content');
+        if (body) {
+            body.innerHTML = html;
+            renderMath(body, true);
+            return;
+        }
+        if (!msgEl) return;
+        msgEl.innerHTML = html;
+        renderMath(msgEl, true);
+    }
+
     function hideExternalSuggestions() {
         suggestions?.classList.add('hidden');
     }
@@ -894,6 +912,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeLoadingEl === loader) activeLoadingEl = null;
             }
             isSending = false;
+            currentUsageTurnId = '';
+            if (isChatActive && !textarea.value.trim()) {
+                showSuggestionsOnNextOpen = true;
+                showInlineSuggestions();
+            }
         }
     }
 
@@ -907,6 +930,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addMsg('user', text);
         messages.push({ role: 'user', content: text });
+        if (isIndustrialModelingRequest(text)) {
+            industrialIntentContextUntil = Date.now() + INDUSTRIAL_INTENT_CONTEXT_MS;
+        }
 
         const fastResult = await tryRunFastCommand(text);
         if (fastResult) {
@@ -930,62 +956,169 @@ document.addEventListener('DOMContentLoaded', () => {
             if (handled) return;
         }
 
-        // 原生工具模式下始终挂载页面工具，由模型按系统提示词自主决定是否调用；
-        // 关键词预闸仅保留给 inline-block fallback 模式（防注入必需）。
         const allowAgentTools = AGENT_USE_NATIVE_TOOLS ? true : shouldAllowAgentTools(text);
+        const MAX_TOOL_STEPS = 2;
+        const maxHarnessSteps = allowAgentTools ? MAX_TOOL_STEPS + 1 : 1;
+        const workingMessages = buildRequestMessages(buildConversationMessages(), allowAgentTools);
+        let finalReply = '';
+        let repairPending = false;
+
+        currentUsageTurnId = `agentmaster-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
         setLoader(showLoading('正在思考…'));
 
+        const clipHarnessResult = (value, maxChars = 8000) => {
+            const text = String(value || '');
+            return text.length > maxChars ? `${text.slice(0, maxChars)}\n…[工具结果已截断]` : text;
+        };
+        const describeToolCall = (call) => {
+            try {
+                const args = JSON.parse(call.arguments || '{}');
+                return args.action ? `${call.name}:${args.action}` : call.name;
+            } catch (error) {
+                return call.name || 'tool';
+            }
+        };
+        const describeInlineAction = (action) => {
+            return action?.arguments?.action || action?.name || 'tool';
+        };
+        const serializeActionArguments = (toolCalls, inlineActions) => {
+            const parts = [];
+            toolCalls.forEach(call => parts.push(`${call.name}(${clipHarnessResult(call.arguments, 3000)})`));
+            inlineActions.forEach(action => parts.push(`${action.name} ${clipHarnessResult(JSON.stringify(action.arguments || {}), 3000)}`));
+            return parts.join('\n');
+        };
+
         try {
-            const payload = {
-                messages: buildRequestMessages(buildConversationMessages(), allowAgentTools),
-                stream: true
-            };
-            if (AGENT_MODEL) payload.model = AGENT_MODEL;
+            for (let step = 0; step < maxHarnessSteps; step += 1) {
+                const canUseTools = allowAgentTools && step < MAX_TOOL_STEPS;
+                let requestMessages = workingMessages;
+                if (!canUseTools && allowAgentTools) {
+                    requestMessages = buildRequestMessages(workingMessages, false);
+                    requestMessages.push({
+                        role: 'user',
+                        content: [
+                            '[AGENT HARNESS — FINAL STEP]',
+                            'Stop calling tools now. Use the tool results already available above to answer the user in Chinese.',
+                            'If the task is complete, state the result briefly. If it is not complete, state the exact remaining error or limitation and what was produced so far.',
+                            'Do not repeat the full code or raw tool output.'
+                        ].join('\n')
+                    });
+                }
 
-            const tools = [];
-            if (AGENT_USE_NATIVE_TOOLS && allowAgentTools) tools.push(uiActionTool, browserActionTool);
-            if (tools.length) payload.tools = tools;
+                setLoadingLabel(step === 0 ? '正在思考…' : (canUseTools ? '正在检查执行结果…' : '正在整理最终回答…'));
+                const tools = [];
+                if (AGENT_USE_NATIVE_TOOLS && canUseTools) tools.push(uiActionTool, browserActionTool);
+                const payload = {
+                    messages: requestMessages,
+                    stream: true
+                };
+                if (AGENT_MODEL) payload.model = AGENT_MODEL;
+                if (tools.length) payload.tools = tools;
 
-            const res = await fetch(AGENT_API_URL, {
-                method: 'POST',
-                headers: buildUsageHeaders(),
-                body: JSON.stringify(payload)
-            });
+                const res = await fetch(AGENT_API_URL, {
+                    method: 'POST',
+                    headers: buildUsageHeaders(),
+                    body: JSON.stringify(payload)
+                });
 
-            if (!res.ok) {
-                const errorText = await res.text().catch(() => '');
-                const detail = errorText ? `\n\n${errorText.slice(0, 500)}` : '';
-                addMsg('ai', `**[Error]** API request failed: ${res.status}${detail}`);
-                rememberAssistant(`上一轮请求失败（HTTP ${res.status}），没有拿到回答。${errorText ? `上游返回：${errorText.slice(0, 300)}` : ''}`);
-                return;
-            }
+                if (!res.ok) {
+                    const errorText = await res.text().catch(() => '');
+                    const detail = errorText ? `\n\n${errorText.slice(0, 500)}` : '';
+                    addMsg('ai', `**[Error]** API request failed: ${res.status}${detail}`);
+                    rememberAssistant(`上一轮请求失败（HTTP ${res.status}），没有拿到回答。${errorText ? `上游返回：${errorText.slice(0, 300)}` : ''}`);
+                    return;
+                }
 
-            const { reply, reasoning, toolCalls, inlineActions, msgEl } = await readStream(res, allowAgentTools);
+                const { reply, reasoning, toolCalls, inlineActions, msgEl } = await readStream(res, canUseTools);
+                const activeToolCalls = canUseTools ? toolCalls : [];
+                const activeInlineActions = canUseTools ? inlineActions : [];
+                const hasActions = activeToolCalls.length > 0 || activeInlineActions.length > 0;
 
-            if (toolCalls.length > 0 || inlineActions.length > 0) {
-                setLoadingLabel('正在执行操作…');
-                const executed = [
-                    ...await executeToolCalls(toolCalls),
-                    ...(allowAgentTools ? await executeInlineActions(inlineActions) : [])
-                ];
-                if (!reply) {
-                    const summary = executed.filter(Boolean).join('\n');
-                    const firstLine = (executed.find(Boolean) || 'Action completed.').split('\n')[0];
-                    if (msgEl) {
-                        const label = firstLine.length > 240 ? firstLine.slice(0, 240) + '…' : firstLine;
-                        msgEl.innerHTML = fmt(label) + '<p>详细结果见上方工具消息。</p>';
+                if (!hasActions) {
+                    if (repairPending && canUseTools && step < maxHarnessSteps - 1) {
+                        setAiMessageBody(msgEl, '<p>校验未通过，正在继续修复...</p>');
+                        addToolMsg('Harness 校验未通过：要求模型继续调用工具修复，本轮文字答复不作为最终结果。');
+                        workingMessages.push({
+                            role: 'assistant',
+                            content: reply || '[AGENT HARNESS] 模型没有调用修复工具。'
+                        });
+                        workingMessages.push({
+                            role: 'user',
+                            content: '[AGENT HARNESS — REPAIR REQUIRED] 上一轮工具结果未通过校验，不能直接结束。请立即调用合适的工具修复问题；不要只给解释或最终答复。'
+                        });
+                        continue;
                     }
-                    rememberAssistant(summary || 'Action completed.');
+                    finalReply = String(reply || '').trim();
+                    if (!finalReply) {
+                        finalReply = emptyReplyNote(reasoning);
+                        setAiMessageBody(msgEl, fmt(finalReply));
+                    }
+                    rememberAssistant(finalReply);
+                    break;
                 }
-                if (!allowAgentTools && inlineActions.length > 0) {
-                    addToolMsg('已忽略页面操作：当前消息被识别为普通问答。');
+
+                setLoadingLabel('正在执行操作…');
+                const nativeResults = await executeToolCalls(activeToolCalls);
+                const inlineResults = await executeInlineActions(activeInlineActions);
+                const resultObjects = [...nativeResults, ...inlineResults].filter(Boolean);
+                const executed = resultObjects
+                    .map(result => typeof result === 'string' ? result : (result.message || JSON.stringify(result)))
+                    .filter(Boolean);
+                const mustRepair = resultObjects.some(result => result
+                    && typeof result === 'object'
+                    && (result.success === false || result.mustRepair === true));
+                repairPending = mustRepair;
+
+                const actionLabels = [
+                    ...activeToolCalls.map(describeToolCall),
+                    ...activeInlineActions.map(describeInlineAction)
+                ];
+                const actionText = actionLabels.join('、') || '工具调用';
+                const argumentText = serializeActionArguments(activeToolCalls, activeInlineActions);
+
+                const firstLines = executed
+                    .map(text => String(text).split('\n').find(line => line.trim()))
+                    .filter(Boolean);
+                if (!reply && msgEl) {
+                    const firstLine = (firstLines[0] || 'Action completed.');
+                    const label = firstLine.length > 240 ? firstLine.slice(0, 240) + '…' : firstLine;
+                    setAiMessageBody(msgEl, fmt(label) + '<p>详细结果见上方工具消息。</p>');
+                }
+                if (!mustRepair) {
+                    finalReply = String(reply || '').trim() || firstLines.join('；') || `已完成：${actionText}`;
+                    rememberAssistant(finalReply);
+                    break;
+                }
+
+                workingMessages.push({
+                    role: 'assistant',
+                    content: reply || `[AGENT HARNESS] 已调用工具：${actionText}\n${argumentText}`
+                });
+                workingMessages.push({
+                    role: 'user',
+                    content: [
+                        mustRepair ? '[AGENT HARNESS — REPAIR REQUIRED]' : '[AGENT HARNESS — TOOL RESULTS]',
+                        `已执行：${actionText}`,
+                        '工具结果：',
+                        clipHarnessResult(executed.join('\n\n---\n\n') || '没有返回工具结果。'),
+                        '',
+                        mustRepair
+                            ? '校验器判定本轮结果仍不合格。必须继续调用工具修正；不要给用户最终完成答复。'
+                            : '请检查结果是否真正完成了用户目标。',
+                        '如果 success=false、errors 非空、issues 非空、数值或参数不支持、建模层级或尺寸明显不对，必须继续调用工具修正；不要声称成功。',
+                        '如果结果成功且满足目标，直接用中文给用户一个简短最终答复，不要重复完整代码。'
+                    ].join('\n')
+                });
+
+                if (step === MAX_TOOL_STEPS - 1) {
+                    setLoadingLabel('正在整理最终回答…');
                 }
             }
 
-            if (reply) {
-                rememberAssistant(reply);
-            } else if (!toolCalls.length && !inlineActions.length) {
-                rememberAssistant(emptyReplyNote(reasoning));
+            if (!finalReply) {
+                const fallback = '工具已执行，但模型没有在自动复查阶段返回最终说明。请查看上方工具结果；如果仍不符合预期，回复 继续 让我重新检查。';
+                addMsg('ai', fallback);
+                rememberAssistant(fallback);
             }
         } catch (err) {
             addMsg('ai', `**[Network Error]** ${err.message}`);
@@ -1096,6 +1229,40 @@ document.addEventListener('DOMContentLoaded', () => {
         let reply = '', buf = '', reasoning = '';
         const toolCalls = [];
         const msgDiv = addMsg('ai', '');
+        msgDiv.innerHTML = '';
+        const contentEl = document.createElement('div');
+        contentEl.className = 'agent-ai-content';
+        msgDiv.appendChild(contentEl);
+        let thinkingEl = null;
+        let thinkingPreview = null;
+        let thinkingBody = null;
+
+        const ensureThinking = () => {
+            if (thinkingEl) return;
+            thinkingEl = document.createElement('details');
+            thinkingEl.className = 'agent-thinking';
+            thinkingEl.dataset.streaming = 'true';
+            thinkingEl.innerHTML = [
+                '<summary class="agent-thinking-head">',
+                '<span class="agent-thinking-arrow" aria-hidden="true">▸</span>',
+                '<span class="agent-thinking-label">思考</span>',
+                '<span class="agent-thinking-preview"></span>',
+                '</summary>',
+                '<div class="agent-thinking-body"></div>'
+            ].join('');
+            msgDiv.insertBefore(thinkingEl, contentEl);
+            thinkingPreview = thinkingEl.querySelector('.agent-thinking-preview');
+            thinkingBody = thinkingEl.querySelector('.agent-thinking-body');
+        };
+
+        const updateThinking = (done = false) => {
+            if (!String(reasoning || '').trim()) return;
+            ensureThinking();
+            const preview = reasoning.length > 220 ? `…${reasoning.slice(-220)}` : reasoning;
+            thinkingPreview.textContent = preview.replace(/\s+/g, ' ').trim();
+            thinkingBody.textContent = reasoning;
+            if (done) thinkingEl.dataset.streaming = 'false';
+        };
 
         while (true) {
             const { done, value } = await reader.read();
@@ -1120,14 +1287,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (delta.reasoning_content) {
                         reasoning += delta.reasoning_content;
+                        updateThinking(false);
                         if (!reply) setLoadingLabel('正在推理…');
                     }
 
                     if (delta.content) {
                         if (!reply) setLoadingLabel('正在生成…');
                         reply += delta.content;
-                        msgDiv.innerHTML = fmt(stripDsmlForDisplay(reply)) + '<span class="agent-caret"></span>';
-                        renderMath(msgDiv);
+                        contentEl.innerHTML = fmt(stripDsmlForDisplay(reply)) + '<span class="agent-caret"></span>';
+                        renderMath(contentEl);
                         history.scrollTop = history.scrollHeight;
                     }
 
@@ -1140,15 +1308,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const parsed = allowInlineActions ? extractInlineActions(reply) : { text: reply, actions: [] };
-        msgDiv.innerHTML = parsed.text ? fmt(parsed.text) : `<p>${allowInlineActions ? '正在操作页面...' : esc(emptyReplyNote(reasoning))}</p>`;
-        renderMath(msgDiv, true);
+        const extracted = extractInlineActions(reply);
+        const parsed = allowInlineActions ? extracted : { text: extracted.text, actions: [] };
+        const bodyHtml = parsed.text ? fmt(parsed.text) : `<p>${allowInlineActions ? '正在操作页面...' : esc(emptyReplyNote(reasoning))}</p>`;
+        contentEl.innerHTML = bodyHtml;
+        renderMath(contentEl, true);
+        updateThinking(true);
         return {
             reply: parsed.text,
             reasoning,
             toolCalls: compactToolCalls(toolCalls),
             inlineActions: parsed.actions,
-            msgEl: msgDiv
+            msgEl: msgDiv,
+            contentEl
         };
     }
 
@@ -1179,13 +1351,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const results = [];
         for (const call of toolCalls) {
             try {
-                const args = JSON.parse(call.arguments || '{}');
+                const args = parseActionJson(call.arguments || '{}') || {};
                 const result = await executeAgentAction(call.name, args);
-                results.push(result.message);
+                results.push(result);
                 addToolMsg(result.message);
             } catch (err) {
                 const message = `${call.name || 'tool'} failed: ${err.message}`;
-                results.push(message);
+                results.push({ success: false, message });
                 addToolMsg(message);
             }
         }
@@ -1197,11 +1369,11 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const action of actions) {
             try {
                 const result = await executeAgentAction(action.name, action.arguments);
-                results.push(result.message);
+                results.push(result);
                 addToolMsg(result.message);
             } catch (err) {
                 const message = `${action.name || 'inline action'} failed: ${err.message}`;
-                results.push(message);
+                results.push({ success: false, message });
                 addToolMsg(message);
             }
         }
@@ -1846,7 +2018,11 @@ document.addEventListener('DOMContentLoaded', () => {
         addToolMsg('正在写入 Cascade Studio 建模代码并执行...');
         const result = await bridge.runCode(code, args.timeoutMs || 120000);
         if (!result || typeof result !== 'object') throw new Error('Cascade Studio 未返回执行结果');
-        return ok(`Cascade Studio 已执行建模代码。\n${formatIndustrialExecution(result, code)}`, args.reason);
+        const executionErrors = Array.isArray(result.errors) ? result.errors : [];
+        return ok(`Cascade Studio 已执行建模代码。\n${formatIndustrialExecution(result, code)}`, args.reason, {
+            success: result.success !== false,
+            mustRepair: result.success === false || executionErrors.length > 0
+        });
     }
 
     async function readIndustrialCode(args = {}) {
@@ -1929,6 +2105,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return spec;
     }
 
+    function auditCircuitResult(result) {
+        const issues = [];
+        const warnings = (result?.warnings || []).map(item => String(item)).filter(Boolean);
+        warnings.forEach(item => {
+            if (/(反向偏置|未连接|悬空|短路|无法解析|不支持|缺少|没有电流)/.test(item)) issues.push(item);
+        });
+        const readings = Array.isArray(result?.readings) ? result.readings : [];
+        readings.forEach(item => {
+            const name = String(item?.name || '');
+            const type = String(item?.type || '');
+            const infoText = Array.isArray(item?.info) ? item.info.join(' ') : String(item?.info || '');
+            if (!/(LED|light|灯|diode|led)/i.test(`${name} ${type} ${infoText}`)) return;
+            const match = infoText.match(/\bI\s*=\s*(-?\d+(?:\.\d+)?)\s*(mA|µA|uA|A)/i);
+            if (!match) return;
+            let currentMa = parseFloat(match[1]);
+            const unit = match[2];
+            if (unit === 'A') currentMa *= 1000;
+            else if (unit === 'µA' || unit === 'uA') currentMa /= 1000;
+            if (!Number.isFinite(currentMa) || currentMa < 0.5) {
+                issues.push(`${name || 'LED'} 正向电流不足或反向偏置（I=${Number.isFinite(currentMa) ? currentMa.toFixed(3) : match[1]}mA），需要检查阳极/阴极与限流支路。`);
+            }
+        });
+        return Array.from(new Set(issues));
+    }
+
     async function buildCircuit(args = {}) {
         const spec = parseCircuitSpec(args);
         if (!spec) throw new Error('build_circuit requires a circuit spec in circuit');
@@ -1946,7 +2147,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const componentCount = Number.isFinite(result.componentCount) ? result.componentCount : (result.readings || []).length;
         const netCount = Number.isFinite(result.netCount) ? result.netCount : 0;
         const summary = `已搭建「${result.title || 'Agentmaster 电路'}」：${componentCount} 个元件 / ${netCount} 个网络，仿真已运行。`;
-        return ok([summary, warnings ? `提示：${warnings}` : '', readings].filter(Boolean).join('\n'), args.reason);
+        const issues = auditCircuitResult(result);
+        const issueText = issues.length ? `电路校验问题：\n${issues.map(item => `- ${item}`).join('\n')}` : '';
+        return ok([summary, warnings ? `提示：${warnings}` : '', issueText, readings].filter(Boolean).join('\n'), args.reason, {
+            success: issues.length === 0,
+            mustRepair: issues.length > 0
+        });
     }
 
     async function readCircuit(args = {}) {
@@ -2656,8 +2862,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     }
 
-    function ok(message, reason) {
-        return { success: true, message: reason ? `${message}：${reason}` : message };
+    function ok(message, reason, meta = {}) {
+        return Object.assign({
+            success: true,
+            message: reason ? `${message}：${reason}` : message
+        }, meta || {});
     }
 
     function describeElement(el) {
@@ -2982,7 +3191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isIndustrialModelingRequest(raw) {
         const target = /(工业建模|cascade|cad|三维|3d|模型|建个模|建模|零件|汽车|齿轮|支架|壳体|外壳|机械)/i.test(raw);
-        const action = /(建|做|画|生成|设计|创建|编写|写|修改|重做|导出|运行)/.test(raw);
+        const action = /(建|做|画|生成|设计|创建|编写|写|修改|重做|导出|运行|优化|完善|改进|升级)/.test(raw);
         const explanation = /(解释|说明|是什么|为什么|原理|介绍|区别|怎么|如何|教程|流程)/.test(raw);
         return target && action && !explanation;
     }
@@ -2991,7 +3200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Date.now() > industrialIntentContextUntil) return false;
         const explanation = /(解释|说明|是什么|为什么|原理|介绍|区别|怎么|如何|教程|流程)/.test(raw);
         if (explanation) return false;
-        const continuity = /(齿轮|模型|零件|建模|cascade|3d|三维|汽车|支架|壳体|重新画|重画|再做|再画|继续|接着|改大|改小|改成|修改|没看到|看不到|文本|动作|执行|工具|输出)/i.test(raw);
+        const continuity = /(齿轮|模型|零件|建模|cascade|3d|三维|汽车|支架|壳体|重新画|重画|再做|再画|继续|接着|改大|改小|改成|修改|优化|完善|改进|升级|没看到|看不到|文本|动作|执行|工具|输出)/i.test(raw);
         const imperative = /^\s*(重新|再|继续|接着|改|修|画|建|做)/.test(raw);
         return continuity || imperative;
     }
@@ -3426,10 +3635,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function getAgentConfig() {
         const config = window.AGENTMASTER_CONFIG || {};
         const model = config.model || localStorage.getItem('AGENTMASTER_MODEL') || 'deepseek-flash';
+        const storedNativeTools = localStorage.getItem('AGENTMASTER_USE_NATIVE_TOOLS');
         return {
             chatUrl: config.chatUrl || localStorage.getItem('CIPHERTOOL_CHAT_API_URL') || resolveBackendChatUrl(),
             model: normalizeDeepSeekModel(model),
-            useNativeTools: config.useNativeTools === true || localStorage.getItem('AGENTMASTER_USE_NATIVE_TOOLS') === 'true'
+            useNativeTools: storedNativeTools === null
+                ? config.useNativeTools !== false
+                : storedNativeTools === 'true'
         };
     }
 

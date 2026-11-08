@@ -176,6 +176,20 @@
     to = String(to).trim();
     if (from === to) throw new Error(name + ' 的 from 与 to 是同一个网络 "' + from + '"，会短路');
     var valueRaw = pick(raw, ['value', 'resistance', 'ohms', 'capacitance', 'inductance', 'voltage', 'current', 'amps', 'amplitude']);
+    var switchState = null;
+    if (type === 'switch') {
+      var stateSource = raw.state !== undefined ? raw.state : (raw.closed !== undefined ? raw.closed : valueRaw);
+      if (stateSource !== undefined && stateSource !== null && String(stateSource).trim() !== '') {
+        var stateText = String(stateSource).trim().toLowerCase();
+        if (stateSource === true || /^(closed|close|on|true|1|yes|闭合|导通)$/.test(stateText)) {
+          switchState = true;
+        } else if (stateSource === false || /^(open|off|false|0|no|断开|关闭)$/.test(stateText)) {
+          switchState = false;
+        } else {
+          throw new Error(name + ' 的开关状态 "' + stateSource + '" 无法解析（请用 state:"closed" 或 state:"open"）');
+        }
+      }
+    }
     var frequencyRaw = pick(raw, ['frequency', 'freq', 'hz']);
     var frequency = parseValue(frequencyRaw, null);
     if (frequency === null && def.wave !== undefined && valueRaw !== undefined) {
@@ -187,14 +201,14 @@
       var stripped = valueRaw.replace(/([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(k|K|M|m)?\s*Hz/i, '').trim();
       voltageRaw = stripped || def.default;
     }
-    var value = parseValue(voltageRaw, def.default);
-    if (valueRaw !== undefined && parseValue(voltageRaw, null) === null) {
+    var value = type === 'switch' ? 0 : parseValue(voltageRaw, def.default);
+    if (type !== 'switch' && valueRaw !== undefined && parseValue(voltageRaw, null) === null) {
       throw new Error(name + ' 的数值 "' + valueRaw + '" 无法解析（可用 1k / 4.7k / 100nF / 5V / 5V 1kHz）');
     }
     if (['resistor', 'capacitor', 'inductor'].indexOf(type) >= 0 && value <= 0) {
       throw new Error(name + ' 的数值必须大于 0');
     }
-    var closed = raw.closed !== false && raw.state !== 'open';
+    var closed = switchState !== null ? switchState : (raw.closed !== false && raw.state !== 'open');
     return {
       type: type, name: name, from: from, to: to, value: value,
       frequency: frequency, closed: closed, networkCount: 2
