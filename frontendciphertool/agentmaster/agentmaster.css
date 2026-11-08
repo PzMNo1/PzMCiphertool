@@ -393,6 +393,30 @@
     color: #fff;
 }
 
+.agent-inline-suggestions {
+    align-self: stretch;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 0 2px;
+}
+
+.agent-inline-suggestions-title {
+    width: 100%;
+    color: #8b9bb4;
+    font-size: .8rem;
+    letter-spacing: .02em;
+    margin-bottom: 2px;
+}
+
+.agent-inline-suggestions .agent-suggestion-btn {
+    white-space: normal;
+    text-align: left;
+    font-size: .86rem;
+    padding: 7px 11px;
+    line-height: 1.35;
+}
+
 /* Input Area */
 .agent-input-container {
     width: 100%;
@@ -463,8 +487,10 @@
     justify-content: center;
     transition: color .2s, transform .1s, background .2s;
     padding: 0;
-    touch-action: manipulation;
+    touch-action: none;
+    -webkit-touch-callout: none;
     user-select: none;
+    -webkit-user-select: none;
 }
 
 .agent-submit-btn:hover {

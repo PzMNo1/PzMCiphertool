@@ -36,12 +36,19 @@ public class ChatHistoryController {
         return ApiResponse.success("Success", chatHistoryService.getHistory(account));
     }
 
+    @GetMapping("/history/me/version")
+    public ApiResponse<String> getMyHistoryVersion(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        String account = authService.requireSessionAccount(authorization);
+        return ApiResponse.success("Success", chatHistoryService.getUpdatedAt(account));
+    }
+
     @PostMapping("/history/me")
     public ApiResponse<String> saveMyHistory(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody Map<String, Object> request) {
         String account = authService.requireSessionAccount(authorization);
-        chatHistoryService.saveHistory(account, request.get("history"));
-        return ApiResponse.success("History saved");
+        String version = chatHistoryService.saveHistory(account, request.get("history"));
+        return ApiResponse.success("History saved", version);
     }
 }

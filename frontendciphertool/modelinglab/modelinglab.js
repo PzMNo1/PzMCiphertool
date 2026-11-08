@@ -11,7 +11,7 @@
 
     const VIEWS = {
         industrial: {
-            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-62',
+            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-65',
             title: '工业建模 · Cascade Studio',
             tab: '工业建模'
         },

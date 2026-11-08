@@ -3,6 +3,7 @@ package com.ciphertool.controller;
 import com.alibaba.fastjson2.JSON;
 import com.ciphertool.dto.ChatCompletionRequest;
 import com.ciphertool.dto.UsageStatus;
+import com.ciphertool.service.AuthService;
 import com.ciphertool.service.ChatProxyService;
 import com.ciphertool.service.UsageQuotaService;
 import com.ciphertool.service.impl.ChatProxyServiceImpl;
@@ -21,10 +22,12 @@ public class ChatController {
 
     private final ChatProxyService chatProxyService;
     private final UsageQuotaService usageQuotaService;
+    private final AuthService authService;
 
-    public ChatController(ChatProxyService chatProxyService, UsageQuotaService usageQuotaService) {
+    public ChatController(ChatProxyService chatProxyService, UsageQuotaService usageQuotaService, AuthService authService) {
         this.chatProxyService = chatProxyService;
         this.usageQuotaService = usageQuotaService;
+        this.authService = authService;
     }
 
     @PostMapping(value = "/completions", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -34,6 +37,7 @@ public class ChatController {
             @RequestHeader(value = "X-Agent-Surface", required = false) String surface,
             @RequestHeader(value = "X-Agent-Turn", required = false) String turnId,
             HttpServletRequest servletRequest) {
+        authService.requireSessionAccount(authorization);
         // Set timeout to 5 minutes (300000 ms)
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(300000L);
         UsageStatus usage = usageQuotaService.consume(authorization, servletRequest, surface, turnId);

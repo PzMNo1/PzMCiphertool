@@ -19,6 +19,7 @@ class HistoryManager {
         this.backendSyncTimer = null;
         this.backendSyncPromise = null;
         this.syncedAccount = '';
+        this.lastRemoteVersion = null;
     }
 
     getAccountScope() {
@@ -115,31 +116,72 @@ class HistoryManager {
         }
     }
 
-    async syncFromBackend() {
+    resolveBackendHistoryVersionUrl() {
+        return `${this.resolveBackendHistoryUrl()}/version`;
+    }
+
+    async fetchBackendHistoryVersion() {
+        if (!window.CipherAuth?.getUser?.()?.token) return null;
+        try {
+            const response = await fetch(this.resolveBackendHistoryVersionUrl(), {
+                headers: this.getBackendAuthHeaders()
+            });
+            if (!response.ok) return null;
+            const result = await response.json();
+            return result?.success ? String(result.data || '') : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async syncFromBackend(options = {}) {
+        const force = Boolean(options.force);
+        const checkVersion = Boolean(options.checkVersion);
         const user = window.CipherAuth?.getUser?.() || null;
-        if (!user?.token) return false;
+        if (!user?.token) return { remoteChanged: false, reason: 'anonymous' };
         const account = String(user.phone || user.username || user.email || '').trim();
-        if (account && this.syncedAccount === account) return false;
+        if (account && this.syncedAccount && this.syncedAccount !== account) {
+            this.lastRemoteVersion = null;
+        }
+        if (!force && !checkVersion && account && this.syncedAccount === account) {
+            return { remoteChanged: false, reason: 'synced' };
+        }
         if (this.backendSyncPromise) return this.backendSyncPromise;
         this.backendSyncPromise = (async () => {
             try {
+                let checkedVersion = null;
+                if (checkVersion && !force) {
+                    const version = await this.fetchBackendHistoryVersion();
+                    if (version !== null && version === this.lastRemoteVersion) {
+                        if (account) this.syncedAccount = account;
+                        return { remoteChanged: false, reason: 'unchanged' };
+                    }
+                    checkedVersion = version;
+                }
                 const response = await fetch(this.resolveBackendHistoryUrl(), {
                     headers: this.getBackendAuthHeaders()
                 });
-                if (!response.ok) return false;
+                if (!response.ok) return { remoteChanged: false, reason: 'http' };
                 const result = await response.json();
-                if (!result?.success) return false;
+                if (!result?.success) return { remoteChanged: false, reason: 'result' };
                 if (account) this.syncedAccount = account;
                 const remote = result.data;
                 if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
                     const local = this.getChatHistory();
                     const merged = this.mergeHistory(local, remote);
-                    if (!this.storeHistoryLocally(merged)) return false;
+                    const remoteChanged = this.summarizeHistory(merged) !== this.summarizeHistory(local);
+                    if (!this.storeHistoryLocally(merged)) {
+                        return { remoteChanged: false, reason: 'storage' };
+                    }
+                    if (checkedVersion !== null) this.lastRemoteVersion = checkedVersion;
                     if (this.summarizeHistory(merged) !== this.summarizeHistory(remote)) {
                         this.scheduleBackendSync(merged);
                     }
                     localStorage.removeItem(this.LEGACY_STORAGE_KEY);
-                    return true;
+                    if (this.lastRemoteVersion === null) {
+                        this.lastRemoteVersion = await this.fetchBackendHistoryVersion();
+                    }
+                    return { remoteChanged, hasRemote: true };
                 }
                 let local = localStorage.getItem(this.STORAGE_KEY);
                 if (!local) {
@@ -153,9 +195,13 @@ class HistoryManager {
                         // Keep local history when the initial upload fails.
                     }
                 }
-                return false;
+                if (checkedVersion !== null) this.lastRemoteVersion = checkedVersion;
+                if (this.lastRemoteVersion === null) {
+                    this.lastRemoteVersion = await this.fetchBackendHistoryVersion();
+                }
+                return { remoteChanged: false, hasRemote: false };
             } catch (error) {
-                return false;
+                return { remoteChanged: false, reason: 'error' };
             } finally {
                 this.backendSyncPromise = null;
             }
@@ -175,7 +221,10 @@ class HistoryManager {
                 },
                 body: JSON.stringify({ history })
             });
-            return response.ok;
+            if (!response.ok) return false;
+            const result = await response.json().catch(() => null);
+            if (result?.data) this.lastRemoteVersion = String(result.data);
+            return true;
         } catch (error) {
             return false;
         }

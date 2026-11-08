@@ -18,6 +18,8 @@
     const activeRunRegistry = new Map();
     const runningRunOrderByChat = new Map();
     const lastGeneratedImageByChat = new Map();
+    let agentHistorySyncTimer = null;
+    let agentHistorySyncPromise = null;
 
     const MAX_ATTACHMENTS = 80;
     // 本地 checkpoint 恢复提示语：所有写入/比较都必须走这个常量，避免再有第二份字面量口径不一致。
@@ -2674,6 +2676,63 @@
         eventsInitialized = true;
     }
 
+    const AGENT_HISTORY_SYNC_INTERVAL_MS = 5000;
+
+    function getChatSyncSignature(chatId) {
+        if (!chatId) return '';
+        return window.historyManager.getMessages(chatId).map(message => [
+            message?.message_id || message?.id || '',
+            message?.updated_at || message?.created_at || '',
+            String(message?.content || '').length,
+            message?.status || ''
+        ].join(':')).join('|');
+    }
+
+    function startAgentHistorySync() {
+        if (agentHistorySyncTimer) return;
+        agentHistorySyncTimer = setInterval(() => {
+            if (document.hidden || !checkLogin()) return;
+            const container = document.getElementById('damoxing-container');
+            if (!container || container.style.display === 'none') return;
+            syncAgentHistoryFromRemote();
+        }, AGENT_HISTORY_SYNC_INTERVAL_MS);
+    }
+
+    async function syncAgentHistoryFromRemote() {
+        if (!checkLogin() || agentHistorySyncPromise) return;
+        agentHistorySyncPromise = (async () => {
+            const currentIdBefore = window.historyManager.getCurrentChatId();
+            const signatureBefore = getChatSyncSignature(currentIdBefore);
+            const result = await window.historyManager.syncFromBackend({ checkVersion: true });
+            if (!result?.remoteChanged) return;
+            const history = window.historyManager.getChatHistory();
+            const currentId = window.historyManager.getCurrentChatId();
+            updateHistoryUI();
+            if (!currentId || !history[currentId]) {
+                const latest = window.historyManager.getSortedHistory(history)[0];
+                if (latest) loadChat(latest.id);
+                else newChat();
+                return;
+            }
+            if (getLatestActiveRunForChat(currentId)) return;
+            if (currentId === currentIdBefore && getChatSyncSignature(currentId) === signatureBefore) return;
+            const container = document.getElementById('damoxing-container');
+            if (!container || container.style.display === 'none') return;
+            const messages = document.getElementById('chat-messages');
+            const previousScrollTop = messages ? messages.scrollTop : 0;
+            const stickToBottom = messages
+                ? messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80
+                : false;
+            loadChat(currentId);
+            if (messages) {
+                messages.scrollTop = stickToBottom ? messages.scrollHeight : previousScrollTop;
+            }
+        })().finally(() => {
+            agentHistorySyncPromise = null;
+        });
+        return agentHistorySyncPromise;
+    }
+
     async function refreshAgentForCurrentAccount() {
         if (!checkLogin()) {
             window.chatUI.clearMessages();
@@ -2685,19 +2744,21 @@
         }
 
         try {
-            await window.historyManager.syncFromBackend();
+            await window.historyManager.syncFromBackend({ checkVersion: true });
         } catch (error) {
             console.warn('Failed to sync chat history from backend.', error);
         }
         updateAgentUsageBadge();
-        window.historyManager.getChatHistory();
+        const history = window.historyManager.getChatHistory();
         recoverDurableRunsIntoHistory();
         selectedChatIds.clear();
         const currentId = window.historyManager.getCurrentChatId();
-        if (currentId) {
+        if (currentId && history[currentId]) {
             loadChat(currentId);
         } else {
-            newChat();
+            const latest = window.historyManager.getSortedHistory(history)[0];
+            if (latest) loadChat(latest.id);
+            else newChat();
         }
         updateHistoryUI();
         updateAgentUsageBadge();
@@ -2733,14 +2794,19 @@
                 refreshAgentForCurrentAccount();
             });
             window.addEventListener('focus', () => {
-                if (checkLogin()) updateAgentUsageBadge();
+                if (!checkLogin()) return;
+                updateAgentUsageBadge();
+                syncAgentHistoryFromRemote();
             });
             document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && checkLogin()) updateAgentUsageBadge();
+                if (document.hidden || !checkLogin()) return;
+                updateAgentUsageBadge();
+                syncAgentHistoryFromRemote();
             });
         }
 
         // 登录后才能加载该账号的历史与 Agent
+        startAgentHistorySync();
         refreshAgentForCurrentAccount();
     }
 

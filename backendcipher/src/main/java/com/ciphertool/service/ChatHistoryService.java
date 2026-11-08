@@ -19,11 +19,11 @@ public class ChatHistoryService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
-    public void saveHistory(String account, Object history) {
+    public String saveHistory(String account, Object history) {
         String key = normalizeAccount(account);
+        String now = now();
         try {
             String json = objectMapper.writeValueAsString(history == null ? Collections.emptyMap() : history);
-            String now = now();
             int updated = jdbcTemplate.update(
                     "UPDATE chat_history SET history_json = ?, updated_at = ? WHERE account = ?",
                     json, now, key);
@@ -39,6 +39,7 @@ public class ChatHistoryService {
                 }
             }
             log.info("Chat history saved for {}", key);
+            return now;
         } catch (Exception e) {
             log.error("Failed to save chat history for {}", key, e);
             throw new RuntimeException("Save history failed");
@@ -59,6 +60,19 @@ public class ChatHistoryService {
         } catch (Exception e) {
             log.error("Failed to read chat history for {}", key, e);
             return Collections.emptyMap();
+        }
+    }
+
+    public String getUpdatedAt(String account) {
+        String key = normalizeAccount(account);
+        try {
+            return jdbcTemplate.query(
+                    "SELECT updated_at FROM chat_history WHERE account = ?",
+                    rs -> rs.next() ? rs.getString(1) : null,
+                    key);
+        } catch (Exception e) {
+            log.error("Failed to read chat history version for {}", key, e);
+            return null;
         }
     }
 

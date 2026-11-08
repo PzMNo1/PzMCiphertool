@@ -73,3 +73,16 @@ TEST: 电路板布局出现 PCB，错误 TSX 会在工具消息中报告引擎�
 - `industrial_status`：查看 Cascade Studio 内核、错误和历史步骤状态
 - `industrial_reference`：获取 Cascade Studio API、陷阱与示例
 - 模型与 Agent 之间只传递完整脚本，不传局部 diff
+
+
+### 工具调用容错（工业建模）
+- 用户明确建模后，30 分钟内短追问（例如：没看到齿轮，重新画；给我文本干嘛，我要齿轮；改大一点）继续允许工业建模工具。
+- 兼容模型偶发输出的 <ui_action> JSON、换行未转义的 JSON、未闭合 DSML、<industrial_code> 原始代码块。
+- DSML 不是正式协议；系统提示已明确禁止，但解析层仍保留恢复逻辑。
+- 复杂工业代码优先走原生 write_industrial_code；无原生工具时输出完整 <industrial_code>...</industrial_code>，不要用长 JSON 塞代码。
+
+
+### 语音与快捷选项交互
+- 语音为长按开始、再次点击结束并发送；结束后不会因 pointerup 自动停止。
+- 识别到的 interim transcript 会实时填入输入框；aborted 且已有文本时仍继续发送，不再显示原始 aborted 错误。
+- 外部 `.agent-suggestions` 常驻隐藏；会话打开或结束后在聊天记录内渲染 `.agent-inline-suggestions`，发送消息或输入文字时移除。

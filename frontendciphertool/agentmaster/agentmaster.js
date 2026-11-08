@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const collapseBtn = document.getElementById('agent-collapse-btn');
     const history = document.getElementById('agent-chat-history');
     const suggestions = document.querySelector('.agent-suggestions');
+    const suggestionPrompts = Array.from(suggestions?.querySelectorAll('.agent-suggestion-btn') || [])
+        .map(btn => String(btn.textContent || '').trim())
+        .filter(Boolean);
     const textarea = document.getElementById('agent-textarea');
     const submitBtn = document.getElementById('agent-submit-btn');
 
@@ -34,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const windowAgent = createBrowserWorkspaceAgent();
     let isChatActive = false;
     let isSending = false;
+    let inlineSuggestionsEl = null;
+    let showSuggestionsOnNextOpen = true;
+    let industrialIntentContextUntil = 0;
+    const INDUSTRIAL_INTENT_CONTEXT_MS = 30 * 60 * 1000;
     let activeLoadingEl = null;
     let isDocked = false;
     let wasChatActiveBeforeDock = false;
@@ -44,12 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const voiceInput = {
         pressTimer: null,
         pointerId: null,
-        suppressClick: false,
+        suppressClickUntil: 0,
         pressBecameVoice: false,
         recognition: null,
         active: false,
         stopping: false,
         sendOnEnd: false,
+        stopOnRelease: false,
+        maxTimer: null,
         initialText: '',
         transcript: '',
         latestTranscript: '',
@@ -68,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Use browser_action for same-origin project window/tab coordination: list windows, open a project window, switch/focus, close, reload, back/forward, or dispatch ui_action to another registered project window.',
                 'Browser boundary: a web page cannot control arbitrary external browser tabs. Coordinate only this project and windows opened by this project; be explicit when the browser blocks focus or popup operations.',
                 'If native tool calls are not available, emit exact operation blocks such as <ui_action>{"action":"navigate_section","target":"jiamishiyanshi"}</ui_action> or <browser_action>{"action":"list_windows"}</browser_action>.',
-                'Do not wrap ui_action or browser_action blocks in Markdown code fences.',
+                'Never emit DSML, </||DSML||invoke>, </||DSML||parameter>, <||DSML||calls>, or any XML invoke/parameter tool markup. DSML is not a supported tool-call format and will be treated as ordinary text. Do not wrap ui_action or browser_action blocks in Markdown code fences.',
+                'When outputting a ui_action block, its inner content must be strict JSON on one logical object. For very long industrial code, do not put it inside ui_action JSON; use the raw industrial_code block instead.',
                 'Prefer one or more precise tool calls over long instructions when the user asks you to manipulate the page.',
                 'For multi-step page operations, use ui_action action=batch with a steps array instead of narrating each step.',
                 'Allowed ui_action actions are exactly: navigate_section, switch_submodule, switch_contact_submodule, open_logic_puzzle, open_space_puzzle, set_value, click, search, clear_search, highlight, scroll_to, focus, select_option, press_key, snapshot, batch, generate_world, edit_pcb_code, read_pcb_code, build_circuit, read_circuit, run_circuit, stop_circuit, write_industrial_code, read_industrial_code, run_industrial_code, industrial_status, industrial_reference.',
@@ -88,6 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Use write_industrial_code to replace the complete Cascade Studio modeling script in 建模实验室 → 工业建模 and execute it immediately. Put the full runnable JavaScript source in "value"; never send a diff or a partial snippet. Inspect result.errors, logs and historySteps, then fix and retry until the model is correct.',
                 'Use read_industrial_code before modifying an existing model, run_industrial_code to re-evaluate the current code, industrial_status to inspect engine readiness and errors, and industrial_reference to obtain exact Cascade Studio API signatures and examples.',
                 'For complex geometry or unfamiliar Cascade Studio functions, call industrial_reference first, then write code that uses only documented primitives and operations.',
+                'Natural-language modeling requests such as 帮我建个模、建一个汽车模型、在工业建模里画一个3D齿轮、做一个支架 are explicit industrial modeling operations. Call write_industrial_code directly; the tool opens the modeling module and runs the script, so do not ask the user to open the page first.',
+                'After an industrial modeling turn, short follow-ups such as 没看到齿轮，重新画、给我文本干嘛，我要齿轮、改大一点、继续、重新执行 are also explicit modeling operations. Use read_industrial_code/write_industrial_code or run_industrial_code instead of replying with instructions or raw code.',
                 'Cascade Studio API summary: Box(x,y,z,centered?), Sphere(r), Cylinder(r,h,centered?), Cone(r1,r2,h), Circle(r,wire?), Polygon(points,wire?), new Sketch([x,y], plane?).LineTo([x,y]).Fillet(r).End(true).Face(), Extrude(face,[dx,dy,dz],keepFace?), Revolve(face,degrees,[axis]?), Loft([wires]), Pipe(shape,wirePath), Union(shapes), Difference(mainBody,[tools]), Intersection(shapes), Translate([x,y,z],shape), Rotate([ax,ay,az],degrees,shape), FilletEdges(shape,radius,edgeIndices), ChamferEdges(shape,distance,edgeIndices), Edges(shape).max([axis]).indices(), Volume(shape). Transforms return NEW shapes, so capture the return value. Difference takes an array of tool shapes.',
                 'Cascade Studio coordinates: X=right, Y=depth, Z=up; extrusion [0,0,z] is vertical; Revolve defaults around Z. A minimal example is: let base = Box(80,60,20,true); let hole = Translate([0,0,-10], Cylinder(12,40)); Difference(base, [hole]);',
                 'For industrial modeling requests, do not merely describe the CAD steps. Call write_industrial_code with a complete script, read the execution result, and iterate until success. Reply to the user only after the tool result is known.',
@@ -452,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     textarea.addEventListener('input', function () {
+        clearInlineSuggestions();
         this.style.height = '24px';
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
@@ -461,14 +474,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSubmitVoiceButton();
 
     collapseBtn.addEventListener('click', closeChatWindow);
-    textarea.addEventListener('focus', () => {
-        if (!isChatActive && messages.length > 1) {
-            chatWindow.classList.add('active');
-            isChatActive = true;
+    const openChatFromInput = () => {
+        if (!isChatActive) {
+            activateChat({ showSuggestions: showSuggestionsOnNextOpen && !isSending });
         }
+    };
+    textarea.addEventListener('focus', openChatFromInput);
+    textarea.addEventListener('pointerdown', openChatFromInput);
+    suggestions?.querySelectorAll('.agent-suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', () => submitSuggestionPrompt(String(btn.textContent || '').trim()));
     });
-    document.querySelectorAll('.agent-suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', () => { textarea.value = btn.textContent; send(); });
+    hideExternalSuggestions();
+    window.addEventListener('cipher-login-success', () => {
+        history.querySelector('.agent-login-required')?.remove();
+        textarea.focus();
     });
     if (mobileAgentMedia.matches) {
         dockAgent({ immediate: true, preserveChat: false });
@@ -487,6 +506,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const scrollDown = () => setTimeout(() => history.scrollTo({ top: history.scrollHeight, behavior: 'smooth' }), 10);
+
+    function hideExternalSuggestions() {
+        suggestions?.classList.add('hidden');
+    }
+
+    function clearInlineSuggestions() {
+        if (inlineSuggestionsEl) inlineSuggestionsEl.remove();
+        inlineSuggestionsEl = null;
+    }
+
+    function showInlineSuggestions() {
+        clearInlineSuggestions();
+        if (!suggestionPrompts.length || isSending) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'agent-inline-suggestions';
+        const title = document.createElement('div');
+        title.className = 'agent-inline-suggestions-title';
+        title.textContent = messages.length > 1 ? '继续试试' : '你可以这样问';
+        wrap.appendChild(title);
+        suggestionPrompts.forEach(prompt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'agent-suggestion-btn';
+            btn.textContent = prompt;
+            btn.addEventListener('click', () => submitSuggestionPrompt(prompt));
+            wrap.appendChild(btn);
+        });
+        inlineSuggestionsEl = wrap;
+        history.appendChild(wrap);
+        scrollDown();
+    }
+
+    function submitSuggestionPrompt(prompt) {
+        clearInlineSuggestions();
+        showSuggestionsOnNextOpen = false;
+        textarea.value = prompt;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        send();
+    }
+
+    function activateChat(options = {}) {
+        chatWindow.classList.add('active');
+        isChatActive = true;
+        hideExternalSuggestions();
+        if (options.showSuggestions) showInlineSuggestions();
+        else clearInlineSuggestions();
+    }
+
+    function deactivateChat(markNextOpen = true) {
+        chatWindow.classList.remove('active');
+        isChatActive = false;
+        clearInlineSuggestions();
+        if (markNextOpen) showSuggestionsOnNextOpen = true;
+    }
 
     function addMsg(role, text) {
         const d = document.createElement('div');
@@ -512,6 +585,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return d;
     }
 
+    function getAuthUser() {
+        try {
+            return window.CipherAuth?.getUser?.() || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function showLoginRequired() {
+        activateChat({ showSuggestions: false });
+        let element = history.querySelector('.agent-login-required');
+        if (!element) {
+            element = addMsg('ai', '请先登录后再和 Agentmaster 对话。登录后，使用次数与聊天记录会绑定当前账号。');
+            element.classList.add('agent-login-required');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cyber-button';
+            button.innerHTML = '<span class="cyber-button__tag">登录 / 注册</span>';
+            button.addEventListener('click', () => {
+                window.CipherAuth?.openModal?.();
+            });
+            element.appendChild(button);
+        } else {
+            history.appendChild(element);
+        }
+        scrollDown();
+    }
+
     function showLoading(label) {
         const d = document.createElement('div');
         d.className = 'agent-msg agent-msg-ai agent-loading';
@@ -532,35 +633,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupSubmitVoiceButton() {
-        submitBtn.title = '点击收起为悬浮球，长按语音输入并发送';
-        submitBtn.setAttribute('aria-label', '收纳助手，长按语音输入并发送');
+        submitBtn.title = '点击收起；长按开始语音，开始后再点一下结束并发送';
+        submitBtn.setAttribute('aria-label', '收纳助手；长按开始语音，再点一下结束并发送');
 
         submitBtn.addEventListener('pointerdown', event => {
             if (event.button !== undefined && event.button !== 0) return;
+            if (voiceInput.active || voiceInput.recognition) {
+                voiceInput.pointerId = event.pointerId;
+                voiceInput.pressBecameVoice = false;
+                voiceInput.stopOnRelease = true;
+                submitBtn.setPointerCapture?.(event.pointerId);
+                return;
+            }
             clearVoicePressTimer();
             voiceInput.pointerId = event.pointerId;
             voiceInput.pressBecameVoice = false;
+            voiceInput.stopOnRelease = false;
             submitBtn.classList.add('agent-voice-arming');
             submitBtn.setPointerCapture?.(event.pointerId);
             voiceInput.pressTimer = setTimeout(() => {
                 voiceInput.pressTimer = null;
                 voiceInput.pressBecameVoice = true;
-                suppressSubmitClickOnce();
                 beginVoiceInput();
             }, VOICE_LONG_PRESS_MS);
         });
 
         submitBtn.addEventListener('pointerup', finishSubmitPointerPress);
         submitBtn.addEventListener('pointercancel', cancelSubmitPointerPress);
-        submitBtn.addEventListener('contextmenu', event => {
-            if (voiceInput.active || voiceInput.pressTimer) event.preventDefault();
-        });
+        submitBtn.addEventListener('contextmenu', event => event.preventDefault());
 
         submitBtn.addEventListener('click', event => {
-            if (voiceInput.suppressClick) {
+            if (Date.now() < voiceInput.suppressClickUntil) {
                 event.preventDefault();
                 event.stopPropagation();
-                voiceInput.suppressClick = false;
+                return;
+            }
+            if (voiceInput.active || voiceInput.recognition) {
+                event.preventDefault();
+                event.stopPropagation();
+                stopVoiceInput(true);
                 return;
             }
             dockAgent();
@@ -568,6 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function finishSubmitPointerPress(event) {
+        const stopOnRelease = voiceInput.stopOnRelease;
         const becameVoice = voiceInput.pressBecameVoice || voiceInput.active || voiceInput.recognition;
         clearVoicePressTimer();
         submitBtn.classList.remove('agent-voice-arming');
@@ -575,10 +687,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (becameVoice) {
             event.preventDefault();
             suppressSubmitClickOnce();
-            stopVoiceInput(true);
+            if (stopOnRelease) stopVoiceInput(true);
         }
         voiceInput.pointerId = null;
         voiceInput.pressBecameVoice = false;
+        voiceInput.stopOnRelease = false;
     }
 
     function cancelSubmitPointerPress(event) {
@@ -592,6 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         voiceInput.pointerId = null;
         voiceInput.pressBecameVoice = false;
+        voiceInput.stopOnRelease = false;
     }
 
     function clearVoicePressTimer() {
@@ -601,10 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function suppressSubmitClickOnce() {
-        voiceInput.suppressClick = true;
-        setTimeout(() => {
-            voiceInput.suppressClick = false;
-        }, 700);
+        voiceInput.suppressClickUntil = Date.now() + 1200;
     }
 
     function beginVoiceInput() {
@@ -635,14 +746,22 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
+            if (voiceInput.recognition !== recognition) return;
             submitBtn.classList.remove('agent-voice-arming');
             submitBtn.classList.add('agent-voice-recording');
             submitBtn.setAttribute('aria-pressed', 'true');
-            textarea.placeholder = 'Listening... release to send';
-            addToolMsg('正在听写，松开按钮发送。');
+            textarea.placeholder = '正在听写，再点一下按钮结束并发送';
+            addToolMsg('语音识别已开始。说完后再点一下按钮结束并发送。');
+            clearTimeout(voiceInput.maxTimer);
+            voiceInput.maxTimer = setTimeout(() => {
+                if (voiceInput.recognition === recognition && (voiceInput.active || voiceInput.recognition)) {
+                    stopVoiceInput(Boolean(normalizeVoiceTranscript(voiceInput.latestTranscript || voiceInput.transcript)));
+                }
+            }, 30000);
         };
 
         recognition.onresult = event => {
+            if (voiceInput.recognition !== recognition) return;
             let finalText = voiceInput.transcript;
             let interimText = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -652,17 +771,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             voiceInput.transcript = finalText;
             voiceInput.latestTranscript = normalizeVoiceTranscript(`${finalText}${interimText}`);
+            voiceInput.error = '';
             updateVoiceTextarea(voiceInput.latestTranscript);
         };
 
         recognition.onerror = event => {
-            if (voiceInput.stopping && event.error === 'aborted') return;
-            voiceInput.error = event.error || 'unknown';
+            if (voiceInput.recognition !== recognition) return;
+            const error = event.error || 'unknown';
+            if (error === 'aborted') {
+                const hasTranscript = Boolean(normalizeVoiceTranscript(voiceInput.latestTranscript || voiceInput.transcript));
+                voiceInput.sendOnEnd = hasTranscript || voiceInput.stopping;
+                voiceInput.error = '';
+                if (!hasTranscript && !voiceInput.stopping) {
+                    addToolMsg('语音识别被中断，请重新长按按钮开始。');
+                }
+                return;
+            }
+            voiceInput.error = error;
             voiceInput.sendOnEnd = false;
-            addToolMsg(formatVoiceError(voiceInput.error));
+            addToolMsg(formatVoiceError(error));
         };
 
         recognition.onend = () => {
+            if (voiceInput.recognition !== recognition) return;
             finishVoiceInput();
         };
 
@@ -681,8 +812,11 @@ document.addEventListener('DOMContentLoaded', () => {
             resetVoiceInputUi();
             return;
         }
+        if (voiceInput.stopping) return;
         voiceInput.sendOnEnd = Boolean(sendOnEnd);
         voiceInput.stopping = true;
+        clearTimeout(voiceInput.maxTimer);
+        voiceInput.maxTimer = null;
         try {
             voiceInput.recognition.stop();
         } catch {
@@ -693,10 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishVoiceInput() {
         const shouldSend = voiceInput.sendOnEnd && !voiceInput.error;
         const transcript = normalizeVoiceTranscript(voiceInput.latestTranscript || voiceInput.transcript);
-        const recognition = voiceInput.recognition;
         resetVoiceInputUi();
-        if (recognition) voiceInput.recognition = null;
-
         if (!shouldSend) return;
         if (!transcript) {
             addToolMsg('没有识别到语音内容。');
@@ -708,6 +839,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetVoiceInputUi() {
+        clearTimeout(voiceInput.maxTimer);
+        voiceInput.maxTimer = null;
         submitBtn.classList.remove('agent-voice-arming', 'agent-voice-recording');
         submitBtn.removeAttribute('aria-pressed');
         textarea.placeholder = 'Reply...';
@@ -734,6 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'service-not-allowed': '语音识别服务不可用或被浏览器阻止。',
             'no-speech': '没有识别到语音内容。',
             network: '语音识别网络服务不可用，请稍后重试。',
+            aborted: '语音识别被中断，请重试。',
             'audio-capture': '没有检测到可用麦克风。'
         };
         return messages[error] || `语音识别失败：${error}`;
@@ -746,6 +880,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const text = textarea.value.trim();
         if (!text) return;
+        if (!getAuthUser()) {
+            showLoginRequired();
+            return;
+        }
         isSending = true;
         let loader = null;
         try {
@@ -763,7 +901,9 @@ document.addEventListener('DOMContentLoaded', () => {
         textarea.value = '';
         textarea.style.height = '24px';
 
-        if (!isChatActive) { chatWindow.classList.add('active'); isChatActive = true; }
+        if (!isChatActive) activateChat({ showSuggestions: false });
+        clearInlineSuggestions();
+        showSuggestionsOnNextOpen = false;
 
         addMsg('user', text);
         messages.push({ role: 'user', content: text });
@@ -1070,6 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function normalizeDsmlMarkup(text) {
         return String(text || '')
+            .replace(/｜/g, '|')
             .replace(/<\s*\/\s*(?:\|\s*){0,2}\s*DSML\s*(?:\|\s*){0,2}/gi, '</||DSML||')
             .replace(/<\s*(?:\|\s*){0,2}\s*DSML\s*(?:\|\s*){0,2}/gi, '<||DSML||');
     }
@@ -1078,6 +1219,79 @@ document.addEventListener('DOMContentLoaded', () => {
         const value = String(raw || '').trim();
         if (isString) return value;
         try { return JSON.parse(value); } catch (error) { return value; }
+    }
+
+    function parseActionJson(raw) {
+        let text = String(raw || '').trim()
+            .replace(/^```(?:json|xml|html)?\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+        if (!text) return null;
+        try { return JSON.parse(text); } catch (error) { /* attempt repair below */ }
+        let repaired = '';
+        let inString = false;
+        let escaped = false;
+        for (const ch of text) {
+            if (escaped) {
+                repaired += ch;
+                escaped = false;
+            } else if (ch === '\\') {
+                repaired += ch;
+                escaped = true;
+            } else if (ch === '"') {
+                inString = !inString;
+                repaired += ch;
+            } else if (inString && ch === '\n') {
+                repaired += '\\n';
+            } else if (inString && ch === '\r') {
+                repaired += '\\r';
+            } else if (inString && ch === '\t') {
+                repaired += '\\t';
+            } else {
+                repaired += ch;
+            }
+        }
+        try { return JSON.parse(repaired); } catch (error) { return null; }
+    }
+
+    function cleanIndustrialSource(raw) {
+        return String(raw || '')
+            .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
+            .replace(/\n?```\s*$/, '')
+            .trim();
+    }
+
+    function extractFencedIndustrialCode(text) {
+        if (Date.now() > industrialIntentContextUntil) return '';
+        const fencePattern = /```(?:javascript|js|cascade|typescript|ts)?\s*\n([\s\S]*?)```/gi;
+        let match;
+        while ((match = fencePattern.exec(text))) {
+            const code = cleanIndustrialSource(match[1]);
+            if (!code) continue;
+            if (/\b(Box|Sphere|Cylinder|Cone|Circle|Polygon|Sketch|Extrude|Revolve|Loft|Pipe|Union|Difference|Intersection|Translate|Rotate|Scale|Mirror|FilletEdges|ChamferEdges)\s*\(/.test(code)) {
+                return code;
+            }
+        }
+        return '';
+    }
+
+    function extractLooseIndustrialCode(text) {
+        const normalized = normalizeDsmlMarkup(text);
+        const markerIndex = normalized.search(/write_industrial_code/i);
+        if (markerIndex < 0) return '';
+        const slice = normalized.slice(markerIndex);
+        const paramMatch = slice.match(/<\|{2}DSML\|{2}parameter\b[^>]*name\s*=\s*"value"[^>]*>([\s\S]*?)(?:<\/\|{2}DSML\|{2}parameter>|<\/\|{2}DSML\|{2}invoke>|$)/i);
+        if (paramMatch) return cleanIndustrialSource(paramMatch[1]);
+        const jsonMatch = slice.match(/"value"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"[^"]+"\s*:\s*[^}]*)?}\s*(?:<\/ui_action>|$)/i);
+        if (jsonMatch) {
+            return cleanIndustrialSource(jsonMatch[1]
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\'));
+        }
+        return '';
     }
 
     function extractDsmlActions(text, actions) {
@@ -1107,15 +1321,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function stripDsmlForDisplay(text) {
         const cleaned = normalizeDsmlMarkup(text);
-        const start = cleaned.search(/<\|{2}DSML\|{2}/i);
+        const start = cleaned.search(/<\/?\|{2}DSML\|{2}|<(?:ui_action|browser_action|industrial_code|pcb_code|circuit_spec)>/i);
         return start >= 0 ? cleaned.slice(0, start) : cleaned;
     }
 
     function extractInlineActions(text) {
         const actions = [];
+        const rawText = String(text || '');
         let hasPcbCode = false;
         let hasIndustrialCode = false;
-        let cleaned = extractDsmlActions(String(text || ''), actions);
+        const looseIndustrial = extractLooseIndustrialCode(rawText);
+        let cleaned = extractDsmlActions(rawText, actions);
         cleaned = cleaned.replace(/<pcb_code>([\s\S]*?)<\/pcb_code>/g, (match, raw) => {
             const code = String(raw || '')
                 .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
@@ -1127,11 +1343,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return '';
         });
 
-        cleaned = cleaned.replace(/<industrial_code>([\s\S]*?)<\/industrial_code>/g, (match, raw) => {
-            const code = String(raw || '')
-                .replace(/^\s*```[a-zA-Z0-9_-]*\s*\n?/, '')
-                .replace(/\n?```\s*$/, '')
-                .trim();
+        cleaned = cleaned.replace(/<industrial_code>([\s\S]*?)(?:<\/industrial_code>|$)/gi, (match, raw) => {
+            const code = cleanIndustrialSource(raw);
             if (!code) return '';
             hasIndustrialCode = true;
             actions.push({ name: 'ui_action', arguments: { action: 'write_industrial_code', value: code } });
@@ -1153,23 +1366,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        cleaned = cleaned.replace(/<(ui_action|browser_action)>([\s\S]*?)<\/\1>/g, (match, name, raw) => {
-            try {
-                const parsed = JSON.parse(raw.trim());
-                // 原生工具和 <pcb_code> 同时出现时，以代码块为准，避免写入两次。
-                if (name === 'ui_action' && hasPcbCode && normalizeUiActionName(parsed.action) === 'edit_pcb_code') {
-                    return '';
-                }
-                if (name === 'ui_action' && hasIndustrialCode && normalizeUiActionName(parsed.action) === 'write_industrial_code') {
-                    return '';
-                }
-                actions.push({ name, arguments: parsed });
-            } catch {
-                // Leave malformed action blocks visible for debugging.
-                return match;
+        cleaned = cleaned.replace(/<(ui_action|browser_action)>([\s\S]*?)(?:<\/\1>|$)/gi, (match, name, raw) => {
+            const parsed = parseActionJson(raw);
+            if (!parsed || typeof parsed !== 'object') return match;
+            // 原生工具和 <pcb_code> 同时出现时，以代码块为准，避免写入两次。
+            if (name === 'ui_action' && hasPcbCode && normalizeUiActionName(parsed.action) === 'edit_pcb_code') {
+                return '';
             }
+            if (name === 'ui_action' && hasIndustrialCode && normalizeUiActionName(parsed.action) === 'write_industrial_code') {
+                return '';
+            }
+            actions.push({ name, arguments: parsed });
             return '';
         }).trim();
+
+        const fencedIndustrial = actions.some(action => action.name === 'ui_action'
+            && normalizeUiActionName(action.arguments?.action) === 'write_industrial_code')
+            ? ''
+            : extractFencedIndustrialCode(rawText);
+        if (fencedIndustrial) {
+            hasIndustrialCode = true;
+            actions.push({ name: 'ui_action', arguments: { action: 'write_industrial_code', value: fencedIndustrial } });
+            cleaned = cleaned.replace(/```(?:javascript|js|cascade|typescript|ts)?\s*\n[\s\S]*?```/gi, '').trim();
+        }
+        if (looseIndustrial && !actions.some(action => action.name === 'ui_action'
+            && normalizeUiActionName(action.arguments?.action) === 'write_industrial_code')) {
+            hasIndustrialCode = true;
+            actions.push({ name: 'ui_action', arguments: { action: 'write_industrial_code', value: looseIndustrial } });
+        }
+        if (looseIndustrial) {
+            const codeIndex = cleaned.indexOf(looseIndustrial);
+            if (codeIndex >= 0) cleaned = cleaned.slice(0, codeIndex).trim();
+            const marker = cleaned.search(/<\|{2}DSML\|{2}invoke|write_industrial_code|<ui_action/i);
+            if (marker >= 0) cleaned = cleaned.slice(0, marker).trim();
+        }
+
+        cleaned = cleaned
+            .replace(/<\/?\|{2}DSML\|{2}[^>]*>/gi, '')
+            .replace(/<\/?(?:ui_action|browser_action)>/gi, '')
+            .trim();
         return { text: cleaned, actions };
     }
 
@@ -2542,9 +2777,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!text) return;
         pendingKnowledgeGraphContext = options?.knowledgeGraphContext || null;
         restoreAgent();
-        chatWindow.classList.add('active');
-        isChatActive = true;
-        suggestions?.classList.remove('hidden');
+        activateChat({ showSuggestions: false });
         textarea.value = text;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         send();
@@ -2572,9 +2805,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isDocked || dockTimer) return;
         const immediate = Boolean(options.immediate);
         wasChatActiveBeforeDock = options.preserveChat === false ? false : isChatActive;
-        chatWindow.classList.remove('active');
-        suggestions?.classList.add('hidden');
-        isChatActive = false;
+        deactivateChat(true);
         const finishDock = () => {
             dockTimer = null;
             isDocked = true;
@@ -2591,9 +2822,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeChatWindow() {
-        chatWindow.classList.remove('active');
-        suggestions?.classList.remove('hidden');
-        isChatActive = false;
+        deactivateChat(true);
         wasChatActiveBeforeDock = false;
     }
 
@@ -2611,11 +2840,7 @@ document.addEventListener('DOMContentLoaded', () => {
         orb.parentElement.style.right = '';
         orb.parentElement.style.bottom = '';
         orb.parentElement.style.transform = '';
-        if (wasChatActiveBeforeDock || messages.length > 1) {
-            chatWindow.classList.add('active');
-            isChatActive = true;
-        }
-        suggestions?.classList.remove('hidden');
+        activateChat({ showSuggestions: showSuggestionsOnNextOpen && !isSending });
         textarea.focus();
     }
 
@@ -2755,16 +2980,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return target && action;
     }
 
-    function isIndustrialCodingIntent(raw, normalized) {
-        const target = /(工业建模|cascade\s*studio|cascade|建模实验室|建模代码|cad|三维模型|3d模型|零件|模型)/i.test(raw);
-        const action = /(建模|建一个|建|做|创建|生成|绘制|画|写|编写|修改|重做|参数化|代码|执行|运行|设计|导出)/.test(raw);
-        return target && action;
+    function isIndustrialModelingRequest(raw) {
+        const target = /(工业建模|cascade|cad|三维|3d|模型|建个模|建模|零件|汽车|齿轮|支架|壳体|外壳|机械)/i.test(raw);
+        const action = /(建|做|画|生成|设计|创建|编写|写|修改|重做|导出|运行)/.test(raw);
+        const explanation = /(解释|说明|是什么|为什么|原理|介绍|区别|怎么|如何|教程|流程)/.test(raw);
+        return target && action && !explanation;
+    }
+
+    function isIndustrialFollowupIntent(raw) {
+        if (Date.now() > industrialIntentContextUntil) return false;
+        const explanation = /(解释|说明|是什么|为什么|原理|介绍|区别|怎么|如何|教程|流程)/.test(raw);
+        if (explanation) return false;
+        const continuity = /(齿轮|模型|零件|建模|cascade|3d|三维|汽车|支架|壳体|重新画|重画|再做|再画|继续|接着|改大|改小|改成|修改|没看到|看不到|文本|动作|执行|工具|输出)/i.test(raw);
+        const imperative = /^\s*(重新|再|继续|接着|改|修|画|建|做)/.test(raw);
+        return continuity || imperative;
     }
 
     function hasExplicitOperationIntent(raw, normalized) {
         if (isPcbCodingIntent(raw, normalized)) return true;
         if (isCircuitBuildIntent(raw, normalized)) return true;
-        if (isIndustrialCodingIntent(raw, normalized)) return true;
+        if (isIndustrialModelingRequest(raw)) {
+            industrialIntentContextUntil = Date.now() + INDUSTRIAL_INTENT_CONTEXT_MS;
+            return true;
+        }
+        if (isIndustrialFollowupIntent(raw)) return true;
         const operationStarts = [
             '打开', '开启', '进入', '切换', '切到', '跳转', '转到', '导航到', '去', '点击', '点开', '选择',
             '输入', '填入', '填充', '设置', '搜索', '查找', '清空', '高亮', '滚动', '滚到', '聚焦',

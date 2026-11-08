@@ -5,14 +5,14 @@
   height: 100vh;
   width: 100%;
   margin: 0;
-  padding: 20px;
+  padding: 0;
   border-radius: 0;
   overflow: hidden;
   background-color: transparent;
   position: relative;
   z-index: 5;
   transition: none;
-  gap: 20px;
+  gap: 0;
 }
 
 .chat-main {
@@ -1116,7 +1116,8 @@
 }
 
 .chat-sidebar {
-  width: 320px;
+  width: clamp(350px, 26vw, 420px);
+  flex: 0 0 clamp(350px, 26vw, 420px);
   background-color: transparent;
   border-radius: 10px;
   display: flex;
@@ -1225,6 +1226,7 @@
 /* 历史会话卡片：与 0_zhuyeyangshi.css 的 cyber-button 同源 */
 .history-item {
   position: relative;
+  flex: 0 0 auto;
   padding: 12px 42px 12px 13px;
   margin-bottom: 0;
   border-radius: 6px;
@@ -1357,7 +1359,8 @@
 
 @media screen and (max-width: 1024px) {
   .chat-sidebar {
-    width: 280px;
+    width: 300px;
+    flex-basis: 300px;
   }
 }
 
@@ -1384,8 +1387,8 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 85%;
-    max-width: 320px;
+    width: 90%;
+    max-width: 360px;
     height: 100%;
     z-index: 1000;
     background-color: transparent;
@@ -1606,7 +1609,7 @@
 }
 
 #damoxing-content {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -1621,7 +1624,7 @@
   height: 100vh;
   width: 100%;
   margin: 0;
-  padding: 20px;
+  padding: 0;
   border-radius: 0;
   overflow: hidden;
   background-color: transparent;
