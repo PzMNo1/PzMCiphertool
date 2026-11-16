@@ -48,6 +48,28 @@ document.addEventListener('DOMContentLoaded', () => {
     let wasChatActiveBeforeDock = false;
     let didDragOrb = false;
     let dockTimer = null;
+
+    /* ---- 悬浮球长按径向模块切换 ---- */
+    let orbRadialEl = null;
+    let orbRadialOpen = false;
+    let orbRadialSelectedTarget = '';
+    let orbRadialItems = [];
+    let orbRadialCancelPress = null;
+    const ORB_LONG_PRESS_MS = 450;
+    const ORB_LONG_PRESS_TOLERANCE = 6;
+    const ORB_RADIAL_ARM_DISTANCE = 14;
+    const ORB_MODULES = [
+        { target: 'damoxing', label: 'Agent' },
+        { target: 'jiamishiyanshi', label: '加密实验室' },
+        { target: 'electroniclab', label: '电子实验室' },
+        { target: 'jianmoshiyanshi', label: '建模实验室' },
+        { target: 'workflow', label: 'WorkFlow' },
+        { target: 'zhishitupu', label: '知识图谱' },
+        { target: 'apizhongzhuanzhan', label: 'API中转站' },
+        { target: 'mcpskilllab', label: '插件实验室' },
+        { target: 'yijianfankui', label: '联系我们' }
+    ];
+
     const orb = createAgentOrb();
     const VOICE_LONG_PRESS_MS = 550;
     const voiceInput = {
@@ -2996,7 +3018,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = document.createElement('button');
         button.id = 'agent-orb';
         button.type = 'button';
-        button.setAttribute('aria-label', '展开助手');
+        button.setAttribute('aria-label', '展开助手；长按切换模块');
         button.innerHTML = '<span class="agent-orb-label" aria-hidden="true">Agent</span>';
         chatWindow.parentElement.appendChild(button);
         button.addEventListener('click', () => {
@@ -3006,6 +3028,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             restoreAgent();
         });
+        createOrbRadialMenu();
         enableOrbDrag(button);
         return button;
     }
@@ -3064,11 +3087,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function enableOrbDrag(button) {
-        let startX = 0, startY = 0, startLeft = 0, startTop = 0, dragging = false;
+        let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+        let pressing = false;
+        let dragging = false;
+        let longPressTimer = null;
+        let radialActive = false;
+        let activePointerId = null;
+
+        const clearLongPress = () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+
+        const releasePointer = pointerId => {
+            try {
+                button.releasePointerCapture?.(pointerId);
+            } catch (error) {
+                // Synthetic or already-released pointer ids can throw; dragging still ends.
+            }
+        };
+
+        const openRadialFromPress = () => {
+            if (!pressing || !isDocked) return;
+            radialActive = true;
+            dragging = false;
+            didDragOrb = true;
+            button.parentElement.classList.remove('agent-dragging');
+            openOrbRadialMenu();
+        };
 
         button.addEventListener('pointerdown', event => {
             if (!isDocked) return;
-            dragging = true;
+            if (event.button !== undefined && event.button !== 0) return;
+            // A new press recovers cleanly if the previous gesture was interrupted off-screen.
+            if (radialActive || orbRadialOpen) {
+                if (typeof orbRadialCancelPress === 'function') orbRadialCancelPress();
+                if (orbRadialOpen) closeOrbRadialMenu();
+            }
+            pressing = true;
+            activePointerId = event.pointerId;
+            dragging = false;
             didDragOrb = false;
             startX = event.clientX;
             startY = event.clientY;
@@ -3076,29 +3136,208 @@ document.addEventListener('DOMContentLoaded', () => {
             startLeft = rect.left;
             startTop = rect.top;
             button.parentElement.classList.add('agent-dragging');
-            button.setPointerCapture?.(event.pointerId);
+            try {
+                button.setPointerCapture?.(event.pointerId);
+            } catch (error) {
+                // Pointer capture is a best-effort refinement; window-level fallbacks still work.
+            }
+            clearLongPress();
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                openRadialFromPress();
+            }, ORB_LONG_PRESS_MS);
         });
 
         button.addEventListener('pointermove', event => {
-            if (!dragging) return;
+            if (!pressing || event.pointerId !== activePointerId) return;
             const dx = event.clientX - startX;
             const dy = event.clientY - startY;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragOrb = true;
+
+            if (radialActive) {
+                // Ignore tiny jitter so opening the menu cannot immediately select a module.
+                if (Math.hypot(dx, dy) >= ORB_RADIAL_ARM_DISTANCE) {
+                    updateOrbRadialSelection(event.clientX, event.clientY);
+                } else {
+                    applyOrbRadialSelection(null);
+                }
+                if (event.cancelable) event.preventDefault();
+                return;
+            }
+
+            if (!dragging) {
+                if (Math.hypot(dx, dy) <= ORB_LONG_PRESS_TOLERANCE) return;
+                clearLongPress();
+                dragging = true;
+                didDragOrb = true;
+            }
             moveOrbTo(startLeft + dx, startTop + dy);
         });
 
-        const finishDrag = event => {
-            if (!dragging) return;
+        orbRadialCancelPress = () => {
+            clearLongPress();
+            pressing = false;
             dragging = false;
+            radialActive = false;
+            activePointerId = null;
             button.parentElement.classList.remove('agent-dragging');
-            button.releasePointerCapture?.(event.pointerId);
-            const rect = button.parentElement.getBoundingClientRect();
-            saveOrbPosition(rect.left, rect.top);
         };
 
-        button.addEventListener('pointerup', finishDrag);
-        button.addEventListener('pointercancel', finishDrag);
+        const finishPointer = (event, cancelled) => {
+            if (!pressing || event.pointerId !== activePointerId) return;
+            pressing = false;
+            activePointerId = null;
+            clearLongPress();
+            releasePointer(event.pointerId);
+            button.parentElement.classList.remove('agent-dragging');
+
+            if (radialActive) {
+                const target = cancelled ? '' : orbRadialSelectedTarget;
+                radialActive = false;
+                closeOrbRadialMenu();
+                if (target) switchOrbModule(target);
+                return;
+            }
+
+            if (!dragging) return;
+            dragging = false;
+            if (!cancelled) {
+                const rect = button.parentElement.getBoundingClientRect();
+                saveOrbPosition(rect.left, rect.top);
+            }
+        };
+
+        button.addEventListener('pointerup', event => finishPointer(event, false));
+        button.addEventListener('pointercancel', event => finishPointer(event, true));
+        button.addEventListener('contextmenu', event => event.preventDefault());
     }
+
+    function createOrbRadialMenu() {
+        if (orbRadialEl) return orbRadialEl;
+        const overlay = document.createElement('div');
+        overlay.id = 'agent-orb-radial';
+        overlay.className = 'agent-orb-radial';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.innerHTML = [
+            '<div class="agent-orb-radial__stage">',
+            '    <div class="agent-orb-radial__ring" aria-hidden="true"></div>',
+            '    <div class="agent-orb-radial__hub" aria-hidden="true">',
+            '        <span class="agent-orb-radial__hub-label">Agent</span>',
+            '        <span class="agent-orb-radial__hub-sub">模块</span>',
+            '    </div>',
+            '    <div class="agent-orb-radial__menu" role="menu" aria-label="切换模块"></div>',
+            '    <p class="agent-orb-radial__hint" role="status" aria-live="polite">滑到模块小球上松手切换</p>',
+            '</div>'
+        ].join('');
+        const menu = overlay.querySelector('.agent-orb-radial__menu');
+        orbRadialItems = ORB_MODULES.map((entry, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'agent-orb-radial__slot';
+            slot.style.setProperty('--orb-angle', `${-90 + index * 40}deg`);
+            slot.style.setProperty('--orb-index', String(index));
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'agent-orb-radial__item';
+            item.dataset.target = entry.target;
+            item.setAttribute('role', 'menuitem');
+            item.setAttribute('aria-label', `切换到${entry.label}`);
+            const label = document.createElement('span');
+            label.className = 'agent-orb-radial__label';
+            label.textContent = entry.label;
+            item.appendChild(label);
+            slot.appendChild(item);
+            menu.appendChild(slot);
+            return item;
+        });
+        document.body.appendChild(overlay);
+        orbRadialEl = overlay;
+        return overlay;
+    }
+
+    function openOrbRadialMenu() {
+        const overlay = createOrbRadialMenu();
+        if (!overlay) return;
+        orbRadialOpen = true;
+        orbRadialSelectedTarget = '';
+        orbRadialItems.forEach(item => {
+            item.classList.remove('is-selected');
+            item.removeAttribute('aria-current');
+        });
+        const hint = overlay.querySelector('.agent-orb-radial__hint');
+        if (hint) hint.textContent = '滑到模块小球上松手切换';
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        orb.parentElement.classList.add('agent-orb-radial-open');
+        try {
+            navigator.vibrate?.(12);
+        } catch (error) {
+            // Haptics are optional.
+        }
+    }
+
+    function closeOrbRadialMenu() {
+        if (!orbRadialEl || !orbRadialOpen) return;
+        orbRadialOpen = false;
+        orbRadialSelectedTarget = '';
+        orbRadialEl.classList.remove('is-open');
+        orbRadialEl.setAttribute('aria-hidden', 'true');
+        orbRadialItems.forEach(item => {
+            item.classList.remove('is-selected');
+            item.removeAttribute('aria-current');
+        });
+        const hint = orbRadialEl.querySelector('.agent-orb-radial__hint');
+        if (hint) hint.textContent = '滑到模块小球上松手切换';
+        orb.parentElement.classList.remove('agent-orb-radial-open');
+    }
+
+    function applyOrbRadialSelection(item) {
+        const target = item?.dataset.target || '';
+        if (target === orbRadialSelectedTarget) return;
+        orbRadialSelectedTarget = target;
+        orbRadialItems.forEach(candidate => {
+            const selected = candidate === item;
+            candidate.classList.toggle('is-selected', selected);
+            if (selected) candidate.setAttribute('aria-current', 'true');
+            else candidate.removeAttribute('aria-current');
+        });
+        const entry = ORB_MODULES.find(module => module.target === target);
+        const hint = orbRadialEl?.querySelector('.agent-orb-radial__hint');
+        if (hint) hint.textContent = entry ? `松手切换到「${entry.label}」` : '滑到模块小球上松手切换';
+    }
+
+    function updateOrbRadialSelection(x, y) {
+        if (!orbRadialOpen) return;
+        let best = null;
+        let bestDistance = Infinity;
+        orbRadialItems.forEach(item => {
+            const rect = item.parentElement.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const distance = Math.hypot(x - centerX, y - centerY);
+            if (distance <= rect.width / 2 + 12 && distance < bestDistance) {
+                best = item;
+                bestDistance = distance;
+            }
+        });
+        applyOrbRadialSelection(best);
+    }
+
+    function switchOrbModule(target) {
+        if (!target) return;
+        const menuItem = document.querySelector(`.menu-item[data-target="${cssEscape(target)}"]`);
+        if (menuItem) menuItem.click();
+    }
+
+    const cancelOrbRadialInteraction = () => {
+        if (typeof orbRadialCancelPress === 'function') orbRadialCancelPress();
+        if (orbRadialOpen) closeOrbRadialMenu();
+    };
+
+    window.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && orbRadialOpen) cancelOrbRadialInteraction();
+    });
+
+    window.addEventListener('resize', cancelOrbRadialInteraction);
+    window.addEventListener('blur', cancelOrbRadialInteraction);
 
     function moveOrbTo(left, top) {
         const wrapper = orb.parentElement;

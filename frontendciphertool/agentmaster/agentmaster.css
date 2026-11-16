@@ -625,3 +625,301 @@
     width: 28px;
     height: 28px;
 }
+
+
+/* ---- Agent 悬浮球长按径向模块切换 ---- */
+#agent-orb {
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#agent-master-wrapper.agent-orb-radial-open #agent-orb {
+    opacity: 0;
+}
+
+.agent-orb-radial {
+    --orb-radial-size: 64px;
+    --orb-radial-radius: 124px;
+    --orb-radial-hub: 66px;
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 50%, rgba(5, 20, 32, .34) 0%, rgba(0, 4, 10, .72) 72%);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    transition: opacity .16s ease, visibility 0s linear .16s;
+}
+
+.agent-orb-radial.is-open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .16s ease, visibility 0s;
+}
+
+.agent-orb-radial__stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+}
+
+.agent-orb-radial__ring {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--orb-radial-radius) * 2);
+    height: calc(var(--orb-radial-radius) * 2);
+    transform: translate(-50%, -50%);
+    border: 1px dashed rgba(64, 224, 255, .16);
+    border-radius: 50%;
+    box-shadow: 0 0 60px rgba(12, 153, 134, .1), inset 0 0 60px rgba(12, 153, 134, .06);
+}
+
+.agent-orb-radial__hub {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--orb-radial-hub);
+    height: var(--orb-radial-hub);
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    border: 1px solid rgba(64, 224, 255, .26);
+    border-radius: 50%;
+    background: rgba(0, 20, 40, .62);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: inset 0 0 15px rgba(64, 224, 255, .06), 0 0 16px rgba(12, 153, 134, .72), 0 0 32px rgba(12, 153, 134, .35);
+}
+
+.agent-orb-radial__hub::before {
+    content: '';
+    position: absolute;
+    inset: -13px;
+    border: 1px dashed rgba(64, 224, 255, .2);
+    border-radius: 50%;
+    animation: agentOrbRadialSpin 30s linear infinite;
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__hub {
+    animation: agentOrbRadialHubIn .24s cubic-bezier(.2, 1.2, .3, 1) backwards;
+}
+
+.agent-orb-radial__hub-label {
+    color: #ffb02e;
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    line-height: 1;
+    text-shadow: 0 0 6px rgba(255, 176, 46, .55), 0 0 14px rgba(255, 125, 32, .3);
+}
+
+.agent-orb-radial__hub-sub {
+    color: rgba(160, 230, 255, .55);
+    font-size: .52rem;
+    letter-spacing: .22em;
+    line-height: 1;
+    margin-top: 3px;
+}
+
+.agent-orb-radial__menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+}
+
+.agent-orb-radial__slot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--orb-radial-size);
+    height: var(--orb-radial-size);
+    margin-left: calc(var(--orb-radial-size) / -2);
+    margin-top: calc(var(--orb-radial-size) / -2);
+    transform: rotate(var(--orb-angle)) translate(var(--orb-radial-radius)) rotate(calc(var(--orb-angle) * -1));
+}
+
+.agent-orb-radial__item {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 4px 12px;
+    border: 1px solid rgba(64, 224, 255, .3);
+    border-radius: 50%;
+    background:
+        linear-gradient(135deg, rgba(64, 224, 255, .14) 0%, rgba(120, 200, 255, .07) 50%, rgba(180, 140, 255, .12) 100%),
+        rgba(4, 16, 26, .78);
+    color: rgba(236, 240, 241, .82);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: 0;
+    text-align: center;
+    text-transform: none;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(.55);
+    overflow: hidden;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: inset 0 0 18px rgba(64, 224, 255, .1), 0 6px 18px rgba(0, 0, 0, .35);
+    transition: opacity .16s ease, transform .24s cubic-bezier(.2, 1.2, .3, 1), border-color .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.agent-orb-radial__item::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border: 1px solid rgba(64, 224, 255, .2);
+    border-radius: 50%;
+    opacity: .45;
+    pointer-events: none;
+}
+
+.agent-orb-radial__item::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: rgba(64, 224, 255, .35);
+    transition: background .2s ease, box-shadow .2s ease;
+}
+
+.agent-orb-radial__label {
+    position: relative;
+    z-index: 1;
+    max-width: calc(var(--orb-radial-size) - 8px);
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__item {
+    opacity: 1;
+    transform: scale(1);
+    animation: agentOrbRadialItemIn .26s cubic-bezier(.2, 1.2, .3, 1) backwards;
+    animation-delay: calc(var(--orb-index) * 18ms);
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__item.is-selected {
+    transform: scale(1.14);
+    border-color: rgba(64, 224, 255, .85);
+    background:
+        linear-gradient(135deg, rgba(64, 224, 255, .3) 0%, rgba(120, 200, 255, .16) 50%, rgba(180, 140, 255, .22) 100%),
+        rgba(5, 24, 38, .88);
+    color: #fff;
+    text-shadow: 0 0 12px rgba(64, 224, 255, .85);
+    box-shadow: 0 0 28px rgba(64, 224, 255, .42), inset 0 0 24px rgba(64, 224, 255, .24);
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__item.is-selected::before {
+    border-color: rgba(255, 255, 255, .65);
+    opacity: .8;
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__item.is-selected::after {
+    background: #7ff3ff;
+    box-shadow: 0 0 10px rgba(64, 224, 255, .9);
+}
+
+.agent-orb-radial__hint {
+    position: absolute;
+    left: 0;
+    top: calc(var(--orb-radial-radius) + var(--orb-radial-size) / 2 + 26px);
+    transform: translateX(-50%);
+    margin: 0;
+    padding: .45rem .8rem;
+    border: 1px solid rgba(64, 224, 255, .16);
+    border-radius: 999px;
+    background: rgba(3, 14, 24, .72);
+    color: rgba(190, 230, 250, .82);
+    font-size: .68rem;
+    letter-spacing: .03em;
+    white-space: nowrap;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: inset 0 0 12px rgba(64, 224, 255, .05);
+}
+
+@keyframes agentOrbRadialSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes agentOrbRadialHubIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(.6);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes agentOrbRadialItemIn {
+    from {
+        opacity: 0;
+        transform: scale(.4);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (max-width: 430px) {
+    .agent-orb-radial {
+        --orb-radial-size: 60px;
+        --orb-radial-radius: 108px;
+        --orb-radial-hub: 60px;
+    }
+
+    .agent-orb-radial__item {
+        font-size: 9.5px;
+    }
+
+    .agent-orb-radial__hint {
+        font-size: .64rem;
+    }
+}
+
+@media (max-height: 600px) {
+    .agent-orb-radial {
+        --orb-radial-size: 50px;
+        --orb-radial-radius: 88px;
+        --orb-radial-hub: 52px;
+    }
+
+    .agent-orb-radial__hint {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .agent-orb-radial,
+    .agent-orb-radial * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
