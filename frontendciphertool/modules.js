@@ -366,8 +366,8 @@ const MODULES = {
                         <div id="agent-performance-monitor" class="performance-monitor" aria-live="polite"></div>
                     </div>
                     <div class="input-actions">
-                        <button id="modeling-mode-toggle" class="cyber-button image-mode-toggle" title="建模模式" type="button">
-                            <span class="cyber-button__tag">建模模式</span>
+                        <button id="video-mode-toggle" class="cyber-button image-mode-toggle" title="视频创作：用 Muse 最高级视频模型生成带音频的短视频" type="button">
+                            <span class="cyber-button__tag">视频创作</span>
                         </button>
                         <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式：自动接续本会话中的上一张图，可用「换个主题」重新开始" type="button">
                             <span class="cyber-button__tag">作图模式</span>
@@ -628,6 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/contracts/AgentContract.js',
             './model/DeepSeekClient.js',
             './model/ImageGenerationClient.js',
+            './model/VideoGenerationClient.js',
             './model/ToolRegistry.js',
             './model/ChatUI.js',
             './model/HistoryManager.js',
@@ -697,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261108-08';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261117-02';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

@@ -4,6 +4,7 @@ import com.ciphertool.dto.ApiResponse;
 import com.ciphertool.service.ApiRouterService;
 import com.ciphertool.service.AuthService;
 import com.ciphertool.service.ImageGenerationException;
+import com.ciphertool.service.VideoGenerationException;
 import com.ciphertool.service.WorldModelException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -64,6 +65,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public ApiResponse<Void> handleImageGenerationException(ImageGenerationException e) {
         log.warn("Image generation failed: {}", e.getMessage());
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(VideoGenerationException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public ApiResponse<Void> handleVideoGenerationException(VideoGenerationException e) {
+        log.warn("Video generation failed: {}", e.getMessage());
         return ApiResponse.error(e.getMessage());
     }
 

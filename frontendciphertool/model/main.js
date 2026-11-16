@@ -561,6 +561,15 @@
         ].filter(Boolean).join('\n\n');
     }
 
+    function buildVideoBrief(userText, preparedAttachments) {
+        const brief = String(userText || '').trim();
+        const contextText = truncateContextText(preparedAttachments?.contextText || '', 4000);
+        return [
+            brief,
+            contextText ? `创作参考素材：\n${contextText}` : ''
+        ].filter(Boolean).join('\n\n');
+    }
+
     function getUserMessageText(message) {
         const content = message?.content;
         if (Array.isArray(content)) {
@@ -739,6 +748,18 @@
             .filter(Boolean);
     }
 
+    function getPersistableVideos(videos = []) {
+        return (Array.isArray(videos) ? videos : [])
+            .filter(video => video?.url)
+            .slice(0, 4)
+            .map(video => ({
+                url: String(video.url),
+                mimeType: video.mimeType || 'video/mp4',
+                durationSeconds: video.durationSeconds ?? null,
+                aspectRatio: video.aspectRatio || ''
+            }));
+    }
+
     /**
      * 检查登录状态
      * @returns {Object|null} 用户信息或 null
@@ -890,6 +911,8 @@
             latestToolCalls: initial.tool_calls || null,
             latestImages: initial.images || null,
             latestImagePrompt: initial.image_prompt || '',
+            latestVideos: initial.videos || null,
+            latestVideoPrompt: initial.video_prompt || '',
             durableRunId: initial.durableRunId || null,
             latestResumePrompt: initial.resume_prompt || '',
             latestErrorMessage: initial.error_message || null,
@@ -923,6 +946,8 @@
             agent_run: patch.agent_run ?? entry.latestAgentRun ?? null,
             images: patch.images ?? entry.latestImages ?? null,
             image_prompt: patch.image_prompt ?? entry.latestImagePrompt ?? null,
+            videos: patch.videos ?? entry.latestVideos ?? null,
+            video_prompt: patch.video_prompt ?? entry.latestVideoPrompt ?? null,
             durable_run_id: patch.durable_run_id ?? entry.durableRunId ?? null,
             resume_prompt: patch.resume_prompt ?? entry.latestResumePrompt ?? null,
             error_message: patch.error_message ?? entry.latestErrorMessage ?? null,
@@ -940,6 +965,8 @@
             agent_run: entry.latestAgentRun || null,
             images: entry.latestImages || null,
             image_prompt: entry.latestImagePrompt || null,
+            videos: entry.latestVideos || null,
+            video_prompt: entry.latestVideoPrompt || null,
             durable_run_id: entry.durableRunId || null,
             resume_prompt: entry.latestResumePrompt || null,
             error_message: entry.latestErrorMessage || null,
@@ -956,6 +983,8 @@
         if (patch.tool_calls !== undefined) entry.latestToolCalls = patch.tool_calls || null;
         if (patch.images !== undefined) entry.latestImages = patch.images || null;
         if (patch.image_prompt !== undefined) entry.latestImagePrompt = patch.image_prompt || '';
+        if (patch.videos !== undefined) entry.latestVideos = patch.videos || null;
+        if (patch.video_prompt !== undefined) entry.latestVideoPrompt = patch.video_prompt || '';
         if (patch.durable_run_id !== undefined) entry.durableRunId = patch.durable_run_id || null;
         if (patch.resume_prompt !== undefined) entry.latestResumePrompt = patch.resume_prompt || '';
         if (patch.error_message !== undefined) entry.latestErrorMessage = patch.error_message || null;
@@ -1255,6 +1284,7 @@
         return Boolean(
             String(content || '').trim()
             || (Array.isArray(options.images) && options.images.length)
+            || (Array.isArray(options.videos) && options.videos.length)
         );
     }
 
@@ -1330,14 +1360,14 @@
         if (!rawMessage && !hasAttachments) return;
 
         const message = rawMessage || '请阅读这些附件并总结重点。';
-        const modelingModeToggle = document.getElementById('modeling-mode-toggle');
+        const videoModeToggle = document.getElementById('video-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
-        const isModelingModeEnabled = modelingModeToggle && modelingModeToggle.classList.contains('active');
+        const isVideoModeEnabled = videoModeToggle && videoModeToggle.classList.contains('active');
         const isImageModeEnabled = imageModeToggle && imageModeToggle.classList.contains('active');
 
         // 更新按钮状态
         if (sendButton) {
-            sendButton.querySelector('.cyber-button__tag').textContent = hasAttachments ? '读取中' : isImageModeEnabled ? '作图中' : isModelingModeEnabled ? '建模中' : '停止';
+            sendButton.querySelector('.cyber-button__tag').textContent = hasAttachments ? '读取中' : isImageModeEnabled ? '作图中' : isVideoModeEnabled ? '视频中' : '停止';
         }
 
         let preparedAttachments;
@@ -1406,9 +1436,9 @@
                 owner_id: getCurrentAccountId()
             }) !== false;
 
-            // 工具与深度思考已并入插件层，默认常开；作图/建模模式下由 syncModeControls 关闭
-            isDeepThinkEnabled = !isImageModeEnabled && !isModelingModeEnabled;
-            isToolEnabled = !isImageModeEnabled && !isModelingModeEnabled;
+            // 工具与深度思考已并入插件层，默认常开；作图/视频创作模式下由 syncModeControls 关闭
+            isDeepThinkEnabled = !isImageModeEnabled && !isVideoModeEnabled;
+            isToolEnabled = !isImageModeEnabled && !isVideoModeEnabled;
 
             // 构建消息
             const messages = [
@@ -1416,7 +1446,7 @@
                 ...priorMessages,
                 { role: 'user', content: apiUserContent }
             ];
-            const routingMessage = [isImageModeEnabled ? '作图模式' : isModelingModeEnabled ? '建模模式' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
+            const routingMessage = [isImageModeEnabled ? '作图模式' : isVideoModeEnabled ? '视频创作' : '', message, preparedAttachments.routingText].filter(Boolean).join('\n');
             const contextPack = buildContextPack({
                 chatId,
                 userMessage: message,
@@ -1425,7 +1455,7 @@
                 priorAgentRuns,
                 preparedAttachments,
                 isImageModeEnabled,
-                isModelingModeEnabled
+                isModelingModeEnabled: false
             });
             startDurableRun(activeRun, {
                 userMessage: message,
@@ -1497,6 +1527,39 @@
                     content: finalContent,
                     images: persistableImages,
                     image_prompt: imageBrief
+                });
+                return;
+            } else if (isVideoModeEnabled) {
+                const videoBrief = buildVideoBrief(message, preparedAttachments);
+                const videoStartedAt = Date.now();
+                const videoConfig = window.VideoGenerationClient?.resolveConfig?.() || {};
+                const videoProgress = window.chatUI.startVideoGenerationProgress(container, {
+                    startedAt: videoStartedAt,
+                    model: videoConfig.model || 'muse-video',
+                    aspectRatio: videoConfig.aspectRatio || ''
+                });
+                let videoResponse;
+                try {
+                    videoResponse = await runClient.generateVideo({
+                        prompt: videoBrief,
+                        signal: abortController.signal,
+                        startedAt: videoStartedAt,
+                        onProgress: event => videoProgress.update?.(event)
+                    });
+                } catch (error) {
+                    videoProgress.stop?.();
+                    throw error;
+                }
+                videoProgress.stop?.();
+                finalContent = videoResponse.content || '已生成视频。';
+                window.chatUI.displayGeneratedVideos(container, videoResponse.videos, finalContent);
+                window.chatUI.finalizeMessage(container);
+                window.chatUI.scrollToBottom?.();
+
+                completeActiveRun(activeRun, {
+                    content: finalContent,
+                    videos: getPersistableVideos(videoResponse.videos),
+                    video_prompt: videoBrief
                 });
                 return;
             } else if (runRuntime) {
@@ -1957,6 +2020,13 @@
                 });
             }
 
+            if (Array.isArray(msg.videos) && msg.videos.length) {
+                lines.push('', '[生成视频]');
+                msg.videos.forEach((video, videoIndex) => {
+                    lines.push(`${videoIndex + 1}. ${String(video.url || '')}`);
+                });
+            }
+
             lines.push('');
         });
 
@@ -2293,6 +2363,9 @@
         if (sections['生成图片']) {
             message.images = parseImportedImages(sections['生成图片']);
         }
+        if (sections['生成视频']) {
+            message.videos = parseImportedVideos(sections['生成视频']);
+        }
         if (sections['状态']) {
             message.status = sections['状态'].trim() || undefined;
         }
@@ -2306,7 +2379,7 @@
     }
 
     function splitExportMessageSections(block) {
-        const labels = new Set(['附件', '思维链', '工具调用', 'Agent Run 状态', '生成图片', '状态', '错误', 'Durable Run']);
+        const labels = new Set(['附件', '思维链', '工具调用', 'Agent Run 状态', '生成图片', '生成视频', '状态', '错误', 'Durable Run']);
         const sections = { content: [] };
         let current = 'content';
 
@@ -2516,6 +2589,14 @@
             .filter(image => image.url && !image.url.startsWith('[base64 image omitted'));
     }
 
+    function parseImportedVideos(section) {
+        return String(section || '').split('\n')
+            .map(line => line.match(/^\d+\.\s+(.*)$/))
+            .filter(Boolean)
+            .map(match => ({ url: match[1].trim(), mimeType: 'video/mp4' }))
+            .filter(video => video.url && !video.url.startsWith('[base64 video omitted'));
+    }
+
     function parseExportRole(label) {
         const normalized = String(label || '').trim();
         const map = {
@@ -2606,27 +2687,37 @@
             deleteButton.addEventListener('click', deleteSelectedChats);
         }
 
-        const modelingModeToggle = document.getElementById('modeling-mode-toggle');
+        const videoModeToggle = document.getElementById('video-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
-        if (modelingModeToggle || imageModeToggle) {
-            const inputActions = (modelingModeToggle || imageModeToggle).closest('.input-actions');
+        if (videoModeToggle || imageModeToggle) {
+            const inputActions = (videoModeToggle || imageModeToggle).closest('.input-actions');
             const syncModeControls = activeMode => {
-                const modelingEnabled = activeMode === 'modeling';
+                const videoEnabled = activeMode === 'video';
                 const imageEnabled = activeMode === 'image';
-                modelingModeToggle?.classList.toggle('active', modelingEnabled);
+                videoModeToggle?.classList.toggle('active', videoEnabled);
                 imageModeToggle?.classList.toggle('active', imageEnabled);
-                inputActions?.classList.toggle('image-mode-only', modelingEnabled || imageEnabled);
-                isToolEnabled = !modelingEnabled && !imageEnabled;
-                isDeepThinkEnabled = !modelingEnabled && !imageEnabled;
+                inputActions?.classList.toggle('image-mode-only', videoEnabled || imageEnabled);
+                isToolEnabled = !videoEnabled && !imageEnabled;
+                isDeepThinkEnabled = !videoEnabled && !imageEnabled;
+                if (inputElement) {
+                    if (videoEnabled) {
+                        if (!inputElement.dataset.defaultPlaceholder) {
+                            inputElement.dataset.defaultPlaceholder = inputElement.placeholder || '';
+                        }
+                        inputElement.placeholder = '描述你想创作的视频画面、动作与镜头...';
+                    } else if (inputElement.dataset.defaultPlaceholder) {
+                        inputElement.placeholder = inputElement.dataset.defaultPlaceholder;
+                    }
+                }
             };
-            const initialMode = modelingModeToggle?.classList.contains('active')
-                ? 'modeling'
+            const initialMode = videoModeToggle?.classList.contains('active')
+                ? 'video'
                 : imageModeToggle?.classList.contains('active')
                     ? 'image'
                     : '';
             syncModeControls(initialMode);
-            modelingModeToggle?.addEventListener('click', () => {
-                syncModeControls(modelingModeToggle.classList.contains('active') ? '' : 'modeling');
+            videoModeToggle?.addEventListener('click', () => {
+                syncModeControls(videoModeToggle.classList.contains('active') ? '' : 'video');
             });
             imageModeToggle?.addEventListener('click', () => {
                 syncModeControls(imageModeToggle.classList.contains('active') ? '' : 'image');

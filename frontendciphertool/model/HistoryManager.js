@@ -542,6 +542,9 @@ class HistoryManager {
         const aImages = Array.isArray(a?.images) ? a.images.length : 0;
         const bImages = Array.isArray(b?.images) ? b.images.length : 0;
         if (bImages !== aImages) return bImages > aImages ? b : a;
+        const aVideos = Array.isArray(a?.videos) ? a.videos.length : 0;
+        const bVideos = Array.isArray(b?.videos) ? b.videos.length : 0;
+        if (bVideos !== aVideos) return bVideos > aVideos ? b : a;
         const aChars = String(a?.content || '').length;
         const bChars = String(b?.content || '').length;
         return bChars > aChars ? b : a;
@@ -642,6 +645,12 @@ class HistoryManager {
         if (source.image_prompt) {
             stored.image_prompt = this.truncateText(source.image_prompt, 6000);
         }
+        if (Array.isArray(source.videos) && source.videos.length) {
+            stored.videos = source.videos.map(video => this.compactStoredVideo(video, level)).filter(Boolean);
+        }
+        if (source.video_prompt) {
+            stored.video_prompt = this.truncateText(source.video_prompt, 6000);
+        }
         if (source.agent_run) {
             stored.agent_run = this.compactAgentRunForStorage(source.agent_run, level);
             if (stored.agent_run?.runId) stored.agent_run_id = stored.agent_run.runId;
@@ -712,6 +721,18 @@ class HistoryManager {
             return value;
         }
         return `[data image omitted, ${value.length} chars]`;
+    }
+
+    compactStoredVideo(video, level = 'normal') {
+        if (!video || typeof video !== 'object') return null;
+        const url = String(video.url || '');
+        if (!url) return null;
+        return {
+            url: this.truncateText(url, 4000),
+            mimeType: this.truncateText(video.mimeType || 'video/mp4', 120),
+            durationSeconds: Number.isFinite(Number(video.durationSeconds)) ? Number(video.durationSeconds) : null,
+            aspectRatio: this.truncateText(video.aspectRatio || '', 20)
+        };
     }
 
     compactToolCallsForStorage(toolCalls, level = 'normal') {

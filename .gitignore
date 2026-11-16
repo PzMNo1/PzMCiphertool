@@ -46,3 +46,7 @@ graphify-out/
 MinGit/
 MinGit.zip
 mingit_temp/
+
+# Generated Muse videos (runtime cache; never commit)
+backendcipher/generated-videos/
+generated-videos/

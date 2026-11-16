@@ -975,23 +975,28 @@ class ChatUI {
             return { update: () => {}, stop: () => {} };
         }
         this.stopImageGenerationProgress(container);
+        const kind = options.kind === 'video' ? 'video' : 'image';
+        const isVideo = kind === 'video';
         const state = {
+            kind,
             startedAt: Number(options.startedAt) || Date.now(),
             model: String(options.model || '').trim(),
-            phase: options.phase || 'connecting',
+            aspectRatio: String(options.aspectRatio || '').trim(),
+            phase: options.phase || (isVideo ? 'submitting' : 'connecting'),
+            progress: null,
             continuation: Boolean(options.continuation),
             reference: Boolean(options.reference),
             timerId: null
         };
         container.imageGenerationProgress = state;
         container.contentDiv.innerHTML = `
-            <div class="image-generation-progress" role="status" aria-live="polite">
+            <div class="image-generation-progress ${isVideo ? 'video-generation-progress' : ''}" role="status" aria-live="polite">
                 <div class="image-generation-progress__top">
-                    <span class="image-generation-progress__label">IMAGE GENERATION</span>
+                    <span class="image-generation-progress__label">${isVideo ? 'VIDEO GENERATION' : 'IMAGE GENERATION'}</span>
                     <span class="image-generation-progress__elapsed">0 秒</span>
                 </div>
                 <div class="image-generation-progress__title"></div>
-                <div class="image-generation-progress__track" role="progressbar" aria-label="图片生成进度" aria-valuetext="正在生成图片">
+                <div class="image-generation-progress__track" role="progressbar" aria-label="${isVideo ? '视频生成进度' : '图片生成进度'}" aria-valuetext="${isVideo ? '正在生成视频' : '正在生成图片'}">
                     <span></span>
                 </div>
                 <div class="image-generation-progress__meta">
@@ -1010,10 +1015,20 @@ class ChatUI {
         };
     }
 
+    startVideoGenerationProgress(container, options = {}) {
+        return this.startImageGenerationProgress(container, { ...options, kind: 'video' });
+    }
+
     updateImageGenerationProgress(container, update = {}) {
         const state = container?.imageGenerationProgress;
         if (!state) return;
         if (update.phase) state.phase = update.phase;
+        if (update.progress !== undefined && update.progress !== null) {
+            const progress = Number(update.progress);
+            if (Number.isFinite(progress)) {
+                state.progress = Math.max(0, Math.min(100, progress));
+            }
+        }
         this.renderImageGenerationProgress(container);
     }
 
@@ -1031,7 +1046,10 @@ class ChatUI {
         const state = container?.imageGenerationProgress;
         if (!state || !container?.contentDiv) return;
         const elapsedMs = Math.max(0, Date.now() - state.startedAt);
-        const title = this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation, state.reference);
+        const isVideo = state.kind === 'video';
+        const title = isVideo
+            ? this.getVideoGenerationProgressTitle(state.phase, elapsedMs, state.progress)
+            : this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation, state.reference);
         const duration = this.formatImageGenerationDuration(elapsedMs);
         const elapsed = container.contentDiv.querySelector('.image-generation-progress__elapsed');
         const titleElement = container.contentDiv.querySelector('.image-generation-progress__title');
@@ -1040,12 +1058,47 @@ class ChatUI {
         const track = container.contentDiv.querySelector('.image-generation-progress__track');
         if (elapsed) elapsed.textContent = duration;
         if (titleElement) titleElement.textContent = title;
-        if (model) model.textContent = state.model ? `模型 · ${state.model}` : '图片生成模型';
-        if (hint) hint.textContent = elapsedMs < 45000
-            ? '图片生成通常需要 20–60 秒'
-            : '可继续等待，或停止后重试';
-        if (track) track.setAttribute('aria-valuetext', `${title}，已等待${duration}`);
+        if (model) {
+            const modelName = state.model || (isVideo ? 'muse-video' : '图片生成模型');
+            const ratio = isVideo && state.aspectRatio ? ` · ${state.aspectRatio}` : '';
+            model.textContent = `模型 · ${modelName}${ratio}`;
+        }
+        if (hint) {
+            if (isVideo) {
+                if (state.progress !== null) {
+                    hint.textContent = `生成进度 ${Math.round(state.progress)}%`;
+                } else if (elapsedMs < 20000) {
+                    hint.textContent = '视频生成通常需要 1–3 分钟';
+                } else {
+                    hint.textContent = '可继续等待，或停止后重试';
+                }
+            } else {
+                hint.textContent = elapsedMs < 45000
+                    ? '图片生成通常需要 20–60 秒'
+                    : '可继续等待，或停止后重试';
+            }
+        }
+        if (track) {
+            track.setAttribute('aria-valuetext', `${title}，已等待${duration}`);
+            const bar = track.querySelector('span');
+            if (isVideo && state.progress !== null && bar) {
+                bar.style.animation = 'none';
+                bar.style.width = `${Math.max(4, state.progress)}%`;
+            }
+        }
         this.setReasoningStatus(container, title);
+    }
+
+    getVideoGenerationProgressTitle(phase, elapsedMs, progress) {
+        if (phase === 'completed') return '视频生成完成，正在准备播放';
+        if (phase === 'submitting') return '正在提交视频创作任务';
+        if (phase === 'queued') return '任务已排队，等待视频模型开始生成';
+        if (progress !== null && progress > 0) {
+            return `视频模型正在生成画面（${Math.round(progress)}%）`;
+        }
+        if (elapsedMs < 30000) return '视频模型正在生成画面，请稍候';
+        if (elapsedMs < 120000) return '视频仍在生成中，通常需要 1–3 分钟';
+        return '生成耗时较长，可继续等待或停止后重试';
     }
 
     getImageGenerationProgressTitle(phase, elapsedMs, continuation = false, reference = false) {
@@ -1092,6 +1145,17 @@ class ChatUI {
         `;
         const grid = container.contentDiv.querySelector('.generated-image-grid');
         this.appendGeneratedImages(grid, images);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    displayGeneratedVideos(container, videos = [], caption = '') {
+        const safeCaption = caption ? `<p>${this.escapeHtml(caption)}</p>` : '';
+        container.contentDiv.innerHTML = `
+            ${safeCaption}
+            <div class="generated-video-grid"></div>
+        `;
+        const grid = container.contentDiv.querySelector('.generated-video-grid');
+        this.appendGeneratedVideos(grid, videos);
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
 
@@ -1184,6 +1248,60 @@ class ChatUI {
 
     isOmittedImageUrl(url) {
         return /^\[(data|base64) image omitted,/i.test(String(url || '').trim());
+    }
+
+    appendGeneratedVideos(parent, videos = []) {
+        if (!parent || !Array.isArray(videos) || videos.length === 0) return;
+
+        videos.forEach((video, index) => {
+            const videoUrl = String(video?.url || '');
+            if (!videoUrl) return;
+
+            const frame = document.createElement('figure');
+            frame.className = 'generated-video-frame';
+
+            if (/^\[(data|base64) video omitted,/i.test(videoUrl)) {
+                const missing = document.createElement('div');
+                missing.className = 'generated-image-missing';
+                missing.textContent = '这段历史视频没有保存下来，需要重新生成。';
+                frame.appendChild(missing);
+                parent.appendChild(frame);
+                return;
+            }
+
+            const player = document.createElement('video');
+            player.className = 'generated-video-player';
+            player.controls = true;
+            player.playsInline = true;
+            player.preload = 'metadata';
+            player.src = videoUrl;
+            player.setAttribute('aria-label', `生成视频 ${index + 1}`);
+            if (video.mimeType) {
+                const source = document.createElement('source');
+                source.src = videoUrl;
+                source.type = video.mimeType;
+                player.appendChild(source);
+            }
+            frame.appendChild(player);
+
+            const meta = document.createElement('div');
+            meta.className = 'generated-video-meta';
+            const detail = document.createElement('span');
+            const parts = [];
+            if (video.aspectRatio) parts.push(video.aspectRatio);
+            if (video.durationSeconds) parts.push(`${video.durationSeconds} 秒`);
+            detail.textContent = parts.length ? parts.join(' · ') : 'Muse 视频';
+            const link = document.createElement('a');
+            link.href = videoUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = '打开视频';
+            meta.appendChild(detail);
+            meta.appendChild(link);
+            frame.appendChild(meta);
+
+            parent.appendChild(frame);
+        });
     }
 
     createImagePreviewUrl(url, mimeType = 'image/png') {
@@ -2389,6 +2507,12 @@ class ChatUI {
             const grid = document.createElement('div');
             grid.className = 'generated-image-grid';
             this.appendGeneratedImages(grid, msg.images);
+            messageElement.appendChild(grid);
+        }
+        if (msg.role !== 'user' && Array.isArray(msg.videos) && msg.videos.length) {
+            const grid = document.createElement('div');
+            grid.className = 'generated-video-grid';
+            this.appendGeneratedVideos(grid, msg.videos);
             messageElement.appendChild(grid);
         }
 

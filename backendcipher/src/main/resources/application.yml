@@ -96,6 +96,15 @@ image:
   size: ${IMAGE_SIZE:1024x1024}
   timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:240}
 
+# Muse 视频创作配置（OpenAI Sora 风格异步接口，Key 只在后端读取）
+video:
+  api-key: ${VIDEO_API_KEY:${IMAGE_API_KEY:${OPENAI_API_KEY:}}}
+  base-url: ${VIDEO_BASE_URL:https://api.aisenyu.com/v1}
+  model: ${VIDEO_MODEL:muse-video}
+  aspect-ratio: "${VIDEO_ASPECT_RATIO:16:9}"
+  timeout-seconds: ${VIDEO_TIMEOUT_SECONDS:180}
+  storage-dir: ${VIDEO_STORAGE_DIR:generated-videos}
+
 # World Labs / Marble 世界模型（李飞飞团队 World API）
 # Key 只在后端读取，前端一律通过 /api/world/** 代理，避免密钥泄漏。
 world:
