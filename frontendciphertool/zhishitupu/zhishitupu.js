@@ -46,6 +46,11 @@ function loadScript(src, globalName) {
     });
 }
 
+function isKnowledgeGraphSectionVisible() {
+    const section = document.getElementById('zhishitupu-content');
+    return Boolean(section && section.style.display !== 'none');
+}
+
 // 知识图谱主入口
 async function initKnowledgeGraph() {
     const container = document.getElementById('graph-wrapper');
@@ -60,56 +65,73 @@ async function initKnowledgeGraph() {
         return;
     }
 
+    // 已经切到其它模块时不要继续在后台装配 3D 图谱，否则会占用主线程拖慢其它模块。
+    // 用户再次进入知识图谱时会重新调用本函数，届时再完成初始化。
+    if (!isKnowledgeGraphSectionVisible()) return;
+    // 同一时间只允许一次初始化，避免快速重复点击时重复创建画布。
+    if (window.__zstpInitRunning) return window.__zstpInitRunning;
+
+    window.__zstpInitRunning = (async () => {
+        try {
+            if (window.WORLD_CORPUS_READY) {
+                if (loader) loader.innerText = '正在加载本地世界知识正文...';
+                try {
+                    await window.WORLD_CORPUS_READY;
+                } catch (error) {
+                    console.warn('[知识图谱] 本地世界知识正文不可用，继续加载图谱:', error);
+                }
+                if (loader) loader.innerText = '正在装配世界知识图谱...';
+            }
+            if (window.WORLD_EXPANSION_CORPUS_READY) {
+                if (loader) loader.innerText = '正在加载百科扩展正文...';
+                try {
+                    await window.WORLD_EXPANSION_CORPUS_READY;
+                } catch (error) {
+                    console.warn('[知识图谱] 扩展百科正文不可用，继续加载图谱:', error);
+                }
+                if (loader) loader.innerText = '正在装配世界知识图谱...';
+            }
+            if (!document.getElementById('sci-fi-font')) {
+                const fontLink = document.createElement('link');
+                fontLink.id = 'sci-fi-font';
+                fontLink.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap';
+                fontLink.rel = 'stylesheet';
+                document.head.appendChild(fontLink);
+                try { await document.fonts.load('1em Orbitron'); } catch(e) {}
+            }
+
+            if (typeof THREE === 'undefined') {
+                await loadScript('./vendor/three/three.min.js', 'THREE');
+            }
+            if (typeof SpriteText === 'undefined') {
+                await loadScript('./vendor/three-spritetext/three-spritetext.min.js', 'SpriteText');
+            }
+            if (typeof ForceGraph3D === 'undefined') {
+                await loadScript('./vendor/3d-force-graph/3d-force-graph.min.js', 'ForceGraph3D');
+            }
+
+            // 等待本地正文和依赖脚本期间用户可能已经切走，这时不再渲染图谱
+            if (!isKnowledgeGraphSectionVisible()) return;
+
+            renderGraph(container);
+
+            if(loader) {
+                setTimeout(() => {
+                    loader.style.opacity = 0;
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }, 1000);
+            }
+
+        } catch (error) {
+            console.error('知识图谱初始化失败:', error);
+            if(loader) loader.innerText = `知识图谱加载失败：${error.message || '未知错误'}`;
+        }
+    })();
+
     try {
-        if (window.WORLD_CORPUS_READY) {
-            if (loader) loader.innerText = '正在加载本地世界知识正文...';
-            try {
-                await window.WORLD_CORPUS_READY;
-            } catch (error) {
-                console.warn('[知识图谱] 本地世界知识正文不可用，继续加载图谱:', error);
-            }
-            if (loader) loader.innerText = '正在装配世界知识图谱...';
-        }
-        if (window.WORLD_EXPANSION_CORPUS_READY) {
-            if (loader) loader.innerText = '正在加载百科扩展正文...';
-            try {
-                await window.WORLD_EXPANSION_CORPUS_READY;
-            } catch (error) {
-                console.warn('[知识图谱] 扩展百科正文不可用，继续加载图谱:', error);
-            }
-            if (loader) loader.innerText = '正在装配世界知识图谱...';
-        }
-        if (!document.getElementById('sci-fi-font')) {
-            const fontLink = document.createElement('link');
-            fontLink.id = 'sci-fi-font';
-            fontLink.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap';
-            fontLink.rel = 'stylesheet';
-            document.head.appendChild(fontLink);
-            try { await document.fonts.load('1em Orbitron'); } catch(e) {}
-        }
-
-        if (typeof THREE === 'undefined') {
-            await loadScript('./vendor/three/three.min.js', 'THREE');
-        }
-        if (typeof SpriteText === 'undefined') {
-            await loadScript('./vendor/three-spritetext/three-spritetext.min.js', 'SpriteText');
-        }
-        if (typeof ForceGraph3D === 'undefined') {
-            await loadScript('./vendor/3d-force-graph/3d-force-graph.min.js', 'ForceGraph3D');
-        }
-
-        renderGraph(container);
-
-        if(loader) {
-            setTimeout(() => {
-                loader.style.opacity = 0;
-                setTimeout(() => loader.style.display = 'none', 500);
-            }, 1000);
-        }
-
-    } catch (error) {
-        console.error('知识图谱初始化失败:', error);
-        if(loader) loader.innerText = `知识图谱加载失败：${error.message || '未知错误'}`;
+        return await window.__zstpInitRunning;
+    } finally {
+        window.__zstpInitRunning = null;
     }
 }
 
