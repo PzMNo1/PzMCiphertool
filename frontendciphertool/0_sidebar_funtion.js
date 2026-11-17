@@ -3,9 +3,20 @@
 const sidebar = document.getElementById('sidebar');
 const sidebarPinBtn = document.getElementById('sidebar-pin-btn');
 if (sidebar && sidebarPinBtn) {
+    // 手机上点按收起状态的侧边栏会先触发 :hover 展开，浏览器随后补发的鼠标事件
+    // 落点可能已经变成展开后才出现的置顶按钮，导致同一次点按把侧边栏误置顶。
+    // 记录按下时是否直接落在置顶按钮上，用来忽略这类补发的 click。
+    let gestureStartedOutsidePin = false;
+    sidebar.addEventListener('pointerdown', function (event) {
+        gestureStartedOutsidePin = !sidebarPinBtn.contains(event.target);
+    }, true);
+
     sidebarPinBtn.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
+        const ignoreClick = gestureStartedOutsidePin && event.detail > 0;
+        gestureStartedOutsidePin = false;
+        if (ignoreClick) return;
         const pinned = sidebar.classList.toggle('sidebar-pinned');
         sidebarPinBtn.setAttribute('aria-pressed', String(pinned));
     });
