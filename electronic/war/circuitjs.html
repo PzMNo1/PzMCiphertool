@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<script>
+    (function() {
+        if (window.location.search.indexOf('lang=zh') === -1) {
+            var separator = window.location.href.indexOf('?') === -1 ? '?' : '&';
+            var newUrl = window.location.href + separator + 'lang=zh';
+            window.location.replace(newUrl);
+        }
+    })();
+</script>
+  <link rel="manifest" href="./manifest.json">
+    <meta name='gwt:property' content='locale=zh'>
+    <title></title>
+<style>
+body, html {
+    background-color: #000510 !important;
+    color: #a0a0c0;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    scrollbar-width: thin;
+    scrollbar-color: #40e0ff #000510;
+    overflow: hidden; /* Prevent body scroll if app handles it */
+    height: 100%;
+    margin: 0;
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #000510;
+}
+::-webkit-scrollbar-thumb {
+    background: #3498db;
+    border: 1px solid #40e0ff;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #40e0ff;
+    box-shadow: 0 0 10px #40e0ff;
+}
+
+
+.gwt-Panel, .gwt-HorizontalPanel, .gwt-VerticalPanel, 
+.gwt-ScrollPanel, .gwt-SplitLayoutPanel, .gwt-DockLayoutPanel, 
+.rootPanel, table, tr, td, tbody, .verticalPanel {
+    background-color: transparent !important;
+    background: transparent !important; 
+    color: inherit;
+}
+
+div[style*="position: absolute"] {
+    /* carefull with this, but needed if classes are missing */
+    /* background-color: #000510;  <-- This is too risky globally */
+}
+
+/* Instead, let's target the panels we know are white */
+.verticalPanel {
+    background-color: #000510 !important;
+    border: 1px solid #303050;
+}
+
+/* The IFrame holder */
+.gwt-Frame {
+    background-color: #000510 !important;
+    border: none !important;
+}
+
+/* Table Cells used for layout - often culprits of white background */
+td {
+    color: #a0a0c0;
+}
+
+/* Sliders area often in a cell with valign top */
+td[valign="top"] {
+    background-color: #000510 !important; /* Ensure sliders sit on dark */
+}
+
+/* Toolbar items area */
+td[valign="middle"] {
+    /* background-color: #000 !important; */ /* Let it be transparent or dark */
+}
+
+
+/* =========================================
+   Specific Component Styling
+   ========================================= */
+
+/* Menu Bar */
+.gwt-MenuBar {
+    background-color: #0a0a15 !important;
+    border-bottom: 1px solid #40e0ff;
+    background-image: none !important;
+}
+
+.gwt-MenuItem {
+	font-size: 12px !important;
+    color: #40e0ff !important;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+}
+
+.gwt-MenuItem-selected {
+    background-color: rgba(64, 224, 255, 0.15) !important;
+    color: #fff !important;
+    text-shadow: 0 0 8px #40e0ff;
+    box-shadow: inset 2px 0 0 #40e0ff;
+}
+
+.gwt-MenuBar-horizontal {
+	font-size: 12px !important;
+}
+
+/* Stack Panel (Sidebars) */
+.gwt-StackPanel {
+    border-right: 1px solid #303050;
+    background-color: #000510 !important;
+}
+.gwt-StackPanel .gwt-StackPanelItem {
+    background-color: #101020 !important;
+    background-image: none !important;
+    border-bottom: 1px solid #303050 !important;
+    color: #8080a0 !important;
+    padding: 8px !important;
+    font-weight: bold;
+    cursor: pointer;
+}
+.gwt-StackPanel .gwt-StackPanelItem-selected {
+    background-color: #151530 !important;
+    color: #40e0ff !important;
+    border-left: 3px solid #40e0ff !important;
+    text-shadow: 0 0 5px rgba(64, 224, 255, 0.5);
+}
+
+/* Tab Panel */
+.gwt-TabPanelBottom {
+    border: 1px solid #303050 !important;
+    background-color: #000510 !important;
+}
+.gwt-TabBar .gwt-TabBarItem {
+    background-color: #101020 !important;
+    background-image: none !important;
+    color: #8080a0 !important;
+    border: 1px solid #303050 !important;
+    margin-right: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+.gwt-TabBar .gwt-TabBarItem-selected {
+    background-color: #000510 !important;
+    color: #40e0ff !important;
+    border-top: 2px solid #40e0ff !important;
+    border-bottom: none !important;
+}
+
+/* Popups & Dialogs */
+.gwt-PopupPanel, .gwt-DialogBox, .gwt-DecoratedPopupPanel {
+    background-color: #0a0a15 !important;
+    border: 1px solid #40e0ff !important;
+    box-shadow: 0 0 20px rgba(64, 224, 255, 0.2) !important;
+    color: #a0a0c0 !important;
+    padding: 0 !important;
+}
+.gwt-DialogBox .Caption {
+    background: #2c3e50 !important;
+    background-image: none !important;
+    color: #40e0ff !important;
+    border-bottom: 1px solid #40e0ff;
+    padding: 6px;
+    font-weight: bold;
+    cursor: move;
+}
+
+/* Splitters */
+.gwt-SplitLayoutPanel-HDragger, .gwt-SplitLayoutPanel-VDragger {
+    background-color: #000 !important;
+    border: 1px solid #303050 !important;
+}
+
+/* Labels & Text */
+.gwt-Label-selected {
+	font-size: 1.3em;
+	font-weight: 700;
+    color: #40e0ff;
+	border-top: 1px solid #40e0ff;
+	border-bottom: 1px solid #40e0ff;
+    background: rgba(64, 224, 255, 0.05) !important;
+    text-shadow: 0 0 5px #40e0ff;
+    padding: 2px 5px;
+}
+.gwt-Label-1off { color: #606080; }
+.gwt-Label-2off { font-size:0.8em; color: #404050; }
+.gwt-Label-current { color: #ecf0f1; }
+
+/* Buttons */
+.gwt-Button, .topButton, .topButton-red, .gwt-Button.chbut {
+    background: rgba(10, 20, 40, 0.9) !important;
+    color: #40e0ff !important;
+    border: 1px solid #3498db !important;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: small;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 2px rgba(64, 224, 255, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-image: none !important;
+}
+
+.gwt-Button:hover, .topButton:hover {
+    background: rgba(64, 224, 255, 0.15) !important;
+    border-color: #40e0ff !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px rgba(64, 224, 255, 0.6);
+    text-shadow: 0 0 5px #40e0ff;
+}
+
+.gwt-Button[disabled] {
+    color: #404050 !important;
+    border-color: #303040 !important;
+    box-shadow: none !important;
+    cursor: default;
+}
+
+/* Specific Button Variants */
+.gwt-Button.chbut { padding:3px 8px; margin: 3px; }
+.gwt-Button.chbut.chsel {
+	font-weight: bold;
+    background: #40e0ff !important;
+    color: #000 !important;
+    box-shadow: 0 0 10px #40e0ff;
+}
+.gwt-Button.chbut-black {
+	background: #000 !important;
+    border: 1px solid #333 !important;
+	color: #888 !important;
+}
+.gwt-Button.chbut-white {
+	background: #ccc !important;
+	color: black !important;
+}
+
+/* Form Controls */
+.gwt-TextBox, input[type="text"], input[type="number"], select, textarea {
+    background-color: #0a0a15 !important;
+    border: 1px solid #3498db !important;
+    color: #40e0ff !important;
+    padding: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+.gwt-TextBox:focus, input:focus, select:focus, textarea:focus {
+    border-color: #40e0ff !important;
+    box-shadow: 0 0 8px rgba(64, 224, 255, 0.5) !important;
+    outline: none;
+}
+.gwt-TextBox.scalebox { width: 100px; }
+
+/* Misc */
+.disabled { color: #404050 !important; }
+.topSpace { margin-top: 12px; }
+.cursorPointer { cursor: default; }
+.cursorCross { cursor: crosshair; }
+.cursorSplitter { cursor: row-resize; }
+.gwt-MenuItem-disabled { color: #404050 !important; }
+.offScreen { position: absolute; right: 101%; overflow: hidden; }
+.gwt-Frame { scrolling="no"; border: 0px !important; }
+.radioPanel label { margin-right: 15px; color: #a0a0c0; }
+input[type="checkbox"], input[type="radio"] { accent-color: #40e0ff; }
+
+/* Red Button */
+.topButton-red {
+    color: #ff5577 !important;
+    border-color: #ff5577 !important;
+    background-color: rgba(255, 85, 119, 0.1) !important;
+}
+.topButton-red:hover {
+    background-color: #ff5577 !important; 
+    color: #fff !important;
+    box-shadow: 0 0 15px #ff5577;
+}
+
+/* Expand Button */
+.gwt-Button.expand-but {
+	line-height: 0;
+	font-size: 13px;
+	margin-right: 5px;
+	border-radius:0px;
+	display: inline-block;
+	text-align: center;
+	width: 15px;
+	height: 15px;
+	padding: 0 0 1px 0;
+	margin-bottom:1px;
+	background: #3498db !important;
+	color: #000 !important;
+    border: none !important;
+}
+.gwt-Button.expand-but:hover {
+    background: #40e0ff !important;
+    box-shadow: 0 0 5px #40e0ff;
+}
+
+/* Futuristic glassmorphism theme overrides */
+:root {
+    --circuit-bg-deep: #000510;
+    --circuit-bg-mid: #020a1a;
+    --circuit-glass: rgba(9, 22, 38, 0.74);
+    --circuit-glass-strong: rgba(13, 31, 52, 0.88);
+    --circuit-glass-soft: rgba(22, 56, 88, 0.42);
+    --circuit-border: rgba(64, 224, 255, 0.32);
+    --circuit-border-hot: rgba(64, 224, 255, 0.78);
+    --circuit-cyan: #40e0ff;
+    --circuit-mint: #40e0ff;
+    --circuit-violet: #b388ff;
+    --circuit-pink: #ff5577;
+    --circuit-text: #ecf0f1;
+    --circuit-muted: #87a9bd;
+    --circuit-dim: #52677a;
+    --circuit-shadow: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 28px rgba(64, 224, 255, 0.12);
+}
+
+html,
+body {
+    background:
+        radial-gradient(ellipse at 70% 20%, rgba(0, 255, 200, 0.05) 0%, transparent 40%) fixed,
+        radial-gradient(ellipse at 30% 80%, rgba(0, 180, 255, 0.05) 0%, transparent 40%) fixed,
+        linear-gradient(160deg, #000510 0%, #020a1a 35%, #0a0e2b 60%, #0d0520 100%) fixed !important;
+    color: var(--circuit-text) !important;
+    font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif !important;
+    scrollbar-color: var(--circuit-cyan) rgba(3, 9, 18, 0.9) !important;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(64, 224, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(64, 224, 255, 0.028) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 88%);
+    z-index: 0;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(3, 9, 18, 0.95) !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--circuit-cyan), var(--circuit-violet)) !important;
+    border: 1px solid rgba(236, 240, 241, 0.3) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 0 12px rgba(64, 224, 255, 0.4) !important;
+}
+
+.rootPanel,
+.gwt-Panel,
+.gwt-HorizontalPanel,
+.gwt-VerticalPanel,
+.gwt-ScrollPanel,
+.gwt-SplitLayoutPanel,
+.gwt-DockLayoutPanel,
+.verticalPanel,
+table,
+tbody,
+tr,
+td {
+    color: var(--circuit-text) !important;
+}
+
+.verticalPanel,
+td[valign="top"] {
+    background:
+        linear-gradient(160deg, rgba(17, 37, 58, 0.74), rgba(5, 13, 25, 0.86)) !important;
+    border: 1px solid var(--circuit-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--circuit-shadow) !important;
+    backdrop-filter: blur(18px) saturate(145%);
+}
+
+.gwt-MenuBar {
+    font-family: 'Orbitron', 'Segoe UI', sans-serif !important;
+    background:
+        linear-gradient(90deg, rgba(9, 22, 38, 0.9), rgba(18, 34, 61, 0.78), rgba(7, 18, 34, 0.9)) !important;
+    border: 1px solid var(--circuit-border) !important;
+    border-bottom-color: rgba(64, 224, 255, 0.56) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34), 0 0 22px rgba(64, 224, 255, 0.15) !important;
+    backdrop-filter: blur(16px) saturate(150%);
+}
+
+.gwt-MenuItem {
+    color: var(--circuit-text) !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    letter-spacing: 0 !important;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.2);
+}
+
+.gwt-MenuItem:hover,
+.gwt-MenuItem-selected,
+.gwt-MenuBar .gwt-MenuItem-selected {
+    background:
+        linear-gradient(135deg, rgba(64, 224, 255, 0.2), rgba(179, 136, 255, 0.16)) !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 0 0 1px rgba(64, 224, 255, 0.42), 0 0 18px rgba(64, 224, 255, 0.25) !important;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.55) !important;
+}
+
+.gwt-MenuBarPopup,
+.gwt-PopupPanel,
+.gwt-DialogBox,
+.gwt-DecoratedPopupPanel {
+    background:
+        linear-gradient(150deg, rgba(12, 30, 51, 0.94), rgba(4, 12, 24, 0.92)) !important;
+    border: 1px solid var(--circuit-border-hot) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.52), 0 0 32px rgba(64, 224, 255, 0.2) !important;
+    color: var(--circuit-text) !important;
+    backdrop-filter: blur(20px) saturate(160%);
+    overflow: hidden;
+}
+
+.gwt-MenuBarPopup table,
+.gwt-PopupPanel table,
+.gwt-DialogBox table,
+.gwt-DecoratedPopupPanel table,
+.menuPopupMiddleCenter,
+.menuPopupMiddleCenterInner,
+.popupContent,
+.dialogContent,
+.dialogMiddleCenter,
+.dialogTopCenter,
+.dialogBottomCenter,
+.dialogMiddleLeft,
+.dialogMiddleRight,
+.dialogTopLeft,
+.dialogTopRight,
+.dialogBottomLeft,
+.dialogBottomRight {
+    background: transparent !important;
+    background-image: none !important;
+}
+
+.gwt-DialogBox .Caption {
+    background:
+        linear-gradient(90deg, rgba(64, 224, 255, 0.18), rgba(179, 136, 255, 0.16)) !important;
+    border-bottom: 1px solid var(--circuit-border-hot) !important;
+    color: #ffffff !important;
+    letter-spacing: 0 !important;
+    text-shadow: 0 0 12px rgba(64, 224, 255, 0.5) !important;
+}
+
+.gwt-StackPanel,
+.gwt-TabPanelBottom {
+    background: var(--circuit-glass) !important;
+    border-color: var(--circuit-border) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+    backdrop-filter: blur(16px) saturate(145%);
+}
+
+.gwt-StackPanel .gwt-StackPanelItem,
+.gwt-TabBar .gwt-TabBarItem {
+    background: rgba(14, 32, 54, 0.7) !important;
+    background-image: none !important;
+    border: 1px solid rgba(64, 224, 255, 0.2) !important;
+    border-radius: 6px !important;
+    color: var(--circuit-muted) !important;
+}
+
+.gwt-StackPanel .gwt-StackPanelItem-selected,
+.gwt-TabBar .gwt-TabBarItem-selected {
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.22), rgba(64, 224, 255, 0.16)) !important;
+    border-color: var(--circuit-border-hot) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 18px rgba(64, 224, 255, 0.22) !important;
+}
+
+.gwt-Button,
+.topButton,
+.topButton-red,
+.gwt-Button.chbut {
+    background:
+        linear-gradient(135deg, rgba(15, 38, 62, 0.92), rgba(6, 17, 31, 0.84)) !important;
+    background-image: none !important;
+    border: 1px solid rgba(64, 224, 255, 0.42) !important;
+    border-radius: 7px !important;
+    color: var(--circuit-text) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 0 14px rgba(64, 224, 255, 0.12) !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
+
+.gwt-Button:hover,
+.topButton:hover,
+.gwt-Button.chbut:hover {
+    background:
+        linear-gradient(135deg, rgba(64, 224, 255, 0.24), rgba(64, 224, 255, 0.18)) !important;
+    border-color: var(--circuit-border-hot) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 20px rgba(64, 224, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.6) !important;
+}
+
+.gwt-Button[disabled],
+.gwt-MenuItem-disabled,
+.disabled {
+    color: var(--circuit-dim) !important;
+    border-color: rgba(82, 103, 122, 0.26) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.gwt-Button.chbut.chsel {
+    background:
+        linear-gradient(135deg, rgba(64, 224, 255, 0.95), rgba(64, 224, 255, 0.9)) !important;
+    border-color: rgba(255, 255, 255, 0.7) !important;
+    color: #000510 !important;
+    box-shadow: 0 0 24px rgba(64, 224, 255, 0.45) !important;
+}
+
+.topButton-red {
+    color: #ffe1e1 !important;
+    border-color: rgba(255, 85, 119, 0.7) !important;
+    background: linear-gradient(135deg, rgba(255, 85, 119, 0.18), rgba(46, 10, 10, 0.74)) !important;
+}
+
+.topButton-red:hover {
+    background: linear-gradient(135deg, rgba(255, 85, 119, 0.86), rgba(179, 136, 255, 0.46)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 22px rgba(255, 85, 119, 0.45) !important;
+}
+
+.gwt-TextBox,
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    background: rgba(4, 12, 24, 0.82) !important;
+    border: 1px solid rgba(64, 224, 255, 0.36) !important;
+    border-radius: 6px !important;
+    color: var(--circuit-text) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 0 12px rgba(64, 224, 255, 0.08) !important;
+}
+
+.gwt-TextBox:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--circuit-border-hot) !important;
+    box-shadow: 0 0 0 2px rgba(64, 224, 255, 0.15), 0 0 20px rgba(64, 224, 255, 0.26) !important;
+}
+
+select option {
+    background: #020a1a !important;
+    color: var(--circuit-text) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--circuit-mint) !important;
+}
+
+input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    min-width: 120px;
+    height: 16px;
+    background: transparent !important;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(64, 224, 255, 0.75), rgba(64, 224, 255, 0.55), rgba(179, 136, 255, 0.5));
+    border: 1px solid rgba(236, 240, 241, 0.24);
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45), 0 0 14px rgba(64, 224, 255, 0.24);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, var(--circuit-mint) 28%, var(--circuit-cyan) 68%, #1a3555 100%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 16px rgba(64, 224, 255, 0.72), 0 0 32px rgba(64, 224, 255, 0.3);
+}
+
+input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(64, 224, 255, 0.75), rgba(64, 224, 255, 0.55), rgba(179, 136, 255, 0.5));
+    border: 1px solid rgba(236, 240, 241, 0.24);
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45), 0 0 14px rgba(64, 224, 255, 0.24);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, var(--circuit-mint) 28%, var(--circuit-cyan) 68%, #1a3555 100%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 16px rgba(64, 224, 255, 0.72), 0 0 32px rgba(64, 224, 255, 0.3);
+}
+
+.gwt-SplitLayoutPanel-HDragger,
+.gwt-SplitLayoutPanel-VDragger {
+    background: linear-gradient(180deg, rgba(64, 224, 255, 0.32), rgba(179, 136, 255, 0.18)) !important;
+    border-color: rgba(64, 224, 255, 0.45) !important;
+    box-shadow: 0 0 16px rgba(64, 224, 255, 0.2) !important;
+}
+
+.gwt-Label-selected {
+    background: linear-gradient(90deg, rgba(64, 224, 255, 0.18), rgba(64, 224, 255, 0.1)) !important;
+    border-color: var(--circuit-border-hot) !important;
+    color: #ffffff !important;
+}
+
+.gwt-Label-1off,
+.gwt-Label-2off,
+.radioPanel label,
+td {
+    color: var(--circuit-muted) !important;
+}
+
+.gwt-Label-current {
+    color: var(--circuit-text) !important;
+}
+
+.gwt-Button.expand-but {
+    background: linear-gradient(135deg, var(--circuit-cyan), var(--circuit-violet)) !important;
+    border-radius: 5px !important;
+    color: #000510 !important;
+    box-shadow: 0 0 12px rgba(64, 224, 255, 0.45) !important;
+}
+
+.gwt-Frame {
+    background: rgba(4, 12, 24, 0.82) !important;
+}
+
+/* ============================================================
+   科幻 HUD 皮肤：工具栏 / 元件调色板 / 右侧控制台
+   ============================================================ */
+
+:root {
+    --hud-cyan: #40e0ff;
+    --hud-mint: #64ffda;
+    --hud-line-hot: rgba(64, 224, 255, 0.72);
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(0deg, rgba(64, 224, 255, 0.028) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(0, 0, 0, 0.32) 100%);
+}
+
+/* 顶部菜单栏 */
+.gwt-MenuBar-horizontal {
+    background: linear-gradient(90deg, rgba(3, 10, 20, 0.96), rgba(9, 30, 48, 0.9), rgba(3, 10, 20, 0.96)) !important;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.42) !important;
+    box-shadow: 0 1px 0 rgba(64, 224, 255, 0.16), 0 10px 26px rgba(0, 0, 0, 0.45) !important;
+}
+
+.gwt-MenuBar-horizontal .gwt-MenuItem {
+    letter-spacing: 1px !important;
+}
+
+/* 工具栏元件图标 */
+td > .gwt-Label[title^="添加"] {
+    color: var(--hud-cyan) !important;
+    border-radius: 8px;
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+td > .gwt-Label[title^="添加"] svg {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 4px rgba(64, 224, 255, 0.5));
+    transition: opacity 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+}
+
+td > .gwt-Label[title^="添加"]:hover {
+    background: radial-gradient(circle at 50% 45%, rgba(64, 224, 255, 0.24), rgba(64, 224, 255, 0) 72%) !important;
+    box-shadow: inset 0 0 0 1px rgba(64, 224, 255, 0.5), 0 0 14px rgba(64, 224, 255, 0.32);
+}
+
+td > .gwt-Label[title^="添加"]:hover svg {
+    opacity: 1;
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 9px rgba(64, 224, 255, 0.95));
+}
+
+td > .gwt-Label[title^="添加"][style*="rgb(0, 123, 255)"] {
+    background: radial-gradient(circle at 50% 45%, rgba(64, 224, 255, 0.26), rgba(64, 224, 255, 0) 72%) !important;
+    box-shadow: inset 0 0 0 1px rgba(64, 224, 255, 0.65), 0 0 16px rgba(64, 224, 255, 0.4);
+}
+
+/* 工具栏编辑图标 */
+td > .gwt-Label[class*="cirjsicon"] {
+    color: #7fe3f5 !important;
+    border-radius: 7px;
+    transition: background 0.2s ease, box-shadow 0.2s ease, text-shadow 0.2s ease;
+}
+
+td > .gwt-Label[class*="cirjsicon"]:hover {
+    background: rgba(64, 224, 255, 0.14) !important;
+    box-shadow: inset 0 0 0 1px rgba(64, 224, 255, 0.45), 0 0 14px rgba(64, 224, 255, 0.3);
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.9);
+}
+
+/* 元件调色板（悬停工具图标时弹出） */
+.palette-container {
+    background: linear-gradient(158deg, rgba(9, 30, 48, 0.97), rgba(3, 10, 20, 0.98)) !important;
+    border: 1px solid rgba(64, 224, 255, 0.6) !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+    box-shadow:
+        0 22px 46px rgba(0, 0, 0, 0.62),
+        0 0 26px rgba(64, 224, 255, 0.22),
+        inset 0 0 22px rgba(64, 224, 255, 0.07) !important;
+    backdrop-filter: blur(16px) saturate(155%);
+}
+
+.palette-container::before,
+.palette-container::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.palette-container::before {
+    top: 4px;
+    left: 4px;
+    border-top: 1px solid var(--hud-cyan);
+    border-left: 1px solid var(--hud-cyan);
+    box-shadow: -1px -1px 6px rgba(64, 224, 255, 0.5);
+}
+
+.palette-container::after {
+    right: 4px;
+    bottom: 4px;
+    border-right: 1px solid var(--hud-cyan);
+    border-bottom: 1px solid var(--hud-cyan);
+    box-shadow: 1px 1px 6px rgba(64, 224, 255, 0.5);
+}
+
+.palette-container .gwt-Label {
+    color: #9befff !important;
+    border-radius: 8px;
+    margin: 2px !important;
+    padding: 2px !important;
+    transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.palette-container .gwt-Label svg {
+    filter: drop-shadow(0 0 5px rgba(64, 224, 255, 0.45));
+}
+
+.palette-container .gwt-Label:hover {
+    background: rgba(64, 224, 255, 0.16) !important;
+    box-shadow: inset 0 0 0 1px rgba(64, 224, 255, 0.6), 0 0 16px rgba(64, 224, 255, 0.3);
+    color: #ffffff !important;
+}
+
+/* 右侧控制台 */
+#painel {
+    background: linear-gradient(178deg, rgba(8, 26, 42, 0.92), rgba(3, 10, 20, 0.95)) !important;
+    border-left: 1px solid rgba(64, 224, 255, 0.3) !important;
+    box-shadow:
+        -18px 0 36px rgba(0, 0, 0, 0.45),
+        inset 1px 0 0 rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(64, 224, 255, 0.14) !important;
+    backdrop-filter: blur(14px) saturate(150%);
+}
+
+#painel canvas {
+    border-radius: 5px;
+    filter: invert(1) saturate(1.4) brightness(1.08) drop-shadow(0 0 5px rgba(64, 224, 255, 0.5));
+}
+
+#painel .gwt-Label.topSpace {
+    position: relative;
+    padding-left: 10px;
+    color: #a6ecff !important;
+    font-size: 11px !important;
+    letter-spacing: 1.5px !important;
+    text-shadow: 0 0 8px rgba(64, 224, 255, 0.35);
+}
+
+#painel .gwt-Label.topSpace::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    margin-top: -2.5px;
+    background: var(--hud-cyan);
+    box-shadow: 0 0 8px rgba(64, 224, 255, 0.85);
+    transform: rotate(45deg);
+}
+
+#painel .gwt-Label.topSpace.disabled {
+    color: #5f8496 !important;
+    text-shadow: none;
+}
+
+#painel .gwt-Label.topSpace.disabled::before {
+    background: #37505c;
+    box-shadow: none;
+}
+
+#painel .gwt-Label:not([class*="topSpace"]) {
+    color: var(--hud-mint) !important;
+    font-family: "Consolas", "Cascadia Mono", monospace !important;
+    font-size: 12px !important;
+    letter-spacing: 1px !important;
+    text-shadow: 0 0 12px rgba(100, 255, 218, 0.5);
+}
+
+#painel .gwt-Button,
+#painel .topButton {
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.24), rgba(10, 30, 48, 0.94)) !important;
+    border: 1px solid rgba(64, 224, 255, 0.5) !important;
+    border-left: 2px solid rgba(64, 224, 255, 0.9) !important;
+    border-radius: 5px !important;
+    color: #eafcff !important;
+    font-size: 12px !important;
+    padding: 2px 9px !important;
+    letter-spacing: 1.5px !important;
+    line-height: 1.5 !important;
+    text-transform: none !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(64, 224, 255, 0.08),
+        inset 0 0 14px rgba(64, 224, 255, 0.12),
+        0 0 14px rgba(64, 224, 255, 0.12) !important;
+}
+
+#painel .gwt-Button:hover,
+#painel .topButton:hover {
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.32), rgba(24, 60, 88, 0.92)) !important;
+    border-color: var(--hud-line-hot) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 18px rgba(64, 224, 255, 0.42), inset 0 0 14px rgba(64, 224, 255, 0.2) !important;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.8) !important;
+}
+
+#painel .gwt-Button[disabled],
+#painel .topButton[disabled] {
+    color: #46697a !important;
+    border-color: rgba(64, 224, 255, 0.16) !important;
+    box-shadow: none !important;
+}
+
+</style>
+
+<link rel="stylesheet" href="./font/fontello.css">
+
+  <style>
+    /* 滚动条样式：从 0_zhuyeyangshi.css 复制，iframe 内部文档无法继承父页面样式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0A192F;
+      border-radius: 4px;
+      box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    }
+    ::-webkit-scrollbar-corner {
+      background: #0A192F;
+    }
+    /* Firefox 标准属性（仅在浏览器不支持 ::-webkit-scrollbar 时启用） */
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+      }
+    }
+  </style>
+</head>
+  <body>
+  <script language="javascript" src="./lz-string.min.js"></script>
+    <script language="javascript" src="./circuitjs1/circuitjs1.nocache.js"></script>                        -->
+    <iframe src="javascript:''" id="__gwt_historyFrame" style="width:0;height:0;border:0"></iframe>
+    
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+	navigator.serviceWorker.register('service-worker.js').then(registration => {
+	  console.log('Service Worker registered with scope:', registration.scope);
+	}).catch(error => {
+	  console.error('Service Worker registration failed:', error);
+	});
+      });
+    }
+    </script>
+
+  </body>
+ </html>

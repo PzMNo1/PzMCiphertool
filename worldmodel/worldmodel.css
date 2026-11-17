@@ -1,0 +1,1026 @@
+/* 世界模型页签：与建模实验室（ORBITAL HARDWARE STUDIO）的暗色霓虹风格保持一致 */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #030609;
+}
+
+#worldmodel-root {
+  height: 100%;
+}
+
+.wm-shell {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  color: #dbeaf3;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(64, 224, 255, 0.07), transparent 30%),
+    radial-gradient(circle at 82% 88%, rgba(0, 255, 136, 0.07), transparent 32%),
+    rgba(3, 6, 10, 0.96);
+}
+
+/* ---------------- 顶部提示条 ---------------- */
+
+.wm-notice {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #ffe6b0;
+  border-bottom: 1px solid rgba(255, 180, 77, 0.35);
+  background: linear-gradient(90deg, rgba(90, 58, 8, 0.6), rgba(30, 20, 4, 0.5));
+}
+
+.wm-notice[hidden] { display: none; }
+
+.wm-notice-text { flex: 1 1 auto; }
+
+/* ---------------- 主体 ---------------- */
+
+.wm-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: block;
+  padding: 10px;
+}
+
+/* ---------------- 视口 ---------------- */
+
+.wm-stage {
+  position: absolute;
+  inset: 10px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(142, 231, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(4, 8, 13, 0.9);
+  overflow: hidden;
+}
+
+.wm-stage-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(142, 231, 255, 0.12);
+  background: rgba(6, 12, 20, 0.8);
+}
+
+.wm-stage-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.wm-stage-tab,
+.wm-library-toggle {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 108px;
+  min-width: 0;
+}
+
+.wm-stage-tab {
+  padding: 0.42rem 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.6px;
+}
+
+.wm-library-toggle {
+  padding: 0.42rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.6px;
+}
+
+.wm-library-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 16px;
+  margin-left: 5px;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(224, 255, 255, 0.82);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(64, 224, 255, 0.08);
+}
+
+.wm-library-count[hidden] { display: none; }
+
+.wm-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.wm-stage-actions:empty { display: none; }
+
+.wm-stage-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wm-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #04070c;
+}
+
+.wm-frame[hidden] { display: none; }
+
+.wm-pano-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #04070c;
+}
+
+.wm-pano-wrap[hidden] { display: none; }
+
+.wm-pano-wrap img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+.wm-pano-empty {
+  font-size: 12px;
+  color: rgba(125, 151, 168, 0.9);
+}
+
+/* ---------------- 工作台空态 + 底部生成坞 ---------------- */
+
+.wm-stage-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: clamp(16px, 3vh, 32px) clamp(14px, 3vw, 36px) 20px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 84%, rgba(255, 255, 255, 0.05), transparent 38%),
+    radial-gradient(circle at 50% 36%, #14171b, #050608 74%);
+}
+
+.wm-stage-empty[hidden] { display: none; }
+
+.wm-stage-empty.is-scene {
+  justify-content: flex-end;
+  padding-bottom: 104px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.wm-stage-empty.is-scene .wm-hero { display: none; }
+
+.wm-stage-empty.is-scene .wm-composer {
+  width: min(760px, 100%);
+  pointer-events: auto;
+}
+
+.wm-stage-empty.is-scene .wm-tips { display: none; }
+
+.wm-stage-empty.is-scene .wm-composer textarea {
+  height: 46px;
+  min-height: 46px;
+  max-height: 92px;
+  resize: none;
+}
+
+.wm-hero {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.wm-stage-empty-title {
+  font-size: 17px;
+  letter-spacing: 2.8px;
+  color: #8ee7ff;
+  text-shadow: 0 0 18px rgba(64, 224, 255, 0.22);
+}
+
+.wm-stage-empty p {
+  box-sizing: border-box;
+  margin: 0;
+  width: min(560px, 100%);
+  font-size: 12px;
+  line-height: 1.8;
+  color: rgba(160, 190, 208, 0.95);
+  text-wrap: pretty;
+}
+
+.wm-stage-empty ul {
+  box-sizing: border-box;
+  width: min(620px, 100%);
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: rgba(160, 190, 208, 0.92);
+}
+
+.wm-stage-empty li {
+  text-wrap: pretty;
+}
+
+.wm-stage-empty li b { color: #b6f5d8; }
+
+/* ---------------- 生成坞 ---------------- */
+
+.wm-composer {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: min(860px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-top-color: rgba(64, 224, 255, 0.32);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(64, 224, 255, 0.07), rgba(0, 20, 40, 0.16) 46%, rgba(0, 0, 0, 0.18)),
+    rgba(0, 20, 40, 0.36);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow:
+    inset 0 0 15px rgba(64, 224, 255, 0.05),
+    5px 0 15px rgba(12, 153, 134, 0.24),
+    0 0 22px rgba(12, 153, 134, 0.18),
+    0 18px 48px rgba(0, 0, 0, 0.44);
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+
+.wm-composer.is-dragover {
+  border-color: rgba(64, 224, 255, 0.55);
+  box-shadow:
+    inset 0 0 24px rgba(64, 224, 255, 0.08),
+    5px 0 18px rgba(12, 153, 134, 0.42),
+    0 18px 48px rgba(0, 0, 0, 0.46);
+}
+
+.wm-composer .cyber-button { top: 0; }
+
+.wm-image-field {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.wm-image-field[hidden] { display: none; }
+
+.wm-image-field img {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.25);
+}
+
+.wm-image-field img[hidden] { display: none; }
+
+.wm-image-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wm-image-name {
+  font-size: 11.5px;
+  color: #e8f4fb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wm-image-note {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: rgba(170, 215, 230, 0.7);
+}
+
+.wm-composer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76px;
+  max-height: 220px;
+  padding: 9px 11px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #e8f4fb;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
+  outline: none;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
+}
+
+.wm-composer textarea:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+.wm-composer textarea::placeholder { color: rgba(232, 238, 243, 0.42); }
+
+.wm-tips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 1px;
+}
+
+.wm-chip {
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 3px 8px;
+  color: rgba(220, 255, 255, 0.78);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(64, 224, 255, 0.06);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: color 0.16s, border-color 0.16s, background 0.16s;
+}
+
+.wm-chip:hover {
+  color: #ffffff;
+  border-color: rgba(64, 224, 255, 0.48);
+  background: rgba(64, 224, 255, 0.14);
+}
+
+.wm-pano-wrap img[hidden] { display: none; }
+
+.wm-image-field #wm-image-clear {
+  flex: 0 0 auto;
+  min-width: 54px;
+}
+
+.wm-composer-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wm-attach {
+  flex: 0 0 auto;
+  min-width: 58px;
+}
+
+#wm-name {
+  box-sizing: border-box;
+  flex: 1 1 160px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: #e8f4fb;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
+  outline: none;
+  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
+}
+
+#wm-name:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+#wm-name::placeholder { color: rgba(232, 238, 243, 0.42); }
+
+.wm-generate {
+  flex: 0 0 auto;
+  min-width: 118px;
+  margin-left: auto;
+  padding: 0.48rem 1.1rem;
+  font-size: 0.76rem;
+}
+
+/* ---------------- 生成进度 ---------------- */
+
+.wm-progress {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: -1px;
+  height: 2px;
+  z-index: 4;
+}
+
+.wm-progress[hidden] { display: none; }
+
+.wm-progress-bar {
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(64, 224, 255, 0.12);
+  box-shadow: 0 0 8px rgba(64, 224, 255, 0.12);
+  overflow: hidden;
+}
+
+.wm-progress-bar > span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(64, 224, 255, 0.5), #b6f5ff);
+  box-shadow: 0 0 8px rgba(64, 224, 255, 0.5);
+  transition: width 0.35s;
+}
+
+.wm-progress-meta {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9.5px;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#wm-progress-text {
+  flex: 0 0 auto;
+  color: rgba(200, 250, 255, 0.7);
+}
+
+#wm-progress-time {
+  flex: 0 0 auto;
+  color: rgba(160, 220, 235, 0.4);
+}
+
+#wm-progress-hint {
+  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(190, 240, 250, 0.55);
+}
+
+.wm-progress.is-error #wm-progress-text { color: rgba(255, 196, 154, 0.95); }
+
+.wm-progress.is-error #wm-progress-hint {
+  display: block;
+  color: rgba(255, 210, 178, 0.8);
+}
+
+.wm-progress.is-error #wm-progress-time { display: none; }
+
+.wm-progress-cancel {
+  flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: -2px;
+  padding: 1px 2px;
+  appearance: none;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 9.5px;
+  line-height: 1.25;
+  color: rgba(200, 250, 255, 0.55);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+
+.wm-progress-cancel:hover { color: #ffffff; }
+
+.wm-progress-cancel[hidden] { display: none; }
+
+/* ---------------- 拖拽参考图 ---------------- */
+
+.wm-drop-overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 1.5px dashed rgba(64, 224, 255, 0.55);
+  border-radius: 18px;
+  background: rgba(0, 20, 40, 0.25);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: inset 0 0 40px rgba(64, 224, 255, 0.06), 0 0 24px rgba(12, 153, 134, 0.2);
+  color: rgba(224, 255, 255, 0.9);
+  font-size: 13px;
+  letter-spacing: 1.4px;
+  text-shadow: 0 0 12px rgba(64, 224, 255, 0.35);
+}
+
+.wm-drop-overlay[hidden] { display: none; }
+
+/* ---------------- 作品库浮层 ---------------- */
+
+.wm-library-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: rgba(2, 5, 9, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.wm-library-backdrop[hidden],
+.wm-library[hidden] { display: none; }
+
+.wm-library {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  box-sizing: border-box;
+  width: min(380px, calc(100% - 20px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-top-color: rgba(64, 224, 255, 0.32);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(64, 224, 255, 0.07), rgba(0, 20, 40, 0.16) 46%, rgba(0, 0, 0, 0.18)),
+    rgba(0, 20, 40, 0.36);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow:
+    inset 0 0 15px rgba(64, 224, 255, 0.05),
+    5px 0 15px rgba(12, 153, 134, 0.28),
+    0 0 24px rgba(12, 153, 134, 0.2),
+    0 20px 52px rgba(0, 0, 0, 0.46);
+  animation: wm-panel-in 0.18s ease-out;
+}
+
+@keyframes wm-panel-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.wm-library-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wm-card-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  color: rgba(224, 255, 255, 0.9);
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(64, 224, 255, 0.2);
+}
+
+.wm-library-head .wm-card-title { flex: 1 1 auto; }
+
+.wm-library-close {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1;
+  color: rgba(224, 255, 255, 0.72);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 9px;
+  background: rgba(64, 224, 255, 0.06);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: color 0.16s, border-color 0.16s, background 0.16s;
+}
+
+.wm-library-close:hover {
+  color: #ffffff;
+  border-color: rgba(64, 224, 255, 0.48);
+  background: rgba(64, 224, 255, 0.14);
+}
+
+.wm-library-options {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid rgba(64, 224, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(64, 224, 255, 0.05);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.wm-library-options-title {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(170, 230, 245, 0.65);
+}
+
+.wm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(220, 245, 250, 0.82);
+  cursor: pointer;
+}
+
+.wm-check input {
+  margin: 2px 0 0;
+  accent-color: #00ff88;
+}
+
+/* ---------------- 作品库列表 ---------------- */
+
+.wm-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(64, 224, 255, 0.24) transparent;
+}
+
+.wm-list::-webkit-scrollbar { width: 6px; height: 6px; }
+
+.wm-list::-webkit-scrollbar-track {
+  background: transparent;
+  box-shadow: none;
+}
+
+.wm-list::-webkit-scrollbar-thumb {
+  background: rgba(64, 224, 255, 0.2);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.wm-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(64, 224, 255, 0.36);
+  box-shadow: none;
+}
+
+.wm-list::-webkit-scrollbar-corner { background: transparent; }
+
+.wm-empty {
+  padding: 16px 10px;
+  font-size: 11.5px;
+  line-height: 1.75;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.wm-item {
+  display: flex;
+  gap: 9px;
+  padding: 8px;
+  cursor: pointer;
+  border: 1px solid rgba(64, 224, 255, 0.11);
+  border-radius: 12px;
+  background: rgba(0, 20, 40, 0.3);
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.wm-item:hover {
+  border-color: rgba(64, 224, 255, 0.32);
+  background: rgba(64, 224, 255, 0.07);
+}
+
+.wm-item.on {
+  border-color: rgba(0, 255, 136, 0.45);
+  background: rgba(0, 255, 136, 0.07);
+}
+
+.wm-item-thumb {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.25);
+  border: 1px solid rgba(64, 224, 255, 0.18);
+}
+
+.wm-item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wm-item-name {
+  font-size: 12px;
+  color: #e8f4fb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wm-item-meta {
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: rgba(170, 215, 230, 0.62);
+}
+
+.wm-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wm-item-tag {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: rgba(220, 255, 255, 0.72);
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  background: rgba(64, 224, 255, 0.06);
+}
+
+/* ---------------- 按钮：复刻 0_zhuyeyangshi.css 的 cyber-button ---------------- */
+
+.cyber-button {
+  --primary-clr: #2ecc71;
+  --secondary-clr: #3498db;
+  --glow-clr: rgba(46, 204, 113, 0.5);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: transparent;
+  border: 2px solid var(--primary-clr);
+  border-radius: 6px;
+  color: var(--text, #ecf0f1);
+  text-transform: uppercase;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1;
+  box-shadow: 0 0 8px var(--glow-clr), inset 0 0 4px var(--glow-clr);
+  top: 6px;
+}
+
+.cyber-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--glow-clr), transparent);
+  transition: all 0.6s ease;
+  z-index: -1;
+}
+
+.cyber-button:hover:not(:disabled) {
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
+  border-color: var(--secondary-clr);
+  color: white;
+  text-shadow: 0 0 4px white;
+  transform: translateY(-2px);
+}
+
+.cyber-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.cyber-button__tag {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes glitch {
+  0% { clip-path: inset(80% 0 0 0); transform: translate(-2px, 2px); }
+  20% { clip-path: inset(0 90% 0 0); transform: translate(2px, -2px); }
+  40% { clip-path: inset(0 0 70% 0); transform: translate(2px, 2px); }
+  60% { clip-path: inset(0 0 0 80%); transform: translate(-2px, -2px); }
+  80% { clip-path: inset(60% 0 0 0); transform: translate(2px, 2px); }
+  100% { clip-path: inset(0 0 0 0); transform: translate(0, 0); }
+}
+
+.cyber-button:hover:not(:disabled) .cyber-button__glitch {
+  animation: glitch 0.5s infinite;
+}
+
+.cyber-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cyber-button[hidden] {
+  display: none !important;
+}
+
+.wm-cyber {
+  font-family: inherit;
+}
+
+.wm-cyber--tiny {
+  min-width: 46px;
+  padding: 0.34rem 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.5px;
+  top: 4px;
+}
+
+.wm-stage-tab.on {
+  color: #ffffff;
+  border-color: var(--secondary-clr);
+  text-shadow: 0 0 4px #ffffff;
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
+}
+
+.wm-library-toggle.on {
+  color: #ffffff;
+  border-color: rgba(64, 224, 255, 0.55);
+  text-shadow: 0 0 4px #ffffff;
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.18), inset 0 0 8px rgba(64, 224, 255, 0.1);
+}
+
+/* ---------------- 窄屏 / 矮屏 ---------------- */
+
+@media (max-height: 560px) {
+  .wm-stage-empty {
+    gap: 10px;
+    padding: 10px 14px 18px;
+  }
+
+  .wm-stage-empty.is-scene { padding-bottom: 112px; }
+
+  .wm-hero {
+    min-height: 72px;
+    gap: 5px;
+  }
+
+  .wm-stage-empty-title { font-size: 14px; }
+
+  .wm-stage-empty ul {
+    gap: 2px;
+    font-size: 10.5px;
+    line-height: 1.5;
+  }
+
+  .wm-composer {
+    gap: 6px;
+    padding: 9px;
+  }
+
+  .wm-composer textarea { min-height: 54px; }
+
+  .wm-tips { gap: 4px; }
+}
+
+@media (max-width: 720px) {
+  .wm-stage-head {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .wm-stage-tab,
+  .wm-library-toggle {
+    width: 92px;
+    min-width: 0;
+  }
+
+  .wm-stage-tab {
+    padding: 0.38rem 0.5rem;
+    font-size: 0.68rem;
+  }
+
+  .wm-library-toggle {
+    padding: 0.38rem 0.55rem;
+    font-size: 0.68rem;
+  }
+
+  .wm-stage-empty { padding: 14px 10px 20px; }
+
+  .wm-stage-empty.is-scene { padding-bottom: 128px; }
+
+  .wm-stage-empty.is-scene .wm-composer textarea {
+    height: 64px;
+    min-height: 64px;
+  }
+
+  .wm-hero { gap: 8px; }
+
+  .wm-stage-empty-title { font-size: 15px; }
+
+  .wm-composer { padding: 10px; gap: 8px; }
+}
+
+/* 宿主内运行时，为全局 Agent 输入坞留出底部安全区；窄屏会收成悬浮球，不需要留白 */
+@media (min-width: 1101px) {
+  body.wm-embedded .wm-stage-empty {
+    padding-bottom: 104px;
+  }
+
+  body.wm-embedded .wm-library {
+    bottom: 88px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wm-stage-empty ul {
+    font-size: 10.5px;
+    line-height: 1.65;
+  }
+
+  .wm-composer-foot { gap: 6px; }
+
+  #wm-name {
+    order: 2;
+    flex: 1 1 120px;
+    height: 30px;
+  }
+
+  .wm-generate {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+}

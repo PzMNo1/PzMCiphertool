@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>世界模型 · World Model Studio</title>
+    <link rel="stylesheet" href="./worldmodel.css?v=20261030-25" />
+  <style>
+    /* 滚动条样式：从 0_zhuyeyangshi.css 复制，iframe 内部文档无法继承父页面样式 */
+    /* ===== 滚动条样式（从 0_zhuyeyangshi.css 复制；iframe 内部文档不会继承父页面样式） ===== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0A192F;
+      border-radius: 4px;
+      box-shadow: inset 0 0 6px rgba(0, 128, 128, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #0231319d, #0ca59193, #012522);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #0231319d, #0ca591d3, #012522);
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    }
+    ::-webkit-scrollbar-corner {
+      background: #0A192F;
+    }
+    /* Firefox 标准属性（仅在不支持 ::-webkit-scrollbar 时生效，避免覆盖 Chromium 渐变样式） */
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(12, 165, 145, 0.72) #0A192F;
+      }
+    }
+  </style>
+</head>
+
+<body>
+    <script>if (window.self !== window.top) document.body.classList.add('wm-embedded');</script>
+    <div class="wm-shell" id="wm-shell" data-wm-status="booting">
+        <div class="wm-notice" id="wm-notice" hidden>
+            <span class="wm-notice-text" id="wm-notice-text"></span>
+            <button type="button" class="cyber-button wm-cyber" id="wm-notice-retry"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">重新检测</span></button>
+        </div>
+
+        <div class="wm-body">
+            <main class="wm-stage">
+                <div class="wm-stage-head">
+                    <div class="wm-stage-tabs" role="tablist" aria-label="视口模式">
+                        <button type="button" class="cyber-button wm-stage-tab on" data-view="splat" role="tab" aria-selected="true"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">高斯溅射 3D</span></button>
+                        <button type="button" class="cyber-button wm-stage-tab" data-view="pano" role="tab" aria-selected="false"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">全景图</span></button>
+                    </div>
+                    <button type="button" class="cyber-button wm-library-toggle" id="wm-library-toggle" aria-expanded="false" aria-controls="wm-library">
+                        <span class="cyber-button__glitch"></span>
+                        <span class="cyber-button__tag">作品库<span class="wm-library-count" id="wm-library-count" hidden>0</span></span>
+                    </button>
+                    <div class="wm-stage-actions" id="wm-stage-actions"></div>
+                </div>
+
+                <div class="wm-stage-view">
+                    <iframe id="wm-splat-frame" class="wm-frame" src="./splat-view.html"
+                        title="世界模型高斯溅射视口" allowfullscreen></iframe>
+                    <div class="wm-pano-wrap" id="wm-pano-wrap" hidden>
+                        <img id="wm-pano" alt="世界全景图" />
+                        <div class="wm-pano-empty" id="wm-pano-empty">这个作品还没有可用的全景图。</div>
+                    </div>
+
+                    <div class="wm-stage-empty" id="wm-stage-empty">
+                        <div class="wm-hero">
+                            <div class="wm-stage-empty-title">世界模型工作台</div>
+                            <p>用一句文字或一张图片生成一个可进入的三维世界。</p>
+                            <ul>
+                                <li><b>高斯溅射 3D</b>：真实的 Marble 观感，可自由转动视角逛场景</li>
+                                <li><b>碰撞网格</b>：导出 GLB 或送进格式转换台，继续做尺寸测量和二次加工</li>
+                                <li><b>全景图</b>：一张图快速看整体氛围</li>
+                            </ul>
+                        </div>
+
+                        <section class="wm-composer" id="wm-composer" aria-label="生成新世界">
+                            <div class="wm-tips" aria-label="场景示例">
+                                <button type="button" class="wm-chip" data-prompt="一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪">临海木工房</button>
+                                <button type="button" class="wm-chip" data-prompt="雨夜霓虹灯下的赛博朋克小巷，湿漉漉的地面反射着招牌的光，两侧是密集的店铺和蒸汽管道">雨夜赛博小巷</button>
+                                <button type="button" class="wm-chip" data-prompt="一间安静的材料实验室，白色实验台上整齐摆放着样品和显微镜，环形灯带提供了均匀的顶光">材料实验室</button>
+                                <button type="button" class="wm-chip" data-prompt="悬浮在云海之上的未来观测站，环形平台边缘是可穿透的透明地板，远处有缓慢移动的巨型结构">云海观测站</button>
+                            </div>
+
+                            <div class="wm-image-field" id="wm-image-field" hidden>
+                                <img id="wm-image-preview" alt="参考图预览" hidden />
+                                <div class="wm-image-meta">
+                                    <span class="wm-image-name" id="wm-image-name"></span>
+                                    <span class="wm-image-note">已附加参考图，可直接生成；再拖入新图片可替换</span>
+                                </div>
+                                <button type="button" class="cyber-button wm-cyber wm-cyber--tiny" id="wm-image-clear" hidden><span class="cyber-button__glitch"></span><span class="cyber-button__tag">移除</span></button>
+                            </div>
+
+                            <textarea id="wm-prompt" rows="3" aria-label="场景描述"
+                                placeholder="例如：一间临海的老式木工房，午后阳光从高窗斜射进来，地上散落着刨花和工具，窗外能看到海浪"></textarea>
+
+                            <input type="file" id="wm-image" accept="image/png,image/jpeg,image/webp" hidden />
+
+                            <div class="wm-composer-foot">
+                                <button type="button" class="cyber-button wm-cyber wm-cyber--tiny wm-attach" id="wm-attach" aria-label="上传图片">
+                                    <span class="cyber-button__glitch"></span><span class="cyber-button__tag">图片</span>
+                                </button>
+                                <input type="text" id="wm-name" maxlength="64" aria-label="作品名称" placeholder="作品名称（可选，留空自动命名）" />
+                                <button type="button" class="cyber-button wm-cyber wm-generate" id="wm-generate"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">生成世界</span></button>
+                            </div>
+
+                            <div class="wm-progress" id="wm-progress" hidden>
+                                <div class="wm-progress-bar"><span id="wm-progress-fill"></span></div>
+                                <div class="wm-progress-meta">
+                                    <span id="wm-progress-text">已提交…</span>
+                                    <span id="wm-progress-time"></span>
+                                    <span id="wm-progress-hint"></span>
+                                    <button type="button" class="wm-progress-cancel" id="wm-cancel">取消</button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="wm-drop-overlay" id="wm-drop-overlay" hidden><span>松开以添加参考图</span></div>
+
+                    <div class="wm-library-backdrop" id="wm-library-backdrop" hidden></div>
+                    <aside class="wm-library" id="wm-library" aria-label="作品库" hidden>
+                        <div class="wm-library-head">
+                            <h3 class="wm-card-title">作品库</h3>
+                            <button type="button" class="cyber-button wm-cyber wm-cyber--tiny" id="wm-refresh"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">刷新</span></button>
+                            <button type="button" class="wm-library-close" id="wm-library-close" aria-label="关闭作品库">&#215;</button>
+                        </div>
+                        <div class="wm-library-options">
+                            <div class="wm-library-options-title">生成选项</div>
+                            <label class="wm-check">
+                                <input type="checkbox" id="wm-recaption" checked />
+                                <span>自动优化提示词（关闭则严格按我写的词生成）</span>
+                            </label>
+                            <label class="wm-check">
+                                <input type="checkbox" id="wm-public" />
+                                <span>公开这个作品（默认私有，仅自己可见）</span>
+                            </label>
+                        </div>
+                        <div class="wm-list" id="wm-list">
+                            <div class="wm-empty">还没有作品。生成完成后会自动出现在这里。</div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../backendconfig.js?v=20261030-02"></script>
+    <script src="./worldmodel-client.js?v=20261030-02"></script>
+    <script src="./worldmodel.js?v=20261030-07"></script>
+</body>
+
+</html>

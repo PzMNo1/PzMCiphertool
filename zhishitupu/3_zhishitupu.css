@@ -1,0 +1,908 @@
+
+/*这是知识图谱的样式*/
+#zhishitupu-content {
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000005;
+    z-index: 1; 
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeInGraph 0.8s ease-in-out forwards;
+}
+
+@keyframes fadeInGraph {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+#zstp-vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    background: 
+        radial-gradient(circle at center, transparent 52%, rgba(0, 5, 10, 0.34) 92%, rgba(0, 0, 0, 0.82) 100%),
+        linear-gradient(rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 90px 90px, 90px 90px;
+    box-shadow: inset 0 0 130px rgba(0, 0, 0, 0.55);
+}
+
+#ui-layer {
+    position: absolute;
+    bottom: 30px;
+    right: 20px; 
+    z-index: 10;
+    pointer-events: none;
+    color: #0ff;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 5px #0ff;
+}
+
+/* HUD 面板 */
+.hud-panel {
+    position: relative;
+    width: 300px;
+    padding: 20px 20px 18px;
+    color: #dffbff;
+    background:
+        radial-gradient(120% 90% at 18% 0%, rgba(64, 224, 255, 0.12), transparent 62%),
+        linear-gradient(150deg, rgba(64, 224, 255, 0.10) 0%, rgba(8, 22, 36, 0.30) 46%, rgba(3, 10, 20, 0.52) 100%),
+        rgba(2, 14, 26, 0.32);
+    border: 1px solid rgba(64, 224, 255, 0.24);
+    border-radius: 18px;
+    box-shadow:
+        0 22px 55px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 34px rgba(64, 224, 255, 0.05);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    overflow: hidden;
+    transition: transform 0.3s ease, opacity 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    pointer-events: auto;
+}
+
+.hud-panel:hover {
+    transform: translateY(-3px);
+    border-color: rgba(64, 224, 255, 0.42);
+    box-shadow:
+        0 26px 60px rgba(0, 0, 0, 0.52),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 0 38px rgba(64, 224, 255, 0.08);
+}
+
+.hud-panel h2 {
+    padding-right: 34px;
+    font-size: 20px;
+    line-height: 1.25;
+    letter-spacing: 1px;
+}
+
+.hud-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1;
+    z-index: 20;
+}
+
+.hud-close-btn:hover {
+    transform: translateY(-2px);
+}
+
+#zhishitupu-content h1 {
+    margin: 0 0 15px 0; 
+    font-size: 24px;
+    line-height: 1.4;  
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #fff, #0ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: 2px; 
+}
+
+.subtitle {
+    font-family: 'Rajdhani', sans-serif;
+    color: #3498db;
+    font-size: 14px;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+.controls {
+    margin-top: 15px;   
+    font-size: 13px;
+    color: #8899aa;
+    font-family: 'Rajdhani', sans-serif;
+    line-height: 1.8;
+}
+
+.key {
+    color: #fff;
+    font-weight: bold;
+    background: rgba(0, 255, 255, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    font-size: 0.9em;
+}
+
+/* 加载动画 */
+#zstp-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0ff;
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 5px;
+    text-shadow: 0 0 20px #0ff;
+    z-index: 999;
+    transition: opacity 0.5s;
+    text-align: center;
+    pointer-events: none;
+}
+
+.scan-line {
+    width: 200px;
+    height: 2px;
+    background: #0ff;
+    box-shadow: 0 0 15px #0ff;
+    animation: scan 1.5s infinite ease-in-out;
+    margin: 15px auto 0;
+}
+
+@keyframes scan {
+    0% { transform: scaleX(0); opacity: 0; }
+    50% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(0); opacity: 0; }
+}
+
+
+#graph-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+#graph-wrapper canvas {
+    display: block;
+    outline: none;
+}
+
+/* 项目导入按钮层：透明容器不拦截指针，空白处继续交给画布拖动旋转 */
+#zstp-import-layer {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+/* 只有按钮本身接收指针，且不参与选中/原生拖拽 */
+#zstp-import-layer .zstp-mode-btn,
+#zstp-import-layer .zstp-import-btn {
+    pointer-events: auto;
+    -webkit-user-drag: none;
+}
+
+.zstp-action-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    min-width: 140px;
+}
+
+.zstp-mode-switch {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(86px, 1fr));
+    gap: 4px;
+    padding: 4px;
+    background: rgba(5, 12, 18, 0.72);
+    border: 1px solid rgba(64, 224, 255, 0.18);
+    box-shadow: inset 0 0 18px rgba(64, 224, 255, 0.08), 0 10px 28px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(8px);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    overflow: hidden;
+}
+
+.zstp-mode-switch::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 16px) / 3);
+    height: calc(100% - 8px);
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.22), rgba(180, 140, 255, 0.2));
+    box-shadow: 0 0 18px rgba(64, 224, 255, 0.22), inset 0 0 14px rgba(255, 255, 255, 0.06);
+    transform: translateX(0);
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.34s ease, background 0.34s ease;
+    pointer-events: none;
+}
+
+.zstp-mode-switch[data-mode="doc"]::before {
+    transform: translateX(calc(100% + 4px));
+}
+
+.zstp-mode-switch[data-mode="explain"]::before {
+    transform: translateX(calc((100% + 4px) * 2));
+}
+
+.zstp-mode-btn {
+    position: relative;
+    z-index: 1;
+    height: 36px;
+    border: 0;
+    background: transparent;
+    color: rgba(220, 248, 255, 0.68);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    white-space: nowrap;
+}
+
+.zstp-mode-btn:hover {
+    color: #fff;
+    background: rgba(64, 224, 255, 0.08);
+}
+
+.zstp-mode-btn.active {
+    color: #fff;
+    background: transparent;
+    text-shadow: 0 0 10px rgba(64, 224, 255, 0.7);
+}
+
+.zstp-import-btn {
+    position: relative;
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
+    border: 1px solid rgba(64, 224, 255, 0.15);
+    padding: 0.6rem 1.4rem;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    backdrop-filter: blur(4px);
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+}
+
+.zstp-import-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    border-top: 2px solid rgba(64, 224, 255, 0.5);
+    border-left: 2px solid rgba(64, 224, 255, 0.5);
+    transition: all 0.4s ease;
+    opacity: 0.6;
+}
+
+.zstp-import-btn:hover {
+    transform: translateY(-3px) scale(1.03);
+    background: rgba(64, 224, 255, 0.1);
+    border-color: rgba(64, 224, 255, 0.6);
+    color: #fff;
+    text-shadow: 0 0 15px rgba(64, 224, 255, 0.8);
+    box-shadow: 0 10px 30px -10px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(64, 224, 255, 0.15);
+}
+
+.zstp-import-btn:hover::before {
+    width: 100%;
+    height: 95%;
+    border-color: #fff;
+    opacity: 1;
+    box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
+}
+
+.zstp-import-btn:active {
+    transform: scale(0.97);
+    border-color: #2ecc71;
+}
+
+/* 恢复默认：未导入任何图谱时（本来就处于默认状态）置灰 */
+.zstp-import-btn:disabled,
+.zstp-import-btn.is-idle {
+    cursor: not-allowed;
+    opacity: 0.42;
+    filter: grayscale(0.6);
+}
+
+.zstp-import-btn:disabled:hover,
+.zstp-import-btn.is-idle:hover {
+    transform: none;
+    color: rgba(255, 255, 255, 0.7);
+    border-color: rgba(64, 224, 255, 0.15);
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.06) 0%, rgba(120, 200, 255, 0.04) 50%, rgba(180, 140, 255, 0.06) 100%);
+    text-shadow: none;
+    box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+}
+
+.zstp-import-btn:disabled:hover::before,
+.zstp-import-btn.is-idle:hover::before {
+    width: 12px;
+    height: 12px;
+    opacity: 0.6;
+    border-color: rgba(64, 224, 255, 0.5);
+    box-shadow: none;
+}
+
+.zstp-preview-panel {
+    position: absolute;
+    top: 88px;
+    right: 20px;
+    width: min(600px, calc(100vw - 40px));
+    max-height: calc(100vh - 130px);
+    display: none;
+    flex-direction: column;
+    z-index: 11;
+    pointer-events: auto;
+    color: #dffbff;
+    background:
+        radial-gradient(120% 90% at 14% 0%, rgba(64, 224, 255, 0.12), transparent 60%),
+        linear-gradient(150deg, rgba(64, 224, 255, 0.10) 0%, rgba(8, 22, 36, 0.30) 46%, rgba(3, 10, 20, 0.52) 100%),
+        rgba(2, 14, 26, 0.32);
+    border: 1px solid rgba(64, 224, 255, 0.24);
+    border-radius: 18px;
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 36px rgba(64, 224, 255, 0.05);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    overflow: hidden;
+}
+
+.zstp-preview-panel.active {
+    display: flex;
+    animation: zstpPanelIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes zstpPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.zstp-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.14);
+    background: linear-gradient(180deg, rgba(64, 224, 255, 0.06), transparent);
+}
+
+.zstp-preview-kicker {
+    color: rgba(64, 224, 255, 0.7);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+}
+
+#zstp-preview-title {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.zstp-preview-close {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    top: 0;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 6px;
+}
+
+.zstp-preview-meta {
+    padding: 10px 18px;
+    color: rgba(210, 238, 245, 0.62);
+    font-size: 0.78rem;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.08);
+    word-break: break-all;
+}
+
+.zstp-preview-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 18px 18px;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(64, 224, 255, 0.45) rgba(64, 224, 255, 0.06);
+}
+
+.zstp-preview-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.zstp-preview-body::-webkit-scrollbar-thumb {
+    background: rgba(64, 224, 255, 0.38);
+    border-radius: 8px;
+}
+
+.zstp-preview-body::-webkit-scrollbar-track {
+    background: rgba(64, 224, 255, 0.05);
+}
+
+.zstp-preview-body pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.zstp-preview-body code {
+    font-family: Consolas, 'Courier New', monospace;
+    color: #bfffee;
+}
+
+.zstp-kb-summary {
+    margin-bottom: 14px;
+    color: rgba(220, 248, 255, 0.78);
+}
+
+.zstp-kb-summary p {
+    margin: 0 0 8px;
+}
+
+.zstp-kb-record {
+    padding: 12px 0;
+    border-top: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-kb-record h4 {
+    margin: 0 0 8px;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.zstp-kb-record pre {
+    margin: 0;
+    padding: 10px 12px;
+    background: rgba(64, 224, 255, 0.05);
+    border: 1px solid rgba(64, 224, 255, 0.1);
+}
+
+.zstp-kb-keywords {
+    margin: 8px 0 0;
+    color: rgba(165, 241, 255, 0.62);
+    font-size: 0.76rem;
+}
+
+.zstp-doc-frame {
+    width: 100%;
+    height: min(68vh, 720px);
+    border: 1px solid rgba(64, 224, 255, 0.18);
+    background: #fff;
+}
+
+.zstp-preview-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    min-height: 36px;
+    padding: 0 14px;
+    color: #fff;
+    text-decoration: none;
+    border: 1px solid rgba(64, 224, 255, 0.38);
+    background: rgba(64, 224, 255, 0.1);
+}
+
+/* --- Obsidian 笔记节点面板 --- */
+
+.zstp-vault-note {
+    display: block;
+}
+
+.zstp-vault-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.zstp-vault-tag {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    color: #a5f1ff;
+    border: 1px solid rgba(64, 224, 255, 0.32);
+    background: rgba(64, 224, 255, 0.08);
+    border-radius: 999px;
+}
+
+.zstp-vault-tag.is-empty {
+    color: rgba(165, 241, 255, 0.45);
+    border-style: dashed;
+}
+
+.zstp-vault-kgnode {
+    margin: 0 0 8px;
+    font-size: 0.76rem;
+    color: rgba(165, 241, 255, 0.75);
+}
+
+.zstp-vault-excerpt {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    color: rgba(224, 255, 255, 0.86);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    border: 1px solid rgba(0, 229, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(64, 224, 255, 0.04);
+}
+
+.zstp-vault-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.76rem;
+}
+
+.zstp-vault-table th,
+.zstp-vault-table td {
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-vault-table th {
+    width: 34%;
+    color: #a5f1ff;
+    font-weight: 600;
+}
+
+.zstp-vault-headings {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: rgba(224, 255, 255, 0.8);
+}
+
+.zstp-vault-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.zstp-vault-link {
+    padding: 4px 9px;
+    font-size: 0.74rem;
+    color: #7cf7ff;
+    cursor: pointer;
+    border: 1px solid rgba(124, 247, 255, 0.34);
+    background: rgba(124, 247, 255, 0.08);
+    border-radius: 4px;
+}
+
+.zstp-vault-link:hover {
+    color: #000;
+    background: #7cf7ff;
+}
+
+.zstp-vault-link:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.zstp-vault-empty {
+    margin: 0;
+    font-size: 0.76rem;
+    color: rgba(165, 241, 255, 0.45);
+}
+
+.zstp-vault-fulltext {
+    margin-top: 10px;
+}
+
+/* --- 世界知识区块（节点面板主视图） --- */
+
+.zstp-world {
+    margin: 0 0 14px;
+    padding: 13px 15px;
+    border: 1px solid rgba(0, 229, 255, 0.24);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.07), rgba(139, 92, 246, 0.05));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.zstp-world.is-missing {
+    border-color: rgba(165, 241, 255, 0.2);
+    background: rgba(64, 224, 255, 0.03);
+}
+
+.zstp-world-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.zstp-world-kicker {
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    color: #7cf7ff;
+}
+
+.zstp-world-badge {
+    flex: none;
+    padding: 3px 9px;
+    font-size: 0.68rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.zstp-world-badge.is-confirmed {
+    color: #0b2a16;
+    background: #35d07f;
+    border-color: #35d07f;
+}
+
+.zstp-world-badge.is-candidate {
+    color: #ffd166;
+    border-color: rgba(255, 209, 102, 0.5);
+    background: rgba(255, 209, 102, 0.1);
+}
+
+.zstp-world-badge.is-empty {
+    color: rgba(165, 241, 255, 0.5);
+    border-color: rgba(165, 241, 255, 0.25);
+    border-style: dashed;
+}
+
+.zstp-world-entity {
+    margin-bottom: 4px;
+}
+
+.zstp-world-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+}
+
+.zstp-world-qid {
+    margin-left: 8px;
+    padding: 1px 6px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #7cf7ff;
+    text-decoration: none;
+    border: 1px solid rgba(124, 247, 255, 0.4);
+    border-radius: 3px;
+}
+
+.zstp-world-qid:hover {
+    color: #000;
+    background: #7cf7ff;
+}
+
+.zstp-world-desc {
+    margin: 6px 0 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: rgba(224, 255, 255, 0.9);
+}
+
+.zstp-world-aliases {
+    margin: 6px 0 0;
+    font-size: 0.74rem;
+    color: rgba(165, 241, 255, 0.6);
+}
+
+.zstp-world-claims th {
+    white-space: nowrap;
+    color: #7cf7ff;
+}
+
+.zstp-world-claims code {
+    color: rgba(165, 241, 255, 0.55);
+    font-size: 0.68rem;
+}
+
+.zstp-world-prose {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: rgba(224, 255, 255, 0.88);
+    background: rgba(0, 229, 255, 0.04);
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    border-radius: 10px;
+    white-space: pre-line;
+}
+
+.zstp-world-prose:last-of-type {
+    margin-bottom: 0;
+}
+
+.zstp-world-note,
+.zstp-world-empty {
+    margin: 8px 0 0;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: rgba(165, 241, 255, 0.55);
+}
+
+.zstp-world-provenance {
+    margin: 10px 0 0;
+    padding-top: 8px;
+    font-size: 0.7rem;
+    color: rgba(165, 241, 255, 0.42);
+    border-top: 1px solid rgba(64, 224, 255, 0.12);
+}
+
+.zstp-world-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.zstp-world-sources .zstp-vault-link {
+    text-decoration: none;
+}
+
+/* 六方向视角方向盘：透明容器，只保留按钮 */
+.zstp-compass {
+    position: absolute;
+    left: 50%;
+    top: 80%;
+    transform: translate(-50%, -50%);
+    z-index: 9;
+    pointer-events: none;
+    user-select: none;
+    touch-action: none;
+}
+
+.zstp-compass.is-dragging {
+    cursor: grabbing;
+}
+
+.zstp-compass-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 38px);
+    grid-template-rows: repeat(3, 38px);
+    gap: 6px;
+}
+
+.zstp-compass-btn {
+    --primary-clr: rgba(64, 224, 255, 0.78);
+    --secondary-clr: #9be7ff;
+    --glow-clr: rgba(64, 224, 255, 0.35);
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    top: 0;
+    border-width: 1.5px;
+    border-radius: 8px;
+    font-size: 15px;
+    letter-spacing: 0;
+    pointer-events: auto;
+}
+
+.zstp-compass-btn .cyber-button__tag {
+    line-height: 1;
+}
+
+.zstp-compass-btn[data-dir="up"] { grid-area: 1 / 2; }
+.zstp-compass-btn[data-dir="left"] { grid-area: 2 / 1; }
+.zstp-compass-btn[data-dir="center"] { grid-area: 2 / 2; color: #ffd166; }
+.zstp-compass-btn[data-dir="right"] { grid-area: 2 / 3; }
+.zstp-compass-btn[data-dir="down"] { grid-area: 3 / 2; }
+
+@media (max-width: 760px) {
+    .zstp-compass {
+        top: 76%;
+        transform: translate(-50%, -50%) scale(0.92);
+    }
+
+    #zstp-import-layer {
+        top: 94px;
+        left: 10px;
+        right: 10px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .zstp-mode-switch {
+        grid-template-columns: repeat(3, 1fr);
+        padding: 3px;
+    }
+
+    .zstp-mode-btn {
+        height: 32px;
+        font-size: 0.64rem;
+        letter-spacing: 0.4px;
+    }
+
+    .zstp-mode-switch::before {
+        top: 3px;
+        left: 3px;
+        width: calc((100% - 14px) / 3);
+        height: calc(100% - 6px);
+    }
+
+    .zstp-action-stack {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .zstp-import-btn {
+        height: 38px;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.72rem;
+        letter-spacing: 1px;
+    }
+
+    .zstp-preview-panel {
+        top: 232px;
+        right: 10px;
+        width: calc(100vw - 20px);
+        max-height: calc(100vh - 254px);
+    }
+}

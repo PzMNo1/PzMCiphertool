@@ -1,0 +1,2730 @@
+/**
+ * ChatUI - 聊天界面渲染模块
+ * 负责消息显示、格式化、工具调用状态展示
+ */
+
+const AGENT_WELCOME_GUIDES = [
+    { tag: '研报', prompt: '半导体最近的产能动态，以及未来几年的产能供给与落地进展' },
+    { tag: '研报', prompt: '先进封装最近的产能进展，以及未来两年的扩产规划' },
+    { tag: '研报', prompt: '存储芯片最近的价格与库存，以及明年供需缺口的判断' },
+    { tag: '研报', prompt: '大模型最近的商业化收入结构，以及明年推理侧成本的下降空间' },
+    { tag: '研报', prompt: '开源模型最近的性能进展，以及闭源模型的护城河还剩什么' },
+    { tag: '研报', prompt: 'Agent 产品最近的落地场景分布，以及明年企业侧的采购节奏' },
+    { tag: '研报', prompt: '多智能体协作最近的工程实践，以及相对单智能体的优势边界' },
+    { tag: '研报', prompt: '算力租赁最近的价格与上架率，以及明年 GPU 供给的释放节奏' },
+    { tag: '研报', prompt: '智算中心最近的开工与交付，以及未来两年的上电瓶颈' },
+    { tag: '研报', prompt: '电竞酒店最近的扩张速度与入住率，以及未来两年的下沉空间' },
+    { tag: '研报', prompt: '连锁酒店最近的 RevPAR 与开店结构，以及明年的加盟节奏' },
+    { tag: '研报', prompt: '食品供应链最近的原料价格与库存，以及明年的采购成本趋势' },
+    { tag: '研报', prompt: '预制菜最近的渠道结构变化，以及未来几年的产能布局' },
+    { tag: '研报', prompt: '商业航天最近的发射次数与订单，以及未来两年的产能瓶颈' },
+    { tag: '研报', prompt: '储能最近的招标规模与价格，以及明年产能过剩的判断' },
+    { tag: '研报', prompt: '光伏最近的排产与库存，以及明年需求增速的区间' },
+    { tag: '研报', prompt: '机器人最近的产业链进展，以及未来几年的量产节奏' },
+    { tag: '研报', prompt: '全球流动性最近的边际变化，以及明年降息路径的定价' },
+    { tag: '新闻', prompt: '这周半导体出口管制的新动作，以及下一批清单可能落到哪些环节' },
+    { tag: '新闻', prompt: '这周开源模型的新发布，以及各家榜单排名的变化' },
+    { tag: '新闻', prompt: '最近一个月大模型价格战的动作，以及云厂商的补贴策略' },
+    { tag: '新闻', prompt: '最近几个 Agent 平台的版本更新，以及工具调用能力的差异' },
+    { tag: '新闻', prompt: '最近一个月算力供给的公开表态，以及各家扩产计划的兑现情况' },
+    { tag: '新闻', prompt: '最近半年电竞酒店的闭店与并购动态，以及监管口径的变化' },
+    { tag: '新闻', prompt: '最近半年的食品召回与舆情事件，以及供应链上的共性问题' },
+    { tag: '新闻', prompt: '最近几次深空探测的新发现，以及后续任务的观测窗口' },
+    { tag: '新闻', prompt: '最近一年的系外行星发现，以及大气成分探测的方法差异' },
+    { tag: '新闻', prompt: '今年诺贝尔物理学奖的获奖工作，以及它解决了什么问题' },
+    { tag: '新闻', prompt: '今年诺贝尔化学奖的获奖工作，以及产业界能怎么用' },
+    { tag: '新闻', prompt: '今年诺贝尔文学奖得主的写作脉络，以及中文译本的引进情况' },
+    { tag: '新闻', prompt: '最近几起案件的侦破过程，以及关键证据链是怎么闭合的' },
+    { tag: '新闻', prompt: '创新药最近的出海授权动态，以及管线兑现的进度' },
+    { tag: '新闻', prompt: '最近一次议息会议的措辞变化，以及市场预期的修正' },
+    { tag: '财报', prompt: 'A 股半导体设备最近一期的在手订单，以及明年收入确认的节奏' },
+    { tag: '财报', prompt: '几家晶圆厂最近的资本开支，以及未来两年的折旧压力' },
+    { tag: '财报', prompt: '封测厂最近的产能利用率，以及先进封装的收入占比' },
+    { tag: '财报', prompt: '存储原厂最近一期的毛利率与库存，以及价格拐点的位置' },
+    { tag: '财报', prompt: '设备公司最近的应收账款与存货，以及回款周期的变化' },
+    { tag: '财报', prompt: '服务器厂商最近的毛利率与存货，以及明年的订单能见度' },
+    { tag: '财报', prompt: '连锁酒店集团最近一期的 RevPAR 与单房成本，以及明年的开店指引' },
+    { tag: '财报', prompt: '本地生活平台最近一期的到店业务增速，以及明年补贴的力度' },
+    { tag: '财报', prompt: '食品加工企业最近一期的毛利率与存货周转，以及明年的提价空间' },
+    { tag: '财报', prompt: '电池厂最近一期的产能利用率，以及明年的价格与毛利' },
+    { tag: '财报', prompt: '减速器与丝杠厂商最近的订单，以及明年的产能投放' },
+    { tag: '论文', prompt: '先进封装最近的论文都在解决什么，以及瓶颈卡在哪' },
+    { tag: '论文', prompt: '芯片良率预测最近的研究进展，以及工业界的落地情况' },
+    { tag: '论文', prompt: 'AI 训练框架的研究前沿到了什么程度，以及今年的主要方向' },
+    { tag: '论文', prompt: '大模型推理加速最近的方法进展，以及可复现的开源实现' },
+    { tag: '论文', prompt: '长上下文建模最近的研究进展，以及效果上的真实边界' },
+    { tag: '论文', prompt: 'Agent 评测基准最近的研究进展，以及现有 benchmark 的偏差' },
+    { tag: '论文', prompt: '工具调用与规划最近的方法进展，以及长任务上的失败模式' },
+    { tag: '论文', prompt: '大规模集群训练的网络互联进展，以及公开的故障率数据' },
+    { tag: '论文', prompt: '体验式消费最近的研究进展，以及电竞场景的用户留存数据' },
+    { tag: '论文', prompt: '食品冷链的损耗控制最近的研究进展，以及可落地的方案' },
+    { tag: '论文', prompt: '詹姆斯韦布最近的光谱观测，以及早期星系形成的证据冲突' },
+    { tag: '论文', prompt: '暗能量观测最近的研究进展，以及 DESI 与欧几里得的分歧' },
+    { tag: '论文', prompt: '引力波探测最近的灵敏度提升，以及下一步的观测目标' },
+    { tag: '论文', prompt: '近十年诺贝尔物理学奖的共同特征，以及奖项风向的变化' },
+    { tag: '论文', prompt: '诺贝尔化学奖近十年的方法学脉络，以及产业化落地情况' },
+    { tag: '论文', prompt: '法医物证鉴定最近的技术进展，以及微量检材的检出率' },
+    { tag: '论文', prompt: '数字取证最近的研究进展，以及设备端加密带来的挑战' },
+    { tag: '论文', prompt: '抗体偶联药物最近的研究进展，以及临床数据的读出节奏' },
+    { tag: '论文', prompt: '出口管制的效果目前有哪些实证研究，以及方法上的分歧' },
+    { tag: '文章', prompt: '国产 EDA 现在做到哪一步，以及还差哪几个环节' },
+    { tag: '文章', prompt: '光刻机的难点现在卡在哪一层，以及国内外差距有多大' },
+    { tag: '文章', prompt: '一个晶圆厂从开工到量产要过哪几关，以及各环节的时间' },
+    { tag: '文章', prompt: 'AI 模型的训练框架前沿到了什么程度，以及从零开始该怎么学' },
+    { tag: '文章', prompt: '大模型的幻觉问题现在解决到什么程度，以及工程上怎么缓解' },
+    { tag: '文章', prompt: '从预训练到后训练的技术栈都包括什么，以及新人在哪一环切入' },
+    { tag: '文章', prompt: 'Agent 工程现在成熟到什么程度，以及落地先解决什么' },
+    { tag: '文章', prompt: '做一个能跑长任务的 Agent 需要哪几层设施，以及各自的坑' },
+    { tag: '文章', prompt: 'MCP 这类协议被接受到了什么程度，以及生态里还缺什么' },
+    { tag: '文章', prompt: '万卡集群到底难在哪，以及国内外的工程差距' },
+    { tag: '文章', prompt: '电竞酒店这门生意现在赚不赚钱，以及单店模型的成本结构' },
+    { tag: '文章', prompt: '一颗蔬菜从产地到餐桌要过几道关，以及各环节的加价与损耗' },
+    { tag: '文章', prompt: '中国空间站现在都在做什么实验，以及各实验的科学目标' },
+    { tag: '文章', prompt: '可重复使用火箭成熟到什么程度，以及成本下降的真实幅度' },
+    { tag: '文章', prompt: '系外生命探测现在到了哪一步，以及判定标准是什么' },
+    { tag: '文章', prompt: '今年诺贝尔文学奖为什么颁给他，以及作品里在写什么' },
+    { tag: '文章', prompt: '诺贝尔奖的评审逻辑现在变了吗，以及哪些领域在被冷落' },
+    { tag: '文章', prompt: '一起命案从现场到起诉要过哪几道程序，以及证据标准是什么' },
+    { tag: '文章', prompt: '现代刑侦里哪些技术真正在破案，以及影视桥段哪些是假的' },
+    { tag: '文章', prompt: '推理小说里的诡计在现实中成立吗，以及哪些设定违反物理常识' },
+    { tag: '文章', prompt: '固态电池现在到了什么阶段，以及量产还要过哪几关' }
+];
+
+class ChatUI {
+    constructor() {
+        this.messagesContainer = null;
+        this.mathJaxRendering = false;
+        this.lastMathJaxRenderTime = 0;
+        this.mathJaxPromise = null;
+        this.toolCallNames = new Map();
+    }
+
+    /**
+     * 初始化 UI 元素引用
+     */
+    init() {
+        this.messagesContainer = document.getElementById('chat-messages');
+        this.setupInteractions();
+    }
+
+    /**
+     * 消息区的统一交互：引用上标跳转、图片/图表点击放大。
+     * #chat-messages 节点本身不会随会话切换被替换，因此只绑定一次。
+     */
+    setupInteractions() {
+        if (this._interactionsBound || !this.messagesContainer) return;
+        this._interactionsBound = true;
+        this._citationReturn = null;
+
+        this.messagesContainer.addEventListener('click', event => this.handleCitationClick(event));
+        this.messagesContainer.addEventListener('click', event => this.handleMediaClick(event));
+        this.messagesContainer.addEventListener('click', event => this.handleWelcomeClick(event));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && this._lightbox) this.closeLightbox();
+        });
+    }
+
+    handleCitationClick(event) {
+        const backLink = event.target.closest('a.citation-back-link');
+        if (backLink && this.messagesContainer.contains(backLink)) {
+            event.preventDefault();
+            const id = backLink.getAttribute('data-citation-back');
+            const previous = this._citationReturn;
+            if (previous && String(previous.id) === String(id)) {
+                this.messagesContainer.scrollTo({ top: previous.top, behavior: 'smooth' });
+            }
+            const scope = backLink.closest('.message') || this.messagesContainer;
+            const origin = scope.querySelector(`a.citation-link[data-citation="${cssEscape(id)}"]`);
+            if (origin) {
+                this.flashElement(origin);
+                if (!previous || String(previous.id) !== String(id)) {
+                    this.scrollElementIntoView(origin);
+                }
+            }
+            return;
+        }
+
+        const link = event.target.closest('a.citation-link[data-citation]');
+        if (!link || !this.messagesContainer.contains(link)) return;
+        const id = link.getAttribute('data-citation');
+        const scope = link.closest('.message') || document;
+        const target = scope.querySelector(`#agent-source-${cssEscape(id)}`);
+        if (!target) return;
+        event.preventDefault();
+        this._citationReturn = { id, top: this.messagesContainer.scrollTop };
+        this.scrollElementIntoView(target, 0.18);
+        this.flashElement(target);
+    }
+
+    scrollElementIntoView(element, ratio = 0.3) {
+        if (!element || !this.messagesContainer) return;
+        const containerRect = this.messagesContainer.getBoundingClientRect();
+        const targetRect = element.getBoundingClientRect();
+        const top = targetRect.top - containerRect.top + this.messagesContainer.scrollTop
+            - this.messagesContainer.clientHeight * ratio;
+        this.messagesContainer.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
+    flashElement(element) {
+        if (!element) return;
+        element.classList.remove('citation-flash');
+        void element.offsetWidth;
+        element.classList.add('citation-flash');
+        setTimeout(() => element.classList.remove('citation-flash'), 1200);
+    }
+
+    handleMediaClick(event) {
+        const image = event.target.closest('.generated-image-frame img, .message-text img, .generated-image-frame');
+        if (image) {
+            const img = image.tagName === 'IMG' ? image : image.querySelector('img');
+            if (img && img.src) {
+                event.preventDefault();
+                this.openLightbox(img, img.alt || '图片预览');
+                return;
+            }
+        }
+        const chart = event.target.closest('.agent-chart, .agent-diagram');
+        if (!chart) return;
+        const svg = chart.querySelector('svg');
+        if (!svg) return;
+        const title = svg.getAttribute('aria-label')
+            || chart.querySelector('.agent-chart-caption')?.textContent
+            || chart.querySelector('text')?.textContent
+            || '图表预览';
+        this.openLightbox(svg, title);
+    }
+
+    openLightbox(node, label = '') {
+        this.closeLightbox();
+        const overlay = document.createElement('div');
+        overlay.id = 'agent-media-lightbox';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', label || '图片预览');
+
+        const stage = document.createElement('div');
+        stage.className = 'agent-lightbox-stage';
+        const content = document.createElement('div');
+        content.className = 'agent-lightbox-content';
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'agent-lightbox-close';
+        closeButton.setAttribute('aria-label', '关闭');
+        closeButton.textContent = '×';
+
+        if (node.tagName === 'IMG') {
+            const img = document.createElement('img');
+            img.src = node.src;
+            img.alt = node.alt || label;
+            content.appendChild(img);
+        } else {
+            const clone = node.cloneNode(true);
+            clone.removeAttribute('style');
+            clone.removeAttribute('width');
+            clone.removeAttribute('height');
+            content.appendChild(clone);
+        }
+
+        stage.appendChild(content);
+        overlay.appendChild(stage);
+        overlay.appendChild(closeButton);
+        document.body.appendChild(overlay);
+        document.body.classList.add('agent-lightbox-open');
+
+        const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+        const apply = () => {
+            content.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        };
+        const reset = () => {
+            state.scale = 1;
+            state.x = 0;
+            state.y = 0;
+            apply();
+        };
+        this._lightbox = { overlay, reset };
+
+        closeButton.addEventListener('click', () => this.closeLightbox());
+
+        stage.addEventListener('wheel', event => {
+            event.preventDefault();
+            const factor = Math.exp(-event.deltaY * 0.0012);
+            state.scale = Math.min(8, Math.max(0.2, state.scale * factor));
+            apply();
+        }, { passive: false });
+
+        stage.addEventListener('dblclick', reset);
+
+        stage.addEventListener('pointerdown', event => {
+            if (event.target.closest('.agent-lightbox-btn')) return;
+            state.dragging = true;
+            state.startX = event.clientX;
+            state.startY = event.clientY;
+            state.originX = state.x;
+            state.originY = state.y;
+            stage.classList.add('dragging');
+            stage.setPointerCapture(event.pointerId);
+        });
+
+        stage.addEventListener('pointermove', event => {
+            if (!state.dragging) return;
+            state.x = state.originX + (event.clientX - state.startX);
+            state.y = state.originY + (event.clientY - state.startY);
+            apply();
+        });
+
+        const stopDrag = () => {
+            state.dragging = false;
+            stage.classList.remove('dragging');
+        };
+        stage.addEventListener('pointerup', stopDrag);
+        stage.addEventListener('pointercancel', stopDrag);
+
+        overlay.addEventListener('click', event => {
+            if (event.target === stage) this.closeLightbox();
+        });
+    }
+
+    closeLightbox() {
+        const overlay = document.getElementById('agent-media-lightbox');
+        if (overlay) overlay.remove();
+        document.body.classList.remove('agent-lightbox-open');
+        this._lightbox = null;
+    }
+
+    /**
+     * 格式化消息文本为 HTML
+     * @param {string} text
+     * @returns {string}
+     */
+    formatMessage(text) {
+        if (!text) return '';
+
+        const lines = text.split('\n');
+        const newsBriefFormatting = this.shouldUseNewsBriefFormatting(text);
+        const blocks = [];
+        let inMathBlock = false;
+        let mathBuffer = [];
+        let inCodeBlock = false;
+        let codeBuffer = [];
+        let codeLanguage = '';
+        let inSourceSection = false;
+
+        const flushMath = () => {
+            if (!mathBuffer.length) return;
+            blocks.push(`<div class="math-block">${this.escapeHtml(mathBuffer.join('\n'))}</div>`);
+            mathBuffer = [];
+        };
+
+        const flushCode = () => {
+            if (!codeBuffer.length && !codeLanguage) return;
+            const languageClass = codeLanguage ? ` language-${this.escapeHtml(codeLanguage)}` : '';
+            blocks.push(`<pre class="markdown-code-block${languageClass}"><code>${this.escapeHtml(codeBuffer.join('\n'))}</code></pre>`);
+            codeBuffer = [];
+            codeLanguage = '';
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('```')) {
+                if (inCodeBlock) {
+                    inCodeBlock = false;
+                    flushCode();
+                } else {
+                    inCodeBlock = true;
+                    codeLanguage = trimmed.replace(/^```/, '').trim().replace(/[^\w-]/g, '');
+                }
+                continue;
+            }
+
+            if (inCodeBlock) {
+                codeBuffer.push(line);
+                continue;
+            }
+
+            if (!trimmed && !inMathBlock) continue;
+
+            if (!inMathBlock && (trimmed.startsWith('\\[') || trimmed.startsWith('$$'))) {
+                inMathBlock = true;
+                mathBuffer.push(line);
+                if ((trimmed.endsWith('\\]') || trimmed.endsWith('$$')) && trimmed.length > 2) {
+                    inMathBlock = false;
+                    flushMath();
+                }
+                continue;
+            }
+
+            if (inMathBlock) {
+                mathBuffer.push(line);
+                if (trimmed.endsWith('\\]') || trimmed.endsWith('$$')) {
+                    inMathBlock = false;
+                    flushMath();
+                }
+                continue;
+            }
+
+            if (this.isMarkdownTableAt(lines, i)) {
+                const table = this.consumeMarkdownTable(lines, i);
+                blocks.push(table.html);
+                i = table.nextIndex - 1;
+                continue;
+            }
+
+            if (/^#{1,3}\s+/.test(trimmed)) {
+                const level = Math.min(3, trimmed.match(/^#+/)[0].length);
+                const content = trimmed.replace(/^#{1,3}\s+/, '').trim();
+                const newsStory = newsBriefFormatting ? this.parseNewsStoryHeading(content) : null;
+                if (newsStory) {
+                    blocks.push(this.formatNewsStoryHeading(newsStory));
+                    continue;
+                }
+                blocks.push(`<h${level} class="markdown-heading markdown-heading-${level}">${this.formatInline(content)}</h${level}>`);
+                continue;
+            }
+
+            if (/^[-*_]{3,}$/.test(trimmed)) {
+                blocks.push('<hr class="markdown-divider">');
+                continue;
+            }
+
+            if (this.isListLine(trimmed)) {
+                const list = this.consumeMarkdownList(lines, i, { newsBrief: newsBriefFormatting });
+                blocks.push(list.html);
+                i = list.nextIndex - 1;
+                continue;
+            }
+
+            if (/^>\s+/.test(trimmed)) {
+                const quote = this.consumeBlockquote(lines, i);
+                blocks.push(quote.html);
+                i = quote.nextIndex - 1;
+                continue;
+            }
+
+            const newsStory = this.parseNewsStoryHeading(trimmed);
+            if (newsStory) {
+                blocks.push(`<p class="news-story-heading"><span class="news-story-index">${this.escapeHtml(newsStory.index)}</span><span class="news-story-title">${this.formatInline(newsStory.title)}</span></p>`);
+                continue;
+            }
+
+            const leadCallout = this.parseNewsLeadCallout(trimmed, {
+                allowImplicit: newsBriefFormatting && this.canUseImplicitNewsLead(blocks)
+            });
+            if (leadCallout) {
+                blocks.push(`<div class="news-brief-lead"><span class="news-brief-lead-label">${this.formatInline(leadCallout.label)}</span><span class="news-brief-lead-text">${this.formatInline(leadCallout.text)}</span></div>`);
+                continue;
+            }
+
+            if (this.isSourceHeadingLine(trimmed)) {
+                inSourceSection = true;
+            } else if (inSourceSection && /^\*{0,2}\[(\d+)\]\*{0,2}\s*/.test(trimmed)) {
+                const sourceMatch = trimmed.match(/^\*{0,2}\[(\d+)\]\*{0,2}\s*/);
+                const srcId = sourceMatch[1];
+                const rest = trimmed.slice(sourceMatch[0].length);
+                blocks.push(`<p class="markdown-source-line" id="agent-source-${srcId}"><a class="citation-back-link" href="#agent-cite-${srcId}" data-citation-back="${srcId}">[${srcId}]</a> ${this.formatInline(rest)}</p>`);
+                continue;
+            } else if (inSourceSection && trimmed) {
+                inSourceSection = false;
+            }
+
+            if (trimmed.includes(':') && trimmed.length < 100 && !trimmed.includes('http') && !trimmed.includes('//')) {
+                const firstColon = trimmed.indexOf(':');
+                const subtitle = trimmed.substring(0, firstColon).trim();
+                const content = trimmed.substring(firstColon + 1).trim();
+                blocks.push(`<p class="markdown-key-value"><span class="subtitle">${this.formatInline(subtitle)}</span>: ${this.formatInline(content)}</p>`);
+                continue;
+            }
+
+            blocks.push(`<p>${this.formatInline(line)}</p>`);
+        }
+
+        flushMath();
+        flushCode();
+
+        return blocks.join('');
+    }
+
+    formatInline(value) {
+        let text = this.escapeHtml(value);
+        const tokens = [];
+        const stash = html => {
+            const token = `\uE000${tokens.length}\uE000`;
+            tokens.push(html);
+            return token;
+        };
+
+        text = text.replace(/`([^`]+)`/g, (_, code) => stash(`<code>${code}</code>`));
+        text = text.replace(/\[([^\]]+)]\((https?:\/\/[^)\s]+)\)/g, (_, label, url) => {
+            const href = this.sanitizeUrl(url);
+            if (!href) return label;
+            return stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+        });
+        text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+        text = text.replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+        text = text.replace(/(^|[\s(])_([^_\n]+)_/g, '$1<em>$2</em>');
+        text = text.replace(/(^|[\s>])(https?:\/\/[^\s<)]+[^\s<).,;:])/g, (match, prefix, url) => {
+            const trimmed = this.trimAutoLinkUrl(url);
+            const href = this.sanitizeUrl(trimmed.url);
+            return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
+        });
+        text = text.replace(/(^|[\s>—-])((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi, (match, prefix, url) => {
+            if (/^(?:https?:\/\/|mailto:)/i.test(url)) return match;
+            const trimmed = this.trimAutoLinkUrl(url);
+            const href = this.sanitizeUrl(`https://${trimmed.url.replace(/^www\./i, 'www.')}`);
+            return href ? `${prefix}${stash(`<a href="${this.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(trimmed.url)}</a>`)}${this.escapeHtml(trimmed.trailing)}` : match;
+        });
+
+        text = text.replace(/\[(\d{1,3})\]/g, (_, n) => {
+            // 上标数字只做页内跳转：点正文到文末来源，点来源回到点击前的位置。
+            return `<a class="citation-link" href="#agent-source-${n}" data-citation="${n}">[${n}]</a>`;
+        });
+
+        return text.replace(/\uE000(\d+)\uE000/g, (_, index) => tokens[Number(index)] || '');
+    }
+
+    isSourceHeadingLine(value) {
+        const text = String(value || '')
+            .trim()
+            .replace(/^#{1,6}\s*/, '')
+            .replace(/^\*{2,}|^\*{1,2}\s*/, '')
+            .replace(/\*{1,2}$/, '')
+            .trim();
+        return /^(来源|参考|引用|Sources|References)\s*[:：]?$/i.test(text);
+    }
+
+    buildSourceUrlMap(agentRun) {
+        const map = {};
+        const ledger = Array.isArray(agentRun?.evidence_ledger) ? agentRun.evidence_ledger : [];
+        ledger.forEach(entry => {
+            const id = String(entry?.source_id ?? '');
+            const url = String(entry?.url || '');
+            if (id && /^https?:\/\//i.test(url)) {
+                map[id] = url;
+            }
+        });
+        return map;
+    }
+
+    sanitizeUrl(value) {
+        const url = this.trimAutoLinkUrl(String(value || '').trim()).url;
+        return /^https?:\/\//i.test(url) ? url : '';
+    }
+
+    trimAutoLinkUrl(value) {
+        const raw = String(value || '');
+        const trailingMatch = raw.match(/[)\]\}，。！？；：、》」』）】]+$/);
+        if (!trailingMatch) return { url: raw, trailing: '' };
+        return {
+            url: raw.slice(0, trailingMatch.index),
+            trailing: trailingMatch[0]
+        };
+    }
+
+    isMarkdownTableAt(lines, index) {
+        const current = String(lines[index] || '').trim();
+        const next = String(lines[index + 1] || '').trim();
+        return current.includes('|') && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(next);
+    }
+
+    consumeMarkdownTable(lines, startIndex) {
+        const headers = this.splitMarkdownTableRow(lines[startIndex]);
+        const rows = [];
+        let index = startIndex + 2;
+        while (index < lines.length) {
+            const line = String(lines[index] || '').trim();
+            if (!line || !line.includes('|')) break;
+            rows.push(this.splitMarkdownTableRow(line));
+            index++;
+        }
+
+        const head = headers.map(cell => `<th>${this.formatInline(cell)}</th>`).join('');
+        const body = rows.map(row => {
+            const cells = headers.map((_, cellIndex) => `<td>${this.formatInline(row[cellIndex] || '')}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+        return {
+            html: `<div class="markdown-table-wrap"><table class="markdown-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`,
+            nextIndex: index
+        };
+    }
+
+    splitMarkdownTableRow(line) {
+        return String(line || '')
+            .trim()
+            .replace(/^\|/, '')
+            .replace(/\|$/, '')
+            .split('|')
+            .map(cell => cell.trim());
+    }
+
+    isListLine(trimmed) {
+        return /^[-*+]\s+/.test(trimmed) || /^\d+[.)、）]\s+/.test(trimmed);
+    }
+
+    consumeMarkdownList(lines, startIndex, options = {}) {
+        const first = String(lines[startIndex] || '').trim();
+        const ordered = /^\d+[.)、）]\s+/.test(first);
+        const tag = ordered ? 'ol' : 'ul';
+        const items = [];
+        let index = startIndex;
+        while (index < lines.length) {
+            const trimmed = String(lines[index] || '').trim();
+            const matches = ordered ? trimmed.match(/^(\d+)[.)、）]\s+(.*)$/) : trimmed.match(/^[-*+]\s+(.*)$/);
+            if (!matches) break;
+            const itemText = ordered ? matches[2] : matches[1];
+            const candidateText = ordered ? `${matches[1]}丨${itemText}` : itemText;
+            const newsStory = options.newsBrief ? this.parseNewsStoryHeading(candidateText) : this.parseNewsStoryHeading(itemText);
+            items.push(newsStory
+                ? `<li>${this.formatNewsStoryHeading(newsStory, { inline: true })}</li>`
+                : `<li>${this.formatInline(itemText)}</li>`);
+            index++;
+        }
+        return {
+            html: `<${tag} class="markdown-list">${items.join('')}</${tag}>`,
+            nextIndex: index
+        };
+    }
+
+    consumeBlockquote(lines, startIndex) {
+        const parts = [];
+        let index = startIndex;
+        while (index < lines.length) {
+            const trimmed = String(lines[index] || '').trim();
+            if (!/^>\s+/.test(trimmed)) break;
+            parts.push(this.formatInline(trimmed.replace(/^>\s+/, '')));
+            index++;
+        }
+        return {
+            html: `<blockquote class="markdown-blockquote">${parts.map(part => `<p>${part}</p>`).join('')}</blockquote>`,
+            nextIndex: index
+        };
+    }
+
+    parseNewsLeadCallout(value, options = {}) {
+        const text = String(value || '').trim().replace(/^\*\*(.*)\*\*$/, '$1').trim();
+        const match = text.match(/^(今日重磅|今日关键词|今日要点|今日摘要|今日概览|今日新闻|新闻导读|简报导读|导读|总览|摘要|重点|要点|关键点|主线|焦点)\s*[:：]\s*(.+)$/);
+        if (match) {
+            return {
+                label: `${match[1]}：`,
+                text: match[2].trim()
+            };
+        }
+        if (!options.allowImplicit) return null;
+        if (text.length < 16 || text.length > 260) return null;
+        if (/^(来源|参考|引用|Sources|References)\s*[:：]?/i.test(text)) return null;
+        if (!/(今天|今日|截至|这份|本简报|新闻|要闻|值得关注|主线|焦点|变化|影响|brief|headlines|today)/i.test(text)) return null;
+        return {
+            label: '导读：',
+            text
+        };
+    }
+
+    canUseImplicitNewsLead(blocks = []) {
+        if (!Array.isArray(blocks) || blocks.length === 0) return true;
+        if (blocks.length !== 1) return false;
+        return /^<h[12]\s+class="markdown-heading/.test(String(blocks[0] || ''));
+    }
+
+    parseNewsStoryHeading(value) {
+        const text = String(value || '')
+            .trim()
+            .replace(/^#{1,3}\s+/, '')
+            .replace(/^\*\*(.*)\*\*$/, '$1')
+            .trim();
+        const match = text.match(/^【\s*(\d{1,3})\s*】\s*(.+)$/)
+            || text.match(/^(\d{1,3})\s*[|丨、.)）]\s*(.+)$/);
+        if (!match) return null;
+        const split = this.splitNewsStoryTitle(match[2].trim());
+        return {
+            index: match[1],
+            title: split.title,
+            detail: split.detail
+        };
+    }
+
+    splitNewsStoryTitle(value) {
+        const text = String(value || '').trim();
+        const separators = ['——', '--', ' - ', '：', ':'];
+        for (const separator of separators) {
+            const position = text.indexOf(separator);
+            if (position > 0 && position <= 48) {
+                return {
+                    title: text.slice(0, position).trim(),
+                    detail: text.slice(position).trim()
+                };
+            }
+        }
+        return { title: text, detail: '' };
+    }
+
+    formatNewsStoryHeading(newsStory, options = {}) {
+        const tagOpen = options.inline ? '<span class="news-story-heading inline">' : '<p class="news-story-heading">';
+        const tagClose = options.inline ? '</span>' : '</p>';
+        const detail = newsStory.detail
+            ? `<span class="news-story-detail">${this.formatInline(newsStory.detail)}</span>`
+            : '';
+        return `${tagOpen}<span class="news-story-index">${this.escapeHtml(newsStory.index)}</span><span class="news-story-title">${this.formatInline(newsStory.title)}</span>${detail}${tagClose}`;
+    }
+
+    shouldUseNewsBriefFormatting(value) {
+        const text = String(value || '');
+        if (!text.trim()) return false;
+        const hasNewsSignal = /(新闻|简报|今日|今天|要闻|国际|国内|财经|科技|社会|民生|体育|文娱|来源|headline|brief|today|news)/i.test(text);
+        const hasSourceSignal = /(^|\n)\s*(来源|Sources|References|参考)\s*[:：]?/i.test(text) || /\[\d+]/.test(text);
+        const hasStorySignal = /(^|\n)\s*(?:#{1,3}\s*)?\d{1,3}\s*(?:[|丨、.)）])\s+/.test(text);
+        return hasNewsSignal && (hasSourceSignal || hasStorySignal);
+    }
+
+    /**
+     * 显示用户消息
+     * @param {string} content
+     */
+    displayUserMessage(content, attachments = []) {
+        this.messagesContainer?.querySelector('.agent-welcome')?.remove();
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message user-message';
+
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.textContent = content;
+
+        messageElement.appendChild(messageContent);
+        this.appendAttachmentSummary(messageElement, attachments);
+        this.messagesContainer.appendChild(messageElement);
+        messageElement.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /**
+     * 创建助手消息容器（用于流式响应）
+     * @returns {Object} { element, reasoningDetails, reasoningContent, contentDiv, cursorSpan }
+     */
+    createAssistantMessageContainer() {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message assistant-message';
+
+        // 推理内容只作为内部流式缓冲，不渲染思维链窗口。
+        const reasoningDetails = document.createElement('div');
+        reasoningDetails.className = 'thinking-state';
+        reasoningDetails.hidden = true;
+
+        const agentRunStatus = this.createAgentRunStatusElement('正在分析问题', {
+            running: true,
+            elapsedMs: 0
+        });
+
+        const reasoningContent = document.createElement('div');
+        reasoningContent.className = 'reasoning-content';
+
+        const cursorSpan = document.createElement('span');
+        cursorSpan.className = 'cursor-blink';
+        reasoningContent.appendChild(cursorSpan);
+
+        reasoningDetails.appendChild(reasoningContent);
+
+        // 内容区域
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content message-text';
+
+        messageElement.appendChild(agentRunStatus);
+        messageElement.appendChild(contentDiv);
+        this.messagesContainer.appendChild(messageElement);
+        messageElement.scrollIntoView({ behavior: 'smooth' });
+
+        const container = {
+            element: messageElement,
+            reasoningDetails,
+            reasoningSummary: agentRunStatus,
+            reasoningContent,
+            contentDiv,
+            cursorSpan,
+            agentRunStatus
+        };
+        this.startRuntimeTimer(container);
+        return container;
+    }
+
+    /**
+     * 更新思维链内容（流式）
+     * @param {Object} container - createAssistantMessageContainer 返回的对象
+     * @param {string} text - 新增的文本
+     */
+    appendReasoningContent(container, text) {
+        if (container?.reasoningDetails) {
+            container.reasoningDetails.hidden = false;
+        }
+        if (container?.reasoningContent) {
+            container.reasoningContent.hidden = false;
+        }
+        const textNode = document.createTextNode(text);
+        const cursorIsAttached = container.cursorSpan
+            && container.cursorSpan.parentNode === container.reasoningContent;
+        if (cursorIsAttached) {
+            container.reasoningContent.insertBefore(textNode, container.cursorSpan);
+        } else {
+            container.reasoningContent.appendChild(textNode);
+        }
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    setReasoningStatus(container, status) {
+        const statusElement = this.getAgentRunStatusElement(container);
+        if (!statusElement) return;
+        const running = !container.runtimeStopped;
+        statusElement.classList.toggle('thinking-state', running);
+        statusElement.innerHTML = this.createAgentRunStatusHtml(status, {
+            running,
+            elapsedMs: this.getRuntimeElapsedMs(container)
+        });
+    }
+
+    getAgentRunStatusElement(container) {
+        return container?.agentRunStatus || container?.reasoningSummary || null;
+    }
+
+    createAgentRunStatusElement(status, options = {}) {
+        const statusElement = document.createElement('div');
+        statusElement.className = `agent-run-status${options.running ? ' thinking-state' : ''}`;
+        statusElement.innerHTML = this.createAgentRunStatusHtml(status, options);
+        return statusElement;
+    }
+
+    createAgentRunStatusHtml(status, options = {}) {
+        const elapsedMs = Math.max(0, Number(options.elapsedMs) || 0);
+        const showRuntime = options.showRuntime !== false;
+        const loadingDots = options.running
+            ? `<span class="agent-run-loading-dots" aria-label="模型运行中">
+                <span class="agent-run-loading-dot"></span>
+                <span class="agent-run-loading-dot"></span>
+                <span class="agent-run-loading-dot"></span>
+            </span>`
+            : '';
+        const runtime = showRuntime
+            ? `<span class="agent-run-runtime">${this.formatRuntimeDuration(elapsedMs)}</span>`
+            : '';
+        return `<span class="agent-run-status-text">${this.escapeHtml(status)}</span>${loadingDots}${runtime}<span class="status-dot"></span>`;
+    }
+
+    formatRuntimeDuration(ms = 0) {
+        const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes} min ${seconds} s`;
+    }
+
+    getRuntimeElapsedMs(container) {
+        if (!container) return 0;
+        if (container.runtimeStopped) {
+            return Math.max(0, Number(container.runtimeElapsedMs) || 0);
+        }
+        if (container.runtimeStartTime) {
+            return Math.max(0, Date.now() - container.runtimeStartTime);
+        }
+        return Math.max(0, Number(container.runtimeElapsedMs) || 0);
+    }
+
+    startRuntimeTimer(container, startTime = Date.now()) {
+        const statusElement = this.getAgentRunStatusElement(container);
+        if (!statusElement) return;
+        if (container.runtimeTimerId) {
+            window.clearInterval(container.runtimeTimerId);
+        }
+        container.runtimeStartTime = Number(startTime) || Date.now();
+        container.runtimeStopped = false;
+
+        const updateRuntime = () => {
+            container.runtimeElapsedMs = this.getRuntimeElapsedMs(container);
+            const runtime = this.getAgentRunStatusElement(container)?.querySelector('.agent-run-runtime');
+            if (runtime) {
+                runtime.textContent = this.formatRuntimeDuration(container.runtimeElapsedMs);
+            }
+        };
+
+        updateRuntime();
+        container.runtimeTimerId = window.setInterval(updateRuntime, 1000);
+    }
+
+    stopRuntimeTimer(container) {
+        if (!container) return;
+        const elapsedMs = this.getRuntimeElapsedMs(container);
+        if (container.runtimeTimerId) {
+            window.clearInterval(container.runtimeTimerId);
+            container.runtimeTimerId = null;
+        }
+        container.runtimeElapsedMs = elapsedMs;
+        container.runtimeStopped = true;
+
+        const runtime = this.getAgentRunStatusElement(container)?.querySelector('.agent-run-runtime');
+        if (runtime) {
+            runtime.textContent = this.formatRuntimeDuration(elapsedMs);
+        }
+    }
+
+    appendReasoningEvent(container, message) {
+    }
+
+    /**
+     * 完成思维链阶段
+     * @param {Object} container
+     */
+    finishReasoning(container) {
+        container.reasoningDetails?.classList.remove('thinking-state');
+        this.setReasoningStatus(container, '正在整理回答');
+        if (container.cursorSpan?.parentNode) {
+            container.cursorSpan.parentNode.removeChild(container.cursorSpan);
+        }
+        this.hideEmptyReasoning(container);
+    }
+
+    hideEmptyReasoning(container) {
+        if (!container?.reasoningDetails || !container?.reasoningContent) return;
+        if (!String(container.reasoningContent.textContent || '').trim()) {
+            container.reasoningContent.hidden = true;
+            container.reasoningDetails.hidden = true;
+        }
+    }
+
+    /**
+     * 更新内容区域（流式）
+     * @param {Object} container
+     * @param {string} fullContent - 完整的内容文本
+     */
+    updateContent(container, fullContent, options = {}) {
+        if (!container?.contentDiv) return;
+        if (!options.streaming || options.force) {
+            this.cancelPendingContent(container);
+            this.renderContentNow(container, fullContent, options);
+            return;
+        }
+
+        container._pendingStreamContent = String(fullContent ?? '');
+        const interval = Number(options.interval) > 0
+            ? Number(options.interval)
+            : (container._pendingStreamContent.length > 12000 ? 180 : 120);
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const elapsed = now - (Number(container._lastContentRenderAt) || 0);
+
+        if (!container._contentRenderTimer && elapsed >= interval) {
+            this.renderPendingContent(container);
+            return;
+        }
+        if (container._contentRenderTimer) return;
+        container._contentRenderTimer = setTimeout(() => {
+            container._contentRenderTimer = null;
+            this.renderPendingContent(container);
+        }, Math.max(16, interval - elapsed));
+    }
+
+    renderPendingContent(container) {
+        if (!container || container._pendingStreamContent === undefined) return;
+        const content = container._pendingStreamContent;
+        container._pendingStreamContent = undefined;
+        this.renderContentNow(container, content, { streaming: true });
+    }
+
+    cancelPendingContent(container) {
+        if (!container) return;
+        if (container._contentRenderTimer) {
+            clearTimeout(container._contentRenderTimer);
+            container._contentRenderTimer = null;
+        }
+        container._pendingStreamContent = undefined;
+    }
+
+    flushContentUpdate(container) {
+        if (!container) return;
+        if (container._contentRenderTimer) {
+            clearTimeout(container._contentRenderTimer);
+            container._contentRenderTimer = null;
+        }
+        if (container._pendingStreamContent !== undefined) {
+            const content = container._pendingStreamContent;
+            container._pendingStreamContent = undefined;
+            this.renderContentNow(container, content, { streaming: false });
+        }
+        container.contentDiv?.classList.remove('is-streaming');
+    }
+
+    renderContentNow(container, fullContent, options = {}) {
+        if (!container?.contentDiv) return;
+        const nearBottom = this.isNearBottom();
+        this._activeSourceMap = container?._sourceUrlMap || null;
+        container.contentDiv.innerHTML = this.formatMessage(fullContent);
+        this._activeSourceMap = null;
+        container.contentDiv.classList.toggle('is-streaming', Boolean(options.streaming));
+        if (!options.preserveScroll && this.messagesContainer && (nearBottom || options.streaming || options.forceScroll)) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
+        if (!options.streaming) {
+            this.debouncedMathJax(container.contentDiv);
+        }
+        container._lastContentRenderAt = (typeof performance !== 'undefined' && performance.now)
+            ? performance.now()
+            : Date.now();
+    }
+
+    isNearBottom() {
+        const el = this.messagesContainer;
+        if (!el) return true;
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    }
+
+    startImageGenerationProgress(container, options = {}) {
+        if (!container?.contentDiv) {
+            return { update: () => {}, stop: () => {} };
+        }
+        this.stopImageGenerationProgress(container);
+        const kind = options.kind === 'video' ? 'video' : 'image';
+        const isVideo = kind === 'video';
+        const state = {
+            kind,
+            startedAt: Number(options.startedAt) || Date.now(),
+            model: String(options.model || '').trim(),
+            aspectRatio: String(options.aspectRatio || '').trim(),
+            phase: options.phase || (isVideo ? 'submitting' : 'connecting'),
+            progress: null,
+            continuation: Boolean(options.continuation),
+            reference: Boolean(options.reference),
+            timerId: null
+        };
+        container.imageGenerationProgress = state;
+        container.contentDiv.innerHTML = `
+            <div class="image-generation-progress ${isVideo ? 'video-generation-progress' : ''}" role="status" aria-live="polite">
+                <div class="image-generation-progress__top">
+                    <span class="image-generation-progress__label">${isVideo ? 'VIDEO GENERATION' : 'IMAGE GENERATION'}</span>
+                    <span class="image-generation-progress__elapsed">0 秒</span>
+                </div>
+                <div class="image-generation-progress__title"></div>
+                <div class="image-generation-progress__track" role="progressbar" aria-label="${isVideo ? '视频生成进度' : '图片生成进度'}" aria-valuetext="${isVideo ? '正在生成视频' : '正在生成图片'}">
+                    <span></span>
+                </div>
+                <div class="image-generation-progress__meta">
+                    <span class="image-generation-progress__model"></span>
+                    <span class="image-generation-progress__hint"></span>
+                </div>
+            </div>
+        `;
+        const render = () => this.renderImageGenerationProgress(container);
+        state.timerId = window.setInterval(render, 1000);
+        render();
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        return {
+            update: update => this.updateImageGenerationProgress(container, update),
+            stop: () => this.stopImageGenerationProgress(container)
+        };
+    }
+
+    startVideoGenerationProgress(container, options = {}) {
+        return this.startImageGenerationProgress(container, { ...options, kind: 'video' });
+    }
+
+    updateImageGenerationProgress(container, update = {}) {
+        const state = container?.imageGenerationProgress;
+        if (!state) return;
+        if (update.phase) state.phase = update.phase;
+        if (update.progress !== undefined && update.progress !== null) {
+            const progress = Number(update.progress);
+            if (Number.isFinite(progress)) {
+                state.progress = Math.max(0, Math.min(100, progress));
+            }
+        }
+        this.renderImageGenerationProgress(container);
+    }
+
+    stopImageGenerationProgress(container) {
+        const state = container?.imageGenerationProgress;
+        if (!state) return;
+        if (state.timerId) {
+            window.clearInterval(state.timerId);
+            state.timerId = null;
+        }
+        container.imageGenerationProgress = null;
+    }
+
+    renderImageGenerationProgress(container) {
+        const state = container?.imageGenerationProgress;
+        if (!state || !container?.contentDiv) return;
+        const elapsedMs = Math.max(0, Date.now() - state.startedAt);
+        const isVideo = state.kind === 'video';
+        const title = isVideo
+            ? this.getVideoGenerationProgressTitle(state.phase, elapsedMs, state.progress)
+            : this.getImageGenerationProgressTitle(state.phase, elapsedMs, state.continuation, state.reference);
+        const duration = this.formatImageGenerationDuration(elapsedMs);
+        const elapsed = container.contentDiv.querySelector('.image-generation-progress__elapsed');
+        const titleElement = container.contentDiv.querySelector('.image-generation-progress__title');
+        const model = container.contentDiv.querySelector('.image-generation-progress__model');
+        const hint = container.contentDiv.querySelector('.image-generation-progress__hint');
+        const track = container.contentDiv.querySelector('.image-generation-progress__track');
+        if (elapsed) elapsed.textContent = duration;
+        if (titleElement) titleElement.textContent = title;
+        if (model) {
+            const modelName = state.model || (isVideo ? 'muse-video' : '图片生成模型');
+            const ratio = isVideo && state.aspectRatio ? ` · ${state.aspectRatio}` : '';
+            model.textContent = `模型 · ${modelName}${ratio}`;
+        }
+        if (hint) {
+            if (isVideo) {
+                if (state.progress !== null) {
+                    hint.textContent = `生成进度 ${Math.round(state.progress)}%`;
+                } else if (elapsedMs < 20000) {
+                    hint.textContent = '视频生成通常需要 1–3 分钟';
+                } else {
+                    hint.textContent = '可继续等待，或停止后重试';
+                }
+            } else {
+                hint.textContent = elapsedMs < 45000
+                    ? '图片生成通常需要 20–60 秒'
+                    : '可继续等待，或停止后重试';
+            }
+        }
+        if (track) {
+            track.setAttribute('aria-valuetext', `${title}，已等待${duration}`);
+            const bar = track.querySelector('span');
+            if (isVideo && state.progress !== null && bar) {
+                bar.style.animation = 'none';
+                bar.style.width = `${Math.max(4, state.progress)}%`;
+            }
+        }
+        this.setReasoningStatus(container, title);
+    }
+
+    getVideoGenerationProgressTitle(phase, elapsedMs, progress) {
+        if (phase === 'completed') return '视频生成完成，正在准备播放';
+        if (phase === 'submitting') return '正在提交视频创作任务';
+        if (phase === 'queued') return '任务已排队，等待视频模型开始生成';
+        if (progress !== null && progress > 0) {
+            return `视频模型正在生成画面（${Math.round(progress)}%）`;
+        }
+        if (elapsedMs < 30000) return '视频模型正在生成画面，请稍候';
+        if (elapsedMs < 120000) return '视频仍在生成中，通常需要 1–3 分钟';
+        return '生成耗时较长，可继续等待或停止后重试';
+    }
+
+    getImageGenerationProgressTitle(phase, elapsedMs, continuation = false, reference = false) {
+        if (phase === 'receiving') return '图片已返回，正在接收数据';
+        if (phase === 'processing') return '正在解析图片并准备预览';
+        if (phase === 'completed') return '图片生成完成';
+        if (reference) {
+            if (elapsedMs < 3500) return '正在上传参考图';
+            if (elapsedMs < 15000) return '正在参考图片精调画面';
+            if (elapsedMs < 45000) return '正在保留参考图构图并精调细节';
+            return '参考图精调仍在进行，复杂修改可能需要更久';
+        }
+        if (continuation) {
+            if (elapsedMs < 3500) return '正在接续上一轮图片，提交精调请求';
+            if (elapsedMs < 15000) return '正在基于上一轮图片精调画面';
+            if (elapsedMs < 45000) return '正在保留上一轮构图并精调细节';
+            return '精调仍在进行，复杂修改可能需要更久';
+        }
+        if (elapsedMs < 3500) return '请求已提交，正在连接图片生成服务';
+        if (elapsedMs < 15000) return '图片模型已接收请求，正在生成画面';
+        if (elapsedMs < 45000) return '模型正在绘制画面，请稍候';
+        if (elapsedMs < 90000) return '画面仍在生成，复杂描述可能需要更久';
+        return '生成耗时较长，仍在等待模型返回';
+    }
+
+    formatImageGenerationDuration(ms = 0) {
+        const totalSeconds = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return minutes > 0 ? `${minutes} 分 ${String(seconds).padStart(2, '0')} 秒` : `${seconds} 秒`;
+    }
+
+    scrollToBottom() {
+        if (this.messagesContainer) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
+    }
+
+    displayGeneratedImages(container, images = [], caption = '') {
+        const safeCaption = caption ? `<p>${this.escapeHtml(caption)}</p>` : '';
+        container.contentDiv.innerHTML = `
+            ${safeCaption}
+            <div class="generated-image-grid"></div>
+        `;
+        const grid = container.contentDiv.querySelector('.generated-image-grid');
+        this.appendGeneratedImages(grid, images);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    displayGeneratedVideos(container, videos = [], caption = '') {
+        const safeCaption = caption ? `<p>${this.escapeHtml(caption)}</p>` : '';
+        container.contentDiv.innerHTML = `
+            ${safeCaption}
+            <div class="generated-video-grid"></div>
+        `;
+        const grid = container.contentDiv.querySelector('.generated-video-grid');
+        this.appendGeneratedVideos(grid, videos);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    /**
+     * 防抖的 MathJax 渲染
+     * @param {HTMLElement} element
+     */
+    debouncedMathJax(element, force = false) {
+        if (!this.hasMathSyntax(element?.textContent)) return;
+        if (!this.mathJaxRendering && (force || Date.now() - this.lastMathJaxRenderTime > 250)) {
+            this.mathJaxRendering = true;
+            this.lastMathJaxRenderTime = Date.now();
+            this.initMathJax()
+                .then(() => window.MathJax?.typesetPromise?.([element]))
+                .then(() => { this.mathJaxRendering = false; })
+                .catch(() => { this.mathJaxRendering = false; });
+        }
+    }
+
+    hasMathSyntax(value) {
+        const text = String(value || '');
+        return text.includes('$$') ||
+            text.includes('\\[') ||
+            text.includes('\\(') ||
+            /\$(?![\s$])(?:[^$]*\S)?\$/.test(text);
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    appendAttachmentSummary(messageElement, attachments = []) {
+        if (!Array.isArray(attachments) || attachments.length === 0) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'message-attachments';
+        attachments.forEach(file => {
+            const chip = document.createElement('span');
+            chip.className = 'message-attachment-chip';
+            const size = this.formatBytes(file.size || 0);
+            const kind = file.kind ? `${file.kind} · ` : '';
+            chip.title = file.path || file.name || '';
+            chip.textContent = `${kind}${file.name || file.path || 'attachment'} · ${size}`;
+            wrap.appendChild(chip);
+        });
+        messageElement.appendChild(wrap);
+    }
+
+    appendGeneratedImages(parent, images = []) {
+        if (!parent || !Array.isArray(images) || images.length === 0) return;
+
+        images.forEach((image, index) => {
+            const imageUrl = String(image?.url || '');
+            if (!imageUrl) return;
+
+            const frame = document.createElement('figure');
+            frame.className = 'generated-image-frame';
+
+            if (this.isOmittedImageUrl(imageUrl)) {
+                const missing = document.createElement('div');
+                missing.className = 'generated-image-missing';
+                missing.textContent = '这张历史图片的数据没有被保存，需要重新生成。';
+                frame.appendChild(missing);
+                parent.appendChild(frame);
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.href = this.createImagePreviewUrl(imageUrl, image.mimeType);
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'generated-image-link';
+            link.setAttribute('aria-label', `打开生成图片 ${index + 1}`);
+
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = image.revisedPrompt || `生成图片 ${index + 1}`;
+            img.loading = 'lazy';
+
+            link.appendChild(img);
+            frame.appendChild(link);
+            parent.appendChild(frame);
+        });
+    }
+
+    isOmittedImageUrl(url) {
+        return /^\[(data|base64) image omitted,/i.test(String(url || '').trim());
+    }
+
+    appendGeneratedVideos(parent, videos = []) {
+        if (!parent || !Array.isArray(videos) || videos.length === 0) return;
+
+        videos.forEach((video, index) => {
+            const videoUrl = String(video?.url || '');
+            if (!videoUrl) return;
+
+            const frame = document.createElement('figure');
+            frame.className = 'generated-video-frame';
+
+            if (/^\[(data|base64) video omitted,/i.test(videoUrl)) {
+                const missing = document.createElement('div');
+                missing.className = 'generated-image-missing';
+                missing.textContent = '这段历史视频没有保存下来，需要重新生成。';
+                frame.appendChild(missing);
+                parent.appendChild(frame);
+                return;
+            }
+
+            const player = document.createElement('video');
+            player.className = 'generated-video-player';
+            player.controls = true;
+            player.playsInline = true;
+            player.preload = 'metadata';
+            player.src = videoUrl;
+            player.setAttribute('aria-label', `生成视频 ${index + 1}`);
+            if (video.mimeType) {
+                const source = document.createElement('source');
+                source.src = videoUrl;
+                source.type = video.mimeType;
+                player.appendChild(source);
+            }
+            frame.appendChild(player);
+
+            const meta = document.createElement('div');
+            meta.className = 'generated-video-meta';
+            const detail = document.createElement('span');
+            const parts = [];
+            if (video.aspectRatio) parts.push(video.aspectRatio);
+            if (video.durationSeconds) parts.push(`${video.durationSeconds} 秒`);
+            detail.textContent = parts.length ? parts.join(' · ') : 'Muse 视频';
+            const link = document.createElement('a');
+            link.href = videoUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = '打开视频';
+            meta.appendChild(detail);
+            meta.appendChild(link);
+            frame.appendChild(meta);
+
+            parent.appendChild(frame);
+        });
+    }
+
+    createImagePreviewUrl(url, mimeType = 'image/png') {
+        const value = String(url || '');
+        if (!value.startsWith('data:')) {
+            return value;
+        }
+
+        try {
+            const comma = value.indexOf(',');
+            if (comma < 0) return value;
+            const meta = value.slice(0, comma);
+            const payload = value.slice(comma + 1);
+            const type = (meta.match(/^data:([^;,]+)/i)?.[1] || mimeType || 'image/png').trim();
+            let blob;
+            if (/;base64/i.test(meta)) {
+                const binary = atob(payload);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                blob = new Blob([bytes], { type });
+            } else {
+                blob = new Blob([decodeURIComponent(payload)], { type });
+            }
+            return URL.createObjectURL(blob);
+        } catch (error) {
+            return value;
+        }
+    }
+
+    formatBytes(bytes) {
+        const value = Number(bytes) || 0;
+        if (value < 1024) return `${value} B`;
+        if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+        return `${(value / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    createAgentRunPanel(container, plan) {
+        this.setReasoningStatus(container, this.getPlanStatus(plan));
+        this.appendReasoningEvent(container, `已规划 ${plan.mode} 模式，准备使用 ${plan.selectedTools.length} 个候选工具。`);
+
+        const panel = document.createElement('details');
+        panel.className = 'agent-run-panel';
+        panel.open = true;
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-run-summary';
+        summary.innerHTML = `
+            <span class="agent-run-title">AGENT RUN</span>
+            <span class="agent-run-mode">${this.escapeHtml(plan.mode)}</span>
+            <span class="agent-run-count">${plan.selectedTools.length} tools</span>
+        `;
+
+        const body = document.createElement('div');
+        body.className = 'agent-run-body';
+
+        const stages = document.createElement('div');
+        stages.className = 'agent-stage-strip';
+        plan.stages.forEach(stage => {
+            const item = document.createElement('div');
+            item.className = 'agent-stage pending';
+            item.dataset.stage = stage.id;
+            item.innerHTML = `
+                <span class="agent-stage-dot"></span>
+                <span class="agent-stage-label" data-short-label="${this.escapeHtml(this.shortStageLabel(stage.label))}">${this.escapeHtml(stage.label)}</span>
+                <span class="agent-stage-note"></span>
+            `;
+            stages.appendChild(item);
+        });
+
+        const toolDeck = document.createElement('div');
+        toolDeck.className = 'agent-tool-deck';
+
+        const approvalDeck = this.createAgentApprovalDeck([]);
+        const collaborationPanel = this.createAgentCollaborationPanel(plan.collaboration);
+
+        const trace = document.createElement('div');
+        trace.className = 'agent-trace-log';
+
+        body.appendChild(stages);
+        if (collaborationPanel) body.appendChild(collaborationPanel);
+        body.appendChild(approvalDeck);
+        body.appendChild(toolDeck);
+        body.appendChild(trace);
+        const eventTimeline = this.createAgentEventTimeline([]);
+        body.appendChild(eventTimeline.panel);
+        panel.appendChild(summary);
+        panel.appendChild(body);
+
+        container.agentRunPanel = panel;
+        container.agentStages = stages;
+        container.agentCollaboration = collaborationPanel;
+        container.agentApprovalDeck = approvalDeck;
+        container.toolDeck = toolDeck;
+        container.agentTrace = trace;
+        container.agentEventTimeline = eventTimeline.panel;
+        container.agentEventLog = eventTimeline.log;
+        container.agentEventCount = eventTimeline.count;
+        container.element.insertBefore(panel, container.contentDiv);
+        this.createAgentThoughtPanel(container, panel, [], { open: true });
+        if (Array.isArray(container.pendingAgentEvents) && container.pendingAgentEvents.length) {
+            const pending = container.pendingAgentEvents.splice(0);
+            pending.forEach(event => this.appendAgentEvent(container, event));
+        }
+        return panel;
+    }
+
+    /**
+     * Agent 运行时思维链：挂在 Agent Run 面板下方、正文上方。
+     * 每个阶段/每轮 Iteration 都持续刷新，流式追加。
+     */
+    createAgentThoughtPanel(container, afterElement, thoughts = [], options = {}) {
+        if (!container?.element && !afterElement) return null;
+        const panel = document.createElement('details');
+        panel.className = 'agent-thought-panel';
+        const hasThoughts = Array.isArray(thoughts) && thoughts.length > 0;
+        panel.open = options.open !== undefined ? options.open : hasThoughts;
+        panel.innerHTML = `
+            <summary class="agent-thought-summary">
+                <span class="agent-thought-live"></span>
+                <span class="agent-thought-title">THOUGHT STREAM</span>
+                <span class="agent-thought-status">${hasThoughts ? '历史思维链' : '等待思考…'}</span>
+                <span class="agent-thought-count">0</span>
+            </summary>
+            <div class="agent-thought-body" role="log" aria-live="polite"></div>
+        `;
+
+        const body = panel.querySelector('.agent-thought-body');
+        if (!hasThoughts) {
+            body.dataset.placeholder = '1';
+            const placeholder = document.createElement('div');
+            placeholder.className = 'agent-thought-placeholder';
+            placeholder.textContent = '等待模型思考…';
+            body.appendChild(placeholder);
+        }
+
+        if (afterElement && afterElement.insertAdjacentElement) {
+            afterElement.insertAdjacentElement('afterend', panel);
+        } else if (container?.element && container?.contentDiv) {
+            container.element.insertBefore(panel, container.contentDiv);
+        } else {
+            return null;
+        }
+
+        this.bindThoughtRefs(container, panel);
+        thoughts.forEach(item => {
+            this.appendThoughtToPanel(panel, item.stage, item.text, {
+                streamKey: item.key || '',
+                silent: true
+            });
+        });
+        return panel;
+    }
+
+    bindThoughtRefs(container, panel) {
+        if (!container || !panel) return;
+        container.agentThoughtPanel = panel;
+        container.agentThoughtBody = panel.querySelector('.agent-thought-body');
+        container.agentThoughtStatus = panel.querySelector('.agent-thought-status');
+        container.agentThoughtCount = panel.querySelector('.agent-thought-count');
+    }
+
+    ensureAgentThoughtPanel(container) {
+        if (!container?.element) return null;
+        if (container.agentThoughtPanel?.isConnected) return container.agentThoughtPanel;
+        const existing = container.element.querySelector('.agent-thought-panel');
+        if (existing) {
+            this.bindThoughtRefs(container, existing);
+            return existing;
+        }
+        return this.createAgentThoughtPanel(container, container.agentRunPanel, [], { open: true });
+    }
+
+    appendAgentThought(container, stage, text, options = {}) {
+        const value = String(text || '');
+        if (!value) return;
+        const panel = this.ensureAgentThoughtPanel(container);
+        if (!panel) return;
+        this.appendThoughtToPanel(panel, stage, value, options);
+    }
+
+    appendThoughtToPanel(panel, stage, text, options = {}) {
+        if (!panel) return;
+        const body = panel.querySelector('.agent-thought-body');
+        if (!body) return;
+        const value = String(text || '');
+        if (!value) return;
+        if (typeof panel._thoughtChars !== 'number') panel._thoughtChars = 0;
+        const key = options.streamKey || '';
+        if (!panel._thoughtRows) panel._thoughtRows = new Map();
+        let row = key ? panel._thoughtRows.get(key) : null;
+        if (row && !row.isConnected) row = null;
+
+        if (row) {
+            const textEl = row.querySelector('.agent-thought-text');
+            if (textEl) {
+                const before = textEl.textContent.length;
+                textEl.textContent = options.replace ? value : textEl.textContent + value;
+                panel._thoughtChars += Math.max(0, textEl.textContent.length - before);
+            }
+        } else {
+            if (body.dataset.placeholder === '1') {
+                body.innerHTML = '';
+                body.dataset.placeholder = '';
+            }
+            row = document.createElement('div');
+            row.className = 'agent-thought-row';
+            row.dataset.stage = stage || 'act';
+            if (key) row.dataset.thoughtKey = key;
+            const stageEl = document.createElement('span');
+            stageEl.className = 'agent-thought-stage';
+            stageEl.textContent = this.thoughtStageLabel(stage);
+            const textEl = document.createElement('span');
+            textEl.className = 'agent-thought-text';
+            textEl.textContent = value;
+            row.appendChild(stageEl);
+            row.appendChild(textEl);
+            body.appendChild(row);
+            panel._thoughtChars += value.length;
+            if (key) panel._thoughtRows.set(key, row);
+        }
+
+        const statusEl = panel.querySelector('.agent-thought-status');
+        if (statusEl && options.status) statusEl.textContent = options.status;
+        else if (statusEl && !options.silent) statusEl.textContent = `${this.thoughtStageLabel(stage)} · 运行中`;
+
+        panel.classList.toggle('is-live', !options.silent && options.done !== true);
+        panel.classList.toggle('is-done', options.done === true);
+        const countEl = panel.querySelector('.agent-thought-count');
+        if (countEl) countEl.textContent = String(body.children.length);
+
+        // 用户往上翻看时不要强行拽回底部
+        const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 64;
+        if (!options.silent && (nearBottom || body.scrollTop === 0)) {
+            body.scrollTop = body.scrollHeight;
+        }
+
+        // 防止长会话把 DOM 撑爆
+        let guard = 0;
+        while (body.children.length > 1 && panel._thoughtChars > 26000 && guard < 12) {
+            const removed = body.firstElementChild;
+            if (removed?.dataset?.thoughtKey && panel._thoughtRows) {
+                panel._thoughtRows.delete(removed.dataset.thoughtKey);
+            }
+            panel._thoughtChars -= removed?.textContent?.length || 0;
+            removed?.remove();
+            guard += 1;
+        }
+    }
+
+    thoughtStageLabel(stage) {
+        const key = String(stage || '').toLowerCase();
+        return {
+            plan: 'PLAN',
+            route: 'ROUTE',
+            act: 'ACT',
+            observe: 'OBSERVE',
+            synthesize: 'SYNTH',
+            error: 'ERROR'
+        }[key] || String(stage || 'RUN').toUpperCase();
+    }
+
+    setThoughtStatus(container, status, done = false) {
+        const panel = container?.agentThoughtPanel?.isConnected
+            ? container.agentThoughtPanel
+            : container?.element?.querySelector?.('.agent-thought-panel');
+        if (!panel) return;
+        const statusEl = panel.querySelector('.agent-thought-status');
+        if (statusEl) statusEl.textContent = status;
+        panel.classList.toggle('is-live', !done);
+        panel.classList.toggle('is-done', done);
+    }
+
+    restoreAgentRunPanel(messageElement, contentDiv, snapshot) {
+        if (!snapshot) return null;
+
+        const panel = document.createElement('details');
+        panel.className = 'agent-run-panel';
+        panel.open = false;
+
+        const selectedTools = Array.isArray(snapshot.selectedTools) ? snapshot.selectedTools : [];
+        const summary = document.createElement('summary');
+        summary.className = 'agent-run-summary';
+        summary.innerHTML = `
+            <span class="agent-run-title">AGENT RUN</span>
+            <span class="agent-run-mode">${this.escapeHtml(snapshot.mode || 'agent')}</span>
+            <span class="agent-run-count">${selectedTools.length} tools</span>
+        `;
+
+        const body = document.createElement('div');
+        body.className = 'agent-run-body';
+
+        const stages = document.createElement('div');
+        stages.className = 'agent-stage-strip';
+        const stageList = Array.isArray(snapshot.stages) && snapshot.stages.length
+            ? snapshot.stages
+            : ['plan', 'route', 'act', 'observe', 'synthesize'].map(id => ({ id, label: id, state: 'done', note: '' }));
+
+        stageList.forEach(stage => {
+            const item = document.createElement('div');
+            item.className = `agent-stage ${stage.state || 'done'}`;
+            item.dataset.stage = stage.id || '';
+            item.innerHTML = `
+                <span class="agent-stage-dot"></span>
+                <span class="agent-stage-label" data-short-label="${this.escapeHtml(this.shortStageLabel(stage.label || stage.id || ''))}">${this.escapeHtml(stage.label || stage.id || '')}</span>
+                <span class="agent-stage-note">${this.escapeHtml(stage.note || '')}</span>
+            `;
+            stages.appendChild(item);
+        });
+
+        const events = Array.isArray(snapshot.events) ? snapshot.events : [];
+        const approvalDeck = this.createAgentApprovalDeck(events);
+        const toolDeck = document.createElement('div');
+        toolDeck.className = 'agent-tool-deck';
+        const collaborationPanel = this.createAgentCollaborationPanel(snapshot.collaboration);
+
+        const trace = document.createElement('div');
+        trace.className = 'agent-trace-log';
+        (Array.isArray(snapshot.traces) ? snapshot.traces : []).forEach(row => {
+            const traceRow = document.createElement('div');
+            traceRow.className = 'agent-trace-row';
+            traceRow.innerHTML = `
+                <span class="agent-trace-stage">${this.escapeHtml(row.stage || '')}</span>
+                <span class="agent-trace-message">${this.escapeHtml(row.message || '')}</span>
+            `;
+            trace.appendChild(traceRow);
+        });
+
+        body.appendChild(stages);
+        if (collaborationPanel) body.appendChild(collaborationPanel);
+        body.appendChild(approvalDeck);
+        body.appendChild(toolDeck);
+        body.appendChild(trace);
+        const eventTimeline = this.createAgentEventTimeline(events);
+        if (eventTimeline.panel) {
+            body.appendChild(eventTimeline.panel);
+        }
+        panel.appendChild(summary);
+        panel.appendChild(body);
+        // Safety: only use insertBefore if contentDiv is already a child of messageElement
+        if (contentDiv.parentNode === messageElement) {
+            messageElement.insertBefore(panel, contentDiv);
+        } else {
+            messageElement.appendChild(panel);
+        }
+        if (Array.isArray(snapshot.thought_trace) && snapshot.thought_trace.length) {
+            this.createAgentThoughtPanel(null, panel, snapshot.thought_trace, { open: true });
+        }
+        return panel;
+    }
+
+    createAgentCollaborationPanel(collaboration) {
+        if (!collaboration || !collaboration.enabled) return null;
+
+        // 允许 collaborators 为空：专家面板需要在专家启动前就占位，
+        // 随后由 AgentRuntime.renderExpertStatus 填充实时状态。
+        const collaborators = Array.isArray(collaboration.collaborators) ? collaboration.collaborators : [];
+
+        const panel = document.createElement('div');
+        panel.className = 'agent-collaboration-panel';
+
+        const strategyLabels = {
+            expert_panel: '并行Agent',
+            debate: '观点辩论',
+            single_agent: '单 Agent'
+        };
+        const strategy = strategyLabels[collaboration.strategy] || collaboration.strategy || '协作';
+
+        // 落库快照里的 collaborators 带逐专家状态（status/工具次数/检索词/产出字数），
+        // 历史恢复时必须按同一套行样式渲染，否则回看聊天记录就只有光秃秃的名字。
+        const hasDetail = collaborators.some(item => item && (item.status || item.ok || item.tool_calls || item.duration_ms));
+        const members = hasDetail
+            ? this.buildCollaboratorRows(collaborators)
+            : (collaborators.map(item => {
+                const state = item.ok ? 'ok' : 'fail';
+                const duration = Number.isFinite(Number(item.duration_ms))
+                    ? ` · ${(Number(item.duration_ms) / 1000).toFixed(1)}s`
+                    : '';
+                return `<span class="agent-collaborator ${state}">${this.escapeHtml(item.label || item.role || 'expert')}${duration}</span>`;
+            }).join('') || '<span class="agent-collaborator">准备启动…</span>');
+
+        const okCount = collaborators.filter(item => item.ok).length;
+        const countText = hasDetail
+            ? (this.buildCollaboratorSummary(collaborators) || `${okCount}/${collaborators.length} ok`)
+            : `${okCount}/${collaborators.length} ok`;
+
+        panel.innerHTML = `
+            <div class="agent-collaboration-head">
+                <span class="agent-collaboration-title">COLLABORATION</span>
+                <span class="agent-collaboration-mode">${this.escapeHtml(strategy)}</span>
+                <span class="agent-collaboration-count">${this.escapeHtml(countText)}</span>
+            </div>
+            <div class="agent-collaboration-members">${members}</div>
+        `;
+        return panel;
+    }
+
+    /**
+     * 专家面板的成员行 HTML —— 运行中实时渲染与历史恢复共用同一份实现。
+     * 同时接受运行时结构（activity.toolCalls/toolsUsed/...）与落库后的扁平结构（tool_calls/tools_used/...）。
+     */
+    buildCollaboratorRows(collaborators = []) {
+        const list = Array.isArray(collaborators) ? collaborators : [];
+        if (!list.length) return '<span class="agent-collaborator">准备启动…</span>';
+
+        return list.map(item => {
+            const activity = item?.activity || {};
+            const status = item?.status || (item?.ok ? 'done' : 'queued');
+            const statusLabel = {
+                queued: '排队',
+                running: '检索中',
+                done: '完成',
+                empty: '无产出',
+                failed: '失败'
+            }[status] || status;
+
+            const state = (status === 'done' || item?.ok)
+                ? 'ok'
+                : (status === 'failed' || status === 'empty' ? 'fail' : '');
+
+            const durationMs = Number(item?.durationMs ?? item?.duration_ms) || 0;
+            const duration = durationMs ? ` · ${(durationMs / 1000).toFixed(1)}s` : '';
+
+            const toolCalls = Number(item?.tool_calls ?? activity.toolCalls) || 0;
+            const iterations = Number(item?.iterations ?? activity.iterations) || 0;
+            const findingsChars = Number(item?.findings_chars ?? activity.findingsChars) || 0;
+            const stats = [];
+            if (toolCalls > 0) stats.push(`工具×${toolCalls}`);
+            if (iterations > 0) stats.push(`轮次${iterations}`);
+            if (findingsChars > 0) stats.push(`${findingsChars}字`);
+            const statsText = stats.length ? ` · ${stats.join(' · ')}` : '';
+
+            const toolsUsed = this.formatCollaboratorList(item?.tools_used ?? activity.toolsUsed);
+            const queries = this.formatCollaboratorList(item?.queries ?? activity.queries, 3);
+            const lastAction = String(item?.last_action ?? activity.lastAction ?? '').slice(0, 90);
+
+            return `<div class="agent-collaborator-row ${state}">`
+                + `<div class="agent-collaborator-head">`
+                + `<span class="agent-collaborator-name">${this.escapeHtml(item?.label || item?.role || item?.key || 'expert')}</span>`
+                + `<span class="agent-collaborator-state">${this.escapeHtml(statusLabel)}${duration}${this.escapeHtml(statsText)}</span>`
+                + `</div>`
+                + (toolsUsed ? `<div class="agent-collaborator-line"><span class="agent-collaborator-tools">${toolsUsed}</span></div>` : '')
+                + (lastAction ? `<div class="agent-collaborator-line"><span class="agent-collaborator-action">${this.escapeHtml(lastAction)}</span></div>` : '')
+                + (queries ? `<div class="agent-collaborator-line"><span class="agent-collaborator-queries">${queries}</span></div>` : '')
+                + `</div>`;
+        }).join('');
+    }
+
+    formatCollaboratorList(value, limit = 0) {
+        const list = Array.isArray(value) ? value.filter(Boolean) : [];
+        const picked = limit > 0 ? list.slice(-limit) : list;
+        return picked.map(item => this.escapeHtml(String(item))).join(limit > 0 ? ' ｜ ' : ', ');
+    }
+
+    buildCollaboratorSummary(collaborators = []) {
+        const list = Array.isArray(collaborators) ? collaborators : [];
+        if (!list.length) return '';
+        const done = list.filter(item => item?.status === 'done' || item?.ok).length;
+        const toolTotal = list.reduce((sum, item) =>
+            sum + (Number(item?.tool_calls ?? item?.activity?.toolCalls) || 0), 0);
+        const findingsTotal = list.reduce((sum, item) =>
+            sum + (Number(item?.findings_chars ?? item?.activity?.findingsChars) || 0), 0);
+        return `${done}/${list.length} ok · 工具×${toolTotal} · 材料${findingsTotal}字`;
+    }
+
+    setAgentStage(container, stageId, state, note = '') {
+        if (state === 'active') {
+            this.setReasoningStatus(container, this.getStageStatus(stageId, note));
+        }
+        const stage = container.agentStages?.querySelector(`[data-stage="${stageId}"]`);
+        if (!stage) return;
+        stage.classList.remove('pending', 'active', 'done', 'error');
+        stage.classList.add(state);
+        const noteEl = stage.querySelector('.agent-stage-note');
+        if (noteEl) noteEl.textContent = note;
+        if (state === 'active' || state === 'error') {
+            const isIterationNote = stageId === 'act' && /^Iteration\s+\d+$/i.test(String(note || ''));
+            if (!isIterationNote) {
+                this.appendAgentThought(container, stageId, note || (state === 'error' ? '阶段异常' : '阶段开始'), {
+                    status: state === 'error' ? '异常' : '运行中'
+                });
+            }
+        }
+    }
+
+    addAgentTrace(container, stage, message) {
+        if (!container.agentTrace) return;
+        const row = document.createElement('div');
+        row.className = 'agent-trace-row';
+        row.innerHTML = `
+            <span class="agent-trace-stage">${this.escapeHtml(stage)}</span>
+            <span class="agent-trace-message">${this.escapeHtml(message)}</span>
+        `;
+        container.agentTrace.appendChild(row);
+    }
+
+    createAgentEventTimeline(events = []) {
+        const visibleEvents = events.filter(event => this.shouldDisplayAgentEvent(event));
+        const panel = document.createElement('details');
+        panel.className = 'agent-event-panel';
+        panel.open = false;
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-event-summary';
+        summary.innerHTML = `
+            <span class="agent-event-title">EVENTS</span>
+            <span class="agent-event-count">${visibleEvents.length}</span>
+        `;
+
+        const log = document.createElement('div');
+        log.className = 'agent-event-log';
+        visibleEvents.forEach(event => log.appendChild(this.createAgentEventRow(event)));
+
+        panel.appendChild(summary);
+        panel.appendChild(log);
+        return {
+            panel,
+            log,
+            count: summary.querySelector('.agent-event-count')
+        };
+    }
+
+    appendAgentEvent(container, event) {
+        if (!container || !this.shouldDisplayAgentEvent(event)) return;
+        if (!container.agentRunPanel) {
+            if (!Array.isArray(container.pendingAgentEvents)) {
+                container.pendingAgentEvents = [];
+            }
+            container.pendingAgentEvents.push(event);
+            return;
+        }
+        if (!container.agentEventLog) {
+            const timeline = this.createAgentEventTimeline([]);
+            container.agentEventTimeline = timeline.panel;
+            container.agentEventLog = timeline.log;
+            container.agentEventCount = timeline.count;
+            if (container.agentRunPanel?.querySelector('.agent-run-body')) {
+                container.agentRunPanel.querySelector('.agent-run-body').appendChild(timeline.panel);
+            }
+        }
+        container.agentEventLog.appendChild(this.createAgentEventRow(event));
+        const count = container.agentEventLog.children.length;
+        if (container.agentEventCount) {
+            container.agentEventCount.textContent = String(count);
+        }
+        if (event.type === 'approval.required') {
+            this.displayApprovalCard(container, event);
+        }
+        if (event.type === 'approval.resolved') {
+            this.applyApprovalResolution(container, event);
+        }
+    }
+
+    createAgentApprovalDeck(events = []) {
+        const deck = document.createElement('div');
+        deck.className = 'agent-approval-deck';
+        events
+            .filter(event => event?.type === 'approval.required')
+            .forEach(event => deck.appendChild(this.createApprovalCard(event)));
+        events
+            .filter(event => event?.type === 'approval.resolved')
+            .forEach(event => this.applyApprovalResolutionToDeck(deck, event));
+        return deck;
+    }
+
+    displayApprovalCard(container, event, options = {}) {
+        if (!container.agentApprovalDeck) {
+            const deck = this.createAgentApprovalDeck([]);
+            container.agentApprovalDeck = deck;
+            const body = container.agentRunPanel?.querySelector('.agent-run-body');
+            if (body) {
+                const toolDeck = body.querySelector('.agent-tool-deck');
+                if (toolDeck) body.insertBefore(deck, toolDeck);
+                else body.appendChild(deck);
+            }
+        }
+        const key = this.getApprovalKey(event);
+        const existing = Array.from(container.agentApprovalDeck.children)
+            .find(card => card.dataset.approvalKey === key);
+        if (existing && !options.interactive) return existing;
+        const card = this.createApprovalCard(event, options);
+        if (existing) {
+            existing.replaceWith(card);
+        } else {
+            container.agentApprovalDeck.appendChild(card);
+        }
+        return card;
+    }
+
+    createApprovalCard(event, options = {}) {
+        const payload = event.payload || {};
+        const card = document.createElement('div');
+        const interactive = Boolean(options.interactive && payload.enforced);
+        card.className = `agent-approval-card ${payload.enforced ? 'pending' : 'event-only'}`;
+        card.dataset.approvalKey = this.getApprovalKey(event);
+        const args = this.formatApprovalArguments(options.args ?? payload.arguments_preview);
+        const impact = payload.impact || 'No impact description provided.';
+        const argsBlock = interactive
+            ? `
+                <textarea class="agent-approval-editor" spellcheck="false" aria-label="Approval arguments">${this.escapeHtml(args)}</textarea>
+                <div class="agent-approval-error" aria-live="polite"></div>
+                <div class="agent-approval-actions">
+                    <button type="button" class="agent-approval-btn approve" data-approval-action="approve">Approve</button>
+                    <button type="button" class="agent-approval-btn reject" data-approval-action="reject">Reject</button>
+                </div>
+            `
+            : `<pre class="agent-approval-args">${this.escapeHtml(args)}</pre>`;
+        card.innerHTML = `
+            <div class="agent-approval-header">
+                <span class="agent-approval-title">APPROVAL</span>
+                <span class="agent-approval-risk">${this.escapeHtml(payload.risk || 'unknown')}</span>
+                <span class="agent-approval-mode" data-approval-status>${this.escapeHtml(payload.enforced ? 'WAITING' : 'EVENT ONLY')}</span>
+            </div>
+            <div class="agent-approval-grid">
+                <span class="agent-approval-label">Tool</span>
+                <span class="agent-approval-value">${this.escapeHtml(payload.name || 'tool')}</span>
+                <span class="agent-approval-label">Impact</span>
+                <span class="agent-approval-value">${this.escapeHtml(impact)}</span>
+            </div>
+            ${argsBlock}
+        `;
+        return card;
+    }
+
+    waitForAgentApproval(container, event, context = {}) {
+        const card = this.displayApprovalCard(container, event, {
+            interactive: true,
+            args: context.args
+        });
+        const payload = event?.payload || {};
+        if (!card) {
+            return Promise.resolve({
+                status: 'rejected',
+                args: context.args || {},
+                reason: 'Approval UI is unavailable.'
+            });
+        }
+
+        return new Promise(resolve => {
+            let settled = false;
+            const editor = card.querySelector('.agent-approval-editor');
+            const error = card.querySelector('.agent-approval-error');
+            const buttons = Array.from(card.querySelectorAll('[data-approval-action]'));
+            const settle = status => {
+                if (settled) return;
+                if (status === 'approved') {
+                    try {
+                        const args = this.parseApprovalArguments(editor?.value, context.args || {});
+                        settled = true;
+                        this.setApprovalCardBusy(card);
+                        resolve({ status: 'approved', args });
+                    } catch (e) {
+                        if (error) error.textContent = e.message;
+                        editor?.classList.add('invalid');
+                    }
+                    return;
+                }
+                settled = true;
+                this.setApprovalCardBusy(card);
+                resolve({
+                    status: 'rejected',
+                    args: context.args || {},
+                    reason: `用户拒绝执行 ${payload.name || 'tool'}`
+                });
+            };
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => settle(button.dataset.approvalAction === 'approve' ? 'approved' : 'rejected'));
+            });
+            editor?.addEventListener('input', () => {
+                editor.classList.remove('invalid');
+                if (error) error.textContent = '';
+            });
+        });
+    }
+
+    parseApprovalArguments(value, fallback) {
+        const text = String(value ?? '').trim();
+        if (!text) return {};
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error('Arguments must be valid JSON before approval.');
+        }
+    }
+
+    setApprovalCardBusy(card) {
+        card.classList.add('resolving');
+        card.querySelectorAll('button, textarea').forEach(element => {
+            element.disabled = true;
+        });
+    }
+
+    applyApprovalResolution(container, event) {
+        if (!container?.agentApprovalDeck) return;
+        this.applyApprovalResolutionToDeck(container.agentApprovalDeck, event);
+    }
+
+    applyApprovalResolutionToDeck(deck, event) {
+        const key = this.getApprovalKey(event);
+        const card = Array.from(deck?.children || []).find(item => item.dataset.approvalKey === key);
+        if (!card) return;
+        const payload = event.payload || {};
+        const approved = payload.status === 'approved' || payload.approved === true;
+        card.classList.remove('pending', 'event-only', 'resolving');
+        card.classList.add(approved ? 'approved' : 'rejected');
+        const status = card.querySelector('[data-approval-status]');
+        if (status) status.textContent = approved ? 'APPROVED' : 'REJECTED';
+        card.querySelectorAll('button, textarea').forEach(element => {
+            element.disabled = true;
+        });
+        let resolution = card.querySelector('.agent-approval-resolution');
+        if (!resolution) {
+            resolution = document.createElement('div');
+            resolution.className = 'agent-approval-resolution';
+            card.appendChild(resolution);
+        }
+        resolution.textContent = `${approved ? 'Approved' : 'Rejected'}${payload.edited ? ' · edited arguments' : ''}`;
+    }
+
+    getApprovalKey(event) {
+        const payload = event?.payload || {};
+        return String(payload.approval_id || payload.tool_call_id || `${payload.name || 'tool'}-${event?.seq || ''}`);
+    }
+
+    formatApprovalArguments(value) {
+        const text = typeof value === 'string' ? value : JSON.stringify(value || {});
+        if (!text) return '{}';
+        try {
+            return JSON.stringify(JSON.parse(text), null, 2);
+        } catch (e) {
+            return text;
+        }
+    }
+
+    shouldDisplayAgentEvent(event) {
+        if (!event || !event.type) return false;
+        return event.type !== 'model.delta';
+    }
+
+    createAgentEventRow(event) {
+        const row = document.createElement('div');
+        const state = this.getAgentEventState(event);
+        row.className = `agent-event-row ${state}`;
+        const time = this.formatAgentEventTime(event.ts);
+        const label = this.getAgentEventLabel(event);
+        const message = this.getAgentEventMessage(event);
+        const stage = event.stage || '';
+        row.innerHTML = `
+            <span class="agent-event-dot"></span>
+            <span class="agent-event-time">${this.escapeHtml(time)}</span>
+            <span class="agent-event-type">${this.escapeHtml(label)}</span>
+            <span class="agent-event-stage">${this.escapeHtml(stage)}</span>
+            <span class="agent-event-message">${this.escapeHtml(message)}</span>
+        `;
+        return row;
+    }
+
+    getAgentEventState(event) {
+        if (/failed|error/i.test(event.type || '')) return 'error';
+        if (/coverage_gap|gap/i.test(event.type || '')) return 'warning';
+        if (/approval\.required/.test(event.type || '')) return 'warning';
+        if (/approval\.resolved/.test(event.type || '') && event.payload?.status !== 'approved') return 'error';
+        if (/collaboration\.(started|active|handoff)/.test(event.type || '')) return 'active';
+        if (/collaboration\.(completed|reviewed)/.test(event.type || '')) return 'done';
+        if (/completed|added|resolved|verified/.test(event.type || '')) return 'done';
+        if (/started|requested|created|built|route/.test(event.type || '')) return 'active';
+        return 'neutral';
+    }
+
+    getAgentEventLabel(event) {
+        const map = {
+            'run.started': 'run',
+            'context.built': 'context',
+            'plan.created': 'plan',
+            'route.completed': 'route',
+            'model.started': 'model',
+            'model.completed': 'model',
+            'tool.requested': 'tool',
+            'approval.required': 'approval',
+            'approval.resolved': 'approval',
+            'tool.started': 'tool',
+            'tool.completed': 'tool',
+            'tool.failed': 'tool',
+            'evidence.added': 'evidence',
+            'citation.verified': 'citation',
+            'artifact.created': 'artifact',
+            'collaboration.started': 'collab',
+            'collaboration.active': 'collab',
+            'collaboration.handoff': 'collab',
+            'collaboration.completed': 'collab',
+            'research.coverage_gap': 'coverage',
+            'synthesis.started': 'synthesis',
+            'run.completed': 'run',
+            'run.failed': 'run',
+            'run.cancelled': 'run'
+        };
+        return map[event.type] || event.type;
+    }
+
+    getAgentEventMessage(event) {
+        const payload = event.payload || {};
+        switch (event.type) {
+            case 'run.started':
+                return `${payload.mode || 'run'}${payload.researchProfile ? ` / ${payload.researchProfile}` : ''}`;
+            case 'context.built':
+                return this.formatContextSummary(payload.summary);
+            case 'plan.created':
+                return `${payload.mode || 'plan'} · ${payload.maxIterations || 0} iterations`;
+            case 'route.completed':
+                return `${Array.isArray(payload.selectedTools) ? payload.selectedTools.length : 0} tools selected`;
+            case 'collaboration.started':
+                return `${payload.display?.modeLabel || '自动协作'} · ${payload.display?.summary || '系统自动分工'}`;
+            case 'collaboration.active':
+            case 'collaboration.handoff':
+            case 'collaboration.completed':
+                return payload.reason
+                    ? `工作流交接 · ${payload.reason}`
+                    : `${payload.label || '协作'} · ${payload.mission || payload.status || 'updated'}`;
+            case 'model.started':
+                return payload.iteration ? `iteration ${payload.iteration}` : 'model turn started';
+            case 'model.completed':
+                return payload.tool_call_count !== undefined
+                    ? `${payload.tool_call_count} tool call(s), ${payload.content_chars || 0} chars`
+                    : `${payload.content_chars || 0} chars`;
+            case 'tool.requested':
+            case 'tool.started':
+                return `${payload.name || 'tool'}${payload.metadata?.risk ? ` · ${payload.metadata.risk}` : ''}`;
+            case 'tool.completed':
+                return `${payload.name || 'tool'} completed · ${payload.result_chars || 0} chars`;
+            case 'tool.failed':
+                return `${payload.name || 'tool'} failed · ${payload.result_chars || 0} chars`;
+            case 'approval.required':
+                return `${payload.name || 'tool'} · ${payload.risk || 'approval'} · ${payload.enforced ? 'enforced' : 'event only'}`;
+            case 'approval.resolved':
+                return `${payload.name || 'tool'} · ${payload.status || 'resolved'}${payload.edited ? ' · edited' : ''}`;
+            case 'evidence.added':
+                return `${payload.title || payload.url || payload.kind || 'evidence'}${payload.trustLevel ? ` · ${payload.trustLevel}` : ''}`;
+            case 'citation.verified':
+                return `${Array.isArray(payload.matched) ? payload.matched.length : 0} matched, ${Array.isArray(payload.unmatched) ? payload.unmatched.length : 0} unmatched, ${Array.isArray(payload.weak) ? payload.weak.length : 0} weak`;
+            case 'research.coverage_gap':
+                return `${payload.unique_source_urls || 0} unique URLs, ${payload.evidence_items || 0} evidence item(s), follow-up ${payload.forcedFollowups || 0}`;
+            case 'synthesis.started':
+                return `${payload.tool_calls || 0} tool call(s), ${payload.evidence_items || 0} evidence item(s)`;
+            case 'run.completed':
+                return `${payload.content_chars || 0} chars${Array.isArray(payload.warnings) && payload.warnings.length ? ` · ${payload.warnings.length} warning(s)` : ''}`;
+            default:
+                return this.truncateForLog(JSON.stringify(payload || {}), 180);
+        }
+    }
+
+    formatContextSummary(summary) {
+        if (!summary) return 'context ready';
+        const parts = [
+            `${summary.priorMessageCount || 0} messages`,
+            `${summary.attachmentCount || 0} attachments`
+        ];
+        if (summary.textAttachmentCount) parts.push(`${summary.textAttachmentCount} text`);
+        if (summary.imageAttachmentCount) parts.push(`${summary.imageAttachmentCount} image`);
+        return parts.join(' · ');
+    }
+
+    formatAgentEventTime(ts) {
+        if (!ts) return '';
+        const date = new Date(ts);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    /**
+     * 显示工具调用卡片
+     * @param {Object} container
+     * @param {Object} toolCall - { id, function: { name, arguments } }
+     * @returns {HTMLElement} 工具卡片元素
+     */
+    displayToolCall(container, toolCall) {
+        this.toolCallNames.set(toolCall.id, toolCall.function.name);
+        this.setReasoningStatus(container, '正在读取资料');
+        const toolCard = document.createElement('div');
+        toolCard.className = 'tool-call-card tool-executing';
+        toolCard.id = `tool-${toolCall.id}`;
+
+        let args = '{}';
+        try {
+            args = JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2);
+        } catch (e) {
+            args = toolCall.function.arguments;
+        }
+
+        toolCard.innerHTML = `
+            <div class="tool-call-header">
+                <span class="tool-icon">🔧</span>
+                <span class="tool-name">${this.escapeHtml(toolCall.function.name)}</span>
+                <span class="tool-status">执行中...</span>
+            </div>
+            <div class="tool-call-args">
+                <pre>${this.escapeHtml(args)}</pre>
+            </div>
+            <div class="tool-call-result"></div>
+        `;
+        toolCard.hidden = Boolean(container?.agentRunPanel);
+
+        if (container.toolDeck) {
+            container.toolDeck.appendChild(toolCard);
+        } else {
+            container.element.appendChild(toolCard);
+        }
+        return toolCard;
+    }
+
+    /**
+     * 更新工具调用结果
+     * @param {string} toolCallId
+     * @param {string} result
+     * @param {boolean} success
+     */
+    updateToolResult(toolCallId, result, success = true) {
+        const toolCard = document.getElementById(`tool-${toolCallId}`);
+        if (!toolCard) return;
+
+        toolCard.classList.remove('tool-executing');
+        toolCard.classList.add(success ? 'tool-success' : 'tool-error');
+
+        const statusEl = toolCard.querySelector('.tool-status');
+        statusEl.textContent = success ? '已完成' : '失败';
+
+        const resultEl = toolCard.querySelector('.tool-call-result');
+        resultEl.innerHTML = `<pre>${this.escapeHtml(result)}</pre>`;
+    }
+
+    shortStageLabel(label) {
+        const map = {
+            plan: 'Plan',
+            route: 'Route',
+            act: 'Act',
+            observe: 'Obs',
+            synthesize: 'Synth'
+        };
+        const key = String(label || '').toLowerCase();
+        return map[key] || label;
+    }
+
+    getPlanStatus(plan) {
+        if (plan.mode === 'news_brief') return '\u6b63\u5728\u6574\u7406\u65b0\u95fb\u7b80\u62a5';
+        if (plan.mode === 'research') return '正在检索资料';
+        if (plan.mode === 'agent') return '正在分析并选择工具';
+        return '正在分析问题';
+    }
+
+    getStageStatus(stageId, note = '') {
+        const usefulNote = note && !/^Iteration\s+\d+$/i.test(note) ? `：${note}` : '';
+        const map = {
+            plan: '正在分析问题',
+            route: '正在选择可用工具',
+            act: `正在调用工具${usefulNote}`,
+            observe: '正在读取工具结果',
+            synthesize: '正在整理回答'
+        };
+        return map[stageId] || '正在思考';
+    }
+
+    formatTraceForReasoning(stage, message) {
+        if (stage === 'route' && message.startsWith('Routed tools:')) {
+            const tools = message.replace('Routed tools:', '').split(',').map(v => v.trim()).filter(Boolean);
+            return `已选择工具：${tools.slice(0, 8).join(', ')}${tools.length > 8 ? ` 等 ${tools.length} 个` : ''}`;
+        }
+        if (stage === 'act' || stage === 'observe') {
+            return message.replace(/^Iteration \d+:\s*/i, '');
+        }
+        return message;
+    }
+
+    truncateForLog(value, max) {
+        const text = String(value ?? '');
+        return text.length <= max ? text : `${text.slice(0, max)}...`;
+    }
+
+    /**
+     * 完成消息（保存状态）
+     * @param {Object} container
+     */
+    finalizeMessage(container) {
+        this.stopRuntimeTimer(container);
+        this.flushContentUpdate(container);
+        container.reasoningDetails?.classList.remove('thinking-state');
+        this.setReasoningStatus(container, '运行完成');
+        if (container.cursorSpan?.parentNode) {
+            container.cursorSpan.parentNode.removeChild(container.cursorSpan);
+        }
+        this.hideEmptyReasoning(container);
+        this.setThoughtStatus(container, '运行完成', true);
+
+        if (container.contentDiv && String(container.contentDiv.textContent || '').trim()) {
+            container.contentDiv.classList.remove('content-reveal');
+            void container.contentDiv.offsetWidth;
+            container.contentDiv.classList.add('content-reveal');
+            setTimeout(() => container.contentDiv?.classList.remove('content-reveal'), 360);
+        }
+        this.debouncedMathJax(container.contentDiv, true);
+        // 收尾时立即补渲染流式期间被跳过的图表/Mermaid，避免最后几秒一直看到源码。
+        setTimeout(() => {
+            try {
+                window.agentChartRenderer?.renderAll?.(document);
+                window.agentDiagramRenderer?.renderAll?.(document);
+            } catch (error) {
+                // ignore renderer refresh failures
+            }
+            this.attachPdfAction(container);
+        }, 260);
+    }
+
+    /**
+     * 正文下方的 PDF 导出入口：只有成篇的回答才挂，点开时才真正生成。
+     */
+    attachPdfAction(container) {
+        const element = container?.element;
+        const content = container?.contentDiv;
+        if (!element || !content || !content.isConnected) return;
+        if (element.querySelector('.agent-pdf-bar')) return;
+        if (String(content.textContent || '').trim().length < 240) return;
+
+        const bar = document.createElement('div');
+        bar.className = 'agent-pdf-bar';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'agent-pdf-btn';
+        button.textContent = '下载 PDF';
+        const status = document.createElement('span');
+        status.className = 'agent-pdf-status';
+        bar.appendChild(button);
+        bar.appendChild(status);
+        element.appendChild(bar);
+
+        button.addEventListener('click', () => this.exportPdf(bar));
+    }
+
+    pdfTitleFor(content) {
+        const heading = content?.querySelector('h1, h2, h3');
+        const headingTitle = String(heading?.textContent || '').replace(/\s+/g, ' ').trim();
+        if (headingTitle) return headingTitle.slice(0, 60);
+        const chatId = window.historyManager?.getCurrentChatId?.();
+        const history = window.historyManager?.getChatHistory?.() || {};
+        const chatTitle = String(history[chatId]?.title || '').trim();
+        return chatTitle.slice(0, 60);
+    }
+
+    async exportPdf(bar) {
+        const button = bar.querySelector('.agent-pdf-btn');
+        const status = bar.querySelector('.agent-pdf-status');
+        const messageEl = bar.closest('.message');
+        const contentEl = messageEl?.querySelector('.message-text');
+        if (!contentEl || !window.agentReportPdf) return;
+
+        const title = this.pdfTitleFor(contentEl);
+        if (button) button.disabled = true;
+        if (status) status.textContent = '准备生成…';
+
+        try {
+            const result = await window.agentReportPdf.exportAndDownload(contentEl, {
+                title,
+                filename: (title || 'PzM Agent 报告') + '.pdf',
+                onProgress: progress => {
+                    if (!status) return;
+                    if (progress.phase === 'loading') status.textContent = '加载 PDF 组件…';
+                    else if (progress.phase === 'render') {
+                        const percent = progress.total ? Math.round(progress.current / progress.total * 100) : 0;
+                        status.textContent = `排版中 ${percent}%`;
+                    } else if (progress.phase === 'finalize') status.textContent = '正在生成下载…';
+                }
+            });
+            if (status) status.textContent = `${result.pageCount} 页 · 已下载`;
+        } catch (error) {
+            if (status) status.textContent = '下载失败：' + (error?.message || error);
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
+    /**
+     * 显示中断状态
+     * @param {Object} container
+     */
+    showInterrupted(container) {
+        this.stopRuntimeTimer(container);
+        container.contentDiv?.classList.remove('is-streaming');
+        container.reasoningDetails?.classList.remove('thinking-state');
+        this.setReasoningStatus(container, 'ANALYSIS INTERRUPTED');
+        if (container.cursorSpan?.parentNode) {
+            container.cursorSpan.parentNode.removeChild(container.cursorSpan);
+        }
+        this.hideEmptyReasoning(container);
+        this.setThoughtStatus(container, '已中断', true);
+    }
+
+    /**
+     * 显示错误消息
+     * @param {Object} container
+     * @param {string} errorMessage
+     */
+    showError(container, errorMessage) {
+        this.stopRuntimeTimer(container);
+        container.contentDiv?.classList.remove('is-streaming');
+        if (container?.reasoningDetails) {
+            container.reasoningDetails.classList.remove('thinking-state');
+            this.setReasoningStatus(container, '运行出错');
+            this.hideEmptyReasoning(container);
+        }
+        this.setThoughtStatus(container, '运行出错', true);
+        container.contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${errorMessage}</span>`;
+    }
+
+    /**
+     * 从历史记录显示消息
+     * @param {Object} msg - { role, content, reasoning, tool_calls }
+     */
+    displayMessageFromHistory(msg) {
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`;
+        const isAssistant = msg.role !== 'user';
+        const isRunning = isAssistant && msg.status === 'running';
+        let reasoningDetails = null;
+        let reasoningSummary = null;
+        let reasoningContentDiv = null;
+        let cursorSpan = null;
+        let agentRunStatus = null;
+
+        // 历史推理内容只作为内部缓冲，不渲染思维链窗口。
+        if (msg.reasoning_content || msg.reasoning || isRunning) {
+            reasoningDetails = document.createElement('div');
+            reasoningDetails.className = isRunning ? 'thinking-state' : '';
+            reasoningDetails.hidden = true;
+            reasoningContentDiv = document.createElement('div');
+            reasoningContentDiv.className = 'reasoning-content';
+            reasoningContentDiv.textContent = msg.reasoning_content || msg.reasoning || '';
+
+            if (isRunning) {
+                cursorSpan = document.createElement('span');
+                cursorSpan.className = 'cursor-blink';
+                reasoningContentDiv.appendChild(cursorSpan);
+            }
+
+            reasoningDetails.appendChild(reasoningContentDiv);
+        }
+
+        // 显示工具调用
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+            msg.tool_calls.forEach(tc => {
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-call-card tool-success';
+
+                let args = '{}';
+                try {
+                    args = JSON.stringify(JSON.parse(tc.function.arguments), null, 2);
+                } catch (e) {
+                    args = tc.function.arguments;
+                }
+
+                toolCard.innerHTML = `
+                    <div class="tool-call-header">
+                        <span class="tool-icon">🔧</span>
+                        <span class="tool-name">${tc.function.name}</span>
+                        <span class="tool-status">已完成</span>
+                    </div>
+                    <div class="tool-call-args">
+                        <pre>${args}</pre>
+                    </div>
+                `;
+                messageElement.appendChild(toolCard);
+            });
+        }
+
+        // 显示内容
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content message-text';
+        if (msg.role === 'user') {
+            messageContent.textContent = msg.content || '';
+        } else {
+            this._activeSourceMap = this.buildSourceUrlMap(msg.agent_run);
+            messageContent.innerHTML = this.formatMessage(msg.content);
+            this._activeSourceMap = null;
+        }
+        // 必须先将 messageContent 添加到 messageElement，
+        // 然后再调用 restoreAgentRunPanel（它内部使用 insertBefore 需要 contentDiv 已经是子节点）
+        messageElement.appendChild(messageContent);
+        if (isRunning) {
+            agentRunStatus = this.createAgentRunStatusElement('正在分析问题', {
+                running: true,
+                elapsedMs: Date.now() - (Number(msg.created_at) || Date.now())
+            });
+            reasoningSummary = agentRunStatus;
+            messageElement.insertBefore(agentRunStatus, messageContent);
+        }
+        if (msg.role === 'user') {
+            this.appendAttachmentSummary(messageElement, msg.attachments || []);
+        }
+        const restoredAgentRun = msg.role !== 'user' ? msg.agent_run : null;
+        if (restoredAgentRun) {
+            const panel = this.restoreAgentRunPanel(messageElement, messageContent, restoredAgentRun);
+            if (panel && isRunning) panel.open = true;
+        }
+        if (msg.role !== 'user' && Array.isArray(msg.images) && msg.images.length) {
+            const grid = document.createElement('div');
+            grid.className = 'generated-image-grid';
+            this.appendGeneratedImages(grid, msg.images);
+            messageElement.appendChild(grid);
+        }
+        if (msg.role !== 'user' && Array.isArray(msg.videos) && msg.videos.length) {
+            const grid = document.createElement('div');
+            grid.className = 'generated-video-grid';
+            this.appendGeneratedVideos(grid, msg.videos);
+            messageElement.appendChild(grid);
+        }
+
+        this.messagesContainer.appendChild(messageElement);
+
+        if (msg.role !== 'user') this.debouncedMathJax(messageContent);
+        if (!isAssistant) {
+            return { element: messageElement, contentDiv: messageContent };
+        }
+        const rendered = {
+            element: messageElement,
+            reasoningDetails,
+            reasoningSummary,
+            reasoningContent: reasoningContentDiv,
+            contentDiv: messageContent,
+            cursorSpan,
+            agentRunStatus,
+            agentRunPanel: messageElement.querySelector('.agent-run-panel'),
+            agentStages: messageElement.querySelector('.agent-stage-strip'),
+            agentApprovalDeck: messageElement.querySelector('.agent-approval-deck'),
+            toolDeck: messageElement.querySelector('.agent-tool-deck'),
+            agentTrace: messageElement.querySelector('.agent-trace-log'),
+            agentEventTimeline: messageElement.querySelector('.agent-event-panel'),
+            agentEventLog: messageElement.querySelector('.agent-event-log'),
+            agentEventCount: messageElement.querySelector('.agent-event-count'),
+            agentThoughtPanel: messageElement.querySelector('.agent-thought-panel'),
+            agentThoughtBody: messageElement.querySelector('.agent-thought-body'),
+            agentThoughtStatus: messageElement.querySelector('.agent-thought-status'),
+            agentThoughtCount: messageElement.querySelector('.agent-thought-count')
+        };
+        if (isRunning && rendered.reasoningSummary) {
+            this.startRuntimeTimer(rendered, Number(msg.created_at) || Date.now());
+        }
+        if (!isRunning && String(messageContent.textContent || '').trim()) {
+            setTimeout(() => this.attachPdfAction(rendered), 320);
+        }
+        return rendered;
+    }
+
+    /**
+     * 未登录时在对话区提示登录并给出登录入口
+     */
+    showLoginRequired() {
+        if (!this.messagesContainer) return;
+        let element = this.messagesContainer.querySelector('.agent-login-required');
+        if (!element) {
+            element = document.createElement('div');
+            element.className = 'message assistant-message agent-login-required';
+            element.innerHTML = `
+                <div class="message-content message-text">
+                    <p>请先登录后再和 Agent 对话。登录后，使用次数与聊天记录会绑定当前账号。</p>
+                    <button type="button" class="cyber-button agent-login-btn" data-agent-login>
+                        <span class="cyber-button__tag">登录 / 注册</span>
+                    </button>
+                </div>
+            `;
+            element.querySelector('[data-agent-login]')?.addEventListener('click', () => {
+                if (window.CipherAuth?.openModal) window.CipherAuth.openModal();
+            });
+        }
+        this.messagesContainer.appendChild(element);
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    /**
+     * 清空消息区域，并给出新会话引导
+     */
+    clearMessages() {
+        if (!this.messagesContainer) return;
+        this.messagesContainer.innerHTML = '';
+        this.messagesContainer.appendChild(this.createWelcomePanel());
+    }
+
+    createWelcomePanel() {
+        const panel = document.createElement('div');
+        panel.className = 'agent-welcome';
+        panel.innerHTML = `
+            <div class="agent-welcome-inner">
+                <div class="agent-welcome-title">PzM Agent能为你做什么研究？</div>
+                <div class="agent-welcome-guides">${this.renderWelcomeGuides()}</div>
+                <button type="button" class="agent-welcome-shuffle">换一批</button>
+            </div>
+        `;
+        return panel;
+    }
+
+    renderWelcomeGuides() {
+        return this.pickWelcomeGuides().map(guide => `
+            <button type="button" class="agent-welcome-guide" data-prompt="${this.escapeHtml(guide.prompt)}" title="点击填入输入框">
+                <span class="agent-welcome-tag">${this.escapeHtml(guide.tag)}</span>
+                <span class="agent-welcome-text">${this.escapeHtml(guide.prompt)}</span>
+            </button>
+        `).join('');
+    }
+
+    /**
+     * 每次抽三个不同体裁的选题，保证换一批之后不会总是同一类
+     */
+    pickWelcomeGuides() {
+        const groups = new Map();
+        AGENT_WELCOME_GUIDES.forEach(guide => {
+            if (!groups.has(guide.tag)) groups.set(guide.tag, []);
+            groups.get(guide.tag).push(guide);
+        });
+        const tags = Array.from(groups.keys()).sort(() => Math.random() - 0.5).slice(0, 3);
+        return tags.map(tag => {
+            const pool = groups.get(tag);
+            return pool[Math.floor(Math.random() * pool.length)];
+        });
+    }
+
+    handleWelcomeClick(event) {
+        const shuffle = event.target.closest('.agent-welcome-shuffle');
+        if (shuffle) {
+            const guides = shuffle.closest('.agent-welcome-inner')?.querySelector('.agent-welcome-guides');
+            if (guides) guides.innerHTML = this.renderWelcomeGuides();
+            return;
+        }
+
+        const guide = event.target.closest('.agent-welcome-guide');
+        if (!guide) return;
+        const input = document.getElementById('user-input');
+        if (!input) return;
+        input.value = guide.dataset.prompt || '';
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    /**
+     * 更新聊天历史列表 UI
+     * @param {Array} sortedHistory - 排序后的历史记录
+     * @param {string} currentChatId - 当前聊天ID
+     * @param {Function} onSelect - 选择回调
+     */
+    updateHistoryList(sortedHistory, currentChatId, onSelect, selectedChatIds = new Set(), onSelectionChange = null) {
+        const historyList = document.getElementById('chat-history-list');
+        if (!historyList) return;
+
+        historyList.innerHTML = '';
+
+        sortedHistory.forEach(chat => {
+            const chatItem = document.createElement('div');
+            chatItem.className = 'history-item';
+            if (chat.id === currentChatId) {
+                chatItem.classList.add('active');
+            }
+
+            chatItem.innerHTML = `
+                <div class="history-title">${chat.title}</div>
+                <div class="history-time">${window.historyManager.formatDate(chat.timestamp)}</div>
+                <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
+            `;
+
+            const checkbox = chatItem.querySelector('.history-checkbox');
+            if (checkbox) {
+                checkbox.checked = selectedChatIds.has(chat.id);
+                checkbox.addEventListener('click', e => e.stopPropagation());
+                checkbox.addEventListener('change', () => {
+                    if (typeof onSelectionChange === 'function') {
+                        onSelectionChange(chat.id, checkbox.checked);
+                    }
+                });
+            }
+
+            chatItem.addEventListener('click', (e) => {
+                if (e.target.classList.contains('history-checkbox')) return;
+                onSelect(chat.id);
+            });
+
+            historyList.appendChild(chatItem);
+        });
+    }
+
+    /**
+     * 初始化 MathJax
+     */
+    initMathJax() {
+        if (window.MathJax && window.MathJax.typesetPromise) return Promise.resolve(window.MathJax);
+        if (window.__cipherToolMathJaxPromise) return window.__cipherToolMathJaxPromise;
+        if (this.mathJaxPromise) return this.mathJaxPromise;
+
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+
+        this.mathJaxPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+            script.async = true;
+            script.id = 'MathJax-script';
+            script.onload = () => resolve(window.MathJax);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        window.__cipherToolMathJaxPromise = this.mathJaxPromise;
+
+        return this.mathJaxPromise;
+    }
+}
+
+function cssEscape(value) {
+    const text = String(value == null ? '' : value);
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text);
+    return text.replace(/["\\]/g, '\\$&');
+}
+
+// 导出单例
+window.chatUI = new ChatUI();

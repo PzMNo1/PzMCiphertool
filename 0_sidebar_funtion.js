@@ -1,0 +1,677 @@
+// 这是侧边栏 pin、搜索、子模块滑动和卡片置顶等的交互作用函数。
+
+const sidebar = document.getElementById('sidebar');
+const sidebarPinBtn = document.getElementById('sidebar-pin-btn');
+if (sidebar && sidebarPinBtn) {
+    // 手机上点按收起状态的侧边栏会先触发 :hover 展开，浏览器随后补发的鼠标事件
+    // 落点可能已经变成展开后才出现的置顶按钮，导致同一次点按把侧边栏误置顶。
+    // 记录按下时是否直接落在置顶按钮上，用来忽略这类补发的 click。
+    let gestureStartedOutsidePin = false;
+    sidebar.addEventListener('pointerdown', function (event) {
+        gestureStartedOutsidePin = !sidebarPinBtn.contains(event.target);
+    }, true);
+
+    sidebarPinBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const ignoreClick = gestureStartedOutsidePin && event.detail > 0;
+        gestureStartedOutsidePin = false;
+        if (ignoreClick) return;
+        const pinned = sidebar.classList.toggle('sidebar-pinned');
+        sidebarPinBtn.setAttribute('aria-pressed', String(pinned));
+    });
+}
+
+
+
+
+// 这是子模块滑动切换的交互作用函数
+class CipherSwiper {
+    constructor(containerSelector, slideSelector, btnSelector, contextId) {
+        this.container = document.querySelector(containerSelector);
+        if (!this.container) return;
+        this.wrapper = this.container.querySelector('.cipher-swiper-wrapper');
+        this.slides = this.container.querySelectorAll(slideSelector);
+        this.navBtns = document.querySelectorAll(btnSelector);
+        this.contextId = contextId;
+        this.currentIndex = 0;
+        this.startX = 0;
+        this.startY = 0;
+        this.currentTranslate = 0;
+        this.prevTranslate = 0;
+        this.isDragging = false;
+        this.animationID = null;
+        this.init();
+    }
+
+    init() {
+        this.navBtns.forEach((btn, index) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.currentIndex = index;
+                this.setPositionByIndex();
+            });
+        });
+
+        this.container.addEventListener('touchstart', this.touchStart.bind(this), { passive: false });
+        this.container.addEventListener('touchmove', this.touchMove.bind(this), { passive: false });
+        this.container.addEventListener('touchend', this.touchEnd.bind(this));
+        this.container.addEventListener('mousedown', this.touchStart.bind(this));
+        this.container.addEventListener('mousemove', this.touchMove.bind(this));
+        this.container.addEventListener('mouseup', this.touchEnd.bind(this));
+        this.container.addEventListener('mouseleave', () => {
+            if (this.isDragging) this.touchEnd();
+        });
+
+        const resizeObserver = new ResizeObserver(() => {
+            this.setPositionByIndex(false);
+        });
+        resizeObserver.observe(this.container);
+        this.setPositionByIndex(false);
+        if (!window.cipherSwipers) window.cipherSwipers = [];
+        window.cipherSwipers.push(this);
+    }
+
+    updateNavButtons() {
+        this.navBtns.forEach(btn => btn.classList.remove('active'));
+        if (this.navBtns[this.currentIndex]) this.navBtns[this.currentIndex].classList.add('active');
+    }
+
+    setSliderPosition() {
+        this.wrapper.style.transform = `translateX(${this.currentTranslate}px)`;
+    }
+
+    setPositionByIndex(enableTransition = true) {
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        if (this.currentIndex >= this.slides.length) this.currentIndex = this.slides.length - 1;
+
+        const width = this.container.offsetWidth;
+        this.currentTranslate = this.currentIndex * -width;
+        this.prevTranslate = this.currentTranslate;
+
+        if (enableTransition) {
+            this.wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        } else { this.wrapper.style.transition = 'none'; }
+        this.setSliderPosition();
+        this.updateNavButtons();
+        this.slides.forEach(s => s.classList.remove('active'));
+        if (this.slides[this.currentIndex]) {
+            this.slides[this.currentIndex].classList.add('active');
+            // 动态调整容器高度以适应当前子模块
+            requestAnimationFrame(() => {
+                this.container.style.height = this.slides[this.currentIndex].scrollHeight + 'px';
+            });
+        }
+    }
+
+    touchStart(event) {
+        if (['INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'BUTTON', 'LABEL'].includes(event.target.tagName)) return;
+
+        // 如果是鼠标事件并且点击在具体功能卡片区域（.card）或者结果展示区（.result），禁止触发滑动
+        if (event.type.includes('mouse') && (event.target.closest('.card') || event.target.closest('.result'))) {
+            return;
+        }
+
+        this.isDragging = true;
+        this.isSwiping = false;
+        this.startX = this.getPositionX(event);
+        this.startY = this.getPositionY(event);
+    }
+
+    touchMove(event) {
+        if (this.isDragging) {
+            const currentX = this.getPositionX(event);
+            const currentY = this.getPositionY(event);
+            const deltaX = currentX - this.startX;
+            const deltaY = currentY - this.startY;
+
+            if (!this.isSwiping) {
+                if (Math.abs(deltaX) > 5) {
+                    if (event.type.includes('mouse') && window.getSelection && !window.getSelection().isCollapsed) {
+                        this.isDragging = false;
+                        return;
+                    }
+                    this.isSwiping = true;
+                    this.animationID = requestAnimationFrame(this.animation.bind(this));
+                    this.wrapper.style.transition = 'none';
+                } else if (Math.abs(deltaY) > 5) {
+                    this.isDragging = false;
+                    return;
+                }
+            }
+
+            if (this.isSwiping) {
+                if (event.cancelable) event.preventDefault();
+                this.currentTranslate = this.prevTranslate + deltaX;
+            }
+        }
+    }
+
+    touchEnd() {
+        this.isDragging = false;
+        cancelAnimationFrame(this.animationID);
+        if (!this.isSwiping) return;
+        this.isSwiping = false;
+        const movedBy = this.currentTranslate - this.prevTranslate;
+        const width = this.container.offsetWidth;
+        if (movedBy < -width / 4 && this.currentIndex < this.slides.length - 1) {
+            this.currentIndex += 1;
+        } else if (movedBy > width / 4 && this.currentIndex > 0) {
+            this.currentIndex -= 1;
+        }
+        this.setPositionByIndex();
+    }
+
+    getPositionX(event) { return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX; }
+    getPositionY(event) { return event.type.includes('mouse') ? event.pageY : event.touches[0].clientY; }
+    animation() {
+        if (this.isDragging) {
+            this.setSliderPosition();
+            requestAnimationFrame(this.animation.bind(this));
+        }
+    }
+
+    slideToIndex(index) {
+        this.currentIndex = index;
+        this.setPositionByIndex();
+    }
+}
+
+class CipherTabs {
+    constructor(containerSelector, slideSelector, btnSelector, contextId) {
+        this.container = document.querySelector(containerSelector);
+        if (!this.container) return;
+        this.slides = Array.from(document.querySelectorAll(slideSelector));
+        this.navBtns = Array.from(document.querySelectorAll(btnSelector));
+        this.contextId = contextId;
+        this.currentIndex = Math.max(0, this.slides.findIndex(slide => slide.classList.contains('active')));
+        this.init();
+    }
+
+    init() {
+        this.navBtns.forEach((btn, index) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                this.currentIndex = index;
+                this.setPositionByIndex();
+            });
+        });
+        this.setPositionByIndex(false);
+        if (!window.cipherSwipers) window.cipherSwipers = [];
+        window.cipherSwipers.push(this);
+    }
+
+    updateNavButtons() {
+        this.navBtns.forEach((btn, index) => btn.classList.toggle('active', index === this.currentIndex));
+    }
+
+    setPositionByIndex() {
+        if (!this.slides.length) return;
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        if (this.currentIndex >= this.slides.length) this.currentIndex = this.slides.length - 1;
+
+        this.updateNavButtons();
+        this.slides.forEach((slide, index) => slide.classList.toggle('active', index === this.currentIndex));
+
+        const activeSlide = this.slides[this.currentIndex];
+        if (this.contextId === 'jiamishiyanshi-content') {
+            if (typeof scheduleUpdateAll === 'function') scheduleUpdateAll();
+            if (activeSlide?.id === 'xiandaiqu' && typeof processEnigma === 'function') {
+                requestAnimationFrame(processEnigma);
+            }
+        }
+
+        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    }
+
+    slideToIndex(index) {
+        this.currentIndex = index;
+        this.setPositionByIndex();
+    }
+}
+
+
+
+// 这是加密实验室和联系我们模块的独立子面板切换支持
+const swiper1 = new CipherTabs('#jiamishiyanshi-content .cipher-lab-panel-stack', '#jiamishiyanshi-content .submodule', '#jiamishiyanshi-content .submodule-btn', 'jiamishiyanshi-content');
+const swiper2 = new CipherTabs('#yijianfankui-content .cipher-lab-panel-stack', '#yijianfankui-content .lianxiwomen-submodule', '#yijianfankui-content .contact-submodule-btn', 'yijianfankui-content');
+
+
+
+
+// 键盘切换子模块区域的交互作用函数 (通用)
+document.addEventListener('keydown', function (e) {
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const activeSection = document.querySelector('.content-section[style*="block"]');
+    if (!activeSection) return;
+    const activeSwiper = window.cipherSwipers?.find(swiper => swiper.contextId === activeSection.id);
+    if (activeSwiper) {
+        if (e.key === 'ArrowLeft') {
+            if (activeSwiper.currentIndex > 0) {
+                activeSwiper.currentIndex--;
+                activeSwiper.setPositionByIndex();
+            }
+        } else if (e.key === 'ArrowRight') {
+            if (activeSwiper.currentIndex < activeSwiper.slides.length - 1) {
+                activeSwiper.currentIndex++;
+                activeSwiper.setPositionByIndex();
+            }
+        }
+    }
+});
+
+
+// 这是侧边栏搜索框定位功能
+function initSearchFunction() {
+    const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s)
+    const cardSearch = $('#cardSearch');
+    if (cardSearch) {
+        cardSearch.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            const query = e.target.value.trim()
+            if (isKnowledgeGraphVisible()) {
+                focusKnowledgeGraphNode(query)
+                return
+            }
+            let target
+            // 先查子算法别名：搜「Porta」「AMSCO」「Fractionated Morse」等藏在
+            // 下拉框里的算法时，直接跳转并选中，而不是只匹配卡片标签
+            const alias = window.CipherCardIndex?.findAlias(query)
+            if (alias && window.CipherCardIndex.gotoAlgorithm(alias)) return
+            $$('.card, .logic-btn').forEach(el => {
+                const text = el.classList.contains('card')
+                    ? el.querySelector('.badge')?.textContent
+                    : el.textContent.replace(/[^\w\u4e00-\u9fa5]/g, '')
+                if (text?.toLowerCase().includes(query.toLowerCase())) target ??= el
+            })
+            if (target) highlightAndScroll(target);
+        })
+    }
+    initQuickNav('mimaqu');
+    initQuickNav('xiandaiqu');
+    if (window.CipherCardIndex) window.CipherCardIndex.init();
+    initCipherStickyInputMask();
+}
+
+function initCipherStickyInputMask() {
+    if (window.cipherStickyInputMaskReady) return;
+    window.cipherStickyInputMaskReady = true;
+
+    const cards = Array.from(document.querySelectorAll(
+        '#jiamishiyanshi-content #mimaqu .main-input, #jiamishiyanshi-content #xiandaiqu .main-input, #jiamishiyanshi-content #fenxiqu .main-input'
+    ));
+    if (!cards.length) return;
+
+    let ticking = false;
+    const getStickyTop = () => {
+        const section = document.getElementById('jiamishiyanshi-content');
+        const value = section ? getComputedStyle(section).getPropertyValue('--cipher-lab-input-sticky-top') : '0';
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const update = () => {
+        ticking = false;
+        const stickyTop = getStickyTop();
+        cards.forEach(card => {
+            const submodule = card.closest('.submodule');
+            const active = !submodule || submodule.classList.contains('active');
+            const stuck = active && card.getBoundingClientRect().top <= stickyTop + 1;
+            card.classList.toggle('cipher-stuck', stuck);
+        });
+    };
+
+    const requestUpdate = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(update);
+    };
+
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    requestUpdate();
+}
+
+
+// 加密实验室卡片瀑布流：按当前最短列分流，卡片高度变化后不再整列重排
+function initCipherCardWaterfall() {
+    if (window.cipherCardWaterfallReady) return;
+    const containers = ['mimaqu', 'xiandaiqu', 'fenxiqu']
+        .map(id => document.querySelector(`#jiamishiyanshi-content #${id} .container`))
+        .filter(Boolean);
+    if (!containers.length) return;
+    window.cipherCardWaterfallReady = true;
+
+    const columnCount = () => window.innerWidth <= 700 ? 1 : window.innerWidth <= 1100 ? 2 : 3;
+
+    const waterfalls = containers.map(container => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cipher-card-waterfall';
+        const mainInput = container.querySelector(':scope > .card.main-input');
+        if (mainInput) mainInput.after(wrapper);
+        else container.prepend(wrapper);
+        return {
+            container,
+            wrapper,
+            cards: Array.from(container.querySelectorAll('.card:not(.main-input)')),
+            columns: [],
+            count: 0,
+            ready: false
+        };
+    });
+
+    const buildColumns = (state, count) => {
+        state.columns = Array.from({ length: count }, () => {
+            const column = document.createElement('div');
+            column.className = 'cipher-card-waterfall__column';
+            return column;
+        });
+        state.wrapper.replaceChildren(...state.columns);
+        state.wrapper.style.setProperty('--cipher-waterfall-columns', count);
+        state.count = count;
+    };
+
+    const place = (state, card) => {
+        let target = state.columns[0];
+        for (const column of state.columns) {
+            if (column.offsetHeight < target.offsetHeight) target = column;
+        }
+        target.appendChild(card);
+    };
+
+    const render = state => {
+        if (!state.container.clientWidth) return;
+        const count = columnCount();
+        if (state.ready && state.count === count) return;
+        state.container.classList.add('cipher-waterfall-ready');
+        const placeholders = Array.from(state.wrapper.querySelectorAll('.card-placeholder'));
+        buildColumns(state, count);
+        state.cards.forEach(card => {
+            if (!card.classList.contains('pinned')) place(state, card);
+        });
+        placeholders.forEach(placeholder => state.columns[0].appendChild(placeholder));
+        state.ready = true;
+    };
+
+    const renderVisible = () => waterfalls.forEach(state => {
+        if (state.container.clientWidth) render(state);
+    });
+
+    if (window.ResizeObserver) {
+        const observer = new ResizeObserver(entries => {
+            entries.forEach(entry => {
+                const state = waterfalls.find(item => item.container === entry.target);
+                if (state) render(state);
+            });
+        });
+        waterfalls.forEach(state => {
+            state.observer = observer;
+            observer.observe(state.container);
+        });
+    }
+
+    let frame = 0;
+    window.addEventListener('resize', () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            renderVisible();
+        });
+    });
+
+    renderVisible();
+}
+
+
+// 侧边栏搜索框与知识图谱联动：在知识图谱页面回车后定位节点
+function isKnowledgeGraphVisible() {
+    const container = document.getElementById('zhishitupu-container');
+    const content = document.getElementById('zhishitupu-content');
+    return Boolean(
+        (container && container.style.display !== 'none') ||
+        (content && content.offsetParent !== null)
+    );
+}
+
+function focusKnowledgeGraphNode(query) {
+    if (!query) return;
+    const runSearch = () => {
+        if (window.ZSTP && typeof window.ZSTP.focusNode === 'function') {
+            return window.ZSTP.focusNode(query);
+        }
+        return false;
+    };
+
+    if (runSearch()) return;
+
+    // 知识图谱脚本现在是按需加载的：先确保该组脚本与初始化就绪，再定位节点
+    const warmUp = typeof window.ensureCipherModule === 'function'
+        ? window.ensureCipherModule('zhishitupu')
+        : (typeof initKnowledgeGraph === 'function' ? initKnowledgeGraph() : null);
+
+    if (warmUp) {
+        Promise.resolve(warmUp).then(() => {
+            setTimeout(runSearch, 100);
+        });
+    }
+}
+
+
+
+// 这是侧边栏搜索框搜索后卡片按钮定位高亮的交互作用函数
+function highlightAndScroll(target) {
+    if (!target) return;
+    const isLogic = target.classList.contains('logic-btn');
+    const submodule = target.closest('.submodule, .lianxiwomen-submodule');
+    if (submodule && window.cipherSwipers) {
+        const swiper = window.cipherSwipers.find(s => {
+            return Array.from(s.slides).includes(submodule);
+        });
+        if (swiper) {
+            const index = Array.from(swiper.slides).indexOf(submodule);
+            if (index !== -1) {
+                swiper.slideToIndex(index);
+                swiper.container.scrollLeft = 0;
+            }
+            const section = swiper.container.closest('.content-section');
+            if (section && section.style.display === 'none') {
+                const menuId = section.id.replace('-content', '');
+                const menuItem = document.querySelector(`.menu-item[data-target="${menuId}"]`);
+                if (menuItem) menuItem.click();
+            }
+        }
+    }
+    target.classList.add(isLogic ? 'logic-highlight' : 'card-highlight');
+    setTimeout(() => {
+        const rect = target.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const targetTop = rect.top + scrollTop;
+        const viewportHeight = window.innerHeight;
+        const scrollToY = targetTop - viewportHeight / 2 + rect.height / 2;
+        window.scrollTo({
+            top: scrollToY,
+            behavior: 'smooth'
+        });
+    }, 10);
+
+    setTimeout(() => target.classList.remove(isLogic ? 'logic-highlight' : 'card-highlight'), 5000);
+}
+
+
+
+
+//这是加密实验室各区【搜索密码卡片】功能的交互作用函数
+function initQuickNav(regionId) {
+    const input = document.getElementById(`quick-nav-input-${regionId}`);
+    const listContainer = document.getElementById(`quick-nav-options-${regionId}`);
+    const container = document.getElementById(`quick-nav-container-${regionId}`);
+    if (!input || !listContainer) return;
+    const scope = document.getElementById(regionId) || document;
+
+    // 真正的卡片（有自己的子算法时也带别名词条）
+    function getCardOptions() {
+        const cards = scope.querySelectorAll('.card:not(.main-input)');
+        const options = [];
+        cards.forEach(card => {
+            const badge = card.querySelector('.badge');
+            if (badge) options.push({ text: badge.textContent.replace(/\s+/g, ' ').trim(), element: card });
+        });
+        return options;
+    }
+
+    // 藏在卡片下拉框里的子算法（由 777_cardindex.js 提供索引）
+    function getAliasOptions() {
+        const all = window.CipherCardIndex?.aliases || [];
+        const badges = new Set(getCardOptions().map(o => o.text));
+        return all
+            .filter(a => badges.has(a.badge) || scope.querySelector(`#${a.selectId}`))
+            .map(a => ({
+                text: `${a.name}  ·  ${a.badge.split(' ')[0]}`,
+                alias: a
+            }));
+    }
+
+    function getAllOptions() {
+        return getCardOptions().concat(getAliasOptions());
+    }
+
+    function activate(opt) {
+        if (!opt) return;
+        if (opt.alias) { window.CipherCardIndex.gotoAlgorithm(opt.alias); return; }
+        highlightAndScroll(opt.element);
+    }
+
+    function renderOptions(filterText = '') {
+        listContainer.innerHTML = '';
+        const q = filterText.toLowerCase();
+        const filtered = getAllOptions().filter(opt => opt.text.toLowerCase().includes(q));
+        if (filtered.length === 0) {
+            listContainer.innerHTML = '<div class="quick-nav-option" style="color:#777;cursor:default;">无匹配结果</div>';
+            return;
+        }
+        filtered.slice(0, 40).forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'quick-nav-option';
+            div.textContent = opt.text;
+            if (opt.alias) div.style.opacity = '0.85';
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                input.value = '';
+                listContainer.classList.remove('show');
+                activate(opt);
+            });
+            listContainer.appendChild(div);
+        });
+    }
+
+    input.addEventListener('focus', () => { renderOptions(input.value); listContainer.classList.add('show'); });
+    input.addEventListener('input', (e) => { renderOptions(e.target.value); listContainer.classList.add('show'); });
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            const filterText = input.value.toLowerCase().trim(); if (!filterText) return;
+            const matched = getAllOptions().find(opt => opt.text.toLowerCase().includes(filterText));
+            if (matched) {
+                input.blur(); listContainer.classList.remove('show'); activate(matched);
+            }
+        }
+    });
+    document.addEventListener('click', (e) => {
+        if (container && !container.contains(e.target)) {
+            listContainer.classList.remove('show');
+        }
+    });
+}
+
+
+
+
+
+// 输入框置顶功能的交互逻辑
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.pin-toggle-btn');
+    if (btn) {
+        const card = btn.closest('.card');
+        if (card) {
+            e.preventDefault();
+            const isPinned = card.classList.contains('pinned');
+            const tag = btn.querySelector('.cyber-button__tag');
+            if (!isPinned) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'card-placeholder';
+                if (card.classList.contains('main-input')) {
+                    placeholder.classList.add('main-input');
+                } placeholder.style.display = 'none';
+                const pid = 'pin-placeholder-' + Date.now();
+                placeholder.id = pid;
+                card.dataset.placeholderId = pid;
+                card.parentNode.insertBefore(placeholder, card);
+                const scrollX = window.scrollX;
+                const scrollY = window.scrollY;
+                document.body.appendChild(card);
+                requestAnimationFrame(() => {
+                    card.classList.add('pinned');
+                    // 恢复滚动位置，防止因DOM变动导致页面跳动
+                    window.scrollTo(scrollX, scrollY);
+                });
+                if (tag) tag.textContent = '取消置顶';
+            } else {
+                const pid = card.dataset.placeholderId;
+                const placeholder = document.getElementById(pid);
+                if (placeholder) {
+                    card.classList.remove('pinned');
+                    placeholder.parentNode.insertBefore(card, placeholder);
+                    placeholder.remove();
+                    delete card.dataset.placeholderId;
+                } else { card.classList.remove('pinned'); }
+                if (tag) tag.textContent = '置顶';
+            }
+        }
+    }
+});
+
+
+
+
+
+// 侧边栏防止键盘弹出时被挤压
+function initMobileHeight() {
+    const setHeight = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }; setHeight();
+    let lastWidth = window.innerWidth;
+    window.addEventListener('resize', () => {
+        if (window.innerWidth !== lastWidth) {
+            lastWidth = window.innerWidth;
+            setHeight();
+        }
+    });
+}
+initMobileHeight();
+
+
+// 初始化作者页面功能（图片预览）
+function initAuthorPage() {
+    const modal = document.getElementById('imagePreviewModal');
+    const previewImg = document.getElementById('previewImage');
+    const rewardCard = document.getElementById('rewardCard');
+
+    if (rewardCard && modal && previewImg) {
+        rewardCard.addEventListener('click', () => {
+            const img = rewardCard.querySelector('img');
+            if (img) {
+                previewImg.src = img.src;
+                modal.classList.add('active');
+            }
+        });
+
+        // 点击遮罩关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    }
+}

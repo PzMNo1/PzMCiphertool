@@ -1,0 +1,166 @@
+/* 空间类：金字塔魔方 */
+.space-pyraminx-panel {
+  flex: 2;
+  min-width: 420px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(255, 218, 89, 0.08), rgba(64, 224, 255, 0.04)),
+    rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.pyraminx-scene {
+  width: min(520px, 100%);
+  height: 360px;
+  display: grid;
+  place-items: center;
+  perspective: 980px;
+  margin: 0 auto 1.4rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.pyraminx-scene.dragging {
+  cursor: grabbing;
+}
+
+.pyraminx-solid {
+  width: 360px;
+  height: 310px;
+  position: relative;
+  transform: scale(var(--pyraminx-scale, 1));
+  transition: transform 0.08s linear;
+}
+
+.pyraminx-projection {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.pyraminx-projection-sticker {
+  fill: var(--sticker-color);
+  stroke: rgba(6, 16, 22, 0.82);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+  filter:
+    drop-shadow(0 0 6px rgba(64, 224, 255, 0.14))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.18));
+}
+
+.pyraminx-projection-label {
+  color: rgba(255, 255, 255, 0.72);
+  fill: rgba(255, 255, 255, 0.72);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  pointer-events: none;
+  text-shadow: 0 0 8px var(--face-tint);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.pyraminx-move-grid {
+  width: min(660px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pyraminx-move-group {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(64, 224, 255, 0.18);
+  border-top-color: var(--face-color);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.pyraminx-move-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  color: var(--face-color);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 900;
+}
+
+.pyraminx-move-title small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pyraminx-move-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.pyraminx-move-chip {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(0, 0, 0, 0.32);
+  font-family: 'Orbitron', 'Segoe UI', sans-serif;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.pyraminx-move-chip:hover {
+  transform: translateY(-2px);
+  border-color: var(--face-color);
+  background: rgba(64, 224, 255, 0.12);
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.22);
+}
+
+#pyraminx-step-counter {
+  color: #ffda59;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(255, 218, 89, 0.86);
+}
+
+#pyraminx-step-move {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.pyraminx-step-panel .cyber-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+}
+
+.pyraminx-step-panel .cyber-button:disabled:hover {
+  transform: none;
+}
+
+@media (max-width: 760px) {
+  .space-pyraminx-panel {
+    min-width: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .pyraminx-scene {
+    height: 280px;
+  }
+
+  .pyraminx-solid {
+    --pyraminx-scale: 0.78;
+  }
+
+  .pyraminx-move-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

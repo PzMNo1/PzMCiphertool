@@ -1,0 +1,369 @@
+(function () {
+    let initialized = false;
+
+    // 轻量诊断轨迹：排查初始化异常时可在控制台查看 window.__modelingLabTrace
+    const trace = [];
+    window.__modelingLabTrace = trace;
+    const note = step => {
+        trace.push(step);
+        if (trace.length > 60) trace.shift();
+    };
+
+    const VIEWS = {
+        industrial: {
+            src: './modelinglab/goneyeyinqing/industrial.html?v=20261104-65',
+            title: '工业建模 · Cascade Studio',
+            tab: '工业建模'
+        },
+        world: {
+            src: './worldmodel/worldmodel.html?v=20261030-22',
+            title: '世界模型工作台',
+            tab: '世界模型'
+        },
+        convert: {
+            src: './modelinglab/format-convert.html',
+            title: '模型格式转换台',
+            tab: '格式转换台'
+        }
+    };
+
+    function resolveRoot() {
+        // 正常路径：modules.js 注入的模块片段里带 #modelinglab-root
+        const direct = document.getElementById('modelinglab-root');
+        if (direct) {
+            note('resolveRoot: 命中模块根节点');
+            return direct;
+        }
+        // 兜底：模块片段尚未注入时，直接在容器里创建根节点，避免初始化静默失效
+        const host = document.getElementById('jianmoshiyanshi-content')
+            || document.getElementById('jianmoshiyanshi-container');
+        if (!host) {
+            note('resolveRoot: 未找到任何容器节点');
+            return null;
+        }
+        const created = document.createElement('div');
+        created.id = 'modelinglab-root';
+        host.appendChild(created);
+        note('resolveRoot: 已在容器内创建根节点');
+        return created;
+    }
+
+    function initModelingLab() {
+        if (initialized) {
+            note('init: 已初始化，跳过');
+            return;
+        }
+        const root = resolveRoot();
+        if (!root) return;
+        initialized = true;
+        try {
+            render(root);
+            bind(root);
+            note('init: 完成');
+        } catch (err) {
+            initialized = false;
+            note('init: 失败 ' + (err && err.message));
+            console.error('[modelinglab] 初始化失败', err);
+        }
+    }
+
+    function render(root) {
+        // 帧由 VIEWS 生成：新增视图只要往 VIEWS 里加一条，不会再出现「页签有了但 iframe 忘了」。
+        const frames = Object.keys(VIEWS).map((key, index) => {
+            const view = VIEWS[key];
+            const active = index === 0;
+            return `
+                    <iframe
+                        class="modelinglab-editor-frame"
+                        data-view-frame="${key}"
+                        data-src="${view.src}"
+                        title="${view.title}"
+                        allow="fullscreen; clipboard-read; clipboard-write"
+                        allowfullscreen
+                        style="display:${active ? 'block' : 'none'}">
+                    </iframe>`;
+        }).join('');
+
+        const tabs = Object.keys(VIEWS).map((key, index) => {
+            const label = VIEWS[key].tab || VIEWS[key].title;
+            return `<button type="button" class="cyber-button modelinglab-tab${index === 0 ? ' active' : ''}" data-view="${key}" role="tab" aria-selected="${index === 0}"><span class="cyber-button__glitch"></span><span class="cyber-button__tag">${label}</span></button>`;
+        }).join('\n                        ');
+
+        root.innerHTML = `
+            <section class="modelinglab-shell">
+                <header class="modelinglab-header module-header">
+                    <h2 class="neon-title" data-text="ORBITAL HARDWARE STUDIO">ORBITAL HARDWARE STUDIO</h2>
+                    <nav class="modelinglab-tabs" role="tablist" aria-label="建模实验室子模块">
+                        ${tabs}
+                    </nav>
+                </header>
+
+                <div class="modelinglab-editor">${frames}
+                </div>
+            </section>
+        `;
+    }
+
+    function bind(root) {
+        const tabs = Array.from(root.querySelectorAll('.modelinglab-tab[data-view]'));
+        const frames = Array.from(root.querySelectorAll('[data-view-frame]'));
+
+        const showView = view => {
+            if (!VIEWS[view]) return;
+            tabs.forEach(tab => {
+                const on = tab.getAttribute('data-view') === view;
+                tab.classList.toggle('active', on);
+                tab.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            frames.forEach(frame => {
+                const on = frame.getAttribute('data-view-frame') === view;
+                if (on && !frame.getAttribute('src')) {
+                    frame.src = frame.getAttribute('data-src');
+                }
+                frame.style.display = on ? 'block' : 'none';
+            });
+            // 让世界模型/预览页重新计算画布尺寸
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+                // iframe 里的画布监听的是自己的 window，这里单独叫醒一次
+                frames.forEach(frame => {
+                    if (frame.style.display === 'none') return;
+                    try {
+                        frame.contentWindow?.dispatchEvent(new Event('resize'));
+                    } catch (error) {
+                        // 跨域时忽略
+                    }
+                });
+            }, 60);
+        };
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => showView(tab.getAttribute('data-view')));
+        });
+
+        window.modelingLabShowView = showView;
+
+        /* --------------------------------------------------------------
+           世界模型：宿主侧桥接
+           世界模型页面跑在 iframe 里，父页面不直接摸它的 DOM，
+           统一用 postMessage 下发「填表 / 生成 / 刷新」指令。
+           -------------------------------------------------------------- */
+        const worldFrame = () => {
+            const frame = Array.from(frames).find(f => f.getAttribute('data-view-frame') === 'world');
+            return frame && frame.tagName === 'IFRAME' ? frame : null;
+        };
+
+        /* --------------------------------------------------------------
+           世界模型：WASD 键盘转发
+           焦点可能停在宿主页的页签/标题上，按键要能一路转发到视口 iframe。
+           -------------------------------------------------------------- */
+        const WORLD_KEY_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
+        const worldKeys = new Set();
+
+        const postWorldKey = (code, down) => {
+            const frame = worldFrame();
+            if (!frame || !frame.contentWindow) return;
+            try {
+                frame.contentWindow.postMessage({ type: 'worldmodel:key', code, down }, '*');
+            } catch (error) {
+                note('world: 键盘转发失败 ' + (error && error.message));
+            }
+        };
+
+        const clearWorldKeys = () => {
+            worldKeys.forEach(code => postWorldKey(code, false));
+            worldKeys.clear();
+        };
+
+        window.addEventListener('keydown', event => {
+            if (!WORLD_KEY_CODES.has(event.code)) return;
+            if (event.ctrlKey || event.metaKey || event.altKey || document.hidden) return;
+            const target = event.target;
+            const tag = target && target.tagName;
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (target && target.isContentEditable)) return;
+            const host = document.getElementById('jianmoshiyanshi-container');
+            if (!host || window.getComputedStyle(host).display === 'none') return;
+            const active = document.querySelector('.modelinglab-tab.active')?.getAttribute('data-view');
+            if (active !== 'world') return;
+            event.preventDefault();
+            worldKeys.add(event.code);
+            postWorldKey(event.code, true);
+        });
+
+        window.addEventListener('keyup', event => {
+            if (!WORLD_KEY_CODES.has(event.code) || !worldKeys.has(event.code)) return;
+            worldKeys.delete(event.code);
+            postWorldKey(event.code, false);
+        });
+
+        window.addEventListener('blur', clearWorldKeys);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) clearWorldKeys();
+        });
+
+        const postToWorld = (message, retries = 12) => {
+            const frame = worldFrame();
+            if (!frame) return;
+            const deliver = attempt => {
+                try {
+                    if (frame.contentWindow) {
+                        frame.contentWindow.postMessage(message, '*');
+                        return;
+                    }
+                } catch (error) {
+                    note('world: postMessage 失败 ' + (error && error.message));
+                }
+                if (attempt < retries) {
+                    setTimeout(() => deliver(attempt + 1), 250);
+                }
+            };
+            deliver(0);
+        };
+
+        /**
+         * Agent 的自然语言入口：切到世界模型页并（可选）直接发起生成。
+         * options: { prompt, displayName, model, imageDataUrl, generate }
+         */
+        window.worldModelRun = async function (options = {}) {
+            showView('world');
+            const payload = {
+                type: options.generate === false ? 'worldmodel:fill' : 'worldmodel:run',
+                prompt: String(options.prompt || ''),
+                displayName: options.displayName || '',
+                model: options.model || '',
+                imageDataUrl: options.imageDataUrl || ''
+            };
+            postToWorld(payload);
+            return {
+                ok: true,
+                started: payload.type === 'worldmodel:run',
+                message: payload.type === 'worldmodel:run'
+                    ? '已切到建模实验室·世界模型并提交生成，进度显示在该页面的进度条上。'
+                    : '已切到建模实验室·世界模型并填好场景描述，等用户确认后点「生成世界」。'
+            };
+        };
+
+        /** 让 Agent 能拿到一句人类可读的状态摘要 */
+        window.worldModelSummary = function () {
+            try {
+                const api = worldFrame()?.contentWindow?.__WM__;
+                if (api && typeof api.summary === 'function') {
+                    return api.summary();
+                }
+            } catch (error) {
+                // 跨域时回退
+            }
+            return '世界模型页面尚未初始化。';
+        };
+
+        const industrialFrame = () => {
+            const frame = Array.from(frames).find(f => f.getAttribute('data-view-frame') === 'industrial');
+            return frame && frame.tagName === 'IFRAME' ? frame : null;
+        };
+
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        function getIndustrialCadContext() {
+            const frame = industrialFrame();
+            if (!frame || !frame.contentWindow) {
+                return { frame, ctx: null, reason: '工业建模 iframe 尚未加载' };
+            }
+            let cadFrame;
+            try {
+                cadFrame = frame.contentWindow.document.getElementById('cad-frame');
+            } catch (error) {
+                return { frame, ctx: null, reason: '无法访问工业建模 iframe：' + error.message };
+            }
+            if (!cadFrame || !cadFrame.contentWindow) {
+                return { frame, ctx: null, reason: 'Cascade Studio 尚未加载' };
+            }
+            const cadWindow = cadFrame.contentWindow;
+            const api = cadWindow.CascadeAPI;
+            return {
+                frame,
+                ctx: api ? { api, app: api._app, cadWindow } : null,
+                reason: 'Cascade Studio API 尚未就绪'
+            };
+        }
+
+        async function waitForIndustrialContext(timeoutMs = 90000) {
+            showView('industrial');
+            const started = Date.now();
+            let reason = '';
+            while (Date.now() - started < timeoutMs) {
+                const result = getIndustrialCadContext();
+                reason = result.reason || '';
+                const app = result.ctx?.app;
+                if (result.ctx && app?.editor && app?.engine?.isReady) {
+                    return result.ctx;
+                }
+                await wait(250);
+            }
+            throw new Error('工业建模未就绪：' + (reason || 'Cascade Studio 仍在加载'));
+        }
+
+        async function waitForCascadeIdle(ctx, timeoutMs = 90000) {
+            await wait(1500);
+            const started = Date.now();
+            while (ctx.cadWindow.workerWorking) {
+                if (Date.now() - started > timeoutMs) {
+                    throw new Error('Cascade Studio 仍在执行上一段代码，请稍后重试');
+                }
+                await wait(200);
+            }
+            await wait(250);
+        }
+
+        window.industrialCadBridge = {
+            async ensureReady(timeoutMs = 90000) {
+                const ctx = await waitForIndustrialContext(timeoutMs);
+                return { ready: true, codeLength: ctx.api.getCode().length };
+            },
+            async readCode() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getCode();
+            },
+            async runCode(code, timeoutMs = 90000) {
+                const ctx = await waitForIndustrialContext(timeoutMs);
+                await waitForCascadeIdle(ctx, timeoutMs);
+                return await ctx.api.runCode(String(code || ''));
+            },
+            async evaluate() {
+                const ctx = await waitForIndustrialContext();
+                await waitForCascadeIdle(ctx);
+                await ctx.api.evaluate();
+                return {
+                    success: ctx.api.getErrors().length === 0,
+                    errors: ctx.api.getErrors(),
+                    logs: ctx.api.getConsoleLog(),
+                    historySteps: ctx.api.getHistorySteps()
+                };
+            },
+            async status() {
+                const ctx = await waitForIndustrialContext();
+                return {
+                    engineReady: Boolean(ctx.app.engine?.isReady),
+                    workerWorking: Boolean(ctx.cadWindow.workerWorking),
+                    codeLength: ctx.api.getCode().length,
+                    errors: ctx.api.getErrors(),
+                    historySteps: ctx.api.getHistorySteps().length
+                };
+            },
+            async getQuickStart() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getQuickStart();
+            },
+            async getStandardLibrary() {
+                const ctx = await waitForIndustrialContext();
+                return ctx.api.getStandardLibrary();
+            }
+        };
+    }
+
+    window.initModelingLab = initModelingLab;
+})();
+
+
+
+
+

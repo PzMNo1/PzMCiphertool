@@ -1,0 +1,1072 @@
+/**
+ * HistoryManager - 聊天历史管理模块
+ * 负责聊天历史的增删改查、localStorage 缓存和后端账号同步
+ */
+
+class HistoryManager {
+    constructor() {
+        this.LEGACY_STORAGE_KEY = 'chatHistory';
+        this.LEGACY_CURRENT_CHAT_KEY = 'currentChatId';
+        this.MAX_REASONING_CHARS = 8000;
+        this.MAX_TOOL_ARGUMENT_CHARS = 800;
+        this.MAX_AGENT_EVENTS = 400;
+        this.TIGHT_AGENT_EVENTS = 240;
+        this.MINIMAL_AGENT_EVENTS = 120;
+        this.MAX_AGENT_EVIDENCE = 64;
+        this.MAX_AGENT_TOOL_RESULTS = 36;
+        this.MAX_STORED_CONTENT_CHARS = 260000;
+        this.MAX_STORED_IMAGE_URL_CHARS = 4200000;
+        this.backendSyncTimer = null;
+        this.backendSyncPromise = null;
+        this.syncedAccount = '';
+        this.lastRemoteVersion = null;
+    }
+
+    getAccountScope() {
+        try {
+            const user = window.CipherAuth?.getUser?.() || null;
+            const account = String(user?.phone || user?.username || user?.email || '').trim();
+            return account ? `u:${account}` : 'guest';
+        } catch (error) {
+            return 'guest';
+        }
+    }
+
+    get STORAGE_KEY() {
+        return `chatHistory::${this.getAccountScope()}`;
+    }
+
+    get CURRENT_CHAT_KEY() {
+        return `currentChatId::${this.getAccountScope()}`;
+    }
+
+    getChatHistory() {
+        let history = localStorage.getItem(this.STORAGE_KEY);
+        if (history) {
+            try {
+                localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+            } catch (error) {
+                // Ignore stale legacy cleanup failures.
+            }
+        }
+        if (!history && this.getAccountScope() !== 'guest') {
+            const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
+            if (legacy) {
+                history = this.migrateLegacyHistory(legacy) || legacy;
+            }
+        }
+        if (!history) return {};
+        try {
+            return JSON.parse(history) || {};
+        } catch (error) {
+            console.warn('Failed to parse chat history; starting with an empty history.', error);
+            return {};
+        }
+    }
+
+    migrateLegacyHistory(legacy) {
+        try {
+            // 旧版共享历史的键只迁移一次，先删旧键再写新键，避免双份数据撑爆 localStorage。
+            localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+            localStorage.setItem(this.STORAGE_KEY, legacy);
+        } catch (error) {
+            try {
+                if (!localStorage.getItem(this.LEGACY_STORAGE_KEY)) {
+                    localStorage.setItem(this.LEGACY_STORAGE_KEY, legacy);
+                }
+            } catch (restoreError) {
+                // Ignore restore failures; the legacy history is still available in memory.
+            }
+            console.warn('Failed to migrate legacy chat history.', error);
+            return null;
+        }
+
+        try {
+            const legacyCurrent = localStorage.getItem(this.LEGACY_CURRENT_CHAT_KEY);
+            if (legacyCurrent && !localStorage.getItem(this.CURRENT_CHAT_KEY)) {
+                localStorage.setItem(this.CURRENT_CHAT_KEY, legacyCurrent);
+            }
+            localStorage.removeItem(this.LEGACY_CURRENT_CHAT_KEY);
+        } catch (error) {
+            console.warn('Failed to migrate legacy chat pointer.', error);
+        }
+        return localStorage.getItem(this.STORAGE_KEY);
+    }
+
+    resolveBackendHistoryUrl() {
+        const base = (() => {
+            try {
+                const override = window.CIPHERTOOL_API_BASE || localStorage.getItem('CIPHERTOOL_API_BASE') || '';
+                if (/^https?:\/\//i.test(override)) {
+                    return override.replace(/\/+$/, '');
+                }
+            } catch (error) {
+                // Fall through to local backend.
+            }
+            return 'http://127.0.0.1:8080';
+        })();
+        return `${base}/api/chat/history/me`;
+    }
+
+    getBackendAuthHeaders() {
+        try {
+            return window.CipherAuth?.getAuthHeaders?.() || {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    resolveBackendHistoryVersionUrl() {
+        return `${this.resolveBackendHistoryUrl()}/version`;
+    }
+
+    async fetchBackendHistoryVersion() {
+        if (!window.CipherAuth?.getUser?.()?.token) return null;
+        try {
+            const response = await fetch(this.resolveBackendHistoryVersionUrl(), {
+                headers: this.getBackendAuthHeaders()
+            });
+            if (!response.ok) return null;
+            const result = await response.json();
+            return result?.success ? String(result.data || '') : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async syncFromBackend(options = {}) {
+        const force = Boolean(options.force);
+        const checkVersion = Boolean(options.checkVersion);
+        const user = window.CipherAuth?.getUser?.() || null;
+        if (!user?.token) return { remoteChanged: false, reason: 'anonymous' };
+        const account = String(user.phone || user.username || user.email || '').trim();
+        if (account && this.syncedAccount && this.syncedAccount !== account) {
+            this.lastRemoteVersion = null;
+        }
+        if (!force && !checkVersion && account && this.syncedAccount === account) {
+            return { remoteChanged: false, reason: 'synced' };
+        }
+        if (this.backendSyncPromise) return this.backendSyncPromise;
+        this.backendSyncPromise = (async () => {
+            try {
+                let checkedVersion = null;
+                if (checkVersion && !force) {
+                    const version = await this.fetchBackendHistoryVersion();
+                    if (version !== null && version === this.lastRemoteVersion) {
+                        if (account) this.syncedAccount = account;
+                        return { remoteChanged: false, reason: 'unchanged' };
+                    }
+                    checkedVersion = version;
+                }
+                const response = await fetch(this.resolveBackendHistoryUrl(), {
+                    headers: this.getBackendAuthHeaders()
+                });
+                if (!response.ok) return { remoteChanged: false, reason: 'http' };
+                const result = await response.json();
+                if (!result?.success) return { remoteChanged: false, reason: 'result' };
+                if (account) this.syncedAccount = account;
+                const remote = result.data;
+                if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
+                    const local = this.getChatHistory();
+                    const merged = this.mergeHistory(local, remote);
+                    const remoteChanged = this.summarizeHistory(merged) !== this.summarizeHistory(local);
+                    if (!this.storeHistoryLocally(merged)) {
+                        return { remoteChanged: false, reason: 'storage' };
+                    }
+                    if (checkedVersion !== null) this.lastRemoteVersion = checkedVersion;
+                    if (this.summarizeHistory(merged) !== this.summarizeHistory(remote)) {
+                        this.scheduleBackendSync(merged);
+                    }
+                    localStorage.removeItem(this.LEGACY_STORAGE_KEY);
+                    if (this.lastRemoteVersion === null) {
+                        this.lastRemoteVersion = await this.fetchBackendHistoryVersion();
+                    }
+                    return { remoteChanged, hasRemote: true };
+                }
+                let local = localStorage.getItem(this.STORAGE_KEY);
+                if (!local) {
+                    const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
+                    if (legacy) local = this.migrateLegacyHistory(legacy);
+                }
+                if (local) {
+                    try {
+                        await this.pushHistoryToBackend(JSON.parse(local));
+                    } catch (error) {
+                        // Keep local history when the initial upload fails.
+                    }
+                }
+                if (checkedVersion !== null) this.lastRemoteVersion = checkedVersion;
+                if (this.lastRemoteVersion === null) {
+                    this.lastRemoteVersion = await this.fetchBackendHistoryVersion();
+                }
+                return { remoteChanged: false, hasRemote: false };
+            } catch (error) {
+                return { remoteChanged: false, reason: 'error' };
+            } finally {
+                this.backendSyncPromise = null;
+            }
+        })();
+        return this.backendSyncPromise;
+    }
+
+    async pushHistoryToBackend(history) {
+        if (!window.CipherAuth?.getUser?.()?.token) return false;
+        if (!history || typeof history !== 'object') return false;
+        try {
+            const response = await fetch(this.resolveBackendHistoryUrl(), {
+                method: 'POST',
+                headers: {
+                    ...this.getBackendAuthHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ history })
+            });
+            if (!response.ok) return false;
+            const result = await response.json().catch(() => null);
+            if (result?.data) this.lastRemoteVersion = String(result.data);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    scheduleBackendSync(history) {
+        if (!window.CipherAuth?.getUser?.()?.token) return;
+        if (this.backendSyncTimer) {
+            clearTimeout(this.backendSyncTimer);
+        }
+        this.backendSyncTimer = setTimeout(() => {
+            this.backendSyncTimer = null;
+            this.pushHistoryToBackend(history);
+        }, 1200);
+    }
+
+    saveChatHistory(chatId, title, messages = []) {
+
+        const history = this.getChatHistory();
+        history[chatId] = {
+            id: chatId,
+            title: title || `对话 ${Object.keys(history).length + 1}`,
+            messages: Array.isArray(messages)
+                ? messages.map(message => this.prepareMessageForStorage(message))
+                : [],
+            timestamp: Date.now()
+        };
+        return this.persistHistory(history);
+    }
+
+
+    getCurrentChatId() {
+        return localStorage.getItem(this.CURRENT_CHAT_KEY);
+    }
+
+    setCurrentChatId(chatId) {
+        localStorage.setItem(this.CURRENT_CHAT_KEY, chatId);
+    }
+
+    createNewChat() {
+        const chatId = 'chat_' + Date.now();
+        this.setCurrentChatId(chatId);
+        return chatId;
+    }
+
+    createMessageId(role = 'message') {
+        const prefix = String(role || 'message').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'message';
+        return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+    }
+
+    getMessages(chatId) {
+        const history = this.getChatHistory();
+        return history[chatId]?.messages || [];
+    }
+
+    addMessage(chatId, message) {
+        const history = this.getChatHistory();
+        const storedMessage = this.prepareMessageForStorage(message);
+
+        if (!history[chatId]) {
+            // 如果聊天不存在，创建新的
+            const titleText = this.getMessageTitleText(message);
+            const title = message.role === 'user'
+                ? (titleText.length > 20 ? titleText.substring(0, 20) + '...' : titleText)
+                : '新对话';
+            history[chatId] = {
+                id: chatId,
+                title: title,
+                messages: [],
+                timestamp: Date.now()
+            };
+        }
+
+        history[chatId].messages.push(storedMessage);
+        const messageIndex = history[chatId].messages.length - 1;
+        if (storedMessage.agent_run?.runId) {
+            storedMessage.agent_run_id = storedMessage.agent_run.runId;
+
+        }
+        history[chatId].timestamp = Date.now();
+
+        // 如果是第一条用户消息，更新标题
+        if (storedMessage.role === 'user') {
+            const userMessages = history[chatId].messages.filter(m => m.role === 'user');
+            if (userMessages.length === 1) {
+                const titleText = this.getMessageTitleText(storedMessage);
+                history[chatId].title = titleText.length > 20
+                    ? titleText.substring(0, 20) + '...'
+                    : titleText;
+            }
+        }
+
+        return this.persistHistory(history);
+    }
+
+    getMessage(chatId, messageId) {
+        const messages = this.getMessages(chatId);
+        const key = String(messageId || '');
+        return messages.find(message => String(message?.message_id || message?.id || '') === key) || null;
+    }
+
+    updateMessage(chatId, messageId, patch = {}) {
+        if (!chatId || !messageId) return null;
+        const history = this.getChatHistory();
+        const chat = history[chatId];
+        if (!chat || !Array.isArray(chat.messages)) return null;
+
+        const key = String(messageId);
+        const index = chat.messages.findIndex(message => String(message?.message_id || message?.id || '') === key);
+        if (index < 0) return null;
+
+        const existing = chat.messages[index] || {};
+        const merged = {
+            ...existing,
+            ...(patch || {}),
+            id: existing.id || patch.id || key,
+            message_id: existing.message_id || patch.message_id || key,
+            role: patch.role || existing.role || 'assistant',
+            created_at: existing.created_at || patch.created_at || Date.now(),
+            updated_at: Date.now()
+        };
+        const storedMessage = this.prepareMessageForStorage(merged);
+        chat.messages[index] = storedMessage;
+        if (storedMessage.agent_run?.runId) {
+            storedMessage.agent_run_id = storedMessage.agent_run.runId;
+        }
+        chat.timestamp = Date.now();
+        this.persistHistory(history);
+        return storedMessage;
+    }
+
+    deleteChats(chatIds) {
+        const history = this.getChatHistory();
+        const currentChatId = this.getCurrentChatId();
+        let currentChatDeleted = false;
+
+        chatIds.forEach(chatId => {
+            if (chatId === currentChatId) {
+                currentChatDeleted = true;
+            }
+            delete history[chatId];
+        });
+
+
+        this.persistHistory(history);
+
+        if (currentChatDeleted) {
+            // 切换到最新的聊天
+            const remainingIds = Object.keys(history).sort((a, b) =>
+                history[b].timestamp - history[a].timestamp
+            );
+            if (remainingIds.length > 0) {
+                this.setCurrentChatId(remainingIds[0]);
+            } else {
+                localStorage.removeItem(this.CURRENT_CHAT_KEY);
+            }
+        }
+
+        return currentChatDeleted;
+    }
+
+    searchHistory(query) {
+        if (!query.trim()) {
+            return this.getChatHistory();
+        }
+
+        const history = this.getChatHistory();
+        const filtered = {};
+        const lowerQuery = query.toLowerCase();
+
+        Object.entries(history).forEach(([id, chat]) => {
+            // 搜索标题
+            if (chat.title.toLowerCase().includes(lowerQuery)) {
+                filtered[id] = chat;
+                return;
+            }
+            // 搜索消息内容
+            for (const msg of chat.messages) {
+                const contentText = this.getMessageTitleText(msg).toLowerCase();
+                if (contentText && contentText.includes(lowerQuery)) {
+                    filtered[id] = chat;
+                    break;
+                }
+            }
+        });
+
+        return filtered;
+    }
+
+    getSortedHistory(history = null) {
+        const data = history || this.getChatHistory();
+        return Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+    }
+
+    findEmptyChat() {
+        const history = this.getChatHistory();
+        return Object.keys(history).find(id => {
+            const chat = history[id];
+            return !chat.messages || chat.messages.length === 0;
+        }) || null;
+    }
+
+    importChats(chats = []) {
+        const history = this.getChatHistory();
+        const importedIds = [];
+
+        chats.forEach((chat, index) => {
+            const baseId = String(chat.id || '').trim();
+            let chatId = baseId && !history[baseId] ? baseId : `imported_${Date.now()}_${index}`;
+            while (history[chatId]) {
+                chatId = `imported_${Date.now()}_${index}_${Math.random().toString(16).slice(2, 8)}`;
+            }
+
+            const messages = Array.isArray(chat.messages)
+                ? chat.messages.map(message => this.prepareMessageForStorage(message))
+                : [];
+            history[chatId] = {
+                id: chatId,
+                title: chat.title || `导入会话 ${Object.keys(history).length + 1}`,
+                messages,
+                timestamp: Number(chat.timestamp) || Date.now(),
+                imported_at: Date.now(),
+                imported_from: baseId || null
+            };
+
+            importedIds.push(chatId);
+        });
+
+        this.persistHistory(history);
+        if (importedIds.length > 0) {
+            this.setCurrentChatId(importedIds[0]);
+        }
+        return importedIds;
+    }
+
+    persistHistory(history) {
+        const payload = history && typeof history === 'object' ? history : {};
+        let synced = payload;
+        let saved = this.tryPersistHistory(payload);
+        if (!saved) {
+            const compacted = this.buildQuotaSafeHistory(payload, true);
+            if (compacted) {
+                saved = this.tryPersistHistory(compacted);
+                if (saved) synced = compacted;
+            }
+        }
+        if (!saved) {
+            const stripped = this.buildQuotaSafeHistory(payload, false);
+            if (stripped) {
+                saved = this.tryPersistHistory(stripped);
+                if (saved) synced = stripped;
+            }
+        }
+        if (!saved) {
+            console.warn('Chat history was not persisted to local storage: quota exceeded.');
+        }
+        this.scheduleBackendSync(synced);
+        return saved;
+    }
+
+    storeHistoryLocally(history) {
+        if (this.tryPersistHistory(history)) return true;
+        const compacted = this.buildQuotaSafeHistory(history, true);
+        if (compacted && this.tryPersistHistory(compacted)) return true;
+        const stripped = this.buildQuotaSafeHistory(history, false);
+        if (stripped && this.tryPersistHistory(stripped)) return true;
+        return false;
+    }
+
+    mergeHistory(local, remote) {
+        const left = local && typeof local === 'object' ? local : {};
+        const right = remote && typeof remote === 'object' ? remote : {};
+        const merged = {};
+        new Set([...Object.keys(left), ...Object.keys(right)]).forEach(chatId => {
+            const a = left[chatId];
+            const b = right[chatId];
+            if (!a && !b) return;
+            if (!a) {
+                merged[chatId] = b;
+                return;
+            }
+            if (!b) {
+                merged[chatId] = a;
+                return;
+            }
+            const base = (Number(a.timestamp) || 0) >= (Number(b.timestamp) || 0) ? a : b;
+            const byKey = new Map();
+            [...(a.messages || []), ...(b.messages || [])].forEach(message => {
+                const key = message?.message_id || message?.id
+                    || `${message?.role || 'message'}:${message?.created_at || ''}:${message?.content || ''}`;
+                const existing = byKey.get(key);
+                if (!existing) {
+                    byKey.set(key, message);
+                    return;
+                }
+                byKey.set(key, this.pickMoreCompleteMessage(existing, message));
+            });
+            merged[chatId] = {
+                ...base,
+                messages: Array.from(byKey.values()).sort((x, y) =>
+                    (Number(x.created_at) || 0) - (Number(y.created_at) || 0)),
+                timestamp: Math.max(Number(a.timestamp) || 0, Number(b.timestamp) || 0)
+            };
+        });
+        return merged;
+    }
+
+    pickMoreCompleteMessage(a, b) {
+        const aCompleted = a?.status !== 'running' && a?.status !== 'aborting';
+        const bCompleted = b?.status !== 'running' && b?.status !== 'aborting';
+        if (aCompleted !== bCompleted) return bCompleted ? b : a;
+        const aTs = Number(a?.updated_at || a?.created_at) || 0;
+        const bTs = Number(b?.updated_at || b?.created_at) || 0;
+        if (bTs !== aTs) return bTs > aTs ? b : a;
+        const aImages = Array.isArray(a?.images) ? a.images.length : 0;
+        const bImages = Array.isArray(b?.images) ? b.images.length : 0;
+        if (bImages !== aImages) return bImages > aImages ? b : a;
+        const aVideos = Array.isArray(a?.videos) ? a.videos.length : 0;
+        const bVideos = Array.isArray(b?.videos) ? b.videos.length : 0;
+        if (bVideos !== aVideos) return bVideos > aVideos ? b : a;
+        const aChars = String(a?.content || '').length;
+        const bChars = String(b?.content || '').length;
+        return bChars > aChars ? b : a;
+    }
+
+    summarizeHistory(history) {
+        let messages = 0;
+        let latest = 0;
+        Object.values(history || {}).forEach(chat => {
+            latest = Math.max(latest, Number(chat?.timestamp) || 0);
+            (chat?.messages || []).forEach(message => {
+                messages += 1;
+                latest = Math.max(latest, Number(message?.updated_at || message?.created_at) || 0);
+            });
+        });
+        return `${messages}:${latest}`;
+    }
+
+    tryPersistHistory(payload) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    buildQuotaSafeHistory(history, keepLatest = true) {
+        let copy;
+        try {
+            copy = JSON.parse(JSON.stringify(history || {}));
+        } catch (error) {
+            return null;
+        }
+        const currentChatId = this.getCurrentChatId();
+        const refs = [];
+        Object.entries(copy).forEach(([chatId, chat]) => {
+            const chatTs = Number(chat?.timestamp) || 0;
+            (chat?.messages || []).forEach(message => {
+                const ts = Number(message?.updated_at || message?.created_at) || chatTs;
+                (message?.images || []).forEach(image => {
+                    const url = String(image?.url || '');
+                    if (url.startsWith('data:')) {
+                        refs.push({ image, url, ts, chatId });
+                    }
+                });
+            });
+        });
+        if (!refs.length) return null;
+        refs.sort((a, b) => {
+            const aCurrent = a.chatId === currentChatId ? 1 : 0;
+            const bCurrent = b.chatId === currentChatId ? 1 : 0;
+            if (aCurrent !== bCurrent) return bCurrent - aCurrent;
+            return b.ts - a.ts;
+        });
+        refs.forEach((entry, index) => {
+            if (keepLatest && index === 0) return;
+            entry.image.url = `[data image omitted, ${entry.url.length} chars]`;
+        });
+        return copy;
+    }
+
+    prepareMessageForStorage(message, level = 'normal') {
+        const source = message && typeof message === 'object' ? message : {};
+        const messageId = source.message_id || source.id || this.createMessageId(source.role || 'assistant');
+        const stored = {
+            id: messageId,
+            message_id: messageId,
+            role: source.role || 'assistant',
+            content: this.compactMessageContent(source.content, level),
+            status: source.status || 'completed',
+            created_at: source.created_at || Date.now(),
+            updated_at: source.updated_at || source.created_at || Date.now()
+        };
+
+        if (source.owner_id || source.user_id || source.account_id) {
+            stored.owner_id = source.owner_id || source.user_id || source.account_id;
+        }
+        if (source.run_id) stored.run_id = source.run_id;
+        if (source.error_message || source.error) {
+            stored.error_message = this.truncateText(source.error_message || source.error || '', 1200);
+        }
+        if (source.agent_run_id) stored.agent_run_id = source.agent_run_id;
+        if (source.durable_run_id) stored.durable_run_id = source.durable_run_id;
+        if (source.resume_prompt) stored.resume_prompt = this.truncateText(source.resume_prompt, 2200);
+        if (source.reasoning_content || source.reasoning) {
+            const max = level === 'normal' ? this.MAX_REASONING_CHARS : level === 'tight' ? 2400 : 0;
+            if (max > 0) {
+                stored.reasoning_content = this.truncateText(source.reasoning_content || source.reasoning || '', max);
+            }
+        }
+        if (Array.isArray(source.attachments) && source.attachments.length) {
+            stored.attachments = source.attachments.map(item => this.compactAttachment(item)).filter(Boolean);
+        }
+        if (Array.isArray(source.images) && source.images.length) {
+            stored.images = source.images.map(image => this.compactStoredImage(image, level)).filter(Boolean);
+        }
+        if (source.image_prompt) {
+            stored.image_prompt = this.truncateText(source.image_prompt, 6000);
+        }
+        if (Array.isArray(source.videos) && source.videos.length) {
+            stored.videos = source.videos.map(video => this.compactStoredVideo(video, level)).filter(Boolean);
+        }
+        if (source.video_prompt) {
+            stored.video_prompt = this.truncateText(source.video_prompt, 6000);
+        }
+        if (source.agent_run) {
+            stored.agent_run = this.compactAgentRunForStorage(source.agent_run, level);
+            if (stored.agent_run?.runId) stored.agent_run_id = stored.agent_run.runId;
+        }
+        if (!source.agent_run && Array.isArray(source.tool_calls) && source.tool_calls.length) {
+            stored.tool_calls = this.compactToolCallsForStorage(source.tool_calls, level);
+        }
+        return stored;
+    }
+
+    compactMessageContent(content, level = 'normal') {
+        const max = level === 'minimal' ? 60000 : level === 'tight' ? 120000 : this.MAX_STORED_CONTENT_CHARS;
+        if (Array.isArray(content)) {
+            return content.map(part => {
+                if (part?.type === 'text') {
+                    return { type: 'text', text: this.truncateText(part.text || '', max) };
+                }
+                if (part?.type === 'image_url') {
+                    const url = String(part.image_url?.url || '');
+                    return {
+                        type: 'image_url',
+                        image_url: {
+                            url: this.compactImageUrlForStorage(url, level),
+                            detail: part.image_url?.detail || 'auto'
+                        }
+                    };
+                }
+                return this.compactJsonValue(part, 2, 400, 8);
+            });
+        }
+        return this.truncateText(content == null ? '' : String(content), max);
+    }
+
+    compactAttachment(item) {
+        if (!item || typeof item !== 'object') return null;
+        return {
+            name: this.truncateText(item.name || '', 180),
+            path: this.truncateText(item.path || '', 500),
+            size: Number(item.size) || 0,
+            type: this.truncateText(item.type || '', 120),
+            kind: this.truncateText(item.kind || '', 40)
+        };
+    }
+
+    compactStoredImage(image, level = 'normal') {
+        if (!image || typeof image !== 'object') return null;
+        const url = String(image.url || '');
+        if (!url) return null;
+        return {
+            url: this.compactImageUrlForStorage(url, level),
+            mimeType: image.mimeType || 'image',
+            revisedPrompt: this.truncateText(image.revisedPrompt || '', 600)
+        };
+    }
+
+    compactImageUrlForStorage(url, level = 'normal') {
+        const value = String(url || '');
+        if (!value.startsWith('data:')) {
+            return this.truncateText(value, 1200);
+        }
+
+        const max = level === 'normal'
+            ? this.MAX_STORED_IMAGE_URL_CHARS
+            : level === 'tight'
+                ? 1200000
+                : 0;
+        if (max > 0 && value.length <= max) {
+            return value;
+        }
+        return `[data image omitted, ${value.length} chars]`;
+    }
+
+    compactStoredVideo(video, level = 'normal') {
+        if (!video || typeof video !== 'object') return null;
+        const url = String(video.url || '');
+        if (!url) return null;
+        return {
+            url: this.truncateText(url, 4000),
+            mimeType: this.truncateText(video.mimeType || 'video/mp4', 120),
+            durationSeconds: Number.isFinite(Number(video.durationSeconds)) ? Number(video.durationSeconds) : null,
+            aspectRatio: this.truncateText(video.aspectRatio || '', 20)
+        };
+    }
+
+    compactToolCallsForStorage(toolCalls, level = 'normal') {
+        const limit = level === 'normal' ? 50 : level === 'tight' ? 24 : 0;
+        if (limit <= 0) return [];
+        return (Array.isArray(toolCalls) ? toolCalls : []).slice(0, limit).map(toolCall => {
+            const fn = toolCall?.function || {};
+            return {
+                id: toolCall?.id || '',
+                type: toolCall?.type || 'function',
+                function: {
+                    name: fn.name || '',
+                    arguments: this.truncateText(
+                        typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments || {}),
+                        level === 'normal' ? this.MAX_TOOL_ARGUMENT_CHARS : 320
+                    )
+                }
+            };
+        }).filter(toolCall => toolCall.function.name);
+    }
+
+    compactAgentRunForStorage(run, level = 'normal') {
+        if (!run || typeof run !== 'object') return null;
+        const eventLimit = level === 'normal'
+            ? this.MAX_AGENT_EVENTS
+            : level === 'tight'
+                ? this.TIGHT_AGENT_EVENTS
+                : this.MINIMAL_AGENT_EVENTS;
+        const evidenceLimit = level === 'normal' ? this.MAX_AGENT_EVIDENCE : level === 'tight' ? 44 : 20;
+        const toolResultLimit = level === 'normal' ? this.MAX_AGENT_TOOL_RESULTS : level === 'tight' ? 16 : 0;
+        return {
+            contract_version: run.contract_version || 'agent-contract-v1',
+            runId: run.runId || '',
+            mode: run.mode || '',
+            researchProfile: run.researchProfile || '',
+            newsBriefScope: run.newsBriefScope || null,
+            selectedTools: Array.isArray(run.selectedTools) ? run.selectedTools.slice(0, 24) : [],
+            agentEarthTargetCalls: run.agentEarthTargetCalls || 0,
+            maxIterations: run.maxIterations ?? '',
+            stages: this.compactAgentStages(run.stages),
+            traces: this.compactAgentTraces(run.traces, level === 'normal' ? 28 : 10),
+            context_pack_summary: this.compactJsonValue(run.context_pack_summary || null, 2, 240, 12),
+            tool_contracts: this.compactToolContracts(run.tool_contracts),
+            events: this.compactAgentEvents(run.events, eventLimit, level),
+            thought_trace: this.compactThoughtTrace(run.thought_trace, level),
+            metrics: run.metrics || null,
+            warnings: Array.isArray(run.warnings) ? run.warnings.slice(0, 12).map(warning => this.truncateText(warning, 240)) : [],
+            tool_results: this.compactAgentToolResults(run.tool_results, toolResultLimit, level),
+            evidence_ledger: this.compactEvidenceLedger(run.evidence_ledger, evidenceLimit, level),
+            citation_verification: this.compactCitationVerification(run.citation_verification, level),
+            collaboration: this.compactCollaboration(run.collaboration, level),
+            performance: run.performance || null,
+            context_usage: run.context_usage || null,
+            artifacts: []
+        };
+    }
+
+    compactThoughtTrace(trace, level = 'normal') {
+        const limit = level === 'normal' ? 200 : level === 'tight' ? 120 : 60;
+        const maxText = level === 'normal' ? 1200 : 700;
+        return (Array.isArray(trace) ? trace : []).slice(-limit).map(item => ({
+            stage: this.truncateText(item?.stage || 'act', 24),
+            key: this.truncateText(item?.key || '', 80),
+            text: this.truncateText(item?.text || '', maxText),
+            at: Number(item?.at) || 0
+        }));
+    }
+
+    compactCollaboration(collaboration, level = 'normal') {
+        if (!collaboration || typeof collaboration !== 'object') return null;
+        const maxString = level === 'normal' ? 220 : 140;
+        return {
+            enabled: Boolean(collaboration.enabled),
+            strategy: this.truncateText(collaboration.strategy || '', 120),
+            status: collaboration.status || '',
+            started_at: collaboration.started_at || '',
+            completed_at: collaboration.completed_at || '',
+            display: this.compactCollaborationDisplay(collaboration.display, level),
+            collaborators: (Array.isArray(collaboration.collaborators) ? collaboration.collaborators : []).slice(0, 8).map(agent => ({
+                id: agent?.id || agent?.key || '',
+                label: this.truncateText(agent?.label || '', 80),
+                mission: this.truncateText(agent?.mission || '', maxString),
+                toolFocus: Array.isArray(agent?.toolFocus) ? agent.toolFocus.slice(0, 10) : [],
+                // 并行专家面板的逐专家状态：历史恢复时要靠这些字段重建专家行，
+                // 否则回看聊天记录时 COLLABORATION 面板会退化成只有名字的空壳。
+                ok: Boolean(agent?.ok),
+                status: this.truncateText(agent?.status || '', 24),
+                duration_ms: Number(agent?.duration_ms ?? agent?.durationMs) || 0,
+                tool_calls: Number(agent?.tool_calls ?? agent?.activity?.toolCalls) || 0,
+                iterations: Number(agent?.iterations ?? agent?.activity?.iterations) || 0,
+                findings_chars: Number(agent?.findings_chars ?? agent?.activity?.findingsChars) || 0,
+                tools_used: this.compactStringList(
+                    (agent?.tools_used?.length ? agent.tools_used : agent?.activity?.toolsUsed), 6, 40),
+                queries: this.compactStringList(
+                    (agent?.queries?.length ? agent.queries : agent?.activity?.queries), 3, 90, true),
+                last_action: this.truncateText(agent?.last_action || agent?.activity?.lastAction || '', 140)
+            })),
+            handoffs: (Array.isArray(collaboration.handoffs) ? collaboration.handoffs : []).slice(0, 12).map(handoff => ({
+                from: handoff?.from || '',
+                to: handoff?.to || '',
+                reason: this.truncateText(handoff?.reason || '', maxString)
+            })),
+            quality_gates: (Array.isArray(collaboration.quality_gates) ? collaboration.quality_gates : [])
+                .slice(0, 8)
+                .map(gate => this.truncateText(gate, maxString))
+        };
+    }
+
+    compactStringList(value, limit, maxChars, fromEnd = false) {
+        const list = Array.isArray(value) ? value.filter(Boolean) : [];
+        const picked = fromEnd ? list.slice(-limit) : list.slice(0, limit);
+        return picked.map(item => this.truncateText(item, maxChars));
+    }
+
+    compactCollaborationDisplay(display, level = 'normal') {
+        if (!display || typeof display !== 'object') return null;
+        const maxString = level === 'normal' ? 160 : 100;
+        return {
+            modeLabel: this.truncateText(display.modeLabel || '', 80),
+            summary: this.truncateText(display.summary || '', maxString),
+            lanes: (Array.isArray(display.lanes) ? display.lanes : []).slice(0, 3).map(lane => ({
+                id: lane?.id || '',
+                label: this.truncateText(lane?.label || '', 40),
+                mission: this.truncateText(lane?.mission || '', maxString),
+                sourceAgents: Array.isArray(lane?.sourceAgents) ? lane.sourceAgents.slice(0, 6) : []
+            }))
+        };
+    }
+
+    compactAgentStages(stages) {
+        return (Array.isArray(stages) ? stages : []).slice(0, 12).map(stage => ({
+            id: stage?.id || '',
+            label: stage?.label || '',
+            state: stage?.state || '',
+            note: this.truncateText(stage?.note || '', 120)
+        }));
+    }
+
+    compactAgentTraces(traces, limit) {
+        return (Array.isArray(traces) ? traces : []).slice(-limit).map(trace => ({
+            stage: trace?.stage || '',
+            message: this.truncateText(trace?.message || '', 220)
+        }));
+    }
+
+    compactToolContracts(contracts) {
+        return (Array.isArray(contracts) ? contracts : []).slice(0, 32).map(contract => ({
+            name: contract?.name || '',
+            package: contract?.package || '',
+            risk: contract?.risk || '',
+            sideEffect: contract?.sideEffect || '',
+            requiresApproval: Boolean(contract?.requiresApproval),
+            owner: contract?.owner || '',
+            projectAccess: contract?.projectAccess || '',
+            networkAccess: contract?.networkAccess || ''
+        }));
+    }
+
+    compactAgentEvents(events, limit, level = 'normal') {
+        const list = (Array.isArray(events) ? events : [])
+            .filter(event => event?.type !== 'model.delta');
+        const eventCount = list.length;
+        const maxString = level === 'normal'
+            ? (eventCount > 1000 ? 180 : 320)
+            : level === 'tight'
+                ? 140
+                : 90;
+        const maxArray = level === 'normal'
+            ? (eventCount > 1000 ? 8 : 14)
+            : level === 'tight'
+                ? 6
+                : 4;
+        // 头部 + 尾部保留：plan/route/start 与早期迭代永不因截断而丢失。
+        const headKeep = Math.min(24, Math.max(0, limit));
+        const kept = list.length > limit
+            ? [...list.slice(0, headKeep), ...list.slice(-(Math.max(1, limit - headKeep)))]
+            : list;
+        return kept.map(event => ({
+                id: event?.id || '',
+                contract_version: event?.contract_version || 'agent-contract-v1',
+                runId: event?.runId || '',
+                seq: event?.seq || 0,
+                type: event?.type || '',
+                ts: event?.ts || '',
+                stage: event?.stage || '',
+                visibility: event?.visibility || 'history',
+                payload: this.compactJsonValue(event?.payload || {}, 2, maxString, maxArray)
+            }));
+    }
+
+    compactAgentToolResults(toolResults, limit, level = 'normal') {
+        const maxString = level === 'normal' ? 320 : 180;
+        if (limit <= 0) return [];
+        return (Array.isArray(toolResults) ? toolResults : []).slice(-limit).map(result => ({
+            id: result?.id || '',
+            name: result?.name || '',
+            status: result?.status || '',
+            started_at: result?.started_at || '',
+            finished_at: result?.finished_at || '',
+            result_chars: result?.result_chars || 0,
+            risk: result?.risk || '',
+            approval_required: Boolean(result?.approval_required),
+            arguments_preview: this.truncateText(result?.arguments_preview || '', maxString),
+            result_preview: this.truncateText(result?.result_preview || '', maxString)
+        }));
+    }
+
+    compactEvidenceLedger(evidenceLedger, limit, level = 'normal') {
+        const maxSnippet = level === 'normal' ? 260 : 160;
+        const trustRank = { primary: 5, high: 4, medium: 3, low: 2, unknown: 1 };
+        return (Array.isArray(evidenceLedger) ? evidenceLedger : [])
+            .filter(item => item && (item.title || item.url || item.source_id))
+            .slice()
+            .sort((a, b) => {
+                const usedDelta = Number(Boolean(b.usedInFinalAnswer)) - Number(Boolean(a.usedInFinalAnswer));
+                if (usedDelta) return usedDelta;
+                return (trustRank[b.trustLevel] || 0) - (trustRank[a.trustLevel] || 0);
+            })
+            .slice(0, limit)
+            .map(item => ({
+                id: item.id || '',
+                kind: item.kind || '',
+                tool: item.tool || '',
+                source_id: item.source_id ?? item.sourceId ?? '',
+                title: this.truncateText(item.title || '', 220),
+                url: this.truncateText(item.url || '', 700),
+                observed_at: item.observed_at || item.retrievedAt || '',
+                query: this.truncateText(item.query || '', 180),
+                search_source: item.search_source || '',
+                community: item.community || '',
+                trustLevel: item.trustLevel || '',
+                trustReason: this.truncateText(item.trustReason || '', 180),
+                usedInFinalAnswer: Boolean(item.usedInFinalAnswer),
+                claimIds: Array.isArray(item.claimIds) ? item.claimIds.slice(0, 8) : [],
+                snippet: this.truncateText(item.snippet || '', maxSnippet),
+                content_preview: this.truncateText(item.content_preview || '', maxSnippet),
+                error: this.truncateText(item.error || '', 180)
+            }));
+    }
+
+    compactCitationVerification(verification, level = 'normal') {
+        if (!verification || typeof verification !== 'object') return null;
+        const limit = level === 'normal' ? 28 : 12;
+        return {
+            matched: Array.isArray(verification.matched) ? verification.matched.slice(0, limit).map(item => ({
+                marker: item.marker,
+                evidence_ids: Array.isArray(item.evidence_ids) ? item.evidence_ids.slice(0, 8) : [],
+                source_line: this.truncateText(item.source_line || '', 260),
+                strongestTrustLevel: item.strongestTrustLevel || ''
+            })) : [],
+            unmatched: Array.isArray(verification.unmatched) ? verification.unmatched.slice(0, limit).map(item => ({
+                marker: item.marker,
+                source_line: this.truncateText(item.source_line || '', 260)
+            })) : [],
+            weak: Array.isArray(verification.weak) ? verification.weak.slice(0, limit).map(item => ({
+                marker: item.marker,
+                evidence_ids: Array.isArray(item.evidence_ids) ? item.evidence_ids.slice(0, 8) : [],
+                reason: this.truncateText(item.reason || '', 220)
+            })) : [],
+            citedEvidenceCount: verification.citedEvidenceCount || 0,
+            uncitedEvidenceCount: verification.uncitedEvidenceCount || 0
+        };
+    }
+
+    compactJsonValue(value, depth = 2, maxString = 240, maxArray = 16) {
+        if (value == null) return value;
+        if (typeof value === 'string') return this.truncateText(value, maxString);
+        if (typeof value === 'number' || typeof value === 'boolean') return value;
+        if (depth <= 0) return this.truncateText(JSON.stringify(value), maxString);
+        if (Array.isArray(value)) {
+            return value.slice(0, maxArray).map(item => this.compactJsonValue(item, depth - 1, maxString, maxArray));
+        }
+        if (typeof value === 'object') {
+            const compacted = {};
+            Object.entries(value).slice(0, 24).forEach(([key, item]) => {
+                compacted[key] = this.compactJsonValue(item, depth - 1, maxString, maxArray);
+            });
+            return compacted;
+        }
+        return String(value);
+    }
+
+    truncateText(value, max) {
+        const text = String(value ?? '');
+        if (!max || max <= 0) return '';
+        return text.length <= max ? text : `${text.slice(0, max)}...`;
+    }
+
+    getMessageTitleText(message) {
+        const content = message?.content;
+        if (Array.isArray(content)) {
+            const textPart = content.find(part => part?.type === 'text');
+            return String(textPart?.text || '[multi-part message]');
+        }
+        return String(content || '');
+    }
+
+    formatDate(timestamp) {
+        const date = new Date(timestamp);
+        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    clearReasoningContent(chatId) {
+        const history = this.getChatHistory();
+        if (history[chatId]) {
+            history[chatId].messages = history[chatId].messages.map(msg => {
+                if (msg.reasoning_content) {
+                    return { ...msg, reasoning_content: null };
+                }
+                return msg;
+            });
+            this.persistHistory(history);
+        }
+    }
+
+    getMessagesForAPI(chatId) {
+        const messages = this.getMessages(chatId)
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+            .filter(msg => !(msg.role === 'assistant' && msg.status === 'running'));
+        // 上下文窗口（字符截断版过渡）：最近几条全文，更早消息截断，避免多轮后输入无界膨胀。
+        const keepRecent = 6;
+        const truncateChars = 1500;
+        return messages.map((msg, index) => {
+            const content = String(msg.content || '');
+            const isRecent = index >= messages.length - keepRecent;
+            return {
+                role: msg.role,
+                content: isRecent || content.length <= truncateChars
+                    ? content
+                    : `${content.slice(0, truncateChars)}\n[earlier message truncated]`
+            };
+        });
+    }
+}
+
+// 导出单例
+window.historyManager = new HistoryManager();

@@ -1,0 +1,428 @@
+/**
+ * AgentPerformanceMonitor - Agent 模块性能监控
+ */
+(function () {
+    const DEFAULT_SELECTOR = '#agent-performance-monitor';
+
+    class AgentPerformanceMonitor {
+        constructor(options = {}) {
+            this.element = null;
+            this.selector = options.selector || DEFAULT_SELECTOR;
+            this.run = null;
+            this.historical = null;
+            this.currentChatId = '';
+            this.runChatId = '';
+
+            this.activeLLMCalls = new Map();
+            this.activeToolCalls = new Map();
+            this.llmSeq = 0;
+            this.toolSeq = 0;
+            this.renderQueued = false;
+        }
+
+        /* ---------------- 绑定与生命周期 ---------------- */
+
+        attach(target) {
+            if (target && typeof target === 'object' && target.nodeType === 1) {
+                this.element = target;
+            } else {
+                this.element = document.querySelector(target || this.selector);
+            }
+            if (this.element && !this.element.dataset.perfToggleBound) {
+                this.element.dataset.perfToggleBound = '1';
+                this.element.addEventListener('click', () => {
+                    this.element.classList.toggle('expanded');
+                });
+            }
+            return this.element;
+        }
+
+        ensureElement() {
+            if (this.element && this.element.isConnected) return this.element;
+            return this.attach(this.selector);
+        }
+
+        startRun(runId = '') {
+            this.historical = null;
+            this.runChatId = this.currentChatId
+                || (typeof window !== 'undefined' && window.historyManager?.getCurrentChatId?.())
+                || '';
+            this.run = {
+                runId,
+                startedAt: now(),
+                llmWallMs: 0,
+                llmSumMs: 0,
+                llmCalls: 0,
+                llmActiveCount: 0,
+                llmWindowStart: 0,
+                toolWallMs: 0,
+                toolSumMs: 0,
+                toolCalls: 0,
+                toolActiveCount: 0,
+                toolWindowStart: 0,
+                toolConcurrencyPeak: 0,
+                toolDurations: [],
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheHitTokens: 0,
+                generationMs: 0,
+                generatedTokens: 0,
+                firstTokenSamples: []
+            };
+            this.activeLLMCalls.clear();
+            this.activeToolCalls.clear();
+            this.scheduleRender();
+            return this.run;
+        }
+
+        finishRun() {
+            this.closeDanglingIntervals();
+            this.scheduleRender();
+            return this.getSummary();
+        }
+
+        reset() {
+            this.run = null;
+            this.historical = null;
+            this.runChatId = '';
+            this.activeLLMCalls.clear();
+            this.activeToolCalls.clear();
+            const element = this.ensureElement();
+            if (element) {
+                element.innerHTML = '';
+                element.classList.remove('visible');
+            }
+        }
+
+        /**
+         * 切换会话时显示该会话最近一次 Run 的指标，而不是沿用上一个会话的实时数字。
+         */
+        showHistorical(summary, meta = {}) {
+            if (!summary || (!Number(summary.llmCalls) && !Number(summary.toolCalls))) {
+                this.historical = null;
+                this.scheduleRender();
+                return;
+            }
+            this.historical = {
+                summary: Object.assign({
+                    llmWallMs: 0, llmSumMs: 0, toolWallMs: 0, toolSumMs: 0,
+                    avgFirstTokenMs: 0, tokensPerSecond: 0, cacheHitRate: 0,
+                    inputTokens: 0, outputTokens: 0, llmCalls: 0, toolCalls: 0,
+                    toolConcurrencyPeak: 0, avgToolMs: 0
+                }, summary),
+                label: meta.label || '历史对话',
+                chatId: meta.chatId || ''
+            };
+            this.scheduleRender();
+        }
+
+        setChatContext(chatId = '') {
+            this.currentChatId = chatId;
+            this.scheduleRender();
+        }
+
+        closeDanglingIntervals() {
+            if (!this.run) return;
+            if (this.run.llmActiveCount > 0) {
+                this.run.llmWallMs += Math.max(0, now() - this.run.llmWindowStart);
+                this.run.llmActiveCount = 0;
+            }
+            if (this.run.toolActiveCount > 0) {
+                this.run.toolWallMs += Math.max(0, now() - this.run.toolWindowStart);
+                this.run.toolActiveCount = 0;
+            }
+        }
+
+        /* ---------------- LLM 调用 ---------------- */
+
+        beginLLMCall(label = '') {
+            if (!this.run) this.startRun();
+            this.llmSeq += 1;
+            const callId = `llm-${this.run.runId || 'run'}-${this.llmSeq}`;
+
+            if (this.run.llmActiveCount === 0) {
+                this.run.llmWindowStart = now();
+            }
+            this.run.llmActiveCount += 1;
+
+            this.activeLLMCalls.set(callId, {
+                callId,
+                label,
+                startTime: now(),
+                firstTokenAt: null,
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheHitTokens: 0
+            });
+            return callId;
+        }
+
+        markFirstToken(callId) {
+            const call = this.activeLLMCalls.get(callId);
+            if (call && call.firstTokenAt === null) {
+                call.firstTokenAt = now();
+            }
+        }
+
+        completeLLMCall(callId, usage = {}) {
+            const call = this.activeLLMCalls.get(callId);
+            if (!call || !this.run) return null;
+
+            const endTime = now();
+            const durationMs = Math.max(0, endTime - call.startTime);
+            const parsed = this.parseUsage(usage);
+
+            call.inputTokens = parsed.inputTokens;
+            call.outputTokens = parsed.outputTokens;
+            call.cacheHitTokens = parsed.cacheHitTokens;
+
+            this.run.llmSumMs += durationMs;
+            this.run.llmCalls += 1;
+            this.run.inputTokens += parsed.inputTokens;
+            this.run.outputTokens += parsed.outputTokens;
+            this.run.cacheHitTokens += parsed.cacheHitTokens;
+
+            if (call.firstTokenAt !== null) {
+                this.run.firstTokenSamples.push(Math.max(0, call.firstTokenAt - call.startTime));
+                const generationMs = Math.max(0, endTime - call.firstTokenAt);
+                if (generationMs > 0 && parsed.outputTokens > 0) {
+                    this.run.generationMs += generationMs;
+                    this.run.generatedTokens += parsed.outputTokens;
+                }
+            }
+
+            this.activeLLMCalls.delete(callId);
+            this.run.llmActiveCount = Math.max(0, this.run.llmActiveCount - 1);
+            if (this.run.llmActiveCount === 0) {
+                this.run.llmWallMs += Math.max(0, endTime - this.run.llmWindowStart);
+            }
+
+            this.scheduleRender();
+            return parsed;
+        }
+
+        parseUsage(usage = {}) {
+            const safe = usage && typeof usage === 'object' ? usage : {};
+            const details = safe.prompt_tokens_details || safe.input_tokens_details || {};
+            return {
+                inputTokens: toNumber(safe.prompt_tokens ?? safe.input_tokens ?? safe.promptTokens),
+                outputTokens: toNumber(safe.completion_tokens ?? safe.output_tokens ?? safe.completionTokens),
+                cacheHitTokens: toNumber(
+                    safe.prompt_cache_hit_tokens
+                    ?? safe.cached_tokens
+                    ?? safe.cache_read_input_tokens
+                    ?? details.cached_tokens
+                )
+            };
+        }
+
+        /* ---------------- 工具调用 ---------------- */
+
+        beginToolCall(toolCallId, toolName = '') {
+            if (!this.run) this.startRun();
+            const key = toolCallId || this.nextToolKey();
+
+            if (this.run.toolActiveCount === 0) {
+                this.run.toolWindowStart = now();
+            }
+            this.run.toolActiveCount += 1;
+            this.run.toolConcurrencyPeak = Math.max(this.run.toolConcurrencyPeak, this.run.toolActiveCount);
+
+            this.activeToolCalls.set(key, { key, toolName, startTime: now() });
+            return key;
+        }
+
+        completeToolCall(toolCallId) {
+            const call = toolCallId
+                ? this.activeToolCalls.get(toolCallId)
+                : this.lastActiveToolCall();
+            if (!call || !this.run) return 0;
+
+            const endTime = now();
+            const durationMs = Math.max(0, endTime - call.startTime);
+            this.activeToolCalls.delete(call.key);
+
+            this.run.toolSumMs += durationMs;
+            this.run.toolCalls += 1;
+            this.run.toolDurations.push(durationMs);
+
+            this.run.toolActiveCount = Math.max(0, this.run.toolActiveCount - 1);
+            if (this.run.toolActiveCount === 0) {
+                // 并行批次只累加一次墙钟区间
+                this.run.toolWallMs += Math.max(0, endTime - this.run.toolWindowStart);
+            }
+
+            this.scheduleRender();
+            return durationMs;
+        }
+
+        nextToolKey() {
+            this.toolSeq += 1;
+            return `tool-${this.toolSeq}`;
+        }
+
+        lastActiveToolCall() {
+            const entries = Array.from(this.activeToolCalls.values());
+            return entries.length ? entries[entries.length - 1] : null;
+        }
+
+        /* ---------------- 汇总 ---------------- */
+
+        getSummary() {
+            const run = this.run;
+            if (!run) {
+                return {
+                    llmWallMs: 0, llmSumMs: 0, toolWallMs: 0, toolSumMs: 0,
+                    avgFirstTokenMs: 0, tokensPerSecond: 0, cacheHitRate: 0,
+                    inputTokens: 0, outputTokens: 0, llmCalls: 0, toolCalls: 0,
+                    toolConcurrencyPeak: 0, avgToolMs: 0
+                };
+            }
+
+            const avgFirstTokenMs = run.firstTokenSamples.length
+                ? run.firstTokenSamples.reduce((a, b) => a + b, 0) / run.firstTokenSamples.length
+                : 0;
+            const tokensPerSecond = run.generationMs > 0
+                ? (run.generatedTokens / run.generationMs) * 1000
+                : 0;
+            const cacheHitRate = run.inputTokens > 0
+                ? Math.min(100, (run.cacheHitTokens / run.inputTokens) * 100)
+                : 0;
+            const avgToolMs = run.toolDurations.length
+                ? run.toolDurations.reduce((a, b) => a + b, 0) / run.toolDurations.length
+                : 0;
+
+            return {
+                llmWallMs: run.llmWallMs,
+                llmSumMs: run.llmSumMs,
+                toolWallMs: run.toolWallMs,
+                toolSumMs: run.toolSumMs,
+                avgFirstTokenMs,
+                tokensPerSecond,
+                cacheHitRate,
+                inputTokens: run.inputTokens,
+                outputTokens: run.outputTokens,
+                llmCalls: run.llmCalls,
+                toolCalls: run.toolCalls,
+                toolConcurrencyPeak: run.toolConcurrencyPeak,
+                avgToolMs
+            };
+        }
+
+        /**
+         * 用户指定的展示格式，主指标为墙钟时间：
+         * 性能监控： LLM 【】分【】秒 · 工具调用 【】秒 | 首 token 平均 【】秒 · 【】 tok/s | 缓存命中 【】% | 输入 【】K tok · 输出 【】K tok
+         */
+        formatLine(summary = this.getSummary()) {
+            const llmTotalSec = summary.llmWallMs / 1000;
+            const llmMinutes = Math.floor(llmTotalSec / 60);
+            const llmSeconds = (llmTotalSec - llmMinutes * 60).toFixed(1);
+            return [
+                `性能监控： LLM ${llmMinutes}分${llmSeconds}秒`,
+                `· 工具调用 ${(summary.toolWallMs / 1000).toFixed(1)}秒`,
+                `| 首 token 平均 ${(summary.avgFirstTokenMs / 1000).toFixed(2)}秒`,
+                `· ${summary.tokensPerSecond.toFixed(1)} tok/s`,
+                `| 缓存命中 ${summary.cacheHitRate.toFixed(0)}%`,
+                `| 输入 ${(summary.inputTokens / 1000).toFixed(1)}K tok`,
+                `· 输出 ${(summary.outputTokens / 1000).toFixed(1)}K tok`
+            ].join(' ');
+        }
+
+        /* ---------------- 渲染 ---------------- */
+
+        scheduleRender() {
+            if (this.renderQueued) return;
+            this.renderQueued = true;
+            const task = () => {
+                this.renderQueued = false;
+                this.render();
+            };
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(task);
+            else setTimeout(task, 16);
+        }
+
+        render() {
+            const element = this.ensureElement();
+            if (!element) return;
+            const activeChatId = this.currentChatId
+                || (typeof window !== 'undefined' && window.historyManager?.getCurrentChatId?.())
+                || '';
+            // 运行中的 Run 只在它所属的会话里刷新指标，切走后保留该会话的历史指标。
+            if (this.run && this.runChatId && activeChatId && this.runChatId !== activeChatId) {
+                return;
+            }
+            const liveVisible = Boolean(this.run)
+                && (!this.runChatId || !activeChatId || this.runChatId === activeChatId);
+            if (!liveVisible && !this.historical) {
+                element.classList.remove('visible');
+                element.innerHTML = '';
+                return;
+            }
+
+            const historical = !liveVisible && Boolean(this.historical);
+            const summary = liveVisible ? this.getSummary() : this.historical.summary;
+            const llmTotalSec = summary.llmWallMs / 1000;
+            const llmMinutes = Math.floor(llmTotalSec / 60);
+            const llmSeconds = (llmTotalSec - llmMinutes * 60).toFixed(1);
+
+            const items = [
+                { label: 'LLM', value: `${llmMinutes}分${llmSeconds}秒` },
+                { sep: '·' },
+                { label: '工具调用', value: `${(summary.toolWallMs / 1000).toFixed(1)}秒` },
+                { sep: '|' },
+                { label: '首 token 平均', value: `${(summary.avgFirstTokenMs / 1000).toFixed(2)}秒` },
+                { sep: '·' },
+                { value: `${summary.tokensPerSecond.toFixed(1)} tok/s` },
+                { sep: '|' },
+                { label: '缓存命中', value: `${summary.cacheHitRate.toFixed(0)}%` },
+                { sep: '|' },
+                { label: '输入', value: `${(summary.inputTokens / 1000).toFixed(1)}K tok` },
+                { sep: '·' },
+                { label: '输出', value: `${(summary.outputTokens / 1000).toFixed(1)}K tok` },
+                { sep: '|' },
+                { label: '请求', value: `${summary.llmCalls} 次` },
+                { sep: '·' },
+                { label: '并发峰值', value: `${summary.toolConcurrencyPeak}` }
+            ];
+
+            const lead = historical
+                ? `<span class="perf-item perf-lead perf-history">性能监控 · ${this.escape(this.historical.label)}：</span>`
+                : '<span class="perf-item perf-lead">性能监控：</span>';
+            const html = [lead]
+                .concat(items.map(item => {
+                    if (item.sep) return `<span class="perf-sep">${item.sep}</span>`;
+                    const label = item.label ? `${this.escape(item.label)} ` : '';
+                    return `<span class="perf-item">${label}<strong>${this.escape(item.value)}</strong></span>`;
+                }))
+                .join('');
+
+            element.innerHTML = html;
+            element.classList.add('visible');
+            element.classList.toggle('perf-history-mode', historical);
+            if (historical) {
+                element.title = `会话 ${this.historical.chatId || ''} 最近一次运行的历史指标`;
+            } else {
+                element.removeAttribute('title');
+            }
+        }
+
+        escape(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+    }
+
+    function now() {
+        return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    }
+
+    function toNumber(value) {
+        const num = Number(value);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+    }
+
+    window.AgentPerformanceMonitor = AgentPerformanceMonitor;
+    window.agentPerformanceMonitor = window.agentPerformanceMonitor || new AgentPerformanceMonitor();
+})();

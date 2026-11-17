@@ -1,0 +1,29 @@
+{
+  "name": "three-webgpu-editor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "serve": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "echarts": "^6.1.0",
+    "element-plus": "^2.14.2",
+    "gsap": "^3.15.0",
+    "less": "^4.6.7",
+    "less-loader": "^13.0.0",
+    "three": "^0.185.1",
+    "three-webgpu-editor": "^0.0.1",
+    "vue": "^3.5.39",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "vite": "^8.1.3"
+  }
+}

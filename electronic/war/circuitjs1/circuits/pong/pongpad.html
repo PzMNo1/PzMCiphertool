@@ -1,0 +1,149 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<body>
+<hr>
+<iframe id="circuitFrame" width="100%" height=750 src="../circuitjs.html?startCircuit=ponghfull.txt&mouseMode=DragAll"></iframe>
+<p>
+<div id="info"></div>
+<input type="range" id="pad1" min="1" max="220" value="120"><br>
+<input type="range" id="pad2" min="1" max="220" value="120"><br>
+<canvas id="canvas" width=375 height=246 style="background-color:black;"></canvas>
+
+<script>
+
+// get iframe the simulator is running in.  Must have same origin as this file!
+var iframe = document.getElementById("circuitFrame");
+
+var sim;
+var freq, ampl;
+var clk, video, score, ctx;
+
+function round(x) {
+  return Math.round(x*1000)/1000;
+}
+
+var nettext = '';
+var highlightY = -1;
+var savedLine;
+var lastTime;
+
+function didAnalyze(sim) {
+  clk = sim.getNode("CLK");
+  video = sim.getNode("VIDEO");
+  score = sim.getNode("SCORE");
+  sim.setExtVoltage("/CLR V", 5);
+  sim.setExtVoltage("SERVE", 0);
+}
+
+// called when simulator updates its display
+function didUpdate(sim) {
+  var info = document.getElementById("info");
+  info.innerHTML = "time = " + round(sim.getTime()) + "<br>running = " + sim.isRunning();
+
+  if (clk && video)
+    info.innerHTML += "<br>" + lastclk + " " + x + " "+ y ;
+
+  if (savedLine) {
+    ctx.putImageData(savedLine, 0, highlightY);
+    savedLine = null;
+  }
+  ctx.fillStyle = "red";
+  if (sim.getTime()-lastTime > 1/(60*200)) {
+    highlightY = y-1;
+    savedLine = ctx.getImageData(0, highlightY, 455, 1);
+    ctx.fillRect(0, highlightY, 455, 1);
+  } else {
+    highlightY = y;
+    if (x > 0) {
+      savedLine = ctx.getImageData(0, y, x, 1);
+      ctx.fillRect(0, y, x, 1);
+    }
+  }
+  lastTime = sim.getTime();
+  ctx.fillStyle = "white";
+}
+
+var lastclk = -1;
+var x = -55, y = 0;
+var clearedY = -1;
+var moveBall = 0, moveBallX, moveBallY;
+
+// called every timestep
+function didStep(sim) {
+  var c = clk.getVoltage();
+  if (c == lastclk)
+    return;
+  if (c > 2.5) {
+    x++;
+    if (x == 375) {
+      x = -80;
+      y++;
+      if (sim.getNodeVoltage("VBLANK") > 2.5) {
+        y = 0;
+        clearedY = -1;
+        sim.setExtVoltage("PADTRIGGER1", 5);
+        sim.setExtVoltage("PADTRIGGER2", 5);
+      }
+      if (y == parseInt(pad1.value))
+        sim.setExtVoltage("PADTRIGGER1", 0);
+      if (y == parseInt(pad2.value))
+        sim.setExtVoltage("PADTRIGGER2", 0);
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, y, 455, 1);
+      ctx.fillStyle = "white";
+    } else if (y == 0 && sim.getNodeVoltage("HBLANK") > 2.5)
+      x = 0;
+  }
+  if (moveBall > 0) {
+    if (moveBall == 1 && x == moveBallX && y == moveBallY) {
+      console.log("moveball1");
+      sim.setExtVoltage("SERVE", 5);
+      sim.setExtVoltage("/CLR V", 0);
+      moveBall = 2;
+    } else if (moveBall >= 2) {
+      sim.setExtVoltage("SERVE", 0);
+      sim.setExtVoltage("/CLR V", 5);
+      console.log("moveball " + moveBall);
+      moveBall = 0;
+    }
+  }
+  lastclk = c;
+  if (video.getVoltage() > 2.5 || score.getVoltage() > 2.5) {
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+// callback called when simulation is done initializing
+function simLoaded() {
+  // get simulator object
+  sim = iframe.contentWindow.CircuitJS1;
+
+  // set up callbacks on update and timestep
+  sim.onupdate = didUpdate;
+  sim.ontimestep = didStep;
+  sim.onanalyze = didAnalyze;
+
+  ctx = canvas.getContext("2d");
+  //ctx.fillRect(0, 0, 455, 262);
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "white";
+
+  canvas.onmousedown = function (event) {
+    var rect = canvas.getBoundingClientRect();
+    moveBallX = Math.floor((event.clientX - rect.left) * 375 / rect.width) - 139;
+    moveBallY = Math.floor((event.clientY - rect.top) * 246 / rect.height) - 8;
+    if (moveBallX < 0) {
+      moveBallX += 375;
+      moveBallY--;
+    }
+    console.log("move ball " + moveBallX + " " + moveBallY);
+    moveBall = true;
+  }
+}
+
+// set up callback
+iframe.contentWindow.oncircuitjsloaded = simLoaded;
+
+</script>
+

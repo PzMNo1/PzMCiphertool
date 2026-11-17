@@ -1,0 +1,490 @@
+/* 电子实验室专用样式 - 强制全屏布局 */
+
+/* 容器全屏固定 */
+#electroniclab-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50;
+    background:
+        radial-gradient(ellipse at 70% 20%, rgba(0, 255, 200, 0.05) 0%, transparent 40%) fixed,
+        radial-gradient(ellipse at 30% 80%, rgba(0, 180, 255, 0.05) 0%, transparent 40%) fixed,
+        linear-gradient(160deg, #000510 0%, #020a1a 35%, #0a0e2b 60%, #0d0520 100%) fixed;
+    overflow-y: auto;
+    /* 允许垂直滚动 */
+}
+
+/* 内容区域布局 */
+#electroniclab-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+    box-sizing: border-box;
+}
+
+/* 标题区域微调 */
+#electroniclab-content .module-header {
+    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+    position: relative;
+    /* 新增：为了定位右上角的选择器 */
+}
+
+/* 引擎视口 - 占据剩余所有空间 */
+.engine-viewport {
+    flex: 1;
+    width: 111%;
+    height: 85%;
+    position: relative;
+    background: #030a14;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(64, 224, 255, 0.38);
+    box-shadow:
+        0 0 0 1px rgba(64, 224, 255, 0.08),
+        0 0 34px rgba(0, 0, 0, 0.65),
+        0 0 26px rgba(64, 224, 255, 0.12);
+}
+
+/* 电路模拟视口：HUD 取景角标 */
+#electroniclab-content #electronic-submodule-simulation .engine-viewport::after {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0.7;
+    background:
+        linear-gradient(#40e0ff, #40e0ff) left top / 20px 1px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) left top / 1px 20px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) right top / 20px 1px no-repeat,
+        linear-gradient(#40e0ff, #40e0ff) right top / 1px 20px no-repeat;
+    filter: drop-shadow(0 0 6px rgba(64, 224, 255, 0.55));
+}
+
+/* iframe 全尺寸 */
+iframe#circuit-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/* 加载遮罩 */
+.loading-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000510;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    color: #40e0ff;
+    z-index: 5;
+    pointer-events: none;
+    transition: opacity 0.5s;
+    opacity: 0;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 2px;
+}
+
+.loading-mask.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.loading-mask i {
+    font-size: 2rem;
+    color: #40e0ff;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    #electroniclab-content {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 80px;
+    }
+
+    #electroniclab-content .module-header {
+        flex-direction: column;
+        height: auto;
+        gap: 10px;
+    }
+
+    #electroniclab-content .module-header h2 {
+        font-size: 1.5rem;
+    }
+}
+/* =====================================================================
+   电子实验室：电路模拟 / 电路板布局 单按钮子模块切换
+   按钮视觉沿用加密实验室 .submodule-btn 的霓虹/切角风格，
+   但这里是单个按钮循环切换，按钮文字分别显示【电路模拟】【电路板布局】。
+   ===================================================================== */
+
+#electroniclab-content .electronic-module-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    min-height: 64px;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    pointer-events: none;
+}
+
+#electroniclab-content .electronic-submodule-btn {
+    pointer-events: auto;
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 196px;
+    height: 56px;
+    padding: 0 18px;
+    border: 1px solid rgba(64, 224, 255, 0.24);
+    background: linear-gradient(135deg, rgba(64, 224, 255, 0.08) 0%, rgba(120, 200, 255, 0.05) 50%, rgba(180, 140, 255, 0.08) 100%);
+    color: rgba(255, 255, 255, 0.78);
+    font-family: 'Orbitron', 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    backdrop-filter: blur(6px);
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+    box-shadow: inset 0 0 20px rgba(64, 224, 255, 0.1);
+    z-index: 20;
+    overflow: hidden;
+}
+
+#electroniclab-content .electronic-submodule-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 15px;
+    border-top: 2px solid rgba(64, 224, 255, 0.5);
+    border-left: 2px solid rgba(64, 224, 255, 0.5);
+    opacity: 0.6;
+    transition: all 0.4s ease;
+}
+
+#electroniclab-content .electronic-submodule-btn::after {
+    content: attr(data-mode);
+    position: absolute;
+    right: 14px;
+    bottom: 6px;
+    color: rgba(64, 224, 255, 0.42);
+    font-family: monospace;
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+#electroniclab-content .electronic-submodule-btn:hover {
+    transform: translateY(calc(-50% - 4px)) scale(1.02);
+    background: rgba(64, 224, 255, 0.12);
+    border-color: rgba(64, 224, 255, 0.62);
+    color: #fff;
+    text-shadow: 0 0 15px rgba(64, 224, 255, 0.8);
+    box-shadow:
+        0 10px 30px -10px rgba(0, 243, 255, 0.28),
+        inset 0 0 20px rgba(64, 224, 255, 0.15);
+}
+
+#electroniclab-content .electronic-submodule-btn:hover::before {
+    width: 100%;
+    height: 95%;
+    border-color: #fff;
+    opacity: 1;
+    box-shadow: -2px -2px 10px rgba(64, 224, 255, 0.5);
+}
+
+#electroniclab-content .electronic-submodule-btn:active {
+    transform: translateY(-50%) scale(0.98);
+}
+
+#electroniclab-content .electronic-submodule-btn.active {
+    background: rgba(64, 224, 255, 0.14);
+    border-color: rgba(64, 224, 255, 0.72);
+    color: #fff;
+    text-shadow: 0 0 15px rgba(64, 224, 255, 0.85);
+    box-shadow:
+        0 10px 30px -10px rgba(0, 243, 255, 0.24),
+        inset 0 0 22px rgba(64, 224, 255, 0.18);
+}
+
+#electroniclab-content .electronic-submodule-btn.active::after {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+#electroniclab-content .electronic-submodule-btn-label {
+    text-align: center;
+    color: #fff;
+    font-size: 1.02rem;
+    letter-spacing: 2px;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-shadow: 0 0 14px rgba(64, 224, 255, 0.55);
+}
+
+#electroniclab-content .electronic-submodule-nav {
+    pointer-events: auto;
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 20;
+}
+
+#electroniclab-content .electronic-submodule-nav .electronic-submodule-btn {
+    position: relative;
+    top: auto;
+    right: auto;
+    transform: none;
+    min-width: 148px;
+    height: 46px;
+    padding: 0 16px;
+    font-size: 0.92rem;
+    letter-spacing: 1px;
+}
+
+#electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+}
+
+#electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:active {
+    transform: scale(0.98);
+}
+
+#electroniclab-content .electronic-submodule-nav .electronic-submodule-btn::after {
+    right: 10px;
+    bottom: 4px;
+    font-size: 0.5rem;
+}
+
+/* ---- 子模块面板 ---- */
+#electroniclab-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100%;
+}
+
+#electroniclab-content .electronic-submodule-stack {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+#electroniclab-content .electronic-submodule {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+}
+
+#electroniclab-content .electronic-submodule.active {
+    display: flex;
+}
+
+#electroniclab-content .electronic-submodule .engine-viewport {
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+}
+
+#electroniclab-content .pcb-engine-viewport {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+#electroniclab-content #circuit-frame,
+#electroniclab-content #pcb-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/* ---- 手机/窄屏：收起大标题，子模块按钮悬浮在 iframe 右下角 ---- */
+@media (max-width: 900px) {
+    #electroniclab-content {
+        padding-top: 72px;
+        padding-left: 0;
+        padding-right: 0;
+        padding-bottom: 0;
+    }
+
+    #electroniclab-content .electronic-module-header {
+        flex-direction: row;
+        height: 0;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+    }
+
+    #electroniclab-content .electronic-module-header .neon-title {
+        display: none;
+    }
+
+    #electroniclab-content .electronic-submodule-nav {
+        position: fixed;
+        left: auto;
+        right: calc(env(safe-area-inset-right, 0px) + 8px);
+        top: auto;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+        transform: none;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        width: auto;
+        padding: 4px;
+        border: 1px solid rgba(64, 224, 255, 0.22);
+        border-radius: 12px;
+        background: linear-gradient(155deg, rgba(4, 22, 40, 0.78), rgba(2, 8, 18, 0.66));
+        box-shadow:
+            0 10px 26px rgba(0, 0, 0, 0.45),
+            inset 0 0 14px rgba(64, 224, 255, 0.06);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        z-index: 60;
+        pointer-events: none;
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn {
+        width: 76px;
+        height: 34px;
+        min-width: 0;
+        padding: 0 8px 0 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        clip-path: none;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.7rem;
+        letter-spacing: 0.3px;
+        line-height: 1;
+        transform: none;
+        transform-origin: center;
+        background: transparent;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        pointer-events: auto;
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn::before {
+        inset: auto;
+        top: 50%;
+        left: 4px;
+        width: 2px;
+        height: 12px;
+        border: 0;
+        border-radius: 2px;
+        background: rgba(64, 224, 255, 0.35);
+        opacity: 1;
+        transform: translateY(-50%);
+        box-shadow: none;
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn::after {
+        display: none;
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:hover {
+        transform: none;
+        border-color: rgba(64, 224, 255, 0.32);
+        background: rgba(64, 224, 255, 0.1);
+        color: #fff;
+        box-shadow: none;
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:hover::before {
+        width: 2px;
+        height: 14px;
+        border: 0;
+        background: rgba(64, 224, 255, 0.7);
+        box-shadow: 0 0 8px rgba(64, 224, 255, 0.6);
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn:active {
+        transform: scale(0.96);
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn.active {
+        transform: none;
+        border-color: rgba(64, 224, 255, 0.45);
+        background: linear-gradient(135deg, rgba(64, 224, 255, 0.22), rgba(64, 224, 255, 0.06));
+        color: #fff;
+        text-shadow: 0 0 12px rgba(64, 224, 255, 0.7);
+        box-shadow: inset 0 0 12px rgba(64, 224, 255, 0.16);
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn.active::before {
+        height: 16px;
+        background: #40e0ff;
+        box-shadow: 0 0 8px rgba(64, 224, 255, 0.9);
+    }
+
+    #electroniclab-content .electronic-submodule-nav .electronic-submodule-btn-label {
+        font-size: 0.7rem;
+        line-height: 1.05;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        word-break: keep-all;
+        text-shadow: inherit;
+    }
+
+    #electroniclab-content .loading-mask {
+        padding: 0 18px;
+        font-size: 0.78rem;
+        letter-spacing: 0.5px;
+        text-align: center;
+    }
+
+    #electroniclab-content .loading-mask i {
+        font-size: 1.4rem;
+    }
+}
+
+/* 横屏矮视口：右侧一列全是 CircuitJS 控件，切换按钮改停在顶部留白区 */
+@media (max-width: 900px) and (max-height: 480px) {
+    #electroniclab-content .electronic-submodule-nav {
+        top: calc(env(safe-area-inset-top, 0px) + 10px);
+        bottom: auto;
+        flex-direction: row;
+        align-items: center;
+    }
+}

@@ -1,0 +1,93 @@
+#jianmoshiyanshi-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  overflow: auto;
+  background: #030609;
+}
+
+#jianmoshiyanshi-content {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 54% 18%, rgba(64, 224, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 86% 82%, rgba(0, 255, 136, 0.08), transparent 28%),
+    rgba(3, 6, 10, 0.92);
+}
+
+.modelinglab-shell {
+  box-sizing: border-box;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(142, 231, 255, 0.16);
+  border-bottom: 1px solid rgba(142, 231, 255, 0.16);
+  border-radius: 0;
+  background: linear-gradient(145deg, rgba(6, 9, 13, 0.96), rgba(18, 24, 30, 0.88));
+  box-shadow: 0 0 36px rgba(64, 224, 255, 0.12), inset 0 0 28px rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+}
+
+.modelinglab-header {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  margin: 0;
+  border-bottom: 1px solid rgba(142, 231, 255, 0.14);
+  background: rgba(4, 10, 18, 0.72);
+  /*
+   * 全局 .module-header 是纯装饰标题块，带 pointer-events: none（见 0_zhuyeyangshi.css）。
+   * 建模实验室的标题栏里放了页签按钮，必须把指针事件收回来，否则页签只能靠脚本点击。
+   */
+  pointer-events: auto;
+}
+
+.modelinglab-header .neon-title {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.2vw, 2rem);
+}
+
+.modelinglab-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.modelinglab-tab {
+  flex: 0 0 auto;
+  min-width: 112px;
+  padding: 0.5rem 1rem;
+  font-family: inherit;
+  letter-spacing: 1px;
+}
+
+.modelinglab-tab.active {
+  color: #ffffff;
+  border-color: var(--secondary-clr);
+  text-shadow: 0 0 4px #ffffff;
+  box-shadow: 0 0 12px var(--glow-clr), inset 0 0 8px var(--glow-clr);
+}
+
+.modelinglab-editor {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.modelinglab-editor-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
