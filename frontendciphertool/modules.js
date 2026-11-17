@@ -366,8 +366,8 @@ const MODULES = {
                         <div id="agent-performance-monitor" class="performance-monitor" aria-live="polite"></div>
                     </div>
                     <div class="input-actions">
-                        <button id="modeling-mode-toggle" class="cyber-button image-mode-toggle" title="建模模式" type="button">
-                            <span class="cyber-button__tag">建模模式</span>
+                        <button id="video-mode-toggle" class="cyber-button image-mode-toggle" title="视频创作：用 Muse 最高级视频模型生成带音频的短视频" type="button">
+                            <span class="cyber-button__tag">视频创作</span>
                         </button>
                         <button id="image-mode-toggle" class="cyber-button image-mode-toggle" title="作图模式：自动接续本会话中的上一张图，可用「换个主题」重新开始" type="button">
                             <span class="cyber-button__tag">作图模式</span>
@@ -628,6 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/contracts/AgentContract.js',
             './model/DeepSeekClient.js',
             './model/ImageGenerationClient.js',
+            './model/VideoGenerationClient.js',
             './model/ToolRegistry.js',
             './model/ChatUI.js',
             './model/HistoryManager.js',
@@ -697,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261117-01';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261117-04';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');
@@ -772,19 +773,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id + '-container').innerHTML = MODULES[id]
     );
 
-    let activeModuleId = null;
-
     const showModule = id => {
-        activeModuleId = id;
-
-        // 脚本到位（后台预热或现拉）后再执行该区的初始化。
-        // 如果等待期间用户已经切到别的模块，就不再执行这次初始化，
-        // 避免知识图谱等重模块切走后仍在后台加载并阻塞其它模块。
+        // 脚本到位（后台预热或现拉）后再按原时机执行该区的初始化
         ensureGroup(id).then(() => {
-            if (activeModuleId !== id) return;
             const init = SWITCH_INITS[id];
             if (typeof init === 'function') init();
         });
+
+        // 性能优化：菜单切换时唤醒图谱或休眠
+        if (window.ZSTP) {
+            if (id === 'zhishitupu') {
+                window.ZSTP.resume();
+            } else {
+                window.ZSTP.pause();
+            }
+        }
 
         document.querySelectorAll('.container1 > div').forEach(e => e.style.display = 'none');
         const targetContainer = document.getElementById(id + '-container');
@@ -827,22 +830,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.menu-item').forEach(item =>
             item.classList[item.getAttribute('data-target') === id ? 'add' : 'remove']('active')
         );
-
-        // 性能优化：菜单切换时唤醒图谱或休眠。
-        // 图谱脚本已加载但渲染尚未完成时，ZSTP 只有检索接口、还没有 pause/resume；
-        // 直接调用会抛 TypeError 并中断本次模块切换，所以先确认方法存在再调用。
-        const zstp = window.ZSTP;
-        if (zstp) {
-            try {
-                if (id === 'zhishitupu') {
-                    if (typeof zstp.resume === 'function') zstp.resume();
-                } else if (typeof zstp.pause === 'function') {
-                    zstp.pause();
-                }
-            } catch (error) {
-                console.warn('[模块切换] 唤醒或休眠知识图谱失败:', error);
-            }
-        }
 
         // 知识图谱模块特殊处理：初始化交给 ensureGroup('zhishitupu') 在脚本到位后触发
         if (id === 'zhishitupu') {
