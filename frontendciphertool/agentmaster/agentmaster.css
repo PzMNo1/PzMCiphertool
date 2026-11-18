@@ -639,31 +639,31 @@
 }
 
 .agent-orb-radial {
-    --orb-radial-size: 64px;
-    --orb-radial-radius: 124px;
-    --orb-radial-hub: 66px;
+    --orb-radial-size: 54px;
+    --orb-radial-radius: 90px;
+    --orb-radial-hub: 58px;
     position: fixed;
     inset: 0;
     z-index: 12000;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    background: radial-gradient(circle at 50% 50%, rgba(5, 20, 32, .34) 0%, rgba(0, 4, 10, .72) 72%);
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
-    transition: opacity .16s ease, visibility 0s linear .16s;
+    background: radial-gradient(circle at 50% 50%, rgba(5, 20, 32, .3) 0%, rgba(0, 4, 10, .68) 72%);
+    -webkit-backdrop-filter: blur(2.5px);
+    backdrop-filter: blur(2.5px);
+    transition: opacity .1s ease, visibility 0s linear .1s;
 }
 
 .agent-orb-radial.is-open {
     opacity: 1;
     visibility: visible;
-    transition: opacity .16s ease, visibility 0s;
+    transition: opacity .1s ease, visibility 0s;
 }
 
 .agent-orb-radial__stage {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--orb-radial-x, 50%);
+    top: var(--orb-radial-y, 50%);
     width: 0;
     height: 0;
 }
@@ -675,9 +675,9 @@
     width: calc(var(--orb-radial-radius) * 2);
     height: calc(var(--orb-radial-radius) * 2);
     transform: translate(-50%, -50%);
-    border: 1px dashed rgba(64, 224, 255, .16);
+    border: 1px dashed rgba(64, 224, 255, .14);
     border-radius: 50%;
-    box-shadow: 0 0 60px rgba(12, 153, 134, .1), inset 0 0 60px rgba(12, 153, 134, .06);
+    box-shadow: 0 0 40px rgba(12, 153, 134, .08), inset 0 0 40px rgba(12, 153, 134, .05);
 }
 
 .agent-orb-radial__hub {
@@ -686,7 +686,8 @@
     top: 0;
     width: var(--orb-radial-hub);
     height: var(--orb-radial-hub);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(.92);
+    opacity: .6;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -699,6 +700,12 @@
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     box-shadow: inset 0 0 15px rgba(64, 224, 255, .06), 0 0 16px rgba(12, 153, 134, .72), 0 0 32px rgba(12, 153, 134, .35);
+    transition: transform .1s ease, opacity .1s ease;
+}
+
+.agent-orb-radial.is-open .agent-orb-radial__hub {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
 }
 
 .agent-orb-radial__hub::before {
@@ -710,13 +717,9 @@
     animation: agentOrbRadialSpin 30s linear infinite;
 }
 
-.agent-orb-radial.is-open .agent-orb-radial__hub {
-    animation: agentOrbRadialHubIn .24s cubic-bezier(.2, 1.2, .3, 1) backwards;
-}
-
 .agent-orb-radial__hub-label {
     color: #ffb02e;
-    font-size: .76rem;
+    font-size: .7rem;
     font-weight: 800;
     letter-spacing: .02em;
     line-height: 1;
@@ -725,7 +728,7 @@
 
 .agent-orb-radial__hub-sub {
     color: rgba(160, 230, 255, .55);
-    font-size: .52rem;
+    font-size: .48rem;
     letter-spacing: .22em;
     line-height: 1;
     margin-top: 3px;
@@ -757,7 +760,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 7px 4px 12px;
+    padding: 5px 3px 10px;
     border: 1px solid rgba(64, 224, 255, .3);
     border-radius: 50%;
     background:
@@ -765,7 +768,7 @@
         rgba(4, 16, 26, .78);
     color: rgba(236, 240, 241, .82);
     font-family: 'Orbitron', 'Segoe UI', sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     line-height: 1.08;
     letter-spacing: 0;
@@ -773,19 +776,19 @@
     text-transform: none;
     cursor: pointer;
     opacity: 0;
-    transform: scale(.55);
+    transform: scale(.8);
     overflow: hidden;
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     box-shadow: inset 0 0 18px rgba(64, 224, 255, .1), 0 6px 18px rgba(0, 0, 0, .35);
-    transition: opacity .16s ease, transform .24s cubic-bezier(.2, 1.2, .3, 1), border-color .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+    transition: opacity .1s ease, transform .12s cubic-bezier(.2, 1, .3, 1), border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
     -webkit-tap-highlight-color: transparent;
 }
 
 .agent-orb-radial__item::before {
     content: '';
     position: absolute;
-    inset: 5px;
+    inset: 4px;
     border: 1px solid rgba(64, 224, 255, .2);
     border-radius: 50%;
     opacity: .45;
@@ -796,13 +799,13 @@
     content: '';
     position: absolute;
     left: 50%;
-    bottom: 6px;
-    width: 5px;
-    height: 5px;
-    margin-left: -2.5px;
+    bottom: 5px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
     border-radius: 50%;
     background: rgba(64, 224, 255, .35);
-    transition: background .2s ease, box-shadow .2s ease;
+    transition: background .15s ease, box-shadow .15s ease;
 }
 
 .agent-orb-radial__label {
@@ -814,12 +817,10 @@
 .agent-orb-radial.is-open .agent-orb-radial__item {
     opacity: 1;
     transform: scale(1);
-    animation: agentOrbRadialItemIn .26s cubic-bezier(.2, 1.2, .3, 1) backwards;
-    animation-delay: calc(var(--orb-index) * 18ms);
 }
 
 .agent-orb-radial.is-open .agent-orb-radial__item.is-selected {
-    transform: scale(1.14);
+    transform: scale(1.08);
     border-color: rgba(64, 224, 255, .85);
     background:
         linear-gradient(135deg, rgba(64, 224, 255, .3) 0%, rgba(120, 200, 255, .16) 50%, rgba(180, 140, 255, .22) 100%),
@@ -842,20 +843,25 @@
 .agent-orb-radial__hint {
     position: absolute;
     left: 0;
-    top: calc(var(--orb-radial-radius) + var(--orb-radial-size) / 2 + 26px);
+    top: calc(var(--orb-radial-radius) + var(--orb-radial-size) / 2 + 22px);
     transform: translateX(-50%);
     margin: 0;
-    padding: .45rem .8rem;
+    padding: .4rem .75rem;
     border: 1px solid rgba(64, 224, 255, .16);
     border-radius: 999px;
     background: rgba(3, 14, 24, .72);
     color: rgba(190, 230, 250, .82);
-    font-size: .68rem;
+    font-size: .66rem;
     letter-spacing: .03em;
     white-space: nowrap;
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     box-shadow: inset 0 0 12px rgba(64, 224, 255, .05);
+}
+
+.agent-orb-radial--hint-above .agent-orb-radial__hint {
+    top: auto;
+    bottom: calc(var(--orb-radial-radius) + var(--orb-radial-size) / 2 + 22px);
 }
 
 @keyframes agentOrbRadialSpin {
@@ -864,51 +870,31 @@
     }
 }
 
-@keyframes agentOrbRadialHubIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(.6);
-    }
-
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-@keyframes agentOrbRadialItemIn {
-    from {
-        opacity: 0;
-        transform: scale(.4);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
 @media (max-width: 430px) {
     .agent-orb-radial {
-        --orb-radial-size: 60px;
-        --orb-radial-radius: 108px;
-        --orb-radial-hub: 60px;
+        --orb-radial-size: 50px;
+        --orb-radial-radius: 82px;
+        --orb-radial-hub: 54px;
     }
 
     .agent-orb-radial__item {
-        font-size: 9.5px;
+        font-size: 8.2px;
     }
 
     .agent-orb-radial__hint {
-        font-size: .64rem;
+        font-size: .62rem;
     }
 }
 
 @media (max-height: 600px) {
     .agent-orb-radial {
-        --orb-radial-size: 50px;
-        --orb-radial-radius: 88px;
-        --orb-radial-hub: 52px;
+        --orb-radial-size: 46px;
+        --orb-radial-radius: 76px;
+        --orb-radial-hub: 50px;
+    }
+
+    .agent-orb-radial__item {
+        font-size: 7.5px;
     }
 
     .agent-orb-radial__hint {
