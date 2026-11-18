@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let orbRadialSelectedTarget = '';
     let orbRadialItems = [];
     let orbRadialCancelPress = null;
-    const ORB_LONG_PRESS_MS = 450;
+    const ORB_LONG_PRESS_MS = 400;
     const ORB_LONG_PRESS_TOLERANCE = 6;
     const ORB_RADIAL_ARM_DISTANCE = 14;
     const ORB_MODULES = [
@@ -3233,7 +3233,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const slot = document.createElement('div');
             slot.className = 'agent-orb-radial__slot';
             slot.style.setProperty('--orb-angle', `${-90 + index * 40}deg`);
-            slot.style.setProperty('--orb-index', String(index));
             const item = document.createElement('button');
             item.type = 'button';
             item.className = 'agent-orb-radial__item';
@@ -3253,9 +3252,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return overlay;
     }
 
+    function positionOrbRadialMenu(overlay) {
+        const style = getComputedStyle(overlay);
+        const radius = parseFloat(style.getPropertyValue('--orb-radial-radius')) || 82;
+        const size = parseFloat(style.getPropertyValue('--orb-radial-size')) || 52;
+        const pad = 10;
+        const extent = radius + size / 2 + pad;
+        const rect = orb.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const middleX = window.innerWidth / 2;
+        const middleY = window.innerHeight / 2;
+        const minX = Math.min(extent, middleX);
+        const maxX = Math.max(window.innerWidth - extent, middleX);
+        const minY = Math.min(extent, middleY);
+        const maxY = Math.max(window.innerHeight - extent, middleY);
+        const x = Math.min(Math.max(centerX, minX), maxX);
+        const y = Math.min(Math.max(centerY, minY), maxY);
+        overlay.style.setProperty('--orb-radial-x', `${Math.round(x)}px`);
+        overlay.style.setProperty('--orb-radial-y', `${Math.round(y)}px`);
+        // The orb is usually docked near the bottom edge; put the hint above the ring then.
+        const roomBelow = window.innerHeight - (y + radius + size / 2 + 48);
+        overlay.classList.toggle('agent-orb-radial--hint-above', roomBelow < 0);
+    }
+
     function openOrbRadialMenu() {
         const overlay = createOrbRadialMenu();
         if (!overlay) return;
+        positionOrbRadialMenu(overlay);
         orbRadialOpen = true;
         orbRadialSelectedTarget = '';
         orbRadialItems.forEach(item => {
