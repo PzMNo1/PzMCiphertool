@@ -1,11 +1,8 @@
 name: Deploy GitHub Pages
 
+# Manual deployment: publish the current frontendciphertool on demand.
+# Run it with workflow_dispatch, e.g. `gh workflow run pages.yml --ref main`.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "frontendciphertool/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
