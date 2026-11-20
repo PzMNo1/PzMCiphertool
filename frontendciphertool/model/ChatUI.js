@@ -2421,7 +2421,8 @@ class ChatUI {
             container.contentDiv.appendChild(document.createTextNode(' '));
             const rechargeLink = document.createElement('a');
             rechargeLink.className = 'agent-recharge-inline-link';
-            rechargeLink.href = './model/recharge.html';
+            rechargeLink.href = './index.html#damoxing';
+            rechargeLink.dataset.agentRecharge = '1';
             rechargeLink.target = '_blank';
             rechargeLink.rel = 'noopener';
             rechargeLink.textContent = '去充值';
@@ -2683,21 +2684,24 @@ class ChatUI {
         const historyList = document.getElementById('chat-history-list');
         if (!historyList) return;
 
+        const renderToken = (this._historyRenderToken || 0) + 1;
+        this._historyRenderToken = renderToken;
         historyList.innerHTML = '';
 
-        sortedHistory.forEach(chat => {
+        const items = Array.isArray(sortedHistory) ? sortedHistory : [];
+        if (!items.length) return;
+
+        const buildItem = chat => {
             const chatItem = document.createElement('div');
             chatItem.className = 'history-item';
             if (chat.id === currentChatId) {
                 chatItem.classList.add('active');
             }
-
             chatItem.innerHTML = `
-                <div class="history-title">${chat.title}</div>
-                <div class="history-time">${window.historyManager.formatDate(chat.timestamp)}</div>
-                <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
+                <div class="history-title">${this.escapeHtml(chat.title || '未命名对话')}</div>
+                <div class="history-time">${this.escapeHtml(window.historyManager.formatDate(chat.timestamp))}</div>
+                <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${this.escapeHtml(chat.id)}"></div>
             `;
-
             const checkbox = chatItem.querySelector('.history-checkbox');
             if (checkbox) {
                 checkbox.checked = selectedChatIds.has(chat.id);
@@ -2708,14 +2712,34 @@ class ChatUI {
                     }
                 });
             }
-
             chatItem.addEventListener('click', (e) => {
                 if (e.target.classList.contains('history-checkbox')) return;
                 onSelect(chat.id);
             });
+            return chatItem;
+        };
 
-            historyList.appendChild(chatItem);
-        });
+        // 历史很多时不要一次性同步插入全部节点：首屏先给前 30 条，其余分帧追加，
+        // 让侧边栏逐步出现而不是卡住后突然全部显示。
+        const chunkSize = 30;
+        let cursor = 0;
+        const renderChunk = () => {
+            if (this._historyRenderToken !== renderToken) return;
+            const fragment = document.createDocumentFragment();
+            const end = Math.min(cursor + chunkSize, items.length);
+            for (; cursor < end; cursor += 1) {
+                fragment.appendChild(buildItem(items[cursor]));
+            }
+            historyList.appendChild(fragment);
+            if (cursor < items.length) {
+                if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(renderChunk);
+                } else {
+                    window.setTimeout(renderChunk, 0);
+                }
+            }
+        };
+        renderChunk();
     }
 
     /**

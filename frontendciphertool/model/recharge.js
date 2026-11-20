@@ -14,6 +14,8 @@
         REFUNDED: '已退款'
     };
 
+    const ADMIN_MODE = new URLSearchParams(window.location.search).get('admin') === '1';
+
     const state = {
         plans: [],
         summary: null,
@@ -29,6 +31,14 @@
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
+        if (ADMIN_MODE) {
+            document.body.classList.add('agent-recharge-admin-mode');
+            document.title = '充值订单审核 - 泡面的Agent工具箱';
+            const title = document.querySelector('.agent-recharge-title');
+            if (title) title.textContent = '充值订单审核';
+            const subtitle = document.querySelector('.agent-recharge-subtitle');
+            if (subtitle) subtitle.textContent = '确认收款后点击“确认到账”';
+        }
         bindLogin();
         bindPayMethods();
         bindDelegatedActions();

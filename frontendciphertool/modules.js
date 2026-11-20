@@ -401,7 +401,7 @@ const MODULES = {
                     <input type="text" id="history-search" placeholder="搜索对话...">
                 </div>
 
-                <div class="agent-usage-line">本账号剩余使用次数：<span id="agent-usage-count">登录后启用</span><a class="agent-recharge-link" href="./model/recharge.html" target="_blank" rel="noopener">充值</a></div>
+                <div class="agent-usage-line">本账号剩余使用次数：<span id="agent-usage-count">登录后启用</span><button class="agent-login-inline" type="button" data-agent-login hidden>登录</button><a class="agent-recharge-link" href="./model/recharge.html" data-agent-recharge hidden>充值</a></div>
 
                 <div id="chat-history-list">
                     <!-- 历史对话会动态添加到这里 -->
@@ -652,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentPluginPanel.js',
             './model/agent/AgentReportPdf.js',
             './model/AgentRuntime.js',
+            './model/RechargeModal.js',
             './model/main.js',
         ],
     };
@@ -698,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261120-02';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261120-04';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

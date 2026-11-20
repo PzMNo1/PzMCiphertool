@@ -4557,3 +4557,407 @@ pre.markdown-code-block[data-mermaid-state="error"] {
 .recharge-payment-qr-static span {
   color: rgba(228, 255, 240, 0.7);
 }
+
+/* ===== Agent 充值弹窗（只放两档套餐，额度继续看右侧栏） ===== */
+body.agent-recharge-modal-open {
+  overflow: hidden;
+}
+
+.agent-login-inline {
+  margin-left: auto;
+  padding: 0.18rem 0.6rem;
+  border: 1px solid rgba(46, 204, 113, 0.55);
+  border-radius: 6px;
+  background: rgba(46, 204, 113, 0.12);
+  color: #6ef7a8;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.agent-login-inline:hover {
+  background: rgba(46, 204, 113, 0.22);
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.35);
+  color: #b9ffd8;
+}
+
+.agent-login-inline[hidden],
+.agent-recharge-link[hidden] {
+  display: none !important;
+}
+
+.agent-recharge-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.agent-recharge-modal[hidden] {
+  display: none !important;
+}
+
+.agent-recharge-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(3px);
+}
+
+.agent-recharge-modal__panel.result {
+  position: relative;
+  width: min(820px, 100%);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  padding: 1.2rem 1.3rem 0.9rem;
+  white-space: normal;
+  min-height: 0;
+  border-radius: 14px;
+  border-color: rgba(46, 204, 113, 0.4);
+  background: rgba(2, 18, 32, 0.62);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 5px 0 15px rgba(12, 153, 134, 0.72), 0 0 0 1px rgba(46, 204, 113, 0.24), 0 0 26px rgba(46, 204, 113, 0.26), inset 0 0 20px rgba(64, 224, 255, 0.05);
+}
+
+.agent-recharge-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.agent-recharge-modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  color: #eafff5;
+}
+
+.agent-recharge-modal__subtitle {
+  margin-top: 0.2rem;
+  color: rgba(228, 255, 240, 0.6);
+  font-size: 0.75rem;
+}
+
+.agent-recharge-modal__close {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(64, 224, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(0, 20, 40, 0.5);
+  color: rgba(228, 255, 240, 0.8);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.agent-recharge-modal__close:hover {
+  border-color: rgba(46, 204, 113, 0.6);
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.35);
+  color: #fff;
+}
+
+.agent-recharge-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.agent-recharge-plan.result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  white-space: normal;
+  min-height: 0;
+  padding: 1rem 1.1rem;
+  border-color: rgba(46, 204, 113, 0.3);
+  background: rgba(0, 26, 44, 0.34);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.agent-recharge-plan__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.agent-recharge-plan__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #eafff5;
+}
+
+.agent-recharge-plan__badge {
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  border-radius: 999px;
+  padding: 0.08rem 0.55rem;
+  color: #6ef7a8;
+  background: rgba(46, 204, 113, 0.12);
+  font-size: 0.66rem;
+}
+
+.agent-recharge-plan__price {
+  color: #6ef7a8;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(46, 204, 113, 0.3);
+}
+
+.agent-recharge-plan__price span {
+  font-size: 1rem;
+  margin-right: 0.1rem;
+  vertical-align: 0.55rem;
+}
+
+.agent-recharge-plan__desc {
+  color: rgba(228, 255, 240, 0.58);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.agent-recharge-plan__items {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.1rem 0 0.3rem;
+}
+
+.agent-recharge-plan__items li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  padding: 0.45rem 0.25rem;
+  border: 1px solid rgba(64, 224, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 20, 40, 0.4);
+  text-align: center;
+}
+
+.agent-recharge-plan__items strong {
+  color: #40e0ff;
+  font-size: 1.05rem;
+}
+
+.agent-recharge-plan__items span {
+  color: rgba(228, 255, 240, 0.58);
+  font-size: 0.66rem;
+}
+
+.agent-recharge-plan__buy {
+  margin-top: auto;
+  width: 100%;
+}
+
+.agent-recharge-payment.result {
+  white-space: normal;
+  min-height: 0;
+  padding: 1rem 1.1rem;
+  border-color: rgba(46, 204, 113, 0.32);
+  background: rgba(0, 26, 44, 0.4);
+}
+
+.agent-recharge-payment__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.agent-recharge-payment__plan {
+  color: #eafff5;
+  font-weight: 700;
+}
+
+.agent-recharge-payment__meta {
+  margin-top: 0.15rem;
+  color: rgba(228, 255, 240, 0.5);
+  font-size: 0.7rem;
+  word-break: break-all;
+}
+
+.agent-recharge-payment__amount {
+  margin: 0.55rem 0 0.15rem;
+  color: #6ef7a8;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.agent-recharge-payment__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.agent-recharge-payment__instructions {
+  flex: 1 1 300px;
+  color: rgba(228, 255, 240, 0.78);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.agent-recharge-payment__countdown strong {
+  color: #ffd166;
+}
+
+.agent-recharge-payment__hint {
+  color: #ffd166;
+}
+
+.agent-recharge-payment__success {
+  color: #6ef7a8;
+}
+
+.agent-recharge-payment__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.agent-recharge-payment__qr img {
+  width: 180px;
+  height: auto;
+  max-width: 100%;
+  display: block;
+  border-radius: 8px;
+}
+
+.agent-recharge-payment__qr span {
+  color: #1a2334;
+  font-size: 0.68rem;
+}
+
+.agent-recharge-payment__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.agent-recharge-muted {
+  opacity: 0.78;
+}
+
+.agent-recharge-status {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.14rem 0.58rem;
+  font-size: 0.68rem;
+  border: 1px solid rgba(142, 231, 255, 0.35);
+  color: #8ef0ff;
+  background: rgba(64, 224, 255, 0.08);
+}
+
+.agent-recharge-status--paid {
+  border-color: rgba(46, 204, 113, 0.45);
+  color: #6ef7a8;
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.agent-recharge-status--pending {
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.4);
+  background: rgba(255, 209, 102, 0.08);
+}
+
+.agent-recharge-status--payment_review {
+  color: #c39bff;
+  border-color: rgba(155, 89, 182, 0.5);
+  background: rgba(155, 89, 182, 0.12);
+}
+
+.agent-recharge-status--cancelled {
+  color: rgba(228, 255, 240, 0.5);
+  border-color: rgba(228, 255, 240, 0.2);
+  background: rgba(228, 255, 240, 0.04);
+}
+
+.agent-recharge-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+  color: rgba(228, 255, 240, 0.5);
+  font-size: 0.7rem;
+}
+
+.agent-recharge-admin-link {
+  color: rgba(142, 231, 255, 0.8);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.agent-recharge-admin-link:hover {
+  color: #8ef0ff;
+}
+
+.agent-recharge-modal__loading,
+.agent-recharge-modal__error {
+  white-space: normal;
+  color: rgba(228, 255, 240, 0.7);
+  font-size: 0.8rem;
+  padding: 0.8rem 0.2rem;
+}
+
+.agent-recharge-modal__error {
+  color: #ff7b9c;
+}
+
+/* 独立充值页的审核模式：只保留订单审核区 */
+.agent-recharge-page.agent-recharge-admin-mode .recharge-account,
+.agent-recharge-page.agent-recharge-admin-mode .recharge-plans-section,
+.agent-recharge-page.agent-recharge-admin-mode .recharge-payment-section,
+.agent-recharge-page.agent-recharge-admin-mode .recharge-orders-section {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .agent-recharge-modal {
+    padding: 0.6rem;
+  }
+
+  .agent-recharge-modal__panel.result {
+    max-height: 92vh;
+    padding: 1rem;
+  }
+
+  .agent-recharge-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-recharge-plan__items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ===== 历史列表加载占位 ===== */
+.history-loading {
+  padding: 14px 12px;
+  color: rgba(142, 231, 255, 0.5);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
