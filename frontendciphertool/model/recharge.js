@@ -429,6 +429,7 @@
                 toast('订单不存在');
             }
             renderOrders();
+            await loadAdminOrders();
         } catch (error) {
             toast(error.message || '刷新失败');
         }
@@ -442,6 +443,8 @@
         } catch (error) {
             // 支付页已经创建成功，订单列表刷新失败不阻塞支付流程。
         }
+        // 审核人下单/提交审核后，审核区也要立即看到这笔订单，不必刷新整页。
+        await loadAdminOrders();
     }
 
     function renderOrders() {
