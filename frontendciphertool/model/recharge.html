@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Agent 充值中心 - 泡面的Agent工具箱</title>
+    <link rel="stylesheet" href="../0_zhuyeyangshi.css?v=20261120-01">
+    <link rel="stylesheet" href="./2_damoxing.css?v=20261120-01">
+    <link rel="stylesheet" href="../loginsystem/auth.css?v=20261120-01">
+</head>
+
+<body class="agent-recharge-page">
+    <main class="agent-recharge-shell">
+        <header class="agent-recharge-header">
+            <a class="agent-recharge-back" href="../index.html#damoxing">← 返回 Agent</a>
+            <h1 class="agent-recharge-title">Agent 充值中心</h1>
+            <p class="agent-recharge-subtitle">研报 Agent、图片生成、视频生成额度，购买后长期有效</p>
+        </header>
+
+        <section id="recharge-login-tip" class="result recharge-login-tip" hidden>
+            <h2>登录后查看额度并充值</h2>
+            <p>充值额度会绑定到当前账号；未登录时只能使用每日免费次数。</p>
+            <button class="cyber-button" id="recharge-login-btn" type="button">
+                <span class="cyber-button__tag">登录 / 注册</span>
+            </button>
+        </section>
+
+        <section id="recharge-account" class="recharge-account" hidden>
+            <article class="result recharge-balance-card">
+                <div class="recharge-balance-label">研报 Agent</div>
+                <div class="recharge-balance-value"><span id="recharge-agent-total">0</span> 次</div>
+                <div class="recharge-balance-detail" id="recharge-agent-detail">每日免费 0 次</div>
+            </article>
+            <article class="result recharge-balance-card">
+                <div class="recharge-balance-label">图片生成</div>
+                <div class="recharge-balance-value"><span id="recharge-image-total">0</span> 次</div>
+                <div class="recharge-balance-detail" id="recharge-image-detail">每日免费 0 次</div>
+            </article>
+            <article class="result recharge-balance-card">
+                <div class="recharge-balance-label">视频生成</div>
+                <div class="recharge-balance-value"><span id="recharge-video-total">0</span> 次</div>
+                <div class="recharge-balance-detail" id="recharge-video-detail">每日免费 0 次</div>
+            </article>
+            <p class="recharge-account-note">每日免费额度在次日 00:00 重置；已购额度长期有效，免费额度用完后自动扣减。</p>
+        </section>
+
+        <section class="recharge-plans-section">
+            <div class="recharge-section-head">
+                <h2>选择充值套餐</h2>
+                <div class="recharge-pay-methods" role="group" aria-label="支付方式">
+                    <button class="recharge-pay-method active" type="button" data-pay-method="wechat">微信支付</button>
+                    <button class="recharge-pay-method" type="button" data-pay-method="alipay">支付宝</button>
+                </div>
+            </div>
+            <div id="recharge-plans" class="recharge-plan-grid" aria-live="polite">
+                <article class="result recharge-plan recharge-plan-loading">正在加载套餐…</article>
+            </div>
+        </section>
+
+        <section id="recharge-payment-section" class="recharge-payment-section" hidden>
+            <h2>完成支付</h2>
+            <div id="recharge-payment" class="recharge-payment"></div>
+        </section>
+
+        <section id="recharge-orders-section" class="recharge-orders-section" hidden>
+            <h2>我的充值订单</h2>
+            <div id="recharge-orders" class="recharge-orders"></div>
+        </section>
+
+        <section id="recharge-admin-section" class="recharge-admin-section" hidden>
+            <h2>充值订单审核</h2>
+            <p class="recharge-admin-tip">确认收到款项后点击“确认到账”，额度会立即计入用户账号。</p>
+            <div id="recharge-admin-orders" class="recharge-orders"></div>
+        </section>
+    </main>
+
+    <div id="recharge-toast" class="recharge-toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="../backendconfig.js?v=20261120-01"></script>
+    <script src="../loginsystem/auth.js?v=20261120-01"></script>
+    <script src="./recharge.js?v=20261120-01"></script>
+</body>
+
+</html>

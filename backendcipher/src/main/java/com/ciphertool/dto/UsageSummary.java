@@ -15,4 +15,8 @@ public class UsageSummary {
     private UsageStatus agent;
 
     private UsageStatus agentmaster;
+
+    private UsageStatus image;
+
+    private UsageStatus video;
 }

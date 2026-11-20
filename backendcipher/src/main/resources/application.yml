@@ -75,6 +75,10 @@ usage:
     daily-limit: ${USAGE_AGENT_DAILY_LIMIT:3}
   agentmaster:
     daily-limit: ${USAGE_AGENTMASTER_DAILY_LIMIT:10}
+  image:
+    daily-limit: ${USAGE_IMAGE_DAILY_LIMIT:3}
+  video:
+    daily-limit: ${USAGE_VIDEO_DAILY_LIMIT:1}
 
 feedback:
   author-account: ${FEEDBACK_AUTHOR_ACCOUNT:}

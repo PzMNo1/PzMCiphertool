@@ -11,6 +11,7 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
 - DeepSeekClient.js → DeepSeek 模型客户端
 - HistoryManager.js → 对话历史管理
 - ImageGenerationClient.js → 图像生成客户端
+- recharge.html / recharge.js → Agent 充值页（套餐、支付、订单、管理员审核）
 - ToolRegistry.js → 工具注册表
 - contracts/ → 协议接口定义
   - AgentContract.java → Agent 协议
@@ -54,10 +55,15 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
 - `ToolRegistry` → 工具注册表
 - `AgentContextManager` → 上下文管理
 
-## 每日用量
-- Agent 每天 3 次、Agentmaster 每天 10 次，后端 `UsageQuotaService` 按账号计数（未登录按 IP），开发者账号与作者手机号免限
+## 每日用量与充值额度
+- Agent 每天 3 次、Agentmaster 每天 10 次、图片每天 3 次、视频每天 1 次，后端 `UsageQuotaService` 按账号计数（未登录按 IP），开发者账号与作者手机号免限
 - 同一条用户消息内的多次模型调用共用一个 `X-Agent-Turn`，只扣 1 次
-- 侧边栏“本账号剩余使用次数”来自 `GET /api/usage/summary`
+- 每日免费次数用完后，自动扣减数据库里的已购额度；已购额度长期有效
+- 侧边栏“本账号剩余使用次数”来自 `GET /api/usage/summary`，显示“今日剩余 + 已购”
+- 侧边栏和额度提示里的“充值”进入 `model/recharge.html`；充值页复用 `0_zhuyeyangshi.css` 的 `.result`
+- 套餐固定为 9.9 元（3 Agent + 100 图 + 20 视频）与 19.9 元（8 Agent + 250 图 + 50 视频），由后端 `AgentRechargeService` 定义
+- 支付复用 API 中转站的收银台模板与回调签名；未配置收银台时走“用户提交已付款、支付审核人确认到账”
+- 图片/视频生成请求需要带 `Authorization`，客户端由 `ImageGenerationClient` / `VideoGenerationClient` 自动附加
 
 ## 绝对禁止
 - 修改 contracts/ 中的协议定义（已稳定）

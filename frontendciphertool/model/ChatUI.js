@@ -2411,7 +2411,22 @@ class ChatUI {
             this.hideEmptyReasoning(container);
         }
         this.setThoughtStatus(container, '运行出错', true);
-        container.contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${errorMessage}</span>`;
+        const message = String(errorMessage ?? '');
+        container.contentDiv.innerHTML = '';
+        const errorLine = document.createElement('span');
+        errorLine.style.color = '#ff0055';
+        errorLine.textContent = `[SYSTEM FAILURE]: ${message}`;
+        container.contentDiv.appendChild(errorLine);
+        if (/次数已用完|次数不足|请前往充值|额度不足/.test(message)) {
+            container.contentDiv.appendChild(document.createTextNode(' '));
+            const rechargeLink = document.createElement('a');
+            rechargeLink.className = 'agent-recharge-inline-link';
+            rechargeLink.href = './model/recharge.html';
+            rechargeLink.target = '_blank';
+            rechargeLink.rel = 'noopener';
+            rechargeLink.textContent = '去充值';
+            container.contentDiv.appendChild(rechargeLink);
+        }
     }
 
     /**

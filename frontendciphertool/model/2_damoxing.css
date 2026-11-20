@@ -3938,3 +3938,577 @@ pre.markdown-code-block[data-mermaid-state="error"] {
   color: rgba(190, 220, 235, 0.62);
   font-size: 0.68rem;
 }
+
+/* ===== Agent 充值入口与充值页面 ===== */
+.agent-recharge-link,
+.agent-recharge-inline-link {
+  color: #40e0ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.agent-recharge-link {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.agent-recharge-link:hover,
+.agent-recharge-inline-link:hover {
+  color: #8ef0ff;
+  text-shadow: 0 0 10px rgba(64, 224, 255, 0.75);
+}
+
+.agent-recharge-page {
+  padding: 0;
+  background-attachment: fixed;
+}
+
+.agent-recharge-page [hidden] {
+  display: none !important;
+}
+
+.agent-recharge-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.agent-recharge-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.agent-recharge-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.1rem;
+  color: rgba(142, 231, 255, 0.85);
+  font-size: 0.85rem;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(142, 231, 255, 0.45);
+  padding-bottom: 1px;
+}
+
+.agent-recharge-back:hover {
+  color: #8ef0ff;
+  border-bottom-color: #8ef0ff;
+}
+
+.agent-recharge-title {
+  position: static;
+  pointer-events: auto;
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  letter-spacing: 0.06em;
+  background: linear-gradient(90deg, #40e0ff, #6ef7a8, #9b59b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.agent-recharge-subtitle {
+  margin-top: 0.6rem;
+  color: rgba(228, 255, 240, 0.72);
+  font-size: 0.9rem;
+}
+
+.recharge-login-tip.result,
+.recharge-plan.result,
+.recharge-payment-card.result,
+.recharge-order-row.result,
+.recharge-order-empty.result {
+  white-space: normal;
+}
+
+.recharge-login-tip {
+  background: linear-gradient(155deg, rgba(0, 30, 50, 0.94), rgba(0, 12, 24, 0.95));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+
+.recharge-login-tip h2 {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.recharge-login-tip p {
+  color: rgba(228, 255, 240, 0.68);
+  font-size: 0.85rem;
+}
+
+.recharge-account {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.4rem 0 2.4rem;
+}
+
+.recharge-balance-card.result {
+  min-height: 0;
+  padding: 1.1rem 1.2rem;
+  border-color: rgba(64, 224, 255, 0.24);
+  background: linear-gradient(155deg, rgba(0, 34, 58, 0.94), rgba(0, 10, 22, 0.96));
+}
+
+.recharge-balance-label {
+  color: rgba(142, 231, 255, 0.72);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+}
+
+.recharge-balance-value {
+  margin-top: 0.35rem;
+  color: #6ef7a8;
+  font-size: 1.7rem;
+  font-weight: 800;
+  text-shadow: 0 0 14px rgba(46, 204, 113, 0.35);
+}
+
+.recharge-balance-value span {
+  font-size: 2rem;
+}
+
+.recharge-balance-detail {
+  margin-top: 0.35rem;
+  color: rgba(228, 255, 240, 0.6);
+  font-size: 0.74rem;
+}
+
+.recharge-account-note {
+  grid-column: 1 / -1;
+  color: rgba(228, 255, 240, 0.52);
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+.recharge-plans-section,
+.recharge-payment-section,
+.recharge-orders-section,
+.recharge-admin-section {
+  margin-top: 2.4rem;
+}
+
+.recharge-plans-section > h2,
+.recharge-payment-section > h2,
+.recharge-orders-section > h2,
+.recharge-admin-section > h2 {
+  font-size: 1.05rem;
+  color: var(--text);
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+}
+
+.recharge-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.recharge-section-head h2 {
+  font-size: 1.05rem;
+  color: var(--text);
+  letter-spacing: 0.08em;
+}
+
+.recharge-pay-methods {
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  border: 1px solid rgba(64, 224, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(0, 20, 40, 0.5);
+}
+
+.recharge-pay-method {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(228, 255, 240, 0.65);
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recharge-pay-method.active {
+  background: linear-gradient(120deg, rgba(46, 204, 113, 0.3), rgba(52, 152, 219, 0.3));
+  color: #eafff5;
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.28);
+}
+
+.recharge-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.recharge-plan.result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.5rem 1.5rem 1.3rem;
+  border: 1px solid rgba(64, 224, 255, 0.28);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(52, 152, 219, 0.3), transparent 42%),
+    linear-gradient(160deg, rgba(0, 28, 48, 0.96), rgba(0, 10, 22, 0.97));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 22px rgba(64, 224, 255, 0.06);
+}
+
+.recharge-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.recharge-plan-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  background: linear-gradient(90deg, #ffffff, #bfffe4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.recharge-plan-badge {
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  color: #6ef7a8;
+  background: rgba(46, 204, 113, 0.12);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.recharge-plan-price {
+  color: #6ef7a8;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 0 22px rgba(46, 204, 113, 0.35);
+}
+
+.recharge-plan-currency {
+  font-size: 1.2rem;
+  margin-right: 0.15rem;
+  vertical-align: 0.75rem;
+}
+
+.recharge-plan-desc {
+  color: rgba(228, 255, 240, 0.62);
+  font-size: 0.8rem;
+}
+
+.recharge-plan-items {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.recharge-plan-items li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.55rem 0.35rem;
+  border: 1px solid rgba(64, 224, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(0, 20, 40, 0.5);
+  text-align: center;
+}
+
+.recharge-plan-items strong {
+  color: #40e0ff;
+  font-size: 1.25rem;
+}
+
+.recharge-plan-items span {
+  color: rgba(228, 255, 240, 0.6);
+  font-size: 0.7rem;
+}
+
+.recharge-buy-btn {
+  margin-top: auto;
+  width: 100%;
+}
+
+.recharge-plan-loading,
+.recharge-plan-error {
+  grid-column: 1 / -1;
+  color: rgba(228, 255, 240, 0.68);
+  text-align: center;
+}
+
+.recharge-plan-error {
+  color: #ff7b9c;
+}
+
+.recharge-payment-card.result {
+  padding: 1.4rem;
+  border-color: rgba(46, 204, 113, 0.32);
+  background: linear-gradient(155deg, rgba(0, 30, 50, 0.96), rgba(0, 12, 24, 0.97));
+}
+
+.recharge-payment-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.recharge-payment-plan {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #eafff5;
+}
+
+.recharge-payment-meta {
+  margin-top: 0.2rem;
+  color: rgba(228, 255, 240, 0.5);
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.recharge-payment-amount {
+  margin: 0.8rem 0 0.2rem;
+  color: #6ef7a8;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.recharge-payment-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.recharge-payment-instructions {
+  flex: 1 1 320px;
+  color: rgba(228, 255, 240, 0.78);
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.recharge-payment-countdown strong {
+  color: #ffd166;
+}
+
+.recharge-payment-review-tip {
+  color: #ffd166;
+}
+
+.recharge-payment-paid-tip {
+  color: #6ef7a8;
+}
+
+.recharge-payment-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.recharge-payment-qr img {
+  width: 148px;
+  height: 148px;
+  object-fit: contain;
+  display: block;
+}
+
+.recharge-payment-qr span {
+  color: #1a2334;
+  font-size: 0.7rem;
+}
+
+.recharge-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+.recharge-checkout-link {
+  text-decoration: none;
+}
+
+.recharge-muted-btn {
+  opacity: 0.75;
+}
+
+.recharge-status {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.16rem 0.62rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(142, 231, 255, 0.35);
+  color: #8ef0ff;
+  background: rgba(64, 224, 255, 0.08);
+}
+
+.recharge-status-paid {
+  border-color: rgba(46, 204, 113, 0.45);
+  color: #6ef7a8;
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.recharge-status-pending {
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.4);
+  background: rgba(255, 209, 102, 0.08);
+}
+
+.recharge-status-payment_review {
+  color: #c39bff;
+  border-color: rgba(155, 89, 182, 0.5);
+  background: rgba(155, 89, 182, 0.12);
+}
+
+.recharge-status-cancelled {
+  color: rgba(228, 255, 240, 0.5);
+  border-color: rgba(228, 255, 240, 0.2);
+  background: rgba(228, 255, 240, 0.04);
+}
+
+.recharge-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.recharge-order-row.result {
+  background: linear-gradient(155deg, rgba(0, 24, 42, 0.95), rgba(0, 10, 20, 0.96));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  min-height: 0;
+  padding: 0.8rem 1rem;
+}
+
+.recharge-order-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.recharge-order-main strong {
+  color: #eafff5;
+  font-size: 0.88rem;
+}
+
+.recharge-order-main span {
+  color: rgba(228, 255, 240, 0.55);
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.recharge-order-action {
+  border: 1px solid rgba(64, 224, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(64, 224, 255, 0.08);
+  color: #8ef0ff;
+  padding: 0.32rem 0.85rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recharge-order-action:hover {
+  background: rgba(64, 224, 255, 0.18);
+  box-shadow: 0 0 12px rgba(64, 224, 255, 0.25);
+}
+
+.recharge-approve {
+  border-color: rgba(46, 204, 113, 0.45);
+  color: #6ef7a8;
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.recharge-admin-row {
+  border-color: rgba(155, 89, 182, 0.32);
+}
+
+.recharge-admin-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.recharge-admin-note {
+  color: #ffd166;
+}
+
+.recharge-admin-tip {
+  margin: -0.4rem 0 1rem;
+  color: rgba(228, 255, 240, 0.55);
+  font-size: 0.78rem;
+}
+
+.recharge-order-empty.result {
+  background: rgba(0, 20, 36, 0.94);
+  min-height: 0;
+  padding: 0.9rem 1rem;
+  color: rgba(228, 255, 240, 0.5);
+  font-size: 0.8rem;
+}
+
+.recharge-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  max-width: min(92vw, 520px);
+  padding: 0.65rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(64, 224, 255, 0.35);
+  background: rgba(4, 20, 34, 0.94);
+  color: #dffcff;
+  font-size: 0.82rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  z-index: 3000;
+}
+
+@media (max-width: 760px) {
+  .recharge-account,
+  .recharge-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recharge-plan-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .recharge-payment-head,
+  .recharge-order-row.result {
+    align-items: flex-start;
+  }
+
+  .agent-recharge-shell {
+    padding: 1.5rem 0.9rem 3rem;
+  }
+}

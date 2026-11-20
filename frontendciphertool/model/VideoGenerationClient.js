@@ -22,6 +22,14 @@
         return 'http://127.0.0.1:8080';
     }
 
+    function resolveAuthHeaders() {
+        try {
+            return window.CipherAuth?.getAuthHeaders?.() || {};
+        } catch (error) {
+            return {};
+        }
+    }
+
     function resolveVideoConfig(options = {}) {
         const videoConfig = window.VIDEO_GENERATION_CONFIG || {};
         const readLocal = key => {
@@ -165,7 +173,7 @@
             emitProgress(options, 'submitting');
             const submitResponse = await fetch(config.url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...resolveAuthHeaders() },
                 body: JSON.stringify({
                     prompt,
                     aspectRatio: options.aspectRatio || config.aspectRatio

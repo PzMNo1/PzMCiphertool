@@ -4,6 +4,7 @@ import com.ciphertool.dto.ApiResponse;
 import com.ciphertool.service.ApiRouterService;
 import com.ciphertool.service.AuthService;
 import com.ciphertool.service.ImageGenerationException;
+import com.ciphertool.service.UsageQuotaService;
 import com.ciphertool.service.VideoGenerationException;
 import com.ciphertool.service.WorldModelException;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Bad request: {}", e.getMessage());
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(UsageQuotaService.UsageLimitException.class)
+    @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)
+    public ApiResponse<Void> handleUsageLimitException(UsageQuotaService.UsageLimitException e) {
+        log.info("Usage limit reached: {}", e.getMessage());
         return ApiResponse.error(e.getMessage());
     }
 

@@ -809,7 +809,14 @@
                 badge.textContent = '暂不可用';
                 return;
             }
-            badge.textContent = agentUsage.unlimited ? '不限次' : `${agentUsage.remaining} 次`;
+            const purchased = Number(agentUsage.credits) || 0;
+            if (agentUsage.unlimited) {
+                badge.textContent = '不限次';
+            } else {
+                badge.textContent = purchased > 0
+                    ? `今日 ${agentUsage.remaining} 次 · 已购 ${purchased} 次`
+                    : `今日 ${agentUsage.remaining} 次`;
+            }
         } catch (error) {
             if (seq === agentUsageRequestSeq) badge.textContent = '暂不可用';
         }
