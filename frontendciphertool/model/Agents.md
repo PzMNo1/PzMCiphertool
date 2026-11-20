@@ -61,6 +61,8 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
 - 每日免费次数用完后，自动扣减数据库里的已购额度；已购额度长期有效
 - 侧边栏“本账号剩余使用次数”来自 `GET /api/usage/summary`，显示“今日剩余 + 已购”
 - 侧边栏和额度提示里的“充值”进入 `model/recharge.html`；充值页复用 `0_zhuyeyangshi.css` 的 `.result`
+- 未配置在线收银台时，微信支付面板展示 `model/recharge-pay-wechat.jpg` 收款二维码
+- 欢迎面板在历史同步前先渲染，含「换一批 / 我要生成图片 / 我要生成视频」；后两个按钮等价于输入区的作图模式/视频创作
 - 套餐固定为 9.9 元（3 Agent + 100 图 + 20 视频）与 19.9 元（8 Agent + 250 图 + 50 视频），由后端 `AgentRechargeService` 定义
 - 支付复用 API 中转站的收银台模板与回调签名；未配置收银台时走“用户提交已付款、支付审核人确认到账”
 - 图片/视频生成请求需要带 `Authorization`，客户端由 `ImageGenerationClient` / `VideoGenerationClient` 自动附加

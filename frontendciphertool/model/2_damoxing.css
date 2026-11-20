@@ -199,6 +199,35 @@
   color: rgba(142, 231, 255, 0.95);
 }
 
+.agent-welcome-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.agent-welcome-actions .agent-welcome-shuffle {
+  margin-top: 0;
+}
+
+.agent-welcome-mode {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(110, 247, 168, 0.72);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.agent-welcome-mode:hover {
+  color: #6ef7a8;
+  text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
 .message-header {
   font-size: 0.85rem;
   margin-bottom: 6px;
@@ -4511,4 +4540,20 @@ pre.markdown-code-block[data-mermaid-state="error"] {
   .agent-recharge-shell {
     padding: 1.5rem 0.9rem 3rem;
   }
+}
+
+.recharge-payment-qr-static {
+  background: transparent;
+  padding: 0;
+}
+
+.recharge-payment-qr-static img {
+  width: 220px;
+  height: auto;
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.recharge-payment-qr-static span {
+  color: rgba(228, 255, 240, 0.7);
 }

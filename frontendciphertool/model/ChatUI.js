@@ -2608,7 +2608,11 @@ class ChatUI {
             <div class="agent-welcome-inner">
                 <div class="agent-welcome-title">PzM Agent能为你做什么研究？</div>
                 <div class="agent-welcome-guides">${this.renderWelcomeGuides()}</div>
-                <button type="button" class="agent-welcome-shuffle">换一批</button>
+                <div class="agent-welcome-actions">
+                    <button type="button" class="agent-welcome-shuffle">换一批</button>
+                    <button type="button" class="agent-welcome-mode" data-agent-mode="image">我要生成图片</button>
+                    <button type="button" class="agent-welcome-mode" data-agent-mode="video">我要生成视频</button>
+                </div>
             </div>
         `;
         return panel;
@@ -2644,6 +2648,18 @@ class ChatUI {
         if (shuffle) {
             const guides = shuffle.closest('.agent-welcome-inner')?.querySelector('.agent-welcome-guides');
             if (guides) guides.innerHTML = this.renderWelcomeGuides();
+            return;
+        }
+
+        const modeButton = event.target.closest('[data-agent-mode]');
+        if (modeButton) {
+            const mode = modeButton.getAttribute('data-agent-mode');
+            const toggleId = mode === 'video' ? 'video-mode-toggle' : 'image-mode-toggle';
+            const toggle = document.getElementById(toggleId);
+            if (toggle && !toggle.classList.contains('active')) {
+                toggle.click();
+            }
+            document.getElementById('user-input')?.focus();
             return;
         }
 

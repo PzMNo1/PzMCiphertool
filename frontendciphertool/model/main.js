@@ -2850,6 +2850,19 @@
         const history = window.historyManager.getChatHistory();
         recoverDurableRunsIntoHistory();
         selectedChatIds.clear();
+
+        // 欢迎面板已经先渲染，历史同步期间用户可能已经开始发送消息。
+        // 有真实对话/进行中的运行时不要用远端历史覆盖当前界面。
+        const messagesContainer = document.getElementById('chat-messages');
+        const hasVisibleConversation = Boolean(
+            messagesContainer?.querySelector('.message:not(.system-message):not(.agent-login-required)')
+        );
+        if (hasVisibleConversation) {
+            updateHistoryUI();
+            updateAgentUsageBadge();
+            return;
+        }
+
         const currentId = window.historyManager.getCurrentChatId();
         if (currentId && history[currentId]) {
             loadChat(currentId);
@@ -2868,6 +2881,12 @@
     function initChatFunctions() {
         // 初始化 UI
         window.chatUI.init();
+
+        // 不要等聊天记录同步完成才渲染欢迎面板：首屏先给出可交互的选题引导。
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer && !messagesContainer.querySelector('.message:not(.system-message), .agent-welcome')) {
+            window.chatUI.clearMessages();
+        }
 
         if (window.agentPluginPanel) {
             window.agentPluginPanel.init();

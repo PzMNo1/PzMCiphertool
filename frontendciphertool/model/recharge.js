@@ -4,6 +4,7 @@
     const USAGE_URL = '/api/usage/summary';
     const ADMIN_ORDERS_URL = '/api/agent-recharge/admin/orders';
     const ADMIN_STATUS_URL = '/api/agent-recharge/admin/orders/status';
+    const WECHAT_STATIC_QR = './recharge-pay-wechat.jpg';
 
     const STATUS_LABELS = {
         PENDING: '待支付',
@@ -308,10 +309,15 @@
         const checkoutUrl = String(order.checkoutUrl || '').trim();
         const qrCodeUrl = String(order.qrCodeUrl || '').trim();
         const qrIsImage = /^data:image\//i.test(qrCodeUrl) || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(qrCodeUrl);
+        const isWechat = String(order.payMethod || 'wechat').toLowerCase() === 'wechat';
         const payLabel = order.payMethod === 'alipay' ? '支付宝' : (order.payMethod === 'stripe' ? 'Stripe' : '微信支付');
+        const staticQr = isWechat && !checkoutUrl && !qrIsImage;
         const amount = Number(order.amount) || 0;
         const canReview = status === 'PENDING';
         const showCountdown = status === 'PENDING' || status === 'PAYMENT_REVIEW';
+        const instructionText = staticQr
+            ? '请使用微信扫描下方收款码完成支付，付款后点击“我已完成支付”，等待管理员确认到账。'
+            : (order.paymentInstructions || (qrIsImage ? '请使用' + payLabel + '扫码完成支付。' : '请完成支付后点击“我已完成支付”，等待管理员确认到账。'));
 
         container.innerHTML = `
             <article class="result recharge-payment-card">
@@ -325,12 +331,13 @@
                 <div class="recharge-payment-amount">¥${formatPrice(amount)}</div>
                 <div class="recharge-payment-body">
                     <div class="recharge-payment-instructions">
-                        <p>${escapeHtml(order.paymentInstructions || (qrIsImage ? '请使用' + payLabel + '扫码完成支付。' : '请完成支付后点击“我已完成支付”，等待管理员确认到账。'))}</p>
+                        <p>${escapeHtml(instructionText)}</p>
                         ${showCountdown ? `<p class="recharge-payment-countdown">剩余支付时间：<strong id="recharge-payment-countdown">--:--</strong></p>` : ''}
                         ${status === 'PAYMENT_REVIEW' ? '<p class="recharge-payment-review-tip">已提交支付审核，管理员确认后额度会自动到账。</p>' : ''}
                         ${status === 'PAID' ? '<p class="recharge-payment-paid-tip">支付已确认，额度已计入账号。</p>' : ''}
                     </div>
                     ${qrIsImage ? `<div class="recharge-payment-qr"><img src="${escapeHtml(qrCodeUrl)}" alt="${escapeHtml(payLabel)}收款码"><span>${escapeHtml(payLabel)}扫码支付</span></div>` : ''}
+                    ${staticQr ? `<div class="recharge-payment-qr recharge-payment-qr-static"><img src="${WECHAT_STATIC_QR}" alt="微信支付收款码"><span>微信扫码支付</span></div>` : ''}
                 </div>
                 <div class="recharge-payment-actions">
                     ${checkoutUrl ? `<a class="cyber-button recharge-checkout-link" href="${escapeHtml(checkoutUrl)}" target="_blank" rel="noopener"><span class="cyber-button__tag">打开收银台</span></a>` : ''}
