@@ -1,0 +1,57 @@
+{
+  "id": "./",
+  "name": "泡面的Agent工具箱",
+  "short_name": "泡面工具箱",
+  "description": "Agent 辅助与仿真在线工具：密码实验室、电子实验室、建模实验室、WorkFlow、知识图谱与 API 中转站。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0a0a12",
+  "theme_color": "#0a0a12",
+  "categories": ["productivity", "utilities", "education"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agent",
+      "short_name": "Agent",
+      "url": "./#damoxing",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "加密实验室",
+      "short_name": "加密",
+      "url": "./#jiamishiyanshi",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "知识图谱",
+      "short_name": "图谱",
+      "url": "./#zhishitupu",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
