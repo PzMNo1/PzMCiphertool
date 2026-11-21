@@ -517,9 +517,8 @@ document.addEventListener('DOMContentLoaded', () => {
         history.querySelector('.agent-login-required')?.remove();
         textarea.focus();
     });
-    if (mobileAgentMedia.matches) {
-        dockAgent({ immediate: true, preserveChat: false });
-    }
+    // Always start as the floating orb on every viewport. The agent chat opens from the orb.
+    dockAgent({ immediate: true, preserveChat: false });
     const handleAgentViewportChange = event => {
         if (event.matches && !isDocked && !isChatActive && messages.length <= 1) {
             dockAgent({ immediate: true, preserveChat: false });
@@ -531,6 +530,17 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileAgentMedia.addEventListener('change', handleAgentViewportChange);
     } else if (mobileAgentMedia.addListener) {
         mobileAgentMedia.addListener(handleAgentViewportChange);
+    }
+
+    let orbViewportResizeTimer = null;
+    const handleAgentViewportResize = () => {
+        if (!isDocked) return;
+        clearTimeout(orbViewportResizeTimer);
+        orbViewportResizeTimer = setTimeout(() => applyOrbPosition(), 80);
+    };
+    window.addEventListener('resize', handleAgentViewportResize);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleAgentViewportResize);
     }
 
     const scrollDown = () => setTimeout(() => history.scrollTo({ top: history.scrollHeight, behavior: 'smooth' }), 10);
@@ -3054,8 +3064,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeChatWindow() {
-        deactivateChat(true);
-        wasChatActiveBeforeDock = false;
+        dockAgent({ preserveChat: false });
     }
 
     function restoreAgent() {
