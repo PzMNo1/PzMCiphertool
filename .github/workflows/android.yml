@@ -99,4 +99,10 @@ jobs:
             artifact/page-loaded.txt
             artifact/before-web.png
             artifact/browser.txt
+            artifact/sidebar-open.png
+            artifact/knowledge-graph.png
+            artifact/knowledge-graph-menu.png
+            artifact/font-scale-1.3.png
+            artifact/knowledge-graph.txt
+            artifact/font-scale.txt
           if-no-files-found: warn

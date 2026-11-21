@@ -136,8 +136,13 @@ if [ "$PAGE_LOADED" -eq 1 ]; then
   sleep 5
 
   # Open the collapsed sidebar, then the knowledge graph module.
-  timeout 20 adb shell input tap 150 110 || true
+  if SIDEBAR_POINT=$(tap_point_for_text "By泡面的面"); then
+    timeout 20 adb shell input tap $SIDEBAR_POINT || true
+  else
+    timeout 20 adb shell input tap 180 220 || true
+  fi
   sleep 2
+  timeout 30 adb exec-out screencap -p > "$OUT/sidebar-open.png" || true
   if KG_POINT=$(tap_point_for_text "知识图谱"); then
     timeout 20 adb shell input tap $KG_POINT || true
     sleep 15
