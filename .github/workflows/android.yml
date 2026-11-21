@@ -58,6 +58,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
@@ -79,53 +82,10 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            # Baseline: same emulator, live site in a system browser (if one is present).
-            BROWSER_PKG=""
-            if adb shell pm list packages | grep -q org.chromium.webview_shell; then
-              BROWSER_PKG=org.chromium.webview_shell
-            elif adb shell pm list packages | grep -q com.android.chrome; then
-              BROWSER_PKG=com.android.chrome
-            fi
-            echo "browser_pkg=$BROWSER_PKG" | tee artifact/browser.txt
-            if [ -n "$BROWSER_PKG" ]; then
-              adb shell am start -W -a android.intent.action.VIEW -d https://www.paomian233.com/ -p "$BROWSER_PKG" || true
-              sleep 30
-              adb exec-out screencap -p > artifact/before-web.png
-              adb shell input keyevent KEYCODE_HOME
-              sleep 3
-            fi
-
-            adb install -r artifact/paomian-toolbox-1.0.0-debug.apk
-            adb shell pm list packages | grep com.pzmn.paomiantool
-            adb shell am start -W -n com.pzmn.paomiantool/.MainActivity
-
-            # The debug build enables WebView DevTools; wait until the page title is loaded.
-            PAGE_LOADED=0
-            for i in $(seq 1 60); do
-              PID=$(adb shell pidof com.pzmn.paomiantool | tr -d '\r')
-              if [ -n "$PID" ]; then
-                adb forward tcp:9222 localabstract:webview_devtools_remote_$PID >/dev/null 2>&1 || true
-                if curl -sf http://127.0.0.1:9222/json/list > artifact/devtools-pages.json; then
-                  if grep -q '泡面的Agent工具箱' artifact/devtools-pages.json; then
-                    PAGE_LOADED=1
-                    break
-                  fi
-                fi
-              fi
-              sleep 2
-            done
-            echo "page_loaded=$PAGE_LOADED" | tee artifact/page-loaded.txt
-            sleep 3
-            adb exec-out screencap -p > artifact/app-after.png
-            adb shell input keyevent KEYCODE_HOME
-            sleep 3
-            adb exec-out screencap -p > artifact/home-screen.png
-            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > artifact/focus.txt || true
-            adb shell dumpsys package com.pzmn.paomiantool > artifact/package.txt || true
-            adb logcat -d -t 800 > artifact/logcat.txt || true
+          script: bash android/smoke-test.sh
 
       - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-emulator-screenshots
@@ -139,4 +99,4 @@ jobs:
             artifact/page-loaded.txt
             artifact/before-web.png
             artifact/browser.txt
-          if-no-files-found: error
+          if-no-files-found: warn
