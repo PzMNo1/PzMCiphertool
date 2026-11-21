@@ -135,15 +135,23 @@ if [ "$PAGE_LOADED" -eq 1 ]; then
   timeout 30 adb shell am start -W -n com.pzmn.paomiantool/.MainActivity || true
   sleep 5
 
-  # Open the collapsed sidebar, then the knowledge graph module.
-  if SIDEBAR_POINT=$(tap_point_for_text "By泡面的面"); then
-    timeout 20 adb shell input tap $SIDEBAR_POINT || true
+  # Prefer the Agent helper's "switch to knowledge graph" suggestion; fall back
+  # to opening the collapsed sidebar and tapping the menu item.
+  KG_POINT=""
+  if KG_POINT=$(tap_point_for_text "帮我切换到知识图谱"); then
+    echo "knowledge graph via Agent suggestion"
   else
-    timeout 20 adb shell input tap 180 220 || true
+    if SIDEBAR_POINT=$(tap_point_for_text "By泡面的面"); then
+      timeout 20 adb shell input tap $SIDEBAR_POINT || true
+    else
+      timeout 20 adb shell input tap 180 220 || true
+    fi
+    sleep 2
+    timeout 30 adb exec-out screencap -p > "$OUT/sidebar-open.png" || true
+    KG_POINT=$(tap_point_for_text "知识图谱" || true)
   fi
-  sleep 2
-  timeout 30 adb exec-out screencap -p > "$OUT/sidebar-open.png" || true
-  if KG_POINT=$(tap_point_for_text "知识图谱"); then
+
+  if [ -n "$KG_POINT" ]; then
     timeout 20 adb shell input tap $KG_POINT || true
     sleep 15
     timeout 30 adb exec-out screencap -p > "$OUT/knowledge-graph.png" || true

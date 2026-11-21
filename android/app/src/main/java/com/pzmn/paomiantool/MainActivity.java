@@ -7,7 +7,9 @@ import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -73,6 +75,15 @@ public class MainActivity extends Activity {
 
     private View customView;
     private WebChromeClient.CustomViewCallback customViewCallback;
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        // Android WebView 会把系统字体缩放带进网页；Chrome 默认按 100% 文本缩放渲染。
+        // 固定 Activity 的 fontScale 为 1.0，避免系统大字体把固定尺寸的侧边栏胶囊放大。
+        Configuration config = new Configuration(newBase.getResources().getConfiguration());
+        config.fontScale = 1.0f;
+        super.attachBaseContext(newBase.createConfigurationContext(config));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
