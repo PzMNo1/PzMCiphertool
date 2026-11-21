@@ -21,28 +21,53 @@ function loadScript(src, globalName) {
             existing.remove();
         }
 
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
         const promise = new Promise((innerResolve, innerReject) => {
-            script.onload = () => {
-                if (globalName && typeof window[globalName] === 'undefined') {
-                    script.remove();
-                    window.__zstpScriptPromises.delete(cacheKey);
-                    innerReject(new Error(`脚本已加载但未发现 ${globalName}: ${src}`));
+            let attempt = 0;
+            const retryOrReject = (error) => {
+                attempt += 1;
+                if (attempt < 2) {
+                    // 首次失败可能是弱网或缓存里存了错误响应，带查询串重试一次。
+                    setTimeout(tryLoad, 500);
                     return;
                 }
-                innerResolve();
-            };
-            script.onerror = () => {
-                script.remove();
                 window.__zstpScriptPromises.delete(cacheKey);
-                innerReject(new Error(`加载脚本失败: ${src}`));
+                innerReject(error);
             };
+            const tryLoad = () => {
+                const script = document.createElement('script');
+                script.src = attempt === 0 ? src : `${src}${src.includes('?') ? '&' : '?'}_retry=${Date.now()}`;
+                script.async = true;
+                let settled = false;
+                const timer = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    script.remove();
+                    retryOrReject(new Error(`加载脚本超时: ${src}`));
+                }, 20000);
+                script.onload = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    if (globalName && typeof window[globalName] === 'undefined') {
+                        script.remove();
+                        retryOrReject(new Error(`脚本已加载但未发现 ${globalName}: ${src}`));
+                        return;
+                    }
+                    innerResolve();
+                };
+                script.onerror = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    script.remove();
+                    retryOrReject(new Error(`加载脚本失败: ${src}`));
+                };
+                document.body.appendChild(script);
+            };
+            tryLoad();
         });
         window.__zstpScriptPromises.set(cacheKey, promise);
         promise.then(resolve, reject);
-        document.body.appendChild(script);
     });
 }
 

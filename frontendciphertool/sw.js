@@ -10,7 +10,7 @@
  * 修改 sw.js 内容会让浏览器在下次访问时安装新版本并清掉旧缓存。
  */
 const CACHE_PREFIX = 'pzm-tool-';
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 const SW_PATH = new URL(self.location.href).pathname;
 
@@ -33,8 +33,28 @@ const CORE_ASSETS = [
   new URL('pwa.js', scopeUrl).href
 ];
 
+// 知识图谱的 three.js 依赖只在打开图谱时才按需加载；提前缓存，避免弱网/断网时
+// 页面壳能打开、图谱却报“加载脚本失败”。
+const EXTRA_PRECACHE = [
+  new URL('vendor/three/three.min.js', scopeUrl).href,
+  new URL('vendor/three-spritetext/three-spritetext.min.js', scopeUrl).href,
+  new URL('vendor/3d-force-graph/3d-force-graph.min.js', scopeUrl).href
+];
+
 const MAX_RUNTIME_ENTRIES = 240;
 const TRIM_TO = 180;
+
+// 站点对不存在的路径会回退到 index.html 且返回 200；这种 HTML 不能当成 js/css/json 缓存。
+function isHtmlFallback(url, response) {
+  const type = (response.headers.get('content-type') || '').toLowerCase();
+  if (!type.includes('text/html')) return false;
+  const path = url.pathname;
+  return !(path === scopeUrl.pathname || path.endsWith('/') || /\.html?$/i.test(path));
+}
+
+function canCache(url, response) {
+  return Boolean(response && response.ok && !isHtmlFallback(url, response));
+}
 
 function isApiRequest(url) {
   return /^\/api(\/|$)/.test(url.pathname)
@@ -76,7 +96,7 @@ async function precache() {
   await Promise.all(CORE_ASSETS.map(async (url) => {
     try {
       const response = await fetch(url, { cache: 'reload', credentials: 'same-origin' });
-      if (response && response.ok) await cache.put(url, response.clone());
+      if (canCache(new URL(url), response)) await cache.put(url, response.clone());
     } catch (e) {
       // 单个资源失败不影响 SW 安装。
     }
@@ -97,7 +117,16 @@ async function precache() {
   await Promise.all(extractIndexAssets(html).map(async (url) => {
     try {
       const response = await fetch(url, { credentials: 'same-origin' });
-      if (response && response.ok) await cache.put(url, response.clone());
+      if (canCache(new URL(url), response)) await cache.put(url, response.clone());
+    } catch (e) {
+      // 忽略单个资源。
+    }
+  }));
+
+  await Promise.all(EXTRA_PRECACHE.map(async (url) => {
+    try {
+      const response = await fetch(url, { credentials: 'same-origin' });
+      if (canCache(new URL(url), response)) await cache.put(url, response.clone());
     } catch (e) {
       // 忽略单个资源。
     }
@@ -133,7 +162,7 @@ async function staleWhileRevalidate(request) {
   const cached = await cache.match(request, { ignoreSearch: false });
   const network = fetch(request)
     .then(async (response) => {
-      if (response && response.ok) {
+      if (canCache(new URL(request.url), response)) {
         await cache.put(request, response.clone());
         if (Math.random() < 0.1) trimCache(cache).catch(() => {});
       }
