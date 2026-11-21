@@ -46,6 +46,8 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 ## 已知边界
 
+- 回归验证：`android/smoke-test.sh` 会在 `font_scale=1.3` 下截图确认侧边栏胶囊不随系统字体放大，并通过 Agent 助手或侧边栏打开知识图谱截图；这两项证据随 Actions artifact 上传。
+
 - WebView 的能力随系统 WebView 版本变化；很老的机器上 WebGL/WebGPU 模块可能降级。
 - 支付跳转到外部浏览器后，不会自动跳回 App；当前站内充值仍以二维码 + 人工审核为主。
 - 没有推送、没有离线包内嵌；离线打开时由 PWA service worker 缓存兜底，首次打开仍需联网。
