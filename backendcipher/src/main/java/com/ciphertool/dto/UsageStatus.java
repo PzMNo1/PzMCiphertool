@@ -24,5 +24,10 @@ public class UsageStatus {
 
     private int remaining;
 
+    /**
+     * 已购买、尚未使用的额度（Agent / 图片 / 视频）。当日免费额度用完后才会消耗。
+     */
+    private int credits;
+
     private String message;
 }

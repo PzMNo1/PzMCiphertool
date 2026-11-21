@@ -40,11 +40,19 @@ public class ApiRouterPaymentService {
     private String manualInstructions;
 
     public PaymentSession createPaymentSession(String orderId, String email, double amount, String payMethod) {
+        return createPaymentSession(orderId, email, amount, payMethod, "/api/api-router/orders/payment-callback");
+    }
+
+    /**
+     * 生成支付会话。callbackPath 允许其它业务（例如 Agent 充值）复用同一套
+     * 支付模板与回调地址，而不必把订单混进 API 中转站的订单表。
+     */
+    public PaymentSession createPaymentSession(String orderId, String email, double amount, String payMethod, String callbackPath) {
         String normalizedPayMethod = normalizePayMethod(payMethod);
         String expiresAt = LocalDateTime.now()
                 .plusMinutes(Math.max(1L, orderExpireMinutes))
                 .format(STORAGE_TIME);
-        String callbackUrl = normalizedPublicBaseUrl() + "/api/api-router/orders/payment-callback";
+        String callbackUrl = normalizedPublicBaseUrl() + normalizeCallbackPath(callbackPath);
         String template = templateFor(normalizedPayMethod);
         String checkoutUrl = fillTemplate(template, orderId, email, amount, normalizedPayMethod, callbackUrl);
         String qrCodeUrl = checkoutUrl;
@@ -100,6 +108,14 @@ public class ApiRouterPaymentService {
                 .replace("{amount}", encode(amountText(amount)))
                 .replace("{payMethod}", encode(payMethod))
                 .replace("{callbackUrl}", encode(callbackUrl));
+    }
+
+    private String normalizeCallbackPath(String callbackPath) {
+        String path = callbackPath == null ? "" : callbackPath.trim();
+        if (path.isBlank()) {
+            return "/api/api-router/orders/payment-callback";
+        }
+        return path.startsWith("/") ? path : "/" + path;
     }
 
     private String normalizedPublicBaseUrl() {

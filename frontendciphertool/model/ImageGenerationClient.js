@@ -19,6 +19,14 @@
         return 'http://127.0.0.1:8080';
     }
 
+    function resolveAuthHeaders() {
+        try {
+            return window.CipherAuth?.getAuthHeaders?.() || {};
+        } catch (error) {
+            return {};
+        }
+    }
+
     function resolveImageConfig(options = {}) {
         const imageConfig = window.IMAGE_GENERATION_CONFIG || {};
         const legacyConfig = window.DEEPSEEK_CONFIG || {};
@@ -120,7 +128,7 @@
             }
             const response = await fetch(config.url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...resolveAuthHeaders() },
                 body: JSON.stringify(body),
                 signal: controller.signal
             });
