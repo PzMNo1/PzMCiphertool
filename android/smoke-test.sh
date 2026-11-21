@@ -120,6 +120,42 @@ timeout 20 adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > "$OU
 timeout 30 adb shell dumpsys package com.pzmn.paomiantool > "$OUT/package.txt" || true
 timeout 30 adb logcat -d -t 800 > "$OUT/logcat.txt" || true
 
+# Text scaling stress: the app fixes WebView text zoom at 100%, so the sidebar
+# capsule must keep the same size even when the system font scale is larger.
+KG_RESULT="skipped"
+if [ "$PAGE_LOADED" -eq 1 ]; then
+  timeout 20 adb shell settings put system font_scale 1.3 >/dev/null 2>&1 || true
+  timeout 30 adb shell am force-stop com.pzmn.paomiantool || true
+  timeout 30 adb shell am start -W -n com.pzmn.paomiantool/.MainActivity || true
+  sleep 8
+  timeout 30 adb exec-out screencap -p > "$OUT/font-scale-1.3.png" || true
+  echo "font_scale_1.3=captured" | tee "$OUT/font-scale.txt"
+  timeout 20 adb shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
+  timeout 30 adb shell am force-stop com.pzmn.paomiantool || true
+  timeout 30 adb shell am start -W -n com.pzmn.paomiantool/.MainActivity || true
+  sleep 5
+
+  # Open the collapsed sidebar, then the knowledge graph module.
+  timeout 20 adb shell input tap 150 110 || true
+  sleep 2
+  if KG_POINT=$(tap_point_for_text "知识图谱"); then
+    timeout 20 adb shell input tap $KG_POINT || true
+    sleep 15
+    timeout 30 adb exec-out screencap -p > "$OUT/knowledge-graph.png" || true
+    timeout 20 adb shell uiautomator dump /sdcard/kg.xml >/dev/null 2>&1 || true
+    timeout 20 adb pull /sdcard/kg.xml /tmp/kg.xml >/dev/null 2>&1 || true
+    if grep -q "知识图谱加载失败" /tmp/kg.xml 2>/dev/null; then
+      KG_RESULT="failed"
+    else
+      KG_RESULT="opened"
+    fi
+  else
+    KG_RESULT="menu-not-found"
+    timeout 30 adb exec-out screencap -p > "$OUT/knowledge-graph-menu.png" || true
+  fi
+fi
+echo "knowledge_graph=$KG_RESULT" | tee "$OUT/knowledge-graph.txt"
+
 # Pass when the app opened a WebView page for the site. Network-less runners are
 # reported through network_ok=0 and the app's retry screen, not treated as a crash.
 APP_OK=0
@@ -134,5 +170,11 @@ echo "app_ok=$APP_OK" | tee "$OUT/app-ok.txt"
 
 if [ "$APP_OK" -ne 1 ]; then
   echo "WebView did not open the site page and the app was not in the foreground" >&2
+  exit 1
+fi
+
+# A visible graph load failure is a regression of the user-reported issue.
+if [ "$KG_RESULT" = "failed" ]; then
+  echo "knowledge graph reported a load failure" >&2
   exit 1
 fi

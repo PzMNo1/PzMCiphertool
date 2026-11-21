@@ -109,6 +109,10 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        // 很多手机把系统字体调大；WebView 默认会把网页文字一起放大，导致侧边栏胶囊
+        // 之类的固定尺寸容器看起来变形。Chrome 用的是 100% 文本缩放，这里保持一致。
+        settings.setTextZoom(100);
+        settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setLoadsImagesAutomatically(true);
