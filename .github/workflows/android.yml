@@ -55,7 +55,7 @@ jobs:
   smoke:
     name: Emulator smoke test
     needs: build
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download APK
