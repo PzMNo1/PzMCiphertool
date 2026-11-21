@@ -80,6 +80,22 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
+            # Baseline: same emulator, live site in a system browser (if one is present).
+            BROWSER_PKG=""
+            if adb shell pm list packages | grep -q org.chromium.webview_shell; then
+              BROWSER_PKG=org.chromium.webview_shell
+            elif adb shell pm list packages | grep -q com.android.chrome; then
+              BROWSER_PKG=com.android.chrome
+            fi
+            echo "browser_pkg=$BROWSER_PKG" | tee artifact/browser.txt
+            if [ -n "$BROWSER_PKG" ]; then
+              adb shell am start -W -a android.intent.action.VIEW -d https://www.paomian233.com/ -p "$BROWSER_PKG" || true
+              sleep 30
+              adb exec-out screencap -p > artifact/before-web.png
+              adb shell input keyevent KEYCODE_HOME
+              sleep 3
+            fi
+
             adb install -r artifact/paomian-toolbox-1.0.0-debug.apk
             adb shell pm list packages | grep com.pzmn.paomiantool
             adb shell am start -W -n com.pzmn.paomiantool/.MainActivity
@@ -121,4 +137,6 @@ jobs:
             artifact/logcat.txt
             artifact/devtools-pages.json
             artifact/page-loaded.txt
+            artifact/before-web.png
+            artifact/browser.txt
           if-no-files-found: error
