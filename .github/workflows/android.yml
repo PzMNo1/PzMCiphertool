@@ -1,0 +1,124 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Collect APK
+        run: |
+          mkdir -p artifact
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifact/paomian-toolbox-1.0.0-debug.apk
+          sha256sum artifact/*.apk > artifact/SHA256SUMS.txt
+          cat artifact/SHA256SUMS.txt
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: paomian-toolbox-debug-apk
+          path: artifact/
+          if-no-files-found: error
+
+  smoke:
+    name: Emulator smoke test
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: paomian-toolbox-debug-apk
+          path: artifact
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and launch the app on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb install -r artifact/paomian-toolbox-1.0.0-debug.apk
+            adb shell pm list packages | grep com.pzmn.paomiantool
+            adb shell am start -W -n com.pzmn.paomiantool/.MainActivity
+
+            # The debug build enables WebView DevTools; wait until the page title is loaded.
+            PAGE_LOADED=0
+            for i in $(seq 1 60); do
+              PID=$(adb shell pidof com.pzmn.paomiantool | tr -d '\r')
+              if [ -n "$PID" ]; then
+                adb forward tcp:9222 localabstract:webview_devtools_remote_$PID >/dev/null 2>&1 || true
+                if curl -sf http://127.0.0.1:9222/json/list > artifact/devtools-pages.json; then
+                  if grep -q '泡面的Agent工具箱' artifact/devtools-pages.json; then
+                    PAGE_LOADED=1
+                    break
+                  fi
+                fi
+              fi
+              sleep 2
+            done
+            echo "page_loaded=$PAGE_LOADED" | tee artifact/page-loaded.txt
+            sleep 3
+            adb exec-out screencap -p > artifact/app-after.png
+            adb shell input keyevent KEYCODE_HOME
+            sleep 3
+            adb exec-out screencap -p > artifact/home-screen.png
+            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > artifact/focus.txt || true
+            adb shell dumpsys package com.pzmn.paomiantool > artifact/package.txt || true
+            adb logcat -d -t 800 > artifact/logcat.txt || true
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-screenshots
+          path: |
+            artifact/app-after.png
+            artifact/home-screen.png
+            artifact/focus.txt
+            artifact/package.txt
+            artifact/logcat.txt
+            artifact/devtools-pages.json
+            artifact/page-loaded.txt
+          if-no-files-found: error

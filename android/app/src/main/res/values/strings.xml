@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">泡面工具箱</string>
+    <string name="error_title">无法连接到泡面的Agent工具箱</string>
+    <string name="error_message">请检查网络连接后重试。</string>
+    <string name="error_retry">重新加载</string>
+</resources>

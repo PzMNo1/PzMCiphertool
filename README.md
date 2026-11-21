@@ -156,3 +156,9 @@ trunk serve --port 5173 --open
 支付可使用 `API_ROUTER_PAYMENT_CHECKOUT_URL_TEMPLATE` / `API_ROUTER_PAYMENT_QR_CODE_URL_TEMPLATE`，或按支付方式分别配置 `API_ROUTER_ALIPAY_*`、`API_ROUTER_WECHAT_*`、`API_ROUTER_STRIPE_*` 模板。模板支持 `{orderId}`、`{email}`、`{amount}`、`{payMethod}`、`{returnUrl}`。
 
 生产数据库不要启用 `schema.sql` 全量初始化；该文件用于本地 H2/嵌入式初始化。中转站旧审计、用户控制、支付回调和对账表已由迁移清理，生产迁移以 `backendcipher/src/main/resources/db/migration` 为准。
+
+### PWA 与安卓 App
+
+- 前端 `frontendciphertool/` 自带 PWA：`manifest.json`、`sw.js`、`pwa.js`、`offline.html`、`icons/`。线上支持「添加到主屏幕」，断网时用缓存的页面壳打开。
+- `android/` 是 Android WebView 壳工程，构建与安装见 [android/README.md](android/README.md)。
+- `.github/workflows/android.yml` 自动构建 debug APK；手动触发时额外在模拟器里安装并启动一次，上传截图。

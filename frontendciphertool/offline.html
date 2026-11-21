@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a12">
+    <meta name="robots" content="noindex">
+    <title>离线 · 泡面的Agent工具箱</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(1200px 600px at 50% -10%, #17203a 0%, #0a0a12 55%, #050509 100%);
+            color: #e6f1ff;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            padding: 24px;
+        }
+        .card {
+            width: min(420px, 100%);
+            text-align: center;
+            border: 1px solid rgba(0, 242, 255, 0.18);
+            border-radius: 20px;
+            padding: 32px 24px;
+            background: rgba(12, 16, 30, 0.72);
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.08), inset 0 0 24px rgba(255, 0, 255, 0.04);
+        }
+        .logo {
+            width: 88px;
+            height: 88px;
+            margin: 0 auto 18px;
+            display: block;
+            filter: drop-shadow(0 0 18px rgba(0, 242, 255, 0.35));
+        }
+        h1 { font-size: 20px; margin: 0 0 10px; font-weight: 600; }
+        p { margin: 0 0 20px; color: #9fb0c9; font-size: 14px; line-height: 1.8; }
+        button {
+            appearance: none;
+            border: 1px solid rgba(0, 242, 255, 0.45);
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(0, 242, 255, 0.16), rgba(255, 0, 255, 0.16));
+            color: #e6f1ff;
+            font-size: 15px;
+            padding: 10px 26px;
+            cursor: pointer;
+        }
+        button:active { transform: scale(0.98); }
+    </style>
+</head>
+
+<body>
+    <main class="card">
+        <img class="logo" src="./icons/icon-192.png" alt="泡面的Agent工具箱">
+        <h1>当前处于离线状态</h1>
+        <p>页面内容还没缓存好，或者网络暂时不可用。<br>联网后点下面的按钮重新加载。</p>
+        <button type="button" onclick="location.replace('./')">重新加载</button>
+    </main>
+</body>
+
+</html>
