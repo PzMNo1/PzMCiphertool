@@ -21,9 +21,44 @@ elif adb shell pm list packages | grep -q com.android.chrome; then
   BROWSER_PKG=com.android.chrome
 fi
 echo "browser_pkg=$BROWSER_PKG" | tee "$OUT/browser.txt"
+
+# Print "x y" for the centre of the first on-screen node with this text.
+tap_point_for_text() {
+  local wanted="$1"
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || return 1
+  adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1 || return 1
+  python3 - "$wanted" <<'PY'
+import re
+import sys
+
+wanted = sys.argv[1]
+xml = open('/tmp/ui.xml', encoding='utf-8').read()
+for match in re.finditer(r'<node[^>]*>', xml):
+    node = match.group(0)
+    if 'text="%s"' % wanted in node:
+        bounds = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node)
+        if bounds:
+            x = (int(bounds.group(1)) + int(bounds.group(3))) // 2
+            y = (int(bounds.group(2)) + int(bounds.group(4))) // 2
+            print(x, y)
+            sys.exit(0)
+sys.exit(1)
+PY
+}
+
 if [ -n "$BROWSER_PKG" ]; then
   adb shell am start -W -a android.intent.action.VIEW -d https://www.paomian233.com/ -p "$BROWSER_PKG" || true
-  sleep 30
+  sleep 8
+  # Dismiss Chrome first-run / sync / search-engine screens when they appear.
+  for label in "Use without an account" "No thanks" "Got it" "Accept & continue"; do
+    if POINT=$(tap_point_for_text "$label"); then
+      echo "tap '$label' at $POINT"
+      adb shell input tap $POINT
+      sleep 4
+    fi
+  done
+  adb shell am start -W -a android.intent.action.VIEW -d https://www.paomian233.com/ -p "$BROWSER_PKG" || true
+  sleep 20
   adb exec-out screencap -p > "$OUT/before-web.png" || true
   adb shell input keyevent KEYCODE_HOME || true
   sleep 3
