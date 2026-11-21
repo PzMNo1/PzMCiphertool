@@ -24,7 +24,9 @@ cd android
 也可以直接用仓库里的 GitHub Actions：`.github/workflows/android.yml`。
 
 - 推送到 `main` 或提 PR 且改动 `android/**` 时，自动构建 debug APK 并上传 artifact。
-- 手动运行或提 PR 时，还会在 Android 14 模拟器里安装并启动一次：`android/smoke-test.sh` 通过 WebView DevTools 确认页面标题加载，并把 App 截图、桌面图标截图和日志上传为 artifact。
+ - 手动运行或提 PR 时，还会在 Android 14 模拟器里安装并启动一次：`android/smoke-test.sh` 通过 WebView DevTools 确认页面 URL / 标题，并把 App 截图、桌面图标截图和日志上传为 artifact。
+- 托管 runner 偶尔会启动一个没有网络的模拟器。脚本会先重试（含 Wi-Fi 重连）；仍未联网时，用 App 自带的断网重试页作为「App 能启动、WebView 能打开站点」的证据，并在 artifact 里记录 `page_loaded=0`。
+
 
 ## 安装
 

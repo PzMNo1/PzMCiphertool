@@ -82,7 +82,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash android/smoke-test.sh
+          script: timeout 540 bash android/smoke-test.sh
 
       - name: Upload screenshots
         if: always()
