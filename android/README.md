@@ -24,7 +24,7 @@ cd android
 也可以直接用仓库里的 GitHub Actions：`.github/workflows/android.yml`。
 
 - 推送到 `main` 或提 PR 且改动 `android/**` 时，自动构建 debug APK 并上传 artifact。
-- 手动运行（Actions → Android APK → Run workflow）时，还会在 Android 14 模拟器里安装并启动一次，上传截图 artifact。
+- 手动运行或提 PR 时，还会在 Android 14 模拟器里安装并启动一次：`android/smoke-test.sh` 通过 WebView DevTools 确认页面标题加载，并把 App 截图、桌面图标截图和日志上传为 artifact。
 
 ## 安装
 
