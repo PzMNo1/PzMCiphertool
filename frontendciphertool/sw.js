@@ -10,7 +10,7 @@
  * 修改 sw.js 内容会让浏览器在下次访问时安装新版本并清掉旧缓存。
  */
 const CACHE_PREFIX = 'pzm-tool-';
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 const SW_PATH = new URL(self.location.href).pathname;
 
@@ -148,12 +148,13 @@ async function staleWhileRevalidate(request) {
 }
 
 async function navigationResponse(request) {
+  const url = new URL(request.url);
+  const isShell = url.pathname === scopeUrl.pathname
+    || url.pathname === new URL('index.html', scopeUrl).pathname;
+
   try {
     const response = await fetch(request);
     if (response && response.ok) {
-      const url = new URL(request.url);
-      const isShell = url.pathname === scopeUrl.pathname
-        || url.pathname === new URL('index.html', scopeUrl).pathname;
       if (isShell && !url.search) {
         try {
           const cache = await caches.open(CACHE_NAME);
@@ -170,9 +171,17 @@ async function navigationResponse(request) {
   }
 
   const cache = await caches.open(CACHE_NAME);
-  const cachedIndex = await cache.match(INDEX_URL) || await cache.match(ROOT_URL);
-  if (cachedIndex) return cachedIndex;
-  return await cache.match(OFFLINE_URL) || new Response(
+  if (!isShell) {
+    // 子页面（电子实验室 iframe、余额页等）不能拿主页面壳顶替，否则会嵌套渲染整站。
+    const cachedPage = await cache.match(request);
+    if (cachedPage) return cachedPage;
+  } else {
+    const cachedIndex = await cache.match(INDEX_URL) || await cache.match(ROOT_URL);
+    if (cachedIndex) return cachedIndex;
+  }
+
+  const offline = await cache.match(OFFLINE_URL);
+  return offline || new Response(
     '<!doctype html><meta charset="utf-8"><title>离线</title><body style="background:#0a0a12;color:#e6f1ff;font:16px/1.6 system-ui;padding:24px">当前处于离线状态，请联网后重试。</body>',
     { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   );
