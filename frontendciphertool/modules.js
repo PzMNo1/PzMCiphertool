@@ -333,7 +333,7 @@ const MODULES = {
                 <div id="chat-messages">
                     <!-- 初始消息 -->
                     <div class="message system-message">
-                        <div class="message-content">请输入您的问题...</div>
+                        <div class="message-content">请输入你的问题...长按输入框可以语音转文字</div>
                     </div>
                 </div>
                 
@@ -353,7 +353,7 @@ const MODULES = {
                         <div id="attachment-list" class="attachment-list" aria-live="polite"></div>
                         <div id="attachment-status" class="attachment-status" aria-live="polite"></div>
                         <div class="input-field-wrap">
-                            <textarea id="user-input" placeholder="输入您的问题..." autofocus></textarea>
+                            <textarea id="user-input" placeholder="请输入你的问题...长按输入框可以语音转文字" autofocus></textarea>
                             <div id="context-progress-ring" class="context-progress-ring" role="img"
                                 aria-label="上下文窗口使用率" title="上下文窗口使用率">
                                 <svg viewBox="0 0 44 44" aria-hidden="true">
