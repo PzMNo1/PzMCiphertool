@@ -158,6 +158,7 @@
                         <p class="agent-recharge-plan__desc">${escapeHtml(plan.description || '')}</p>
                         <ul class="agent-recharge-plan__items">
                             <li><strong>${Number(plan.agentCredits) || 0}</strong><span>次研报 Agent</span></li>
+                            <li><strong>${Number(plan.agentmasterCredits) || 0}</strong><span>次 Agentmaster</span></li>
                             <li><strong>${Number(plan.imageCredits) || 0}</strong><span>次图片生成</span></li>
                             <li><strong>${Number(plan.videoCredits) || 0}</strong><span>次视频生成</span></li>
                         </ul>

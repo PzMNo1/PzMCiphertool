@@ -72,13 +72,13 @@ auth:
 # Daily usage limits for the Agent and Agentmaster surfaces (0 disables the limit)
 usage:
   agent:
-    daily-limit: ${USAGE_AGENT_DAILY_LIMIT:3}
+    daily-limit: ${USAGE_AGENT_DAILY_LIMIT:2}
   agentmaster:
-    daily-limit: ${USAGE_AGENTMASTER_DAILY_LIMIT:10}
+    daily-limit: ${USAGE_AGENTMASTER_DAILY_LIMIT:5}
   image:
-    daily-limit: ${USAGE_IMAGE_DAILY_LIMIT:3}
+    daily-limit: ${USAGE_IMAGE_DAILY_LIMIT:10}
   video:
-    daily-limit: ${USAGE_VIDEO_DAILY_LIMIT:1}
+    daily-limit: ${USAGE_VIDEO_DAILY_LIMIT:5}
 
 feedback:
   author-account: ${FEEDBACK_AUTHOR_ACCOUNT:}

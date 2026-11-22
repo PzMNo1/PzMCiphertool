@@ -29,10 +29,12 @@ class AgentRechargeServiceTest {
         assertThat(plans).hasSize(2);
         assertThat(plans.get(0).getPrice()).isEqualTo(9.9);
         assertThat(plans.get(0).getAgentCredits()).isEqualTo(3);
+        assertThat(plans.get(0).getAgentmasterCredits()).isEqualTo(5);
         assertThat(plans.get(0).getImageCredits()).isEqualTo(100);
         assertThat(plans.get(0).getVideoCredits()).isEqualTo(20);
         assertThat(plans.get(1).getPrice()).isEqualTo(19.9);
-        assertThat(plans.get(1).getAgentCredits()).isEqualTo(8);
+        assertThat(plans.get(1).getAgentCredits()).isEqualTo(6);
+        assertThat(plans.get(1).getAgentmasterCredits()).isEqualTo(12);
         assertThat(plans.get(1).getImageCredits()).isEqualTo(250);
         assertThat(plans.get(1).getVideoCredits()).isEqualTo(50);
     }
@@ -46,6 +48,7 @@ class AgentRechargeServiceTest {
 
         AgentRechargeCredits credits = context.store.creditsFor("buyer@example.com");
         assertThat(credits.getAgent()).isEqualTo(3);
+        assertThat(credits.getAgentmaster()).isEqualTo(5);
         assertThat(credits.getImage()).isEqualTo(100);
         assertThat(credits.getVideo()).isEqualTo(20);
         assertThat(context.count("select count(*) from agent_recharge_ledger where entry_type = 'ORDER_CREDIT'")).isEqualTo(1);
@@ -54,6 +57,7 @@ class AgentRechargeServiceTest {
 
         AgentRechargeCredits afterRepeat = context.store.creditsFor("buyer@example.com");
         assertThat(afterRepeat.getAgent()).isEqualTo(3);
+        assertThat(afterRepeat.getAgentmaster()).isEqualTo(5);
         assertThat(afterRepeat.getImage()).isEqualTo(100);
         assertThat(afterRepeat.getVideo()).isEqualTo(20);
         assertThat(context.count("select count(*) from agent_recharge_ledger where entry_type = 'ORDER_CREDIT'")).isEqualTo(1);
@@ -71,14 +75,15 @@ class AgentRechargeServiceTest {
                 order.getId(), 19.9, "manual-test", "trade_replay", "PAID", timestamp, "nonce_replay", signature);
 
         assertThat(paid.getStatus()).isEqualTo("PAID");
-        assertThat(context.store.creditsFor("buyer@example.com").getAgent()).isEqualTo(8);
+        assertThat(context.store.creditsFor("buyer@example.com").getAgent()).isEqualTo(6);
 
         assertThatThrownBy(() -> context.service.handlePaymentCallback(
                 order.getId(), 19.9, "manual-test", "trade_replay", "PAID", timestamp, "nonce_replay", signature))
                 .hasMessageContaining("重放");
 
         AgentRechargeCredits credits = context.store.creditsFor("buyer@example.com");
-        assertThat(credits.getAgent()).isEqualTo(8);
+        assertThat(credits.getAgent()).isEqualTo(6);
+        assertThat(credits.getAgentmaster()).isEqualTo(12);
         assertThat(credits.getImage()).isEqualTo(250);
         assertThat(credits.getVideo()).isEqualTo(50);
     }
@@ -92,6 +97,7 @@ class AgentRechargeServiceTest {
 
         AgentRechargeCredits credits = context.store.creditsFor("buyer@example.com");
         assertThat(credits.getAgent()).isZero();
+        assertThat(credits.getAgentmaster()).isZero();
         assertThat(credits.getImage()).isZero();
         assertThat(credits.getVideo()).isZero();
     }

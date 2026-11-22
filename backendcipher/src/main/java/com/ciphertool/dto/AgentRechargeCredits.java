@@ -14,11 +14,13 @@ public class AgentRechargeCredits {
 
     private int agent;
 
+    private int agentmaster;
+
     private int image;
 
     private int video;
 
     public boolean isEmpty() {
-        return agent <= 0 && image <= 0 && video <= 0;
+        return agent <= 0 && agentmaster <= 0 && image <= 0 && video <= 0;
     }
 }

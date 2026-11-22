@@ -46,10 +46,10 @@ class UsageQuotaServiceTest {
 
         creditStore = mock(AgentRechargeCreditStore.class);
         service = new UsageQuotaService(redisTemplate, authService, riskControlService, creditStore);
-        ReflectionTestUtils.setField(service, "agentDailyLimit", 3);
-        ReflectionTestUtils.setField(service, "agentmasterDailyLimit", 10);
-        ReflectionTestUtils.setField(service, "imageDailyLimit", 3);
-        ReflectionTestUtils.setField(service, "videoDailyLimit", 1);
+        ReflectionTestUtils.setField(service, "agentDailyLimit", 2);
+        ReflectionTestUtils.setField(service, "agentmasterDailyLimit", 5);
+        ReflectionTestUtils.setField(service, "imageDailyLimit", 10);
+        ReflectionTestUtils.setField(service, "videoDailyLimit", 5);
         ReflectionTestUtils.setField(service, "authorAccount", "");
         ReflectionTestUtils.setField(service, "developerIdentity", "");
 
@@ -59,23 +59,38 @@ class UsageQuotaServiceTest {
     @Test
     void agentConsumesPurchasedCreditAfterDailyFreeQuotaIsExhausted() {
         when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(true);
-        when(valueOperations.get(startsWith("usage:daily:agent:"))).thenReturn("3");
-        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(1, 0, 0));
+        when(valueOperations.get(startsWith("usage:daily:agent:"))).thenReturn("2");
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(1, 0, 0, 0));
         when(creditStore.consume("buyer@example.com", "agent", 1)).thenReturn(true);
 
         UsageStatus status = service.consume("Bearer token", request, "agent", "turn-1");
 
         assertThat(status.isAllowed()).isTrue();
-        assertThat(status.getLimit()).isEqualTo(3);
-        assertThat(status.getUsed()).isEqualTo(3);
+        assertThat(status.getLimit()).isEqualTo(2);
+        assertThat(status.getUsed()).isEqualTo(2);
         verify(creditStore).consume("buyer@example.com", "agent", 1);
+    }
+
+    @Test
+    void agentmasterConsumesPurchasedCreditAfterDailyFreeQuotaIsExhausted() {
+        when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(true);
+        when(valueOperations.get(startsWith("usage:daily:agentmaster:"))).thenReturn("5");
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 1, 0, 0));
+        when(creditStore.consume("buyer@example.com", "agentmaster", 1)).thenReturn(true);
+
+        UsageStatus status = service.consume("Bearer token", request, "agentmaster", "turn-master");
+
+        assertThat(status.isAllowed()).isTrue();
+        assertThat(status.getLimit()).isEqualTo(5);
+        assertThat(status.getUsed()).isEqualTo(5);
+        verify(creditStore).consume("buyer@example.com", "agentmaster", 1);
     }
 
     @Test
     void agentRejectsWhenFreeQuotaAndPurchasedCreditsAreBothExhausted() {
         when(valueOperations.setIfAbsent(anyString(), eq("1"), any(Duration.class))).thenReturn(true);
-        when(valueOperations.get(startsWith("usage:daily:agent:"))).thenReturn("3");
-        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 0, 0));
+        when(valueOperations.get(startsWith("usage:daily:agent:"))).thenReturn("2");
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 0, 0, 0));
         when(creditStore.consume("buyer@example.com", "agent", 1)).thenReturn(false);
 
         UsageStatus status = service.consume("Bearer token", request, "agent", "turn-1");
@@ -86,8 +101,8 @@ class UsageQuotaServiceTest {
 
     @Test
     void mediaRejectsWhenFreeAndPurchasedCreditsAreInsufficient() {
-        when(valueOperations.get(startsWith("usage:daily:image:"))).thenReturn("3");
-        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 2, 0));
+        when(valueOperations.get(startsWith("usage:daily:image:"))).thenReturn("10");
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 0, 2, 0));
 
         assertThatThrownBy(() -> service.consumeMedia("Bearer token", request, UsageQuotaService.Surface.IMAGE, 3))
                 .isInstanceOf(UsageQuotaService.UsageLimitException.class)
@@ -96,8 +111,8 @@ class UsageQuotaServiceTest {
 
     @Test
     void mediaConsumesFreeQuotaThenPurchasedCredits() {
-        when(valueOperations.get(startsWith("usage:daily:image:"))).thenReturn("1");
-        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 3, 0));
+        when(valueOperations.get(startsWith("usage:daily:image:"))).thenReturn("8");
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(0, 0, 3, 0));
         when(creditStore.consume("buyer@example.com", "image", 2)).thenReturn(true);
         when(valueOperations.increment(anyString(), eq(2L))).thenReturn(3L);
 
@@ -123,12 +138,14 @@ class UsageQuotaServiceTest {
     @Test
     void summaryExposesFreeRemainingAndPurchasedCredits() {
         when(valueOperations.get(anyString())).thenReturn("0");
-        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(3, 100, 20));
+        when(creditStore.creditsFor("buyer@example.com")).thenReturn(new AgentRechargeCredits(3, 5, 100, 20));
 
         UsageSummary summary = service.summary("Bearer token");
 
-        assertThat(summary.getAgent().getRemaining()).isEqualTo(3);
+        assertThat(summary.getAgent().getRemaining()).isEqualTo(2);
         assertThat(summary.getAgent().getCredits()).isEqualTo(3);
+        assertThat(summary.getAgentmaster().getRemaining()).isEqualTo(5);
+        assertThat(summary.getAgentmaster().getCredits()).isEqualTo(5);
         assertThat(summary.getImage().getCredits()).isEqualTo(100);
         assertThat(summary.getVideo().getCredits()).isEqualTo(20);
     }

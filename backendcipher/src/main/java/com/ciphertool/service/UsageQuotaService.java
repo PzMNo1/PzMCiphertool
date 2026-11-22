@@ -34,16 +34,16 @@ public class UsageQuotaService {
     private final RiskControlService riskControlService;
     private final AgentRechargeCreditStore creditStore;
 
-    @Value("${usage.agent.daily-limit:3}")
+    @Value("${usage.agent.daily-limit:2}")
     private int agentDailyLimit;
 
-    @Value("${usage.agentmaster.daily-limit:10}")
+    @Value("${usage.agentmaster.daily-limit:5}")
     private int agentmasterDailyLimit;
 
-    @Value("${usage.image.daily-limit:3}")
+    @Value("${usage.image.daily-limit:10}")
     private int imageDailyLimit;
 
-    @Value("${usage.video.daily-limit:1}")
+    @Value("${usage.video.daily-limit:5}")
     private int videoDailyLimit;
 
     @Value("${feedback.author-account:}")
@@ -227,16 +227,16 @@ public class UsageQuotaService {
     }
 
     private int creditsFor(String account, Surface surface) {
-        if (account == null || surface == Surface.AGENTMASTER) {
+        if (account == null) {
             return 0;
         }
         try {
             AgentRechargeCredits credits = creditStore.creditsFor(account);
             return switch (surface) {
                 case AGENT -> credits.getAgent();
+                case AGENTMASTER -> credits.getAgentmaster();
                 case IMAGE -> credits.getImage();
                 case VIDEO -> credits.getVideo();
-                default -> 0;
             };
         } catch (RuntimeException e) {
             log.warn("Failed to read Agent recharge credits for {}: {}", account, e.getMessage());

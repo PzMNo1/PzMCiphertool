@@ -420,6 +420,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_recharge_orders_idem ON agent_recharge_orde
 CREATE TABLE IF NOT EXISTS agent_recharge_credits (
     email VARCHAR(320) PRIMARY KEY,
     agent_credits INT NOT NULL DEFAULT 0,
+    agentmaster_credits INT NOT NULL DEFAULT 0,
     image_credits INT NOT NULL DEFAULT 0,
     video_credits INT NOT NULL DEFAULT 0,
     updated_at VARCHAR(40) NOT NULL
@@ -431,6 +432,7 @@ CREATE TABLE IF NOT EXISTS agent_recharge_ledger (
     order_id VARCHAR(64) NOT NULL DEFAULT '',
     entry_type VARCHAR(64) NOT NULL,
     agent_delta INT NOT NULL DEFAULT 0,
+    agentmaster_delta INT NOT NULL DEFAULT 0,
     image_delta INT NOT NULL DEFAULT 0,
     video_delta INT NOT NULL DEFAULT 0,
     note VARCHAR(512) NOT NULL DEFAULT '',
@@ -449,3 +451,6 @@ CREATE TABLE IF NOT EXISTS agent_recharge_callback_nonces (
     signature VARCHAR(128) NOT NULL DEFAULT '',
     created_at VARCHAR(40) NOT NULL
 );
+
+ALTER TABLE agent_recharge_credits ADD COLUMN IF NOT EXISTS agentmaster_credits INT NOT NULL DEFAULT 0;
+ALTER TABLE agent_recharge_ledger ADD COLUMN IF NOT EXISTS agentmaster_delta INT NOT NULL DEFAULT 0;

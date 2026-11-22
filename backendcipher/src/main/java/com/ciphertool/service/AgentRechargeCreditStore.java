@@ -32,20 +32,21 @@ public class AgentRechargeCreditStore {
     public AgentRechargeCredits creditsFor(String email) {
         String owner = normalizeEmail(email);
         if (owner.isBlank()) {
-            return new AgentRechargeCredits(0, 0, 0);
+            return new AgentRechargeCredits(0, 0, 0, 0);
         }
         try {
             return jdbcTemplate.queryForObject(
-                    "select agent_credits, image_credits, video_credits from agent_recharge_credits where email = ?",
+                    "select agent_credits, agentmaster_credits, image_credits, video_credits from agent_recharge_credits where email = ?",
                     (rs, rowNum) -> new AgentRechargeCredits(
                             Math.max(0, rs.getInt("agent_credits")),
+                            Math.max(0, rs.getInt("agentmaster_credits")),
                             Math.max(0, rs.getInt("image_credits")),
                             Math.max(0, rs.getInt("video_credits"))
                     ),
                     owner
             );
         } catch (EmptyResultDataAccessException e) {
-            return new AgentRechargeCredits(0, 0, 0);
+            return new AgentRechargeCredits(0, 0, 0, 0);
         }
     }
 
@@ -79,9 +80,9 @@ public class AgentRechargeCreditStore {
      * @return true 表示本次真的加上了额度，false 表示已入账过
      */
     @Transactional
-    public synchronized boolean credit(String email, String orderId, String entryType, int agent, int image, int video, String note) {
+    public synchronized boolean credit(String email, String orderId, String entryType, int agent, int agentmaster, int image, int video, String note) {
         String owner = normalizeEmail(email);
-        if (owner.isBlank() || (agent <= 0 && image <= 0 && video <= 0)) {
+        if (owner.isBlank() || (agent <= 0 && agentmaster <= 0 && image <= 0 && video <= 0)) {
             return false;
         }
         String normalizedOrderId = orderId == null ? "" : orderId.trim();
@@ -90,18 +91,19 @@ public class AgentRechargeCreditStore {
             return false;
         }
         jdbcTemplate.update(
-                "insert into agent_recharge_ledger(id, email, order_id, entry_type, agent_delta, image_delta, video_delta, note, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into agent_recharge_ledger(id, email, order_id, entry_type, agent_delta, agentmaster_delta, image_delta, video_delta, note, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 UUID.randomUUID().toString(),
                 owner,
                 normalizedOrderId,
                 normalizedEntryType,
                 Math.max(0, agent),
+                Math.max(0, agentmaster),
                 Math.max(0, image),
                 Math.max(0, video),
                 truncate(note, 512),
                 now()
         );
-        upsertCredits(owner, Math.max(0, agent), Math.max(0, image), Math.max(0, video));
+        upsertCredits(owner, Math.max(0, agent), Math.max(0, agentmaster), Math.max(0, image), Math.max(0, video));
         return true;
     }
 
@@ -117,6 +119,7 @@ public class AgentRechargeCreditStore {
         try {
             upsertCredits(owner,
                     "agent".equals(type) ? count : 0,
+                    "agentmaster".equals(type) ? count : 0,
                     "image".equals(type) ? count : 0,
                     "video".equals(type) ? count : 0);
         } catch (RuntimeException e) {
@@ -124,11 +127,12 @@ public class AgentRechargeCreditStore {
         }
     }
 
-    private void upsertCredits(String owner, int agent, int image, int video) {
+    private void upsertCredits(String owner, int agent, int agentmaster, int image, int video) {
         String now = now();
         int updated = jdbcTemplate.update(
-                "update agent_recharge_credits set agent_credits = agent_credits + ?, image_credits = image_credits + ?, video_credits = video_credits + ?, updated_at = ? where email = ?",
+                "update agent_recharge_credits set agent_credits = agent_credits + ?, agentmaster_credits = agentmaster_credits + ?, image_credits = image_credits + ?, video_credits = video_credits + ?, updated_at = ? where email = ?",
                 agent,
+                agentmaster,
                 image,
                 video,
                 now,
@@ -139,17 +143,19 @@ public class AgentRechargeCreditStore {
         }
         try {
             jdbcTemplate.update(
-                    "insert into agent_recharge_credits(email, agent_credits, image_credits, video_credits, updated_at) values (?, ?, ?, ?, ?)",
+                    "insert into agent_recharge_credits(email, agent_credits, agentmaster_credits, image_credits, video_credits, updated_at) values (?, ?, ?, ?, ?, ?)",
                     owner,
                     agent,
+                    agentmaster,
                     image,
                     video,
                     now
             );
         } catch (DuplicateKeyException e) {
             jdbcTemplate.update(
-                    "update agent_recharge_credits set agent_credits = agent_credits + ?, image_credits = image_credits + ?, video_credits = video_credits + ?, updated_at = ? where email = ?",
+                    "update agent_recharge_credits set agent_credits = agent_credits + ?, agentmaster_credits = agentmaster_credits + ?, image_credits = image_credits + ?, video_credits = video_credits + ?, updated_at = ? where email = ?",
                     agent,
+                    agentmaster,
                     image,
                     video,
                     now,
@@ -174,6 +180,7 @@ public class AgentRechargeCreditStore {
         }
         return switch (type.trim().toLowerCase(Locale.ROOT)) {
             case "agent" -> "agent_credits";
+            case "agentmaster" -> "agentmaster_credits";
             case "image" -> "image_credits";
             case "video" -> "video_credits";
             default -> null;

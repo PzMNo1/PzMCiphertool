@@ -24,6 +24,8 @@ public class AgentRechargePlanInfo {
 
     private int agentCredits;
 
+    private int agentmasterCredits;
+
     private int imageCredits;
 
     private int videoCredits;

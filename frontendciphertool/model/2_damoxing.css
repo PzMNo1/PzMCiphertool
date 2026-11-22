@@ -4242,7 +4242,7 @@ pre.markdown-code-block[data-mermaid-state="error"] {
 .recharge-plan-items {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
   margin: 0.2rem 0 0.4rem;
 }
@@ -4529,7 +4529,7 @@ pre.markdown-code-block[data-mermaid-state="error"] {
   }
 
   .recharge-plan-items {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .recharge-payment-head,
@@ -4728,7 +4728,7 @@ body.agent-recharge-modal-open {
 .agent-recharge-plan__items {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.45rem;
   margin: 0.1rem 0 0.3rem;
 }
@@ -4949,7 +4949,7 @@ body.agent-recharge-modal-open {
   }
 
   .agent-recharge-plan__items {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -52,9 +52,10 @@ public class AgentRechargeService {
                     "agent-pack-9",
                     "体验包",
                     "入门",
-                    "3 次研报 Agent + 100 次图片生成 + 20 次视频生成",
+                    "3 次研报 Agent + 5 次 Agentmaster + 100 次图片生成 + 20 次视频生成",
                     9.9,
                     3,
+                    5,
                     100,
                     20
             ),
@@ -62,9 +63,10 @@ public class AgentRechargeService {
                     "agent-pack-19",
                     "进阶包",
                     "超值",
-                    "8 次研报 Agent + 250 次图片生成 + 50 次视频生成",
+                    "6 次研报 Agent + 12 次 Agentmaster + 250 次图片生成 + 50 次视频生成",
                     19.9,
-                    8,
+                    6,
+                    12,
                     250,
                     50
             )
@@ -319,6 +321,7 @@ public class AgentRechargeService {
                 order.getId(),
                 "ORDER_CREDIT",
                 plan.getAgentCredits(),
+                plan.getAgentmasterCredits(),
                 plan.getImageCredits(),
                 plan.getVideoCredits(),
                 "充值套餐 " + plan.getName() + "，操作人 " + normalizeEmail(operatorEmail)
