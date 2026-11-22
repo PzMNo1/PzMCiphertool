@@ -789,13 +789,22 @@
         return `${base}/api/usage/summary`;
     }
 
+    function syncAgentRechargeControls(loggedIn) {
+        const rechargeLink = document.querySelector('.agent-recharge-link');
+        const loginButton = document.querySelector('.agent-login-inline');
+        if (rechargeLink) rechargeLink.hidden = !loggedIn;
+        if (loginButton) loginButton.hidden = loggedIn;
+    }
+
     async function updateAgentUsageBadge() {
         const badge = document.getElementById('agent-usage-count');
         if (!badge) return;
         if (!checkLogin()) {
             badge.textContent = '登录后启用';
+            syncAgentRechargeControls(false);
             return;
         }
+        syncAgentRechargeControls(true);
 
         const seq = ++agentUsageRequestSeq;
         try {
@@ -809,7 +818,14 @@
                 badge.textContent = '暂不可用';
                 return;
             }
-            badge.textContent = agentUsage.unlimited ? '不限次' : `${agentUsage.remaining} 次`;
+            const purchased = Number(agentUsage.credits) || 0;
+            if (agentUsage.unlimited) {
+                badge.textContent = '不限次';
+            } else {
+                badge.textContent = purchased > 0
+                    ? `今日 ${agentUsage.remaining} 次 · 已购 ${purchased} 次`
+                    : `今日 ${agentUsage.remaining} 次`;
+            }
         } catch (error) {
             if (seq === agentUsageRequestSeq) badge.textContent = '暂不可用';
         }
@@ -1874,6 +1890,12 @@
         window.chatUI.updateHistoryList(sorted, window.historyManager.getCurrentChatId(), loadChat, selectedChatIds, updateHistorySelection);
     }
 
+    function showHistoryLoading() {
+        const historyList = document.getElementById('chat-history-list');
+        if (!historyList) return;
+        historyList.innerHTML = '<div class="history-loading">正在加载历史…</div>';
+    }
+
     function updateHistorySelection(chatId, checked) {
         if (!chatId) return;
         if (checked) {
@@ -2834,6 +2856,14 @@
             return;
         }
 
+        // 先用本地缓存把侧边栏铺出来；没有缓存时给加载占位，不等整包历史同步完。
+        const cachedHistory = window.historyManager.getChatHistory();
+        if (Object.keys(cachedHistory).length) {
+            updateHistoryUI();
+        } else {
+            showHistoryLoading();
+        }
+
         try {
             await window.historyManager.syncFromBackend({ checkVersion: true });
         } catch (error) {
@@ -2843,6 +2873,19 @@
         const history = window.historyManager.getChatHistory();
         recoverDurableRunsIntoHistory();
         selectedChatIds.clear();
+
+        // 欢迎面板已经先渲染，历史同步期间用户可能已经开始发送消息。
+        // 有真实对话/进行中的运行时不要用远端历史覆盖当前界面。
+        const messagesContainer = document.getElementById('chat-messages');
+        const hasVisibleConversation = Boolean(
+            messagesContainer?.querySelector('.message:not(.system-message):not(.agent-login-required)')
+        );
+        if (hasVisibleConversation) {
+            updateHistoryUI();
+            updateAgentUsageBadge();
+            return;
+        }
+
         const currentId = window.historyManager.getCurrentChatId();
         if (currentId && history[currentId]) {
             loadChat(currentId);
@@ -2861,6 +2904,19 @@
     function initChatFunctions() {
         // 初始化 UI
         window.chatUI.init();
+
+        const inlineLogin = document.querySelector('[data-agent-login]');
+        if (inlineLogin && !inlineLogin.dataset.bound) {
+            inlineLogin.dataset.bound = '1';
+            inlineLogin.addEventListener('click', () => window.CipherAuth?.openModal?.());
+        }
+        updateAgentUsageBadge();
+
+        // 不要等聊天记录同步完成才渲染欢迎面板：首屏先给出可交互的选题引导。
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer && !messagesContainer.querySelector('.message:not(.system-message), .agent-welcome')) {
+            window.chatUI.clearMessages();
+        }
 
         if (window.agentPluginPanel) {
             window.agentPluginPanel.init();

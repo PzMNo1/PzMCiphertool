@@ -2411,7 +2411,23 @@ class ChatUI {
             this.hideEmptyReasoning(container);
         }
         this.setThoughtStatus(container, '运行出错', true);
-        container.contentDiv.innerHTML = `<span style="color:#ff0055">[SYSTEM FAILURE]: ${errorMessage}</span>`;
+        const message = String(errorMessage ?? '');
+        container.contentDiv.innerHTML = '';
+        const errorLine = document.createElement('span');
+        errorLine.style.color = '#ff0055';
+        errorLine.textContent = `[SYSTEM FAILURE]: ${message}`;
+        container.contentDiv.appendChild(errorLine);
+        if (/次数已用完|次数不足|请前往充值|额度不足/.test(message)) {
+            container.contentDiv.appendChild(document.createTextNode(' '));
+            const rechargeLink = document.createElement('a');
+            rechargeLink.className = 'agent-recharge-inline-link';
+            rechargeLink.href = './index.html#damoxing';
+            rechargeLink.dataset.agentRecharge = '1';
+            rechargeLink.target = '_blank';
+            rechargeLink.rel = 'noopener';
+            rechargeLink.textContent = '去充值';
+            container.contentDiv.appendChild(rechargeLink);
+        }
     }
 
     /**
@@ -2593,7 +2609,11 @@ class ChatUI {
             <div class="agent-welcome-inner">
                 <div class="agent-welcome-title">PzM Agent能为你做什么研究？</div>
                 <div class="agent-welcome-guides">${this.renderWelcomeGuides()}</div>
-                <button type="button" class="agent-welcome-shuffle">换一批</button>
+                <div class="agent-welcome-actions">
+                    <button type="button" class="agent-welcome-shuffle">换一批</button>
+                    <button type="button" class="agent-welcome-mode" data-agent-mode="image">我要生成图片</button>
+                    <button type="button" class="agent-welcome-mode" data-agent-mode="video">我要生成视频</button>
+                </div>
             </div>
         `;
         return panel;
@@ -2632,6 +2652,18 @@ class ChatUI {
             return;
         }
 
+        const modeButton = event.target.closest('[data-agent-mode]');
+        if (modeButton) {
+            const mode = modeButton.getAttribute('data-agent-mode');
+            const toggleId = mode === 'video' ? 'video-mode-toggle' : 'image-mode-toggle';
+            const toggle = document.getElementById(toggleId);
+            if (toggle && !toggle.classList.contains('active')) {
+                toggle.click();
+            }
+            document.getElementById('user-input')?.focus();
+            return;
+        }
+
         const guide = event.target.closest('.agent-welcome-guide');
         if (!guide) return;
         const input = document.getElementById('user-input');
@@ -2652,21 +2684,24 @@ class ChatUI {
         const historyList = document.getElementById('chat-history-list');
         if (!historyList) return;
 
+        const renderToken = (this._historyRenderToken || 0) + 1;
+        this._historyRenderToken = renderToken;
         historyList.innerHTML = '';
 
-        sortedHistory.forEach(chat => {
+        const items = Array.isArray(sortedHistory) ? sortedHistory : [];
+        if (!items.length) return;
+
+        const buildItem = chat => {
             const chatItem = document.createElement('div');
             chatItem.className = 'history-item';
             if (chat.id === currentChatId) {
                 chatItem.classList.add('active');
             }
-
             chatItem.innerHTML = `
-                <div class="history-title">${chat.title}</div>
-                <div class="history-time">${window.historyManager.formatDate(chat.timestamp)}</div>
-                <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${chat.id}"></div>
+                <div class="history-title">${this.escapeHtml(chat.title || '未命名对话')}</div>
+                <div class="history-time">${this.escapeHtml(window.historyManager.formatDate(chat.timestamp))}</div>
+                <div class="history-select"><input type="checkbox" class="history-checkbox" data-id="${this.escapeHtml(chat.id)}"></div>
             `;
-
             const checkbox = chatItem.querySelector('.history-checkbox');
             if (checkbox) {
                 checkbox.checked = selectedChatIds.has(chat.id);
@@ -2677,14 +2712,34 @@ class ChatUI {
                     }
                 });
             }
-
             chatItem.addEventListener('click', (e) => {
                 if (e.target.classList.contains('history-checkbox')) return;
                 onSelect(chat.id);
             });
+            return chatItem;
+        };
 
-            historyList.appendChild(chatItem);
-        });
+        // 历史很多时不要一次性同步插入全部节点：首屏先给前 30 条，其余分帧追加，
+        // 让侧边栏逐步出现而不是卡住后突然全部显示。
+        const chunkSize = 30;
+        let cursor = 0;
+        const renderChunk = () => {
+            if (this._historyRenderToken !== renderToken) return;
+            const fragment = document.createDocumentFragment();
+            const end = Math.min(cursor + chunkSize, items.length);
+            for (; cursor < end; cursor += 1) {
+                fragment.appendChild(buildItem(items[cursor]));
+            }
+            historyList.appendChild(fragment);
+            if (cursor < items.length) {
+                if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(renderChunk);
+                } else {
+                    window.setTimeout(renderChunk, 0);
+                }
+            }
+        };
+        renderChunk();
     }
 
     /**
