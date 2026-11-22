@@ -356,6 +356,25 @@ class HistoryManager {
         return storedMessage;
     }
 
+    getChatMode(chatId) {
+        if (!chatId) return undefined;
+        const chat = this.getChatHistory()[chatId];
+        if (!chat || typeof chat !== 'object') return undefined;
+        if (chat.mode === 'image' || chat.mode === 'video' || chat.mode === '') return chat.mode;
+        return undefined;
+    }
+
+    setChatMode(chatId, mode) {
+        if (!chatId) return false;
+        const normalized = mode === 'image' || mode === 'video' ? mode : '';
+        const history = this.getChatHistory();
+        const chat = history[chatId];
+        if (!chat || typeof chat !== 'object') return false;
+        if (chat.mode === normalized) return true;
+        chat.mode = normalized;
+        return this.persistHistory(history);
+    }
+
     deleteChats(chatIds) {
         const history = this.getChatHistory();
         const currentChatId = this.getCurrentChatId();

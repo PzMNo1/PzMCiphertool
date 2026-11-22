@@ -11,6 +11,10 @@
     // 状态
     let isToolEnabled = true;
     let isDeepThinkEnabled = true;
+    // 作图 / 视频创作 / 研究三种输入模式跟随会话：打开历史记录时按会话恢复。
+    let activeAgentMode = '';
+    const AGENT_MODE_IMAGE = 'image';
+    const AGENT_MODE_VIDEO = 'video';
     let eventsInitialized = false;
     let durableRecoveryInitialized = false;
     let attachments = [];
@@ -1398,6 +1402,10 @@
             content: message,
             attachments: preparedAttachments.historyAttachments
         });
+        window.historyManager.setChatMode(
+            chatId,
+            isImageModeEnabled ? AGENT_MODE_IMAGE : isVideoModeEnabled ? AGENT_MODE_VIDEO : ''
+        );
 
         // 清空输入框和本轮附件
         inputElement.value = '';
@@ -1738,6 +1746,64 @@
     }
 
     /**
+     * 解析会话模式：优先取历史里显式保存的模式，旧会话则从生成结果推断。
+     */
+    function resolveAgentMode(chatId, messages = []) {
+        const stored = window.historyManager?.getChatMode?.(chatId);
+        if (stored !== undefined) return stored;
+        const list = Array.isArray(messages) ? messages : [];
+        for (let index = list.length - 1; index >= 0; index -= 1) {
+            const message = list[index];
+            if (!message || message.role !== 'assistant') continue;
+            if (Array.isArray(message.videos) && message.videos.length) return AGENT_MODE_VIDEO;
+            if (Array.isArray(message.images) && message.images.length) return AGENT_MODE_IMAGE;
+            if (message.video_prompt) return AGENT_MODE_VIDEO;
+            if (message.image_prompt) return AGENT_MODE_IMAGE;
+        }
+        return '';
+    }
+
+    /**
+     * 统一切换输入区的作图 / 视频创作 / 研究模式。
+     */
+    function applyAgentMode(mode) {
+        activeAgentMode = mode === AGENT_MODE_IMAGE || mode === AGENT_MODE_VIDEO ? mode : '';
+        const videoModeToggle = document.getElementById('video-mode-toggle');
+        const imageModeToggle = document.getElementById('image-mode-toggle');
+        const inputActions = (videoModeToggle || imageModeToggle)?.closest('.input-actions');
+        const inputElement = document.getElementById('user-input');
+        const videoEnabled = activeAgentMode === AGENT_MODE_VIDEO;
+        const imageEnabled = activeAgentMode === AGENT_MODE_IMAGE;
+        videoModeToggle?.classList.toggle('active', videoEnabled);
+        imageModeToggle?.classList.toggle('active', imageEnabled);
+        inputActions?.classList.toggle('image-mode-only', videoEnabled || imageEnabled);
+        if ((videoEnabled || imageEnabled) && window.agentPluginPanel?.isOpen?.()) {
+            window.agentPluginPanel.close();
+        }
+        isToolEnabled = !videoEnabled && !imageEnabled;
+        isDeepThinkEnabled = !videoEnabled && !imageEnabled;
+        if (inputElement) {
+            if (videoEnabled) {
+                if (!inputElement.dataset.defaultPlaceholder) {
+                    inputElement.dataset.defaultPlaceholder = inputElement.placeholder || '';
+                }
+                inputElement.placeholder = '描述你想创作的视频画面、动作与镜头...';
+            } else if (inputElement.dataset.defaultPlaceholder) {
+                inputElement.placeholder = inputElement.dataset.defaultPlaceholder;
+            }
+        }
+        return activeAgentMode;
+    }
+
+    /**
+     * 把当前模式写回会话记录，刷新或重开历史时按会话恢复。
+     */
+    function persistCurrentChatMode(mode) {
+        const chatId = window.historyManager?.getCurrentChatId?.();
+        if (chatId) window.historyManager.setChatMode(chatId, mode);
+    }
+
+    /**
      * 加载聊天
      */
     function loadChat(chatId) {
@@ -1745,6 +1811,7 @@
         const messages = window.historyManager.getMessages(chatId);
 
         window.chatUI.init();
+        applyAgentMode(resolveAgentMode(chatId, messages));
 
         if (messages.length === 0) {
             window.chatUI.clearMessages();
@@ -1785,6 +1852,7 @@
      */
     function newChat(force = false) {
         clearAttachments();
+        applyAgentMode('');
         const history = window.historyManager.getChatHistory();
         const currentId = window.historyManager.getCurrentChatId();
 
@@ -2690,37 +2758,21 @@
         const videoModeToggle = document.getElementById('video-mode-toggle');
         const imageModeToggle = document.getElementById('image-mode-toggle');
         if (videoModeToggle || imageModeToggle) {
-            const inputActions = (videoModeToggle || imageModeToggle).closest('.input-actions');
-            const syncModeControls = activeMode => {
-                const videoEnabled = activeMode === 'video';
-                const imageEnabled = activeMode === 'image';
-                videoModeToggle?.classList.toggle('active', videoEnabled);
-                imageModeToggle?.classList.toggle('active', imageEnabled);
-                inputActions?.classList.toggle('image-mode-only', videoEnabled || imageEnabled);
-                isToolEnabled = !videoEnabled && !imageEnabled;
-                isDeepThinkEnabled = !videoEnabled && !imageEnabled;
-                if (inputElement) {
-                    if (videoEnabled) {
-                        if (!inputElement.dataset.defaultPlaceholder) {
-                            inputElement.dataset.defaultPlaceholder = inputElement.placeholder || '';
-                        }
-                        inputElement.placeholder = '描述你想创作的视频画面、动作与镜头...';
-                    } else if (inputElement.dataset.defaultPlaceholder) {
-                        inputElement.placeholder = inputElement.dataset.defaultPlaceholder;
-                    }
-                }
-            };
             const initialMode = videoModeToggle?.classList.contains('active')
-                ? 'video'
+                ? AGENT_MODE_VIDEO
                 : imageModeToggle?.classList.contains('active')
-                    ? 'image'
+                    ? AGENT_MODE_IMAGE
                     : '';
-            syncModeControls(initialMode);
+            applyAgentMode(initialMode);
             videoModeToggle?.addEventListener('click', () => {
-                syncModeControls(videoModeToggle.classList.contains('active') ? '' : 'video');
+                persistCurrentChatMode(applyAgentMode(
+                    videoModeToggle.classList.contains('active') ? '' : AGENT_MODE_VIDEO
+                ));
             });
             imageModeToggle?.addEventListener('click', () => {
-                syncModeControls(imageModeToggle.classList.contains('active') ? '' : 'image');
+                persistCurrentChatMode(applyAgentMode(
+                    imageModeToggle.classList.contains('active') ? '' : AGENT_MODE_IMAGE
+                ));
             });
         }
 
