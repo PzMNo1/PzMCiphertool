@@ -886,6 +886,7 @@ function renderGraph(container) {
         });
 
     installGraphCanvasClickFallback();
+    installTouchPinchPanGuard();
 
     // 5. 场景增强：静态宇宙背景（星空 + 银河带）
     const scene = Graph.scene();
@@ -1499,6 +1500,107 @@ function renderGraph(container) {
             const node = pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas);
             if (node) runGraphNodeAction(node, event);
         }, { capture: true, passive: false });
+    }
+
+    // 手机端双指手势：TrackballControls 默认把双指同时映射为“缩放 + 平移”，
+    // 两指间距变化时中点的轻微漂移也会移动镜头，缩放时画面跟着平移。
+    // 这里在双指手势开始时先收起平移，只有间距基本不变、中点确实在拖动的双指手势
+    // 才恢复平移；一旦判定为捏合缩放，本次手势只缩放、不平移。
+    function installTouchPinchPanGuard() {
+        const controls = typeof Graph.controls === 'function' ? Graph.controls() : null;
+        const renderer = typeof Graph.renderer === 'function' ? Graph.renderer() : null;
+        const canvas = renderer?.domElement;
+        if (!controls || !canvas || controls.__zstpPinchPanGuard) return;
+        controls.__zstpPinchPanGuard = true;
+
+        const DEFAULT_PAN_SPEED = controls.panSpeed;
+        const PINCH_TOLERANCE_PX = 12;   // 两指间距变化超过该值视为缩放
+        const PAN_DEADZONE_PX = 12;      // 间距稳定时，中点移动超过该值才恢复平移
+        const PINCH_CONFIRM_FRAMES = 2;  // 连续两帧都判定为捏合才算缩放，滤掉单帧抖动
+        const touchPoints = new Map();
+        let touchGesture = null;
+        let evaluateFrame = 0;
+
+        const touchPair = () => [...touchPoints.values()].slice(0, 2);
+        const touchDistance = () => {
+            const [a, b] = touchPair();
+            return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+        };
+        const touchMidpoint = () => {
+            const [a, b] = touchPair();
+            return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
+        };
+
+        function evaluateTouchGesture() {
+            if (!touchGesture || touchPoints.size < 2) return;
+            const distanceDelta = Math.abs(touchDistance() - touchGesture.startDistance);
+            if (distanceDelta > PINCH_TOLERANCE_PX) {
+                touchGesture.pinchFrames += 1;
+                if (touchGesture.pinchFrames >= PINCH_CONFIRM_FRAMES) {
+                    touchGesture.pinched = true;
+                    controls.panSpeed = 0;
+                }
+                return;
+            }
+            touchGesture.pinchFrames = 0;
+            if (touchGesture.pinched || touchGesture.panEnabled) return;
+            const mid = touchMidpoint();
+            if (mid && Math.hypot(mid.x - touchGesture.startMid.x, mid.y - touchGesture.startMid.y) > PAN_DEADZONE_PX) {
+                touchGesture.panEnabled = true;
+                controls.panSpeed = DEFAULT_PAN_SPEED;
+            }
+        }
+
+        function scheduleTouchGestureEvaluation() {
+            if (evaluateFrame) return;
+            evaluateFrame = requestAnimationFrame(() => {
+                evaluateFrame = 0;
+                evaluateTouchGesture();
+            });
+        }
+
+        canvas.addEventListener('pointerdown', event => {
+            if (event.pointerType === 'mouse') {
+                // 右键平移开始时库会重置内部锚点，这里顺手恢复平移速度。
+                if (event.button === 2) controls.panSpeed = DEFAULT_PAN_SPEED;
+                return;
+            }
+            if (event.pointerType !== 'touch') return;
+            touchPoints.set(event.pointerId, { x: event.pageX, y: event.pageY });
+            if (touchPoints.size === 2) {
+                controls.panSpeed = 0;
+                touchGesture = {
+                    startDistance: touchDistance(),
+                    startMid: touchMidpoint(),
+                    pinchFrames: 0,
+                    pinched: false,
+                    panEnabled: false
+                };
+            } else if (touchPoints.size > 2 && touchGesture) {
+                touchGesture.pinched = true;
+                controls.panSpeed = 0;
+            }
+        }, { capture: true, passive: true });
+
+        canvas.addEventListener('pointermove', event => {
+            if (event.pointerType !== 'touch' || !touchPoints.has(event.pointerId)) return;
+            touchPoints.set(event.pointerId, { x: event.pageX, y: event.pageY });
+            if (touchGesture && touchPoints.size >= 2) scheduleTouchGestureEvaluation();
+        }, { capture: true, passive: true });
+
+        const releaseTouch = event => {
+            if (event.pointerType !== 'touch') return;
+            touchPoints.delete(event.pointerId);
+            if (touchPoints.size < 2) {
+                touchGesture = null;
+                if (evaluateFrame) {
+                    cancelAnimationFrame(evaluateFrame);
+                    evaluateFrame = 0;
+                }
+            }
+        };
+        canvas.addEventListener('pointerup', releaseTouch, { capture: true, passive: true });
+        canvas.addEventListener('pointercancel', releaseTouch, { capture: true, passive: true });
     }
 
     function pickGraphNodeFromCanvasEvent(event, raycaster, pointer, camera, canvas) {
