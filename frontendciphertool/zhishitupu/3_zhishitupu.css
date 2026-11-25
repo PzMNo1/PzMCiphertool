@@ -858,13 +858,15 @@
         transform: translate(-50%, -50%) scale(0.92);
     }
 
+    /* 手机端：阅览模式与图谱操作按钮收进顶部右侧，避开左上角悬浮侧边栏入口，
+       让出画布中央和左侧视野，不再用整行按钮横跨图谱。 */
     #zstp-import-layer {
-        top: 94px;
-        left: 10px;
+        top: 20px;
+        left: 136px;
         right: 10px;
         flex-direction: column;
         align-items: stretch;
-        gap: 8px;
+        gap: 6px;
     }
 
     .zstp-mode-switch {
@@ -874,8 +876,8 @@
 
     .zstp-mode-btn {
         height: 32px;
-        font-size: 0.64rem;
-        letter-spacing: 0.4px;
+        font-size: 0.62rem;
+        letter-spacing: 0;
     }
 
     .zstp-mode-switch::before {
@@ -893,16 +895,17 @@
     }
 
     .zstp-import-btn {
-        height: 38px;
-        padding: 0.35rem 0.5rem;
-        font-size: 0.72rem;
-        letter-spacing: 1px;
+        height: 36px;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.68rem;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
     }
 
     .zstp-preview-panel {
-        top: 232px;
+        top: 156px;
         right: 10px;
         width: calc(100vw - 20px);
-        max-height: calc(100vh - 254px);
+        max-height: calc(100vh - 178px);
     }
 }
