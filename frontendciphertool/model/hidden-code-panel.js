@@ -29,7 +29,8 @@
         hintTimer: 0,
         els: null,
         visibilityObserver: null,
-        mode: false
+        mode: false,
+        welcomeBeforeEngineering: false
     };
 
     function buildRoot() {
@@ -147,13 +148,24 @@
             syncModeUI();
             return next;
         }
+        if (next) {
+            state.welcomeBeforeEngineering = !manager.getCurrentChatId()
+                && Boolean(document.querySelector('.agent-welcome'));
+        }
         manager.setEngineeringMode(next);
         syncModeUI();
         const activeModeToggle = document.querySelector('#image-mode-toggle.active, #video-mode-toggle.active');
         if (activeModeToggle) activeModeToggle.click();
         rerenderHistory();
         window.requestAnimationFrame(() => {
-            loadModeChat();
+            if (!next && state.welcomeBeforeEngineering && window.chatUI?.clearMessages) {
+                state.welcomeBeforeEngineering = false;
+                manager.clearCurrentChatId();
+                window.chatUI.clearMessages();
+                rerenderHistory();
+            } else {
+                loadModeChat();
+            }
             if (!options.silent) showHint(next ? '已进入工程模式' : '已退出工程模式');
         });
         return next;

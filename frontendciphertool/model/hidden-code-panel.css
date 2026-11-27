@@ -152,3 +152,8 @@ body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="image"],
 body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="video"] {
     display: none !important;
 }
+
+/* 作图 / 视频会话里也保留插件切换，方便继续做研报 */
+.input-actions.image-mode-only #agent-plugin-btn {
+    display: flex !important;
+}
