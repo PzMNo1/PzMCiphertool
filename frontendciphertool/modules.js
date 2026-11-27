@@ -652,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentPluginPanel.js',
             './model/agent/AgentReportPdf.js',
             './model/AgentRuntime.js',
+            './model/AgentJobClient.js',
             './model/main.js',
         ],
     };
