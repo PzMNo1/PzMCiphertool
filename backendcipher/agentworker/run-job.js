@@ -526,6 +526,11 @@ async function main() {
                         agent_run: snapshot
                     });
                 }
+                // 协作面板进度单独走事件，页面据此实时刷新专家行；
+                // 没有 DOM 时 renderExpertStatus 的界面更新会直接返回，只能从这里带出去。
+                if (meta.reason === 'collaboration.updated' && snapshot.collaboration) {
+                    addEvent('collaboration', { collaboration: snapshot.collaboration }, { force: true });
+                }
             }
         });
 
