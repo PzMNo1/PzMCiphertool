@@ -1072,6 +1072,12 @@ class AgentRuntime {
             // 状态先同步进 runState：快照/落库都取 runState.collaboration，
             // 这样即使这一刻没有 DOM（切到别的会话去了），专家进度也不会丢。
             this.syncCollaborationState(runState, experts);
+            // 后台任务进程里没有 DOM：同一份协作状态先交给 ui 层，
+            // 页面内运行时立即刷新专家面板，后台运行时由任务客户端转成事件推给页面。
+            if (typeof this.ui.updateAgentCollaboration === 'function') {
+                this.ui.updateAgentCollaboration(container, runState?.collaboration);
+            }
+            this.notifyRunSnapshot(runState, 'collaboration.updated');
 
             const panel = this.resolveCollaborationPanel(container);
             if (!panel) return;

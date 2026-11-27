@@ -1768,6 +1768,25 @@ class ChatUI {
         return `${done}/${list.length} ok · 工具×${toolTotal} · 材料${findingsTotal}字`;
     }
 
+    /**
+     * 运行中刷新协作面板：页面内运行时由 AgentRuntime.renderExpertStatus 调用，
+     * 后台任务回放事件时由 AgentJobClient 调用。会话切换后按当前 DOM 重新定位面板。
+     */
+    updateAgentCollaboration(container, collaboration) {
+        if (!container || !collaboration) return;
+        let panel = container.agentCollaboration;
+        if (!panel || panel.isConnected === false) {
+            panel = container.element?.querySelector?.('.agent-collaboration-panel') || null;
+            if (!panel) return;
+            container.agentCollaboration = panel;
+        }
+        const collaborators = Array.isArray(collaboration.collaborators) ? collaboration.collaborators : [];
+        const members = panel.querySelector('.agent-collaboration-members');
+        if (members) members.innerHTML = this.buildCollaboratorRows(collaborators);
+        const count = panel.querySelector('.agent-collaboration-count');
+        if (count) count.textContent = this.buildCollaboratorSummary(collaborators) || '0/0 ok';
+    }
+
     setAgentStage(container, stageId, state, note = '') {
         if (state === 'active') {
             this.setReasoningStatus(container, this.getStageStatus(stageId, note));

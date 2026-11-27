@@ -395,6 +395,9 @@
                 case 'reasoningDone':
                     chatUI.finishReasoning?.(container);
                     break;
+                case 'collaboration':
+                    chatUI.updateAgentCollaboration?.(container, event.collaboration);
+                    break;
                 default:
                     break;
             }
