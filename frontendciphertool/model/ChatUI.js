@@ -3,6 +3,36 @@
  * 负责消息显示、格式化、工具调用状态展示
  */
 
+const AGENT_ENGINEERING_GUIDES = [
+    { tag: 'PPT', prompt: '帮我做一份「2026 年 AI Agent 行业趋势」的 PPT，包含市场、产品和竞争格局' },
+    { tag: 'PPT', prompt: '帮我做一份「新产品发布会」的 PPT，10 页左右，科技感风格' },
+    { tag: 'PPT', prompt: '帮我做一份「季度经营分析」的 PPT，包含收入、成本和下季度计划' },
+    { tag: 'Word', prompt: '帮我写一份「智能家居产品需求文档」的 Word，并转成 PDF 给我' },
+    { tag: 'Word', prompt: '帮我写一份「项目验收报告」的 Word，整理成正式文档并导出 PDF' },
+    { tag: 'Word', prompt: '帮我写一份「软件使用说明书」的 Word，配操作步骤，最后转 PDF' },
+    { tag: '网页', prompt: '帮我做一个展示个人作品集的响应式网页，深色科技风' },
+    { tag: '网页', prompt: '帮我做一个「在线番茄钟」网页，支持开始、暂停和重置' },
+    { tag: '网页', prompt: '帮我做一个产品落地页网页，包含首屏、功能和价格区块' },
+    { tag: '表格', prompt: '帮我做一个团队项目排期与预算的 Excel 表格，带公式和汇总' },
+    { tag: '表格', prompt: '帮我做一个「库存管理」表格，包含出入库、预警和月度统计' },
+    { tag: '表格', prompt: '帮我做一个「客户跟进」表格，带状态筛选和提醒' },
+    { tag: '软件', prompt: '帮我写一个批量重命名文件的小工具，支持预览和撤销' },
+    { tag: '软件', prompt: '帮我写一个「Markdown 转 HTML」的脚本，保留代码块和表格' },
+    { tag: '软件', prompt: '帮我写一个本地记账命令行工具，支持分类统计和导出 CSV' },
+    { tag: 'CAD', prompt: '帮我画一张机械零件三视图的 CAD 工程图，标注尺寸和公差' },
+    { tag: 'CAD', prompt: '帮我画一张法兰盘的 CAD 图纸，包含剖面和孔位标注' },
+    { tag: 'CAD', prompt: '帮我画一个简单支架的 CAD 图，给出加工尺寸' },
+    { tag: '3D', prompt: '帮我建一个可 3D 打印的手机支架模型，导出 STL' },
+    { tag: '3D', prompt: '帮我建一个桌面收纳盒的 3D 模型，带可开合盖子' },
+    { tag: '3D', prompt: '帮我建一个机械臂关节的 3D 模型，适合装配演示' },
+    { tag: '电路', prompt: '帮我搭一个 5V LED 闪烁电路的仿真，给出元件清单' },
+    { tag: '电路', prompt: '帮我搭一个电机驱动电路的仿真，支持正反转' },
+    { tag: '电路', prompt: '帮我搭一个温湿度采集电路的仿真，带串口输出' },
+    { tag: 'PCB', prompt: '帮我画一块 ESP32 温湿度传感器的 PCB 板，包含电源和排针' },
+    { tag: 'PCB', prompt: '帮我画一块 USB 供电的 LED 灯板 PCB，给出 Gerber 说明' },
+    { tag: 'PCB', prompt: '帮我画一块电机驱动 PCB，包含散热和接线端子' }
+];
+
 const AGENT_WELCOME_GUIDES = [
     { tag: '研报', prompt: '半导体最近的产能动态，以及未来几年的产能供给与落地进展' },
     { tag: '研报', prompt: '先进封装最近的产能进展，以及未来两年的扩产规划' },
@@ -2591,12 +2621,25 @@ class ChatUI {
         panel.className = 'agent-welcome';
         panel.innerHTML = `
             <div class="agent-welcome-inner">
-                <div class="agent-welcome-title">PzM Agent能为你做什么研究？</div>
+                <div class="agent-welcome-title">${this.welcomeTitle()}</div>
                 <div class="agent-welcome-guides">${this.renderWelcomeGuides()}</div>
                 <button type="button" class="agent-welcome-shuffle">换一批</button>
             </div>
         `;
         return panel;
+    }
+
+    isEngineeringMode() {
+        return Boolean(
+            window.historyManager?.isEngineeringMode?.()
+            || document.body.classList.contains('pzm-engineering-mode')
+        );
+    }
+
+    welcomeTitle() {
+        return this.isEngineeringMode()
+            ? 'PzM Agent能为你做什么任务？'
+            : 'PzM Agent能为你做什么研究？';
     }
 
     renderWelcomeGuides() {
@@ -2612,8 +2655,9 @@ class ChatUI {
      * 每次抽三个不同体裁的选题，保证换一批之后不会总是同一类
      */
     pickWelcomeGuides() {
+        const source = this.isEngineeringMode() ? AGENT_ENGINEERING_GUIDES : AGENT_WELCOME_GUIDES;
         const groups = new Map();
-        AGENT_WELCOME_GUIDES.forEach(guide => {
+        source.forEach(guide => {
             if (!groups.has(guide.tag)) groups.set(guide.tag, []);
             groups.get(guide.tag).push(guide);
         });

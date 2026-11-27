@@ -6,6 +6,8 @@ Agent 模块 - AI 模型集成、多角色管理、工具系统、上下文管�
 ## 文件结构
 - main.js → 模块主程序
 - 2_damoxing.css → 样式
+- hidden-code-panel.js → Agent 模块顶部滑动入口：点击/下拉切换工程模式（独立历史并隐藏作图/视频入口）
+- hidden-code-panel.css → 顶部滑动入口与工程模式样式（独立样式，避免与主聊天样式互相影响）
 - ChatUI.js → 聊天界面组件
 - AgentRuntime.js → Agent 运行时
 - DeepSeekClient.js → DeepSeek 模型客户端

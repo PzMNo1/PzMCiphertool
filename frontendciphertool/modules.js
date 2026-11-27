@@ -652,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             './model/agent/AgentPluginPanel.js',
             './model/agent/AgentReportPdf.js',
             './model/AgentRuntime.js',
+            './model/hidden-code-panel.js',
             './model/main.js',
         ],
     };
@@ -687,6 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initKnowledgeGraph === 'function') initKnowledgeGraph();
         },
         damoxing: () => {
+            if (typeof window.initHiddenCodePanel === 'function') window.initHiddenCodePanel();
             if (typeof initChatFunctions === 'function') initChatFunctions();
             else if (typeof bindChatEvents === 'function') bindChatEvents();
         },
@@ -698,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     };
 
-    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261117-05';
+    const loadVersion = window.CIPHERTOOL_ASSET_VERSION || '20261127-06';
     function loadBatch(list) {
         return Promise.all(list.map(src => new Promise(resolve => {
             const s = document.createElement('script');

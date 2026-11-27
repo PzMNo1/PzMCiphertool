@@ -1,0 +1,159 @@
+/* PzM Agent 模块顶部滑动入口 */
+
+#hcp-root,
+#hcp-root * {
+    box-sizing: border-box;
+}
+
+#hcp-root.hcp-module-hidden {
+    display: none;
+}
+
+#hcp-root {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+    color: #e9fbff;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 顶部居中：只保留箭头，按钮本身透明 */
+#hcp-handle {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 13002;
+    width: clamp(76px, 2.4cm, 114px);
+    height: 30px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateX(-50%);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#hcp-handle::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 40px;
+}
+
+#hcp-handle:hover,
+#hcp-handle:focus-visible {
+    opacity: 1;
+}
+
+#hcp-handle:focus-visible {
+    outline: 1px solid rgba(200, 245, 255, 0.55);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+#hcp-handle.is-grabbing {
+    cursor: grabbing;
+}
+
+.hcp-handle-arrow {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid rgba(232, 248, 255, 0.92);
+    border-bottom: 1.5px solid rgba(232, 248, 255, 0.92);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    transform: rotate(45deg) translate(-1px, -1px);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+#hcp-handle:hover .hcp-handle-arrow,
+#hcp-handle:focus-visible .hcp-handle-arrow {
+    border-color: #ffffff;
+}
+
+#hcp-handle.is-active .hcp-handle-arrow {
+    border-color: #56e2a6;
+    transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.hcp-handle-hint {
+    position: fixed;
+    top: 34px;
+    left: 50%;
+    z-index: 13002;
+    max-width: 210px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: rgba(224, 246, 255, 0.88);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#hcp-root.hcp-hint-on .hcp-handle-hint,
+#hcp-handle:hover + .hcp-handle-hint,
+#hcp-handle:focus-visible + .hcp-handle-hint {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+#hcp-root.hcp-engineering .hcp-handle-hint {
+    color: #d7ffe8;
+}
+
+@media (max-width: 760px) {
+    #hcp-handle {
+        width: clamp(80px, 2.4cm, 110px);
+        height: 26px;
+    }
+
+    .hcp-handle-hint {
+        top: 30px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 360px) {
+    .hcp-handle-hint {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #hcp-handle,
+    .hcp-handle-arrow,
+    .hcp-handle-hint {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 工程模式：只隐藏作图 / 视频创作入口，其余界面保持原样 */
+body.pzm-engineering-mode #image-mode-toggle,
+body.pzm-engineering-mode #video-mode-toggle,
+body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="image"],
+body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="video"] {
+    display: none !important;
+}
+
+/* 作图 / 视频会话里也保留插件切换，方便继续做研报 */
+.input-actions.image-mode-only #agent-plugin-btn {
+    display: flex !important;
+}

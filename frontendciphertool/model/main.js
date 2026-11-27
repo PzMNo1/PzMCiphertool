@@ -5,6 +5,9 @@
 
 (function () {
     let agentRuntime = null;
+    // 每次重新进入网页先显示首页欢迎面板，不自动打开上次会话。
+    let showWelcomeOnFirstAgentInit = true;
+    let welcomePanelActive = false;
     // 默认客户端实例保留给兼容路径；每个并发运行会创建独立客户端。
     let client = null;
 
@@ -1328,6 +1331,7 @@
      * 发送消息
      */
     async function sendMessage() {
+        welcomePanelActive = false;
         // 检查登录状态
         const authUser = checkLogin();
         updateAgentUsageBadge();
@@ -1741,6 +1745,7 @@
      * 加载聊天
      */
     function loadChat(chatId) {
+        welcomePanelActive = false;
         window.historyManager.setCurrentChatId(chatId);
         const messages = window.historyManager.getMessages(chatId);
 
@@ -1784,6 +1789,7 @@
      * 新建聊天
      */
     function newChat(force = false) {
+        welcomePanelActive = false;
         clearAttachments();
         const history = window.historyManager.getChatHistory();
         const currentId = window.historyManager.getCurrentChatId();
@@ -2799,7 +2805,11 @@
             const history = window.historyManager.getChatHistory();
             const currentId = window.historyManager.getCurrentChatId();
             updateHistoryUI();
-            if (!currentId || !history[currentId]) {
+            if (!currentId) {
+                // 首页欢迎面板没有当前会话时，同步只刷新历史列表，不自动打开任何会话。
+                return;
+            }
+            if (!history[currentId]) {
                 const latest = window.historyManager.getSortedHistory(history)[0];
                 if (latest) loadChat(latest.id);
                 else newChat();
@@ -2824,7 +2834,7 @@
         return agentHistorySyncPromise;
     }
 
-    async function refreshAgentForCurrentAccount() {
+    async function refreshAgentForCurrentAccount(options = {}) {
         if (!checkLogin()) {
             window.chatUI.clearMessages();
             selectedChatIds.clear();
@@ -2843,6 +2853,22 @@
         const history = window.historyManager.getChatHistory();
         recoverDurableRunsIntoHistory();
         selectedChatIds.clear();
+        if (!options.showWelcome && welcomePanelActive && !window.historyManager.getCurrentChatId()) {
+            window.chatUI.clearMessages();
+            updateHistoryUI();
+            updateAgentUsageBadge();
+            refreshSendButtonState();
+            return;
+        }
+        if (options.showWelcome) {
+            welcomePanelActive = true;
+            window.historyManager.clearCurrentChatId();
+            window.chatUI.clearMessages();
+            updateHistoryUI();
+            updateAgentUsageBadge();
+            refreshSendButtonState();
+            return;
+        }
         const currentId = window.historyManager.getCurrentChatId();
         if (currentId && history[currentId]) {
             loadChat(currentId);
@@ -2859,6 +2885,8 @@
      * 初始化聊天功能
      */
     function initChatFunctions() {
+        const showWelcome = showWelcomeOnFirstAgentInit;
+        showWelcomeOnFirstAgentInit = false;
         // 初始化 UI
         window.chatUI.init();
 
@@ -2898,7 +2926,7 @@
 
         // 登录后才能加载该账号的历史与 Agent
         startAgentHistorySync();
-        refreshAgentForCurrentAccount();
+        refreshAgentForCurrentAccount({ showWelcome });
     }
 
     /**
