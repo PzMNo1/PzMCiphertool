@@ -50,3 +50,7 @@ mingit_temp/
 # Generated Muse videos (runtime cache; never commit)
 backendcipher/generated-videos/
 generated-videos/
+
+# Background agent job state (runtime data; never commit)
+backendcipher/agent-jobs/
+agent-jobs/

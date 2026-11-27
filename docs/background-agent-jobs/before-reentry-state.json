@@ -1,0 +1,9 @@
+{
+  "msgs": [
+    {
+      "text": "AGENT RUN\nagent\n16 tools\n\n运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。\n\n本地检查点已恢复，可从上次阶段继续。\n继续此任务",
+      "hasRunPanel": true,
+      "hasRecovery": true
+    }
+  ]
+}

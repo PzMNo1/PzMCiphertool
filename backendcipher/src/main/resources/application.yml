@@ -105,6 +105,21 @@ video:
   timeout-seconds: ${VIDEO_TIMEOUT_SECONDS:180}
   storage-dir: ${VIDEO_STORAGE_DIR:generated-videos}
 
+# 后台任务：研报/深度研究（Node 进程复用前端 AgentRuntime）、作图、视频创作。
+# 任务目录是唯一事实来源，进程重启后仍可恢复状态；页面关闭不影响执行。
+agent:
+  jobs:
+    dir: ${AGENT_JOBS_DIR:agent-jobs}
+    retention-days: ${AGENT_JOBS_RETENTION_DAYS:7}
+    max: ${AGENT_JOBS_MAX:300}
+    stale-seconds: ${AGENT_JOBS_STALE_SECONDS:900}
+  worker:
+    script: ${AGENT_WORKER_SCRIPT:agentworker/run-job.js}
+    frontend-root: ${AGENT_WORKER_FRONTEND_ROOT:../frontendciphertool}
+    node: ${AGENT_WORKER_NODE:}
+    model: ${AGENT_WORKER_MODEL:}
+    timeout-ms: ${AGENT_WORKER_TIMEOUT_MS:2700000}
+
 # World Labs / Marble 世界模型（李飞飞团队 World API）
 # Key 只在后端读取，前端一律通过 /api/world/** 代理，避免密钥泄漏。
 world:
