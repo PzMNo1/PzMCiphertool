@@ -1,4 +1,4 @@
-/* PzM Agent 模块顶部滑动按钮（占位） */
+/* PzM Agent 模块顶部滑动入口 */
 
 #hcp-root,
 #hcp-root * {
@@ -17,43 +17,29 @@
     -webkit-font-smoothing: antialiased;
 }
 
-/* 顶部居中、宽 2.4cm 的半透明横线 */
+/* 顶部居中：只保留箭头，按钮本身透明 */
 #hcp-handle {
     position: fixed;
     top: 0;
     left: 50%;
     z-index: 13002;
     width: clamp(76px, 2.4cm, 114px);
-    height: 13px;
+    height: 30px;
     margin: 0;
     padding: 0;
-    border: 1px solid rgba(174, 244, 255, 0.42);
-    border-top: 0;
-    border-radius: 0 0 999px 999px;
-    background:
-        linear-gradient(90deg,
-            rgba(142, 231, 255, 0.04) 0%,
-            rgba(142, 231, 255, 0.48) 24%,
-            rgba(46, 204, 113, 0.34) 52%,
-            rgba(142, 231, 255, 0.46) 80%,
-            rgba(142, 231, 255, 0.04) 100%);
-    box-shadow:
-        0 0 10px rgba(142, 231, 255, 0.34),
-        inset 0 0 7px rgba(255, 255, 255, 0.22);
-    opacity: 0.68;
-    cursor: grab;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+    cursor: pointer;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 4px;
     transform: translateX(-50%);
-    transition: height 0.18s ease, opacity 0.18s ease, transform 0.18s ease,
-        box-shadow 0.18s ease;
-    animation: hcp-breathe 3.8s ease-in-out infinite;
+    transition: transform 0.18s ease, opacity 0.18s ease;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -63,72 +49,63 @@
     left: 0;
     right: 0;
     top: 0;
-    height: 32px;
+    height: 40px;
 }
 
 #hcp-handle:hover,
 #hcp-handle:focus-visible {
-    height: 17px;
-    opacity: 0.96;
-    box-shadow:
-        0 0 18px rgba(142, 231, 255, 0.6),
-        inset 0 0 9px rgba(255, 255, 255, 0.34);
+    opacity: 1;
 }
 
 #hcp-handle:focus-visible {
-    outline: 2px solid rgba(142, 231, 255, 0.8);
+    outline: 1px solid rgba(200, 245, 255, 0.55);
     outline-offset: 2px;
+    border-radius: 6px;
 }
 
 #hcp-handle.is-grabbing {
     cursor: grabbing;
-    opacity: 1;
-    transition: none;
-    animation: none;
-}
-
-.hcp-handle-dots {
-    display: flex;
-    flex-direction: row;
-    gap: 4px;
-}
-
-.hcp-handle-dots i {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 0 4px rgba(255, 255, 255, 0.85);
 }
 
 .hcp-handle-arrow {
-    width: 6px;
-    height: 6px;
-    border-right: 1.5px solid rgba(255, 255, 255, 0.92);
-    border-bottom: 1.5px solid rgba(255, 255, 255, 0.92);
-    filter: drop-shadow(0 0 3px rgba(142, 231, 255, 0.9));
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid rgba(232, 248, 255, 0.92);
+    border-bottom: 1.5px solid rgba(232, 248, 255, 0.92);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
     transform: rotate(45deg) translate(-1px, -1px);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+#hcp-handle:hover .hcp-handle-arrow,
+#hcp-handle:focus-visible .hcp-handle-arrow {
+    border-color: #ffffff;
+}
+
+#hcp-handle.is-active .hcp-handle-arrow {
+    border-color: #56e2a6;
+    transform: rotate(225deg) translate(-1px, -1px);
 }
 
 .hcp-handle-hint {
     position: fixed;
-    top: 23px;
+    top: 34px;
     left: 50%;
     z-index: 13002;
     max-width: 210px;
-    padding: 6px 11px;
-    border: 1px solid rgba(142, 231, 255, 0.34);
-    border-radius: 999px;
-    background: rgba(4, 12, 19, 0.9);
-    color: #c9f4ff;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: rgba(224, 246, 255, 0.88);
     font-size: 11px;
     letter-spacing: 0.04em;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transform: translateX(-50%) translateY(-6px);
+    transform: translateX(-50%) translateY(-4px);
     transition: opacity 0.22s ease, transform 0.22s ease;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 #hcp-root.hcp-hint-on .hcp-handle-hint,
@@ -138,25 +115,18 @@
     transform: translateX(-50%) translateY(0);
 }
 
-@keyframes hcp-breathe {
-    0%, 100% {
-        opacity: 0.62;
-        box-shadow: 0 0 8px rgba(142, 231, 255, 0.28), inset 0 0 6px rgba(255, 255, 255, 0.18);
-    }
-    50% {
-        opacity: 0.86;
-        box-shadow: 0 0 16px rgba(142, 231, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.28);
-    }
+#hcp-root.hcp-engineering .hcp-handle-hint {
+    color: #d7ffe8;
 }
 
 @media (max-width: 760px) {
     #hcp-handle {
         width: clamp(80px, 2.4cm, 110px);
-        height: 12px;
+        height: 26px;
     }
 
     .hcp-handle-hint {
-        top: 21px;
+        top: 30px;
         font-size: 10px;
     }
 }
@@ -168,11 +138,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #hcp-handle {
-        animation: none;
-    }
-
     #hcp-handle,
+    .hcp-handle-arrow,
     .hcp-handle-hint {
         transition-duration: 0.01ms !important;
     }
@@ -185,27 +152,3 @@ body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="image"],
 body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="video"] {
     display: none !important;
 }
-
-#hcp-handle.is-active {
-    border-color: rgba(46, 204, 113, 0.78);
-    background:
-        linear-gradient(90deg,
-            rgba(46, 204, 113, 0.05) 0%,
-            rgba(46, 204, 113, 0.58) 30%,
-            rgba(142, 231, 255, 0.42) 66%,
-            rgba(46, 204, 113, 0.06) 100%);
-    box-shadow:
-        0 0 14px rgba(46, 204, 113, 0.58),
-        inset 0 0 7px rgba(220, 255, 236, 0.3);
-    opacity: 0.9;
-}
-
-#hcp-handle.is-active .hcp-handle-arrow {
-    transform: rotate(225deg) translate(-1px, -1px);
-}
-
-#hcp-root.hcp-engineering .hcp-handle-hint {
-    border-color: rgba(46, 204, 113, 0.4);
-    color: #d7ffe8;
-}
-

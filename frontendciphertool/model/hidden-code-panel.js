@@ -15,6 +15,15 @@
     const BODY_CLASS = 'pzm-engineering-mode';
     const PULL_THRESHOLD = 26;
 
+    // 工程模式只在当前页面会话内保持；重新进入网页自动回到普通模式。
+    try {
+        if (localStorage.getItem(MODE_STORAGE_KEY) === '1') {
+            localStorage.setItem(MODE_STORAGE_KEY, '0');
+        }
+    } catch (error) {
+        // Ignore unavailable storage.
+    }
+
     const state = {
         drag: null,
         hintTimer: 0,
@@ -31,7 +40,6 @@
             <button id="hcp-handle" class="hcp-handle" type="button"
                 aria-label="进入工程模式" aria-pressed="false"
                 title="进入工程模式">
-                <span class="hcp-handle-dots" aria-hidden="true"><i></i><i></i><i></i></span>
                 <span class="hcp-handle-arrow" aria-hidden="true"></span>
             </button>
             <span id="hcp-handle-hint" class="hcp-handle-hint" aria-hidden="true">进入工程模式</span>

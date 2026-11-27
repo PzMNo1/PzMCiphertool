@@ -357,6 +357,14 @@ class HistoryManager {
         localStorage.setItem(this.CURRENT_CHAT_KEY, chatId);
     }
 
+    clearCurrentChatId() {
+        try {
+            localStorage.removeItem(this.CURRENT_CHAT_KEY);
+        } catch (error) {
+            // Ignore unavailable storage.
+        }
+    }
+
     createNewChat() {
         const chatId = (this.isEngineeringMode() ? 'eng_chat_' : 'chat_') + Date.now();
         this.setCurrentChatId(chatId);
