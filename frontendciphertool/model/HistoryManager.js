@@ -7,6 +7,7 @@ class HistoryManager {
     constructor() {
         this.LEGACY_STORAGE_KEY = 'chatHistory';
         this.LEGACY_CURRENT_CHAT_KEY = 'currentChatId';
+        this.ENGINEERING_MODE_KEY = 'pzm_agent_engineering_mode_v1';
         this.MAX_REASONING_CHARS = 8000;
         this.MAX_TOOL_ARGUMENT_CHARS = 800;
         this.MAX_AGENT_EVENTS = 400;
@@ -32,24 +33,48 @@ class HistoryManager {
         }
     }
 
+    isEngineeringMode() {
+        try {
+            return localStorage.getItem(this.ENGINEERING_MODE_KEY) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    setEngineeringMode(enabled) {
+        try {
+            localStorage.setItem(this.ENGINEERING_MODE_KEY, enabled ? '1' : '0');
+        } catch (error) {
+            // Local storage may be unavailable; keep the previous mode.
+        }
+        return this.isEngineeringMode();
+    }
+
     get STORAGE_KEY() {
-        return `chatHistory::${this.getAccountScope()}`;
+        const scope = this.getAccountScope();
+        return this.isEngineeringMode()
+            ? `chatHistory::${scope}::engineering`
+            : `chatHistory::${scope}`;
     }
 
     get CURRENT_CHAT_KEY() {
-        return `currentChatId::${this.getAccountScope()}`;
+        const scope = this.getAccountScope();
+        return this.isEngineeringMode()
+            ? `currentChatId::${scope}::engineering`
+            : `currentChatId::${scope}`;
     }
 
     getChatHistory() {
+        const engineering = this.isEngineeringMode();
         let history = localStorage.getItem(this.STORAGE_KEY);
-        if (history) {
+        if (history && !engineering) {
             try {
                 localStorage.removeItem(this.LEGACY_STORAGE_KEY);
             } catch (error) {
                 // Ignore stale legacy cleanup failures.
             }
         }
-        if (!history && this.getAccountScope() !== 'guest') {
+        if (!history && !engineering && this.getAccountScope() !== 'guest') {
             const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
             if (legacy) {
                 history = this.migrateLegacyHistory(legacy) || legacy;
@@ -135,6 +160,9 @@ class HistoryManager {
     }
 
     async syncFromBackend(options = {}) {
+        if (this.isEngineeringMode()) {
+            return { remoteChanged: false, reason: 'engineering-mode' };
+        }
         const force = Boolean(options.force);
         const checkVersion = Boolean(options.checkVersion);
         const user = window.CipherAuth?.getUser?.() || null;
@@ -210,6 +238,7 @@ class HistoryManager {
     }
 
     async pushHistoryToBackend(history) {
+        if (this.isEngineeringMode()) return false;
         if (!window.CipherAuth?.getUser?.()?.token) return false;
         if (!history || typeof history !== 'object') return false;
         try {
@@ -231,6 +260,7 @@ class HistoryManager {
     }
 
     scheduleBackendSync(history) {
+        if (this.isEngineeringMode()) return;
         if (!window.CipherAuth?.getUser?.()?.token) return;
         if (this.backendSyncTimer) {
             clearTimeout(this.backendSyncTimer);

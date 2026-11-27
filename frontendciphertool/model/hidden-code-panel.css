@@ -177,3 +177,35 @@
         transition-duration: 0.01ms !important;
     }
 }
+
+/* 工程模式：只隐藏作图 / 视频创作入口，其余界面保持原样 */
+body.pzm-engineering-mode #image-mode-toggle,
+body.pzm-engineering-mode #video-mode-toggle,
+body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="image"],
+body.pzm-engineering-mode .agent-welcome-mode[data-agent-mode="video"] {
+    display: none !important;
+}
+
+#hcp-handle.is-active {
+    border-color: rgba(46, 204, 113, 0.78);
+    background:
+        linear-gradient(90deg,
+            rgba(46, 204, 113, 0.05) 0%,
+            rgba(46, 204, 113, 0.58) 30%,
+            rgba(142, 231, 255, 0.42) 66%,
+            rgba(46, 204, 113, 0.06) 100%);
+    box-shadow:
+        0 0 14px rgba(46, 204, 113, 0.58),
+        inset 0 0 7px rgba(220, 255, 236, 0.3);
+    opacity: 0.9;
+}
+
+#hcp-handle.is-active .hcp-handle-arrow {
+    transform: rotate(225deg) translate(-1px, -1px);
+}
+
+#hcp-root.hcp-engineering .hcp-handle-hint {
+    border-color: rgba(46, 204, 113, 0.4);
+    color: #d7ffe8;
+}
+

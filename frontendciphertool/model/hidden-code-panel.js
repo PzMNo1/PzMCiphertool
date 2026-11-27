@@ -1,8 +1,9 @@
 /*!
- * PzM Agent 模块顶部滑动按钮（占位）
+ * PzM Agent 模块顶部滑动入口
  *
- * 按用户要求，产物工作区面板与全部功能已删除；这里只保留顶部居中的
- * 半透明横线入口，向下拖动有回弹反馈，点击显示“暂未开放”提示。
+ * 顶部居中的半透明横线按钮同时是「工程模式」开关：
+ * 点击或向下拖动进入 / 退出工程模式。工程模式只切换 Agent 的会话历史，
+ * 并隐藏作图、视频创作入口，不新增任何面板。
  */
 (function () {
     'use strict';
@@ -10,11 +11,16 @@
     if (window.__PZM_HIDDEN_CODE_PANEL__) return;
     window.__PZM_HIDDEN_CODE_PANEL__ = true;
 
+    const MODE_STORAGE_KEY = 'pzm_agent_engineering_mode_v1';
+    const BODY_CLASS = 'pzm-engineering-mode';
+    const PULL_THRESHOLD = 26;
+
     const state = {
         drag: null,
         hintTimer: 0,
         els: null,
-        visibilityObserver: null
+        visibilityObserver: null,
+        mode: false
     };
 
     function buildRoot() {
@@ -23,12 +29,12 @@
         root.className = 'hcp-root hcp-module-hidden';
         root.innerHTML = `
             <button id="hcp-handle" class="hcp-handle" type="button"
-                aria-label="编程面板入口（暂未开放）"
-                title="编程面板（暂未开放）">
+                aria-label="进入工程模式" aria-pressed="false"
+                title="进入工程模式">
                 <span class="hcp-handle-dots" aria-hidden="true"><i></i><i></i><i></i></span>
                 <span class="hcp-handle-arrow" aria-hidden="true"></span>
             </button>
-            <span id="hcp-handle-hint" class="hcp-handle-hint" aria-hidden="true">编程面板 · 暂未开放</span>
+            <span id="hcp-handle-hint" class="hcp-handle-hint" aria-hidden="true">进入工程模式</span>
         `;
         return root;
     }
@@ -59,18 +65,115 @@
         });
     }
 
-    function showHint() {
+    function readEngineeringMode() {
+        try {
+            if (typeof window.historyManager?.isEngineeringMode === 'function') {
+                return window.historyManager.isEngineeringMode();
+            }
+            return localStorage.getItem(MODE_STORAGE_KEY) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function syncModeUI() {
         if (!state.els) return;
+        state.mode = readEngineeringMode();
+        const { root, handle, hint } = state.els;
+        const label = state.mode ? '退出工程模式' : '进入工程模式';
+        root.classList.toggle('hcp-engineering', state.mode);
+        document.body.classList.toggle(BODY_CLASS, state.mode);
+        handle.classList.toggle('is-active', state.mode);
+        handle.setAttribute('aria-pressed', String(state.mode));
+        handle.setAttribute('aria-label', label);
+        handle.title = label;
+        hint.textContent = state.mode ? '工程模式 · 已开启' : '进入工程模式';
+    }
+
+    function rerenderHistory() {
+        const search = document.getElementById('history-search');
+        if (!search) return;
+        search.value = '';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function selectorValue(value) {
+        const text = String(value || '');
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(text);
+        return text.replace(/["\\]/g, '\\$&');
+    }
+
+    function loadModeChat() {
+        const manager = window.historyManager;
+        let targetId = '';
+        if (manager) {
+            const history = manager.getChatHistory();
+            const currentId = manager.getCurrentChatId();
+            if (currentId && history[currentId]) {
+                targetId = currentId;
+            } else {
+                targetId = manager.getSortedHistory(history)[0]?.id || '';
+            }
+        }
+        if (targetId) {
+            const checkbox = document.querySelector(
+                `#chat-history-list .history-checkbox[data-id="${selectorValue(targetId)}"]`
+            );
+            const item = checkbox?.closest('.history-item');
+            if (item) {
+                item.click();
+                return;
+            }
+        }
+        document.getElementById('new-chat')?.click();
+    }
+
+    function setEngineeringMode(enabled, options = {}) {
+        const manager = window.historyManager;
+        if (!manager || typeof manager.setEngineeringMode !== 'function') {
+            if (!options.silent) showHint('工程模式暂不可用');
+            return false;
+        }
+        const next = Boolean(enabled);
+        if (manager.isEngineeringMode() === next) {
+            syncModeUI();
+            return next;
+        }
+        manager.setEngineeringMode(next);
+        syncModeUI();
+        const activeModeToggle = document.querySelector('#image-mode-toggle.active, #video-mode-toggle.active');
+        if (activeModeToggle) activeModeToggle.click();
+        rerenderHistory();
+        window.requestAnimationFrame(() => {
+            loadModeChat();
+            if (!options.silent) showHint(next ? '已进入工程模式' : '已退出工程模式');
+        });
+        return next;
+    }
+
+    function showHint(text) {
+        if (!state.els) return;
+        if (text) state.els.hint.textContent = text;
         state.els.root.classList.add('hcp-hint-on');
         window.clearTimeout(state.hintTimer);
         state.hintTimer = window.setTimeout(() => {
-            if (state.els) state.els.root.classList.remove('hcp-hint-on');
+            if (state.els) {
+                state.els.root.classList.remove('hcp-hint-on');
+                state.els.hint.textContent = state.mode ? '工程模式 · 已开启' : '进入工程模式';
+            }
         }, 2200);
     }
 
     function hideHint() {
         window.clearTimeout(state.hintTimer);
-        if (state.els) state.els.root.classList.remove('hcp-hint-on');
+        if (state.els) {
+            state.els.root.classList.remove('hcp-hint-on');
+            state.els.hint.textContent = state.mode ? '工程模式 · 已开启' : '进入工程模式';
+        }
+    }
+
+    function toggleEngineeringMode() {
+        setEngineeringMode(!state.mode);
     }
 
     function bindDrag() {
@@ -101,20 +204,25 @@
             state.drag = null;
             handle.classList.remove('is-grabbing');
             handle.style.transform = '';
-            if (!cancelled && !drag.moved) showHint();
+            if (cancelled) return;
+            if (!drag.moved || drag.dy >= PULL_THRESHOLD) toggleEngineeringMode();
         };
         handle.addEventListener('pointerup', (event) => finish(event, false));
         handle.addEventListener('pointercancel', (event) => finish(event, true));
         handle.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                showHint();
+                toggleEngineeringMode();
             }
         });
     }
 
     function init() {
-        if (document.getElementById('hcp-root')) return true;
+        if (document.getElementById('hcp-root')) {
+            syncModeUI();
+            syncVisibility();
+            return true;
+        }
         if (!document.getElementById('damoxing-container')) return false;
         const root = buildRoot();
         // 挂到 body：Agent 容器带有 z-index 堆叠上下文，会让入口被侧边栏/悬浮球盖住。
@@ -126,6 +234,7 @@
         };
         bindDrag();
         observeVisibility();
+        syncModeUI();
         syncVisibility();
         return true;
     }
