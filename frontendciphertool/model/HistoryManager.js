@@ -50,23 +50,26 @@ class HistoryManager {
         return this.isEngineeringMode();
     }
 
-    get STORAGE_KEY() {
+    getModeStorageKey(engineering) {
         const scope = this.getAccountScope();
-        return this.isEngineeringMode()
-            ? `chatHistory::${scope}::engineering`
-            : `chatHistory::${scope}`;
+        return engineering ? `chatHistory::${scope}::engineering` : `chatHistory::${scope}`;
+    }
+
+    getModeCurrentChatKey(engineering) {
+        const scope = this.getAccountScope();
+        return engineering ? `currentChatId::${scope}::engineering` : `currentChatId::${scope}`;
+    }
+
+    get STORAGE_KEY() {
+        return this.getModeStorageKey(this.isEngineeringMode());
     }
 
     get CURRENT_CHAT_KEY() {
-        const scope = this.getAccountScope();
-        return this.isEngineeringMode()
-            ? `currentChatId::${scope}::engineering`
-            : `currentChatId::${scope}`;
+        return this.getModeCurrentChatKey(this.isEngineeringMode());
     }
 
-    getChatHistory() {
-        const engineering = this.isEngineeringMode();
-        let history = localStorage.getItem(this.STORAGE_KEY);
+    readHistoryByMode(engineering) {
+        let history = localStorage.getItem(this.getModeStorageKey(engineering));
         if (history && !engineering) {
             try {
                 localStorage.removeItem(this.LEGACY_STORAGE_KEY);
@@ -89,11 +92,51 @@ class HistoryManager {
         }
     }
 
+    getChatHistory() {
+        return this.readHistoryByMode(this.isEngineeringMode());
+    }
+
+    combineHistories(normal, engineering) {
+        const combined = {};
+        Object.entries(normal || {}).forEach(([chatId, chat]) => {
+            if (!chat || typeof chat !== 'object') return;
+            const { engineeringMode, ...rest } = chat;
+            combined[chatId] = rest;
+        });
+        Object.entries(engineering || {}).forEach(([chatId, chat]) => {
+            if (!chat || typeof chat !== 'object') return;
+            combined[chatId] = { ...chat, engineeringMode: true };
+        });
+        return combined;
+    }
+
+    splitCombinedHistory(combined) {
+        const normal = {};
+        const engineering = {};
+        Object.entries(combined || {}).forEach(([chatId, chat]) => {
+            if (!chat || typeof chat !== 'object') return;
+            if (chat.engineeringMode === true) {
+                const copy = { ...chat };
+                delete copy.engineeringMode;
+                engineering[chatId] = copy;
+            } else {
+                normal[chatId] = chat;
+            }
+        });
+        return { normal, engineering };
+    }
+
+    buildCombinedHistory() {
+        return this.combineHistories(this.readHistoryByMode(false), this.readHistoryByMode(true));
+    }
+
     migrateLegacyHistory(legacy) {
+        const storageKey = this.getModeStorageKey(false);
+        const currentKey = this.getModeCurrentChatKey(false);
         try {
             // 旧版共享历史的键只迁移一次，先删旧键再写新键，避免双份数据撑爆 localStorage。
             localStorage.removeItem(this.LEGACY_STORAGE_KEY);
-            localStorage.setItem(this.STORAGE_KEY, legacy);
+            localStorage.setItem(storageKey, legacy);
         } catch (error) {
             try {
                 if (!localStorage.getItem(this.LEGACY_STORAGE_KEY)) {
@@ -108,14 +151,14 @@ class HistoryManager {
 
         try {
             const legacyCurrent = localStorage.getItem(this.LEGACY_CURRENT_CHAT_KEY);
-            if (legacyCurrent && !localStorage.getItem(this.CURRENT_CHAT_KEY)) {
-                localStorage.setItem(this.CURRENT_CHAT_KEY, legacyCurrent);
+            if (legacyCurrent && !localStorage.getItem(currentKey)) {
+                localStorage.setItem(currentKey, legacyCurrent);
             }
             localStorage.removeItem(this.LEGACY_CURRENT_CHAT_KEY);
         } catch (error) {
             console.warn('Failed to migrate legacy chat pointer.', error);
         }
-        return localStorage.getItem(this.STORAGE_KEY);
+        return localStorage.getItem(storageKey);
     }
 
     resolveBackendHistoryUrl() {
@@ -160,9 +203,6 @@ class HistoryManager {
     }
 
     async syncFromBackend(options = {}) {
-        if (this.isEngineeringMode()) {
-            return { remoteChanged: false, reason: 'engineering-mode' };
-        }
         const force = Boolean(options.force);
         const checkVersion = Boolean(options.checkVersion);
         const user = window.CipherAuth?.getUser?.() || null;
@@ -194,31 +234,38 @@ class HistoryManager {
                 if (!result?.success) return { remoteChanged: false, reason: 'result' };
                 if (account) this.syncedAccount = account;
                 const remote = result.data;
+                const currentEngineering = this.isEngineeringMode();
+                const localNormal = this.readHistoryByMode(false);
+                const localEngineering = this.readHistoryByMode(true);
                 if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
-                    const local = this.getChatHistory();
-                    const merged = this.mergeHistory(local, remote);
-                    const remoteChanged = this.summarizeHistory(merged) !== this.summarizeHistory(local);
-                    if (!this.storeHistoryLocally(merged)) {
+                    const remoteSplit = this.splitCombinedHistory(remote);
+                    const mergedNormal = this.mergeHistory(localNormal, remoteSplit.normal);
+                    const mergedEngineering = this.mergeHistory(localEngineering, remoteSplit.engineering);
+                    if (!this.storeHistoryLocallyForMode(false, mergedNormal)
+                        || !this.storeHistoryLocallyForMode(true, mergedEngineering)) {
                         return { remoteChanged: false, reason: 'storage' };
                     }
+                    const currentBefore = currentEngineering
+                        ? this.summarizeHistory(localEngineering)
+                        : this.summarizeHistory(localNormal);
+                    const currentAfter = currentEngineering
+                        ? this.summarizeHistory(mergedEngineering)
+                        : this.summarizeHistory(mergedNormal);
+                    const mergedCombined = this.combineHistories(mergedNormal, mergedEngineering);
                     if (checkedVersion !== null) this.lastRemoteVersion = checkedVersion;
-                    if (this.summarizeHistory(merged) !== this.summarizeHistory(remote)) {
-                        this.scheduleBackendSync(merged);
+                    if (this.summarizeHistory(mergedCombined) !== this.summarizeHistory(remote)) {
+                        this.scheduleBackendSync();
                     }
                     localStorage.removeItem(this.LEGACY_STORAGE_KEY);
                     if (this.lastRemoteVersion === null) {
                         this.lastRemoteVersion = await this.fetchBackendHistoryVersion();
                     }
-                    return { remoteChanged, hasRemote: true };
+                    return { remoteChanged: currentAfter !== currentBefore, hasRemote: true };
                 }
-                let local = localStorage.getItem(this.STORAGE_KEY);
-                if (!local) {
-                    const legacy = localStorage.getItem(this.LEGACY_STORAGE_KEY);
-                    if (legacy) local = this.migrateLegacyHistory(legacy);
-                }
-                if (local) {
+                const local = this.buildCombinedHistory();
+                if (Object.keys(local).length) {
                     try {
-                        await this.pushHistoryToBackend(JSON.parse(local));
+                        await this.pushCombinedHistoryToBackend();
                     } catch (error) {
                         // Keep local history when the initial upload fails.
                     }
@@ -237,10 +284,18 @@ class HistoryManager {
         return this.backendSyncPromise;
     }
 
-    async pushHistoryToBackend(history) {
-        if (this.isEngineeringMode()) return false;
+    async pushCombinedHistoryToBackend(unsavedCurrentHistory = null) {
         if (!window.CipherAuth?.getUser?.()?.token) return false;
-        if (!history || typeof history !== 'object') return false;
+        let payload;
+        if (unsavedCurrentHistory && typeof unsavedCurrentHistory === 'object') {
+            const engineering = this.isEngineeringMode();
+            payload = this.combineHistories(
+                engineering ? this.readHistoryByMode(false) : unsavedCurrentHistory,
+                engineering ? unsavedCurrentHistory : this.readHistoryByMode(true)
+            );
+        } else {
+            payload = this.buildCombinedHistory();
+        }
         try {
             const response = await fetch(this.resolveBackendHistoryUrl(), {
                 method: 'POST',
@@ -248,7 +303,7 @@ class HistoryManager {
                     ...this.getBackendAuthHeaders(),
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ history })
+                body: JSON.stringify({ history: payload })
             });
             if (!response.ok) return false;
             const result = await response.json().catch(() => null);
@@ -259,15 +314,23 @@ class HistoryManager {
         }
     }
 
+    async pushHistoryToBackend(history) {
+        // 账号历史是一个整包；这里始终推送普通 + 工程两套，避免互相覆盖。
+        return this.pushCombinedHistoryToBackend(
+            history && typeof history === 'object' ? history : null
+        );
+    }
+
     scheduleBackendSync(history) {
-        if (this.isEngineeringMode()) return;
         if (!window.CipherAuth?.getUser?.()?.token) return;
         if (this.backendSyncTimer) {
             clearTimeout(this.backendSyncTimer);
         }
         this.backendSyncTimer = setTimeout(() => {
             this.backendSyncTimer = null;
-            this.pushHistoryToBackend(history);
+            this.pushCombinedHistoryToBackend(
+                history && typeof history === 'object' ? history : null
+            );
         }, 1200);
     }
 
@@ -295,7 +358,7 @@ class HistoryManager {
     }
 
     createNewChat() {
-        const chatId = 'chat_' + Date.now();
+        const chatId = (this.isEngineeringMode() ? 'eng_chat_' : 'chat_') + Date.now();
         this.setCurrentChatId(chatId);
         return chatId;
     }
@@ -492,35 +555,32 @@ class HistoryManager {
 
     persistHistory(history) {
         const payload = history && typeof history === 'object' ? history : {};
-        let synced = payload;
         let saved = this.tryPersistHistory(payload);
         if (!saved) {
             const compacted = this.buildQuotaSafeHistory(payload, true);
-            if (compacted) {
-                saved = this.tryPersistHistory(compacted);
-                if (saved) synced = compacted;
-            }
+            if (compacted) saved = this.tryPersistHistory(compacted);
         }
         if (!saved) {
             const stripped = this.buildQuotaSafeHistory(payload, false);
-            if (stripped) {
-                saved = this.tryPersistHistory(stripped);
-                if (saved) synced = stripped;
-            }
+            if (stripped) saved = this.tryPersistHistory(stripped);
         }
         if (!saved) {
             console.warn('Chat history was not persisted to local storage: quota exceeded.');
         }
-        this.scheduleBackendSync(synced);
+        this.scheduleBackendSync(saved ? null : payload);
         return saved;
     }
 
     storeHistoryLocally(history) {
-        if (this.tryPersistHistory(history)) return true;
+        return this.storeHistoryLocallyForMode(this.isEngineeringMode(), history);
+    }
+
+    storeHistoryLocallyForMode(engineering, history) {
+        if (this.tryPersistHistoryForMode(engineering, history)) return true;
         const compacted = this.buildQuotaSafeHistory(history, true);
-        if (compacted && this.tryPersistHistory(compacted)) return true;
+        if (compacted && this.tryPersistHistoryForMode(engineering, compacted)) return true;
         const stripped = this.buildQuotaSafeHistory(history, false);
-        if (stripped && this.tryPersistHistory(stripped)) return true;
+        if (stripped && this.tryPersistHistoryForMode(engineering, stripped)) return true;
         return false;
     }
 
@@ -594,8 +654,12 @@ class HistoryManager {
     }
 
     tryPersistHistory(payload) {
+        return this.tryPersistHistoryForMode(this.isEngineeringMode(), payload);
+    }
+
+    tryPersistHistoryForMode(engineering, payload) {
         try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+            localStorage.setItem(this.getModeStorageKey(engineering), JSON.stringify(payload));
             return true;
         } catch (error) {
             return false;
