@@ -1,13 +1,14 @@
 /**
  * AgentRuntime - front-end agent orchestration layer.
  *
- * 执行链路：route（模型判定交付档位）→ plan →（并行专家面板）→ act/observe（补缺）→ 长文合成 → 交付校验
+ * 执行链路：route（模型判定交付档位）→ plan 与（并行专家面板）同时开场 → act/observe（补缺）→ 长文合成 → 交付校验
  *
  * 关键设计：
  * - 交付档位由模型自己判断（一次轻量路由调用），本地词表只在这次调用失败时兜底；
  *   档位决定篇幅/表格/图表/引用下限，以及并行专家面板的规模与维度。
  * - 检索主体由 AgentExpertPanel 并行承担：每个专家跑自己的完整工具循环，墙钟时间从
- *   「所有轮次之和」变成「最慢那个专家的耗时」。
+ *   「所有轮次之和」变成「最慢那个专家的耗时」。专家面板不等计划写完才启动：开场即与
+ *   计划调用并行，计划只作为主循环的参考文本。
  * - 主模型循环退化为"补缺与交叉验证"，轮次大幅压缩；最终长篇交付物由独立合成 pass 产出，
  *   并做交付校验（不达标则补充一次），因此不会再出现"模型自己决定写多短"。
  */
@@ -490,10 +491,13 @@ class AgentRuntime {
         
         runState.metrics.context_chars = this.estimateContextChars(agentMessages);
 
-        // 【Plan】由模型先出执行计划（真正的模型决策，而非硬策略状态机）
+        // 【Plan】与【Collaborate】并行开场：
+        // 计划只是主循环的参考文本，专家研究本身不依赖它。开场时先把专家面板放出去跑，
+        // 计划调用同时进行，省掉「等计划写完专家才开始」的串行等待。
         let routeResolved = false;
-        if (plan.selectedTools.length) {
+        const planPass = (async () => {
             try {
+                if (!plan.selectedTools.length) return;
                 // 记录 LLM 调用开始
                 const planCallId = this.performanceMonitor
                     ? this.performanceMonitor.beginLLMCall('plan')
@@ -550,8 +554,11 @@ class AgentRuntime {
                 }
             } catch (error) {
                 console.warn('Plan call failed, continuing without a pre-plan.', error);
+            } finally {
+                // 计划一落定就把 Plan 阶段收尾；专家的并行检索此时可以继续跑。
+                this.ui.setAgentStage(container, 'plan', 'done', '计划完成');
             }
-        }
+        })();
 
         // 【Collaborate】并行专家研究面板
         // 关键区别：每位专家跑自己的完整工具循环，Promise 并行走；
@@ -639,7 +646,8 @@ class AgentRuntime {
             }
         }
 
-        this.ui.setAgentStage(container, 'plan', 'done', '计划完成');
+        // 专家面板与计划调用在开场并行；这里收口计划的参考文本再进入主循环。
+        await planPass;
 
         // 【Route】由模型在工具循环里自主路由：第一个工具调用到达时才标记路由完成
         this.ui.setAgentStage(container, 'route', 'active', '等待模型路由');
