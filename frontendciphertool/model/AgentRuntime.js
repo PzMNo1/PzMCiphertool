@@ -97,11 +97,20 @@ class AgentRuntime {
      */
     createExpertClient() {
         try {
-            if (typeof this.clientFactory === 'function') return this.clientFactory();
+            const usageTurnId = String(this.client?.usageTurnId || '');
+            if (typeof this.clientFactory === 'function') {
+                const client = this.clientFactory();
+                // 后台任务里 clientFactory 会直接 new 一个客户端；不带上同一个 usageTurn，
+                // 专家面板的每次调用都会被算成新的一次 Agent 使用，额度会被瞬间打空。
+                if (client && usageTurnId && typeof client.beginUsageTurn === 'function' && !client.usageTurnId) {
+                    client.beginUsageTurn(usageTurnId);
+                }
+                return client;
+            }
             if (window.DeepSeekClient) {
                 const client = new window.DeepSeekClient();
-                if (this.client?.usageTurnId && typeof client.beginUsageTurn === 'function') {
-                    client.beginUsageTurn(this.client.usageTurnId);
+                if (usageTurnId && typeof client.beginUsageTurn === 'function') {
+                    client.beginUsageTurn(usageTurnId);
                 }
                 return client;
             }
@@ -356,19 +365,48 @@ class AgentRuntime {
         return contract;
     }
 
-    async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null, toolContext = null, onRunSnapshot = null, signal = null }) {
+    /**
+     * 复用调用方已经判好的交付档位（页面在提交后台任务前会先做同一次路由）。
+     * 只接受已知档位，避免把任意外部字符串当成契约；同时同步 lastRouting，
+     * 保证运行面板里的「档位判定」轨迹与真实交付口径一致。
+     */
+    adoptRoutingContract(hint) {
+        if (!hint || !this.researchContract) return null;
+        const tier = String(hint.tier || '').trim();
+        if (!['chat', 'brief', 'report', 'deep_research'].includes(tier)) return null;
+        const contract = this.researchContract.contractFor(tier, {
+            reasons: hint.reason ? ['模型判定：' + hint.reason] : ['沿用提交端档位判定']
+        });
+        contract.dimensions = Array.isArray(hint.dimensions) ? hint.dimensions.slice(0, 24) : [];
+        this.lastRouting = {
+            source: 'model',
+            tier: contract.tier,
+            tierLabel: contract.tierLabel,
+            reason: hint.reason || '沿用提交端档位判定',
+            dimensions: contract.dimensions
+        };
+        return contract;
+    }
+
+    async run({ messages, userMessage, enableThinking, toolEnabled, hasAttachments = false, container, contextPack = null, toolContext = null, onRunSnapshot = null, signal = null, routingContract = null }) {
         const plan = this.createPlan(userMessage, { toolEnabled, hasAttachments, messages });
         const runState = this.createRunState(plan, contextPack, toolContext, userMessage);
         runState.uiContainer = container;
         runState.onSnapshot = typeof onRunSnapshot === 'function' ? onRunSnapshot : null;
 
-        // 交付档位由模型判定（模型同时给出研究维度），本地词表只在调用失败时兜底
-        let contract = await this.decideContract(userMessage, {
-            mode: plan.mode,
-            toolEnabled: Boolean(toolEnabled),
-            deepThink: Boolean(enableThinking),
-            signal
-        });
+        // 交付档位由模型判定（模型同时给出研究维度），本地词表只在调用失败时兜底。
+        // 页面提交后台任务前已经做过同一次路由时直接复用，既省一次模型调用，
+        // 也避免「前端判成后台、后台又判回对话」的档位漂移。
+        let contract = this.adoptRoutingContract(routingContract || this.__predecidedContract);
+        this.__predecidedContract = null;
+        if (!contract) {
+            contract = await this.decideContract(userMessage, {
+                mode: plan.mode,
+                toolEnabled: Boolean(toolEnabled),
+                deepThink: Boolean(enableThinking),
+                signal
+            });
+        }
         if (contract && !this.harnessAllows(plan, 'deliverable')) contract = null;
         plan.contract = contract;
         runState.contract = contract;

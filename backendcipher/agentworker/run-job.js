@@ -516,6 +516,9 @@ async function main() {
             toolContext: payload.toolContext || null,
             container: workerContainer,
             signal: controller.signal,
+            // 页面提交任务前已经做过档位路由（并据此决定移交后台），这里沿用同一结果，
+            // 避免后台再判一次档位导致「提交时是研究报告、执行时又变成对话」。
+            routingContract: payload.routingHint || null,
             onRunSnapshot: (snapshot, meta = {}) => {
                 if (!snapshot) return;
                 if (meta.content !== undefined) {
