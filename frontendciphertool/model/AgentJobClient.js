@@ -32,6 +32,7 @@
     const HIDDEN_POLL_INTERVAL_MS = 6000;
     const ACTIVE_REFRESH_MS = 4000;
     const RESUME_RETRY_MS = 5000;
+    const RECOVERY_PLACEHOLDER_TEXT = '运行已恢复到本地检查点。可以继续此任务，系统会带上上次的 AgentRun 状态。';
 
     function keyOf(chatId, messageId) {
         return `${chatId || ''}::${messageId || ''}`;
@@ -544,14 +545,19 @@
         let container = rendered;
         try {
             const message = window.historyManager?.getMessage?.(view.chatId, view.messageId);
+            // 后台任务接手时不能再把「已恢复到本地检查点」的占位正文留在回答里，
+            // 否则面板在跑，正文却还写着运行已中断。
+            const storedContent = String(message?.content || '');
+            const cleanContent = storedContent === RECOVERY_PLACEHOLDER_TEXT ? '' : storedContent;
             if (message && rendered?.element?.parentElement) {
-                const clean = { ...message, status: 'running', agent_run: null, tool_calls: null, images: [], videos: [] };
+                const clean = { ...message, status: 'running', content: cleanContent, agent_run: null, tool_calls: null, images: [], videos: [] };
                 const fresh = ORIGINAL_DISPLAY_MESSAGE.call(chatUI, clean);
                 rendered.element.replaceWith(fresh.element);
                 container = fresh;
             }
             window.historyManager?.updateMessage?.(view.chatId, view.messageId, {
                 status: 'running',
+                content: cleanContent,
                 resume_prompt: undefined,
                 error_message: undefined
             });
@@ -639,6 +645,95 @@
         applyTerminalJob(record, rendered, chatUI);
     }
 
+    /**
+     * 「继续此任务」：不再把整段 checkpoint 说明塞进输入框、当成新的用户消息发出去。
+     *
+     * 优先接上同一条消息仍在跑的后台任务；没有对应任务时，用同一个 assistant 消息
+     * 直接提交续跑任务，checkpoint 只作为模型内部上下文。界面上看到的仍然是
+     * 上次中断的那条回答在继续，而不是多出一条长文用户消息。
+     */
+    async function resumeMessage({ chatId, message, rendered }) {
+        if (!message || !chatId) return false;
+        const messageId = message.message_id || message.id;
+        if (!messageId) return false;
+        if (!isLoggedIn() || !refreshAvailability()) return false;
+        const chatUI = resolveChatUI();
+        const existing = getJobRecord(chatId, messageId);
+        if (existing) {
+            if (!isTerminal(existing.view?.status)) {
+                attachRunningJob(existing, rendered, chatUI);
+                return true;
+            }
+            loadTerminalAndApply(existing, rendered, chatUI);
+            return true;
+        }
+        const resumePrompt = String(message.resume_prompt || '').trim() || buildInternalResumePrompt(message);
+        const messages = buildResumeMessages(chatId, messageId);
+        messages.push({ role: 'user', content: resumePrompt });
+        const payload = {
+            messages,
+            userMessage: resumePrompt,
+            enableThinking: true,
+            toolEnabled: true,
+            hasAttachments: false,
+            contextPack: null,
+            toolContext: null,
+            // 续跑沿用中断前的交付档位：对话档不要突然拉起并行专家，
+            // 研报档也不要降成一段普通回答。
+            routingHint: buildCheckpointRoutingHint(message),
+            usageTurnId: `resume_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+        };
+        let view = null;
+        try {
+            view = await submitJob('agent', chatId, messageId, payload);
+        } catch (error) {
+            console.warn('[AgentJobClient] 续跑任务提交失败', error);
+            return false;
+        }
+        const record = getJobRecord(chatId, messageId);
+        if (!record || !view) return false;
+        await attachRunningJob(record, rendered, chatUI);
+        return true;
+    }
+
+    function buildCheckpointRoutingHint(message) {
+        const events = message?.agent_run?.events;
+        if (!Array.isArray(events)) return null;
+        const planEvent = events.slice().reverse().find(event => event?.type === 'plan.created');
+        const payload = planEvent?.payload || {};
+        const routing = payload.routing || {};
+        const tier = String(payload.deliverable_tier || routing.tier || '').trim();
+        if (!tier) return null;
+        return {
+            tier,
+            dimensions: Array.isArray(routing.dimensions) ? routing.dimensions.slice(0, 24) : [],
+            reason: '沿用中断前的档位判定'
+        };
+    }
+
+    function buildInternalResumePrompt(message) {
+        const preview = String(message?.content || '').trim().slice(0, 1200);
+        return [
+            '继续这个中断的 Agent 任务，从上次中断的位置接着完成；不要重新开始，也不要重复已经完成的检索和写作。',
+            preview ? '上次输出预览：' + preview : ''
+        ].filter(Boolean).join('\n');
+    }
+
+    function buildResumeMessages(chatId, messageId) {
+        const history = window.historyManager?.getMessages?.(chatId) || [];
+        const result = [];
+        for (const item of history) {
+            if (item.role !== 'user' && item.role !== 'assistant') continue;
+            const id = item.message_id || item.id;
+            if (id === messageId) break;
+            const content = String(item.content || '').trim();
+            if (!content) continue;
+            result.push({ role: item.role, content: content.slice(0, 8000) });
+        }
+        // 续跑只需要最近的上下文；旧对话不要把任务请求撑得过大。
+        return result.slice(-16);
+    }
+
     async function resumeAllJobs() {
         if (!isLoggedIn()) return;
         const list = await fetchActiveJobs(true);
@@ -698,27 +793,44 @@
     /* 研究型 run：提交后台任务并驱动同一个 ChatUI                           */
     /* ------------------------------------------------------------------ */
 
-    function classifyTier(options) {
+    /**
+     * 与真实运行使用同一次模型路由来判定交付档位。
+     *
+     * 之前的实现用本地词表 classify() 预判，词表把「最近几次深空探测的新发现」
+     * 这类没有研究关键词的问题判成对话档，于是长任务留在页面里执行；用户退出
+     * 网页后页面进程被销毁，任务就中断了。真实运行随后由模型判成研究报告档，
+     * 但那时已经没有后台任务可接。这里提前做同一次路由，判档口径与运行完全一致。
+     */
+    async function decideRunContract(runtime, options) {
+        if (!runtime || typeof runtime.decideContract !== 'function') return null;
         try {
-            const contract = window.agentResearchContract
-                || (window.AgentResearchContract ? new window.AgentResearchContract() : null);
-            if (!contract || typeof contract.classify !== 'function') return null;
-            return contract.classify({
-                query: String(options.userMessage || ''),
-                mode: options.toolEnabled ? 'agent' : 'chat',
-                toolEnabled: Boolean(options.toolEnabled),
-                deepThink: Boolean(options.enableThinking)
+            return await runtime.decideContract(options.userMessage, {
+                mode: options.toolEnabled === false ? 'chat' : 'agent',
+                toolEnabled: options.toolEnabled !== false,
+                deepThink: options.enableThinking !== false,
+                signal: options.signal,
+                client: options.client || runtime.client
             });
         } catch (error) {
             return null;
         }
     }
 
-    function shouldRunInBackground(options) {
-        if (!options || !options.toolEnabled) return false;
-        const contract = classifyTier(options);
-        if (!contract) return false;
-        return contract.tier !== 'chat';
+    function buildRoutingHint(contract) {
+        if (!contract || !contract.tier) return null;
+        return {
+            tier: contract.tier,
+            tierLabel: contract.tierLabel || '',
+            dimensions: Array.isArray(contract.dimensions) ? contract.dimensions.slice(0, 24) : [],
+            reason: String(contract.reason || '').slice(0, 240)
+        };
+    }
+
+    function shouldRunInBackground(contract, options = {}) {
+        // 只有启用工具的研究型运行才需要后台进程；关掉工具的对话档留在页面里，
+        // 保持原来的低延迟路径。
+        if (options.toolEnabled === false) return false;
+        return Boolean(contract && contract.tier && contract.tier !== 'chat');
     }
 
     function buildAgentPayload(options) {
@@ -731,7 +843,10 @@
             contextPack: options.contextPack || null,
             toolContext: options.toolContext || null,
             runConfig: window.PZM_AGENT_RUN_CONFIG || null,
-            agentStyle: window.PZM_AGENT_STYLE || null
+            agentStyle: window.PZM_AGENT_STYLE || null,
+            // 提交前的路由调用已经用这个 turn 计过额度，后台进程复用同一个 turn，
+            // 否则一次任务会被算成两次（真实用户额度只有每天 2 次）。
+            usageTurnId: String(options.usageTurnId || '')
         };
     }
 
@@ -802,10 +917,7 @@
         if (!Runtime || Runtime.__agentJobPatched) return Boolean(Runtime);
         const originalRun = Runtime.prototype.run;
         Runtime.prototype.run = async function patchedRun(options = {}) {
-            if (!refreshAvailability() || !STATE.enabled) {
-                return originalRun.call(this, options);
-            }
-            if (!shouldRunInBackground(options)) {
+            if (!refreshAvailability() || !STATE.enabled || !isLoggedIn()) {
                 return originalRun.call(this, options);
             }
             const chatId = currentChatId();
@@ -813,9 +925,20 @@
             if (!chatId || !running) {
                 return originalRun.call(this, options);
             }
+            // 先判档位再决定在哪里执行。chat 档复用这次判定留在页面；研究档交给后台进程，
+            // 页面关掉/刷新都不会中断任务。
+            const contract = await decideRunContract(this, options);
+            const routingHint = buildRoutingHint(contract);
+            if (!shouldRunInBackground(contract, options)) {
+                if (contract) this.__predecidedContract = contract;
+                return originalRun.call(this, options);
+            }
             let submitted = false;
             try {
-                const view = await submitJob('agent', chatId, running.messageId, buildAgentPayload(options));
+                const payload = buildAgentPayload(options);
+                payload.routingHint = routingHint;
+                payload.usageTurnId = String(options.usageTurnId || this.client?.usageTurnId || '');
+                const view = await submitJob('agent', chatId, running.messageId, payload);
                 submitted = true;
                 const record = getJobRecord(chatId, running.messageId);
                 if (!record) throw new JobUnavailableError('任务登记失败');
@@ -828,7 +951,10 @@
             } catch (error) {
                 // 只在“任务还没提交成功”时回退到前端执行；任务已经在后台跑起来之后的失败
                 // 不能再跑第二遍（会重复消耗模型额度）。
-                if (!submitted) return originalRun.call(this, options);
+                if (!submitted) {
+                    if (contract) this.__predecidedContract = contract;
+                    return originalRun.call(this, options);
+                }
                 throw error;
             }
         };
@@ -1058,6 +1184,7 @@
         get: getJob,
         active: fetchActiveJobs,
         resume: resumeAllJobs,
+        resumeMessage,
         cancel: cancelJob,
         isEnabled: () => STATE.enabled,
         getJobForMessage: (chatId, messageId) => getJobRecord(chatId, messageId)?.view || null,

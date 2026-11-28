@@ -1101,6 +1101,9 @@
         if (!rendered?.element || msg?.role !== 'assistant' || msg.status !== 'recoverable') return;
         if (!msg.resume_prompt && !msg.durable_run_id) return;
         if (rendered.element.querySelector('.agent-recovery-actions')) return;
+        // 这条消息对应的后台任务还在跑（或刚跑完）时，运行面板会/已经接管，
+        // 不要再显示「本地检查点」的继续按钮，避免用户误以为任务已中断。
+        if (window.AgentJobClient?.getJobForMessage?.(chatId, msg.message_id || msg.id)) return;
 
         const actions = document.createElement('div');
         actions.className = 'agent-recovery-actions';
@@ -1111,14 +1114,31 @@
         resume.type = 'button';
         resume.className = 'agent-recovery-btn';
         resume.textContent = '继续此任务';
-        resume.addEventListener('click', () => {
+        resume.addEventListener('click', async () => {
+            if (resume.disabled) return;
             getDurableStore()?.markResumed?.(msg.durable_run_id);
+            window.historyManager.setCurrentChatId(chatId);
+            // 后台任务可用时直接续跑同一条回答：checkpoint 只作为模型内部上下文，
+            // 不再把整段说明塞进输入框、显示成一条新的长文用户消息。
+            if (window.AgentJobClient?.resumeMessage) {
+                resume.disabled = true;
+                try {
+                    const handled = await window.AgentJobClient.resumeMessage({
+                        chatId,
+                        message: msg,
+                        rendered
+                    });
+                    if (handled) return;
+                } catch (error) {
+                    console.warn('Agent job resume failed, falling back to local resume prompt.', error);
+                }
+                resume.disabled = false;
+            }
             const input = document.getElementById('user-input');
             if (input) {
                 input.value = msg.resume_prompt || buildFallbackResumePrompt(msg);
                 input.focus();
             }
-            window.historyManager.setCurrentChatId(chatId);
             sendMessage();
         });
         actions.append(label, resume);
